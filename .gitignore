@@ -1,3 +1,7 @@
 plots/
 *.root
+error
+output
+log
+
 
