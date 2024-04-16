@@ -1,0 +1,12 @@
+executable = /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/run_convertion.sh
+
+log=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/log/filter_$(range_start)_$(range_end).log
+output=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/output/filter_$(range_start)_$(range_end).log
+error=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/error/filter_$(range_start)_$(range_end).log
+
+should_transfer_files = Yes
+request_CPUs = 1
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "longlunch"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue
