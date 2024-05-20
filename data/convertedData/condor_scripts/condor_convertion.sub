@@ -1,12 +1,13 @@
-executable = /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/run_convertion.sh
 
-log=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/log/filter_$(range_start)_$(range_end).log
-output=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/output/filter_$(range_start)_$(range_end).log
-error=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/error/filter_$(range_start)_$(range_end).log
+executable = /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/run_convertion.sh
+arguments = $(input_dir) $(output_dir) $(range_start) $(range_end)
+log=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/log/convert_$(particles)_$(range_start)_$(range_end).log
+output=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/output/convert_$(particles)_$(range_start)_$(range_end).log
+error=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/error/convert_$(particles)_$(range_start)_$(range_end).log
 
 should_transfer_files = Yes
 request_CPUs = 1
 #+AccountingGroup = "group_u_SNDLHC.users"
-+JobFlavour = "longlunch"
++JobFlavour = "workday"
 requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
-queue
+queue particles, input_dir, output_dir, range_start, range_end from /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/toy.list

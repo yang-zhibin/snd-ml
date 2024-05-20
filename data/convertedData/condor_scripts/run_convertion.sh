@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# recoMuon
-# INPUT_DIR=$1
-# BASE_OUT_DIR=$2
-# RUN_RANGE_START=$3
-# RUN_RANGE_END=$4
-# CUT_SET=4
+#recoMuon
+INPUT_DIR=$1
+BASE_OUT_DIR=$2
+RUN_RANGE_START=$3
+RUN_RANGE_END=$4
+CUT_SET=0
 
-INPUT_DIR="/eos/experiment/sndlhc/users/marssnd/PGsim/neutrons/neu_5_10_tgtarea/Ntuples/"
-BASE_OUT_DIR="/eos/user/z/zhibin/SND_analysis/test/"
-RUN_RANGE_START=1
-RUN_RANGE_END=5
-CUT_SET=4
+# INPUT_DIR="/eos/experiment/sndlhc/users/marssnd/PGsim/neutrons/neu_5_10_tgtarea/Ntuples/"
+# BASE_OUT_DIR="/eos/user/z/zhibin/SND_analysis/test/"
+# RUN_RANGE_START=1
+# RUN_RANGE_END=5
+# CUT_SET=4
 
  # Set up SND environment
 echo "Setting up SNDSW"
@@ -52,7 +52,7 @@ do
 
     #creat tmp working dir
     mkdir ./convert_rawData/
-    tmp_dir="./convert_rawData/"
+    tmp_dir="convert_rawData"
 
     #full recoMuon  outFileName = options.outPath+filename.replace('.root','_'+runN+'_muonReco.root')
     python $SNDSW_ROOT/shipLHC/run_muonRecoSND.py -f ${input_file} -g ${geo_file} -c passing_mu_DS -sc 1 -s ./${tmp_dir}/ -hf linearSlopeIntercept -o
@@ -63,11 +63,20 @@ do
     neutrinoFilterGoldenSample ${input_file} ./${tmp_dir}/filtered_MC_00${i_run}_stage1.root $CUT_SET
     
     # stage1_reco
-    python ${SNDSW_ROOT}/shipLHC/run_muonRecoSND.py -f ./${tmp_dir}filtered_MC_00${i_run}_stage1.root -g ${geo_file} -c passing_mu_DS -sc 1 -s ./${tmp_dir}/ -hf linearSlopeIntercept -o
+    python ${SNDSW_ROOT}/shipLHC/run_muonRecoSND.py -f ./${tmp_dir}/filtered_MC_00${i_run}_stage1.root -g ${geo_file} -c passing_mu_DS -sc 1 -s ./${tmp_dir}/ -hf linearSlopeIntercept -o
 
     #stage2
-    python ${SNDSW_ROOT}/analysis/neutrinoFilterGoldenSample_stage2.py -f  ./${tmp_dir}/filtered_MC_00${i_run}_stage1.root -t ./${tmp_dir}/filtered_MC_00${i_run}_stage1_muonReco.root -o ./${tmp_dir}/filtered_MC_00${i_run}_stage2.root -g ${geo_file};
+    python ${SNDSW_ROOT}/analysis/neutrinoFilterGoldenSample_stage2.py -f ./${tmp_dir}/filtered_MC_00${i_run}_stage1.root -t ./${tmp_dir}/filtered_MC_00${i_run}_stage1__muonReco.root -o ./${tmp_dir}/filtered_MC_00${i_run}_stage2.root -g ${geo_file};
 	
+    #convert
+    cp /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/EventClasses.h ./
+
+    filename=$(basename "$input_file")
+    base_name="${filename%.root}"
+    muon_out_file="${base_name}__muonReco.root"
+
+    python /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/convert_rawData.py -r ${input_file} -g ${geo_file} -m ./${tmp_dir}/${muon_out_file} -s1 ./${tmp_dir}/filtered_MC_00${i_run}_stage1.root -s2 ./${tmp_dir}/filtered_MC_00${i_run}_stage2.root -o ./${tmp_dir}/${base_name}_converted_00${i_run}.root
+
     #check output directory
     mkdir -p ${BASE_OUT_DIR}/${i_run}/
     xrdcp -f ./${tmp_dir}/* ${BASE_OUT_DIR}/${i_run}/
