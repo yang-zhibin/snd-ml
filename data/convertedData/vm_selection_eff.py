@@ -71,16 +71,18 @@ def read_cut_entry(file_path, n_cut, cuts, stage):
     
     #print(file)
     for i in range(-1, n_cut-1):
-    #    print(i)
-        cut_names = ["numuCC_{}_Enu".format(i)]
-    #    print(cut_names)
-        entry = 0
-        for cut_name in cut_names:
-            hist = file.Get(cut_name)
-            entry += hist.GetEntries()
+        #print(i)
+        cut_name = "numuCC_{}_Enu".format(i)
+        #print(cut_names)
+        hist = file.Get(cut_name)
+        entry = hist.GetEntries()
         cuts[i+1] += entry
     
     file.Close()
+
+    return entry
+
+
 
 
 def cuts_eff(root_path):
@@ -89,6 +91,7 @@ def cuts_eff(root_path):
     total = 0
     stage1_count =0
     stage2_count =0
+    s2 = 0
     stage1_cuts = [0]*9
     stage2_cuts = [0]*8
     count = 0
@@ -114,7 +117,11 @@ def cuts_eff(root_path):
                 read_cut_entry(os.path.join(root_path, partition,file), 9, stage1_cuts, 1)
 
             elif file.endswith('stage2.root'):
-                read_cut_entry(os.path.join(root_path, partition,file), 8, stage2_cuts, 2)
+                s2 += read_cut_entry(os.path.join(root_path, partition,file), 8, stage2_cuts, 2)
+            #print(file)
+            #print("s2 count",stage2_count, s2) 
+
+            
         count+=1
         #if (count>30):
         #    break
@@ -140,6 +147,7 @@ def cuts_eff(root_path):
     eff2 = count2/cuts[0]
     print("A-F, pass cut:{}, eff:{:.4e}".format(count1, eff1) )
     print("A-P, pass cut:{}, eff:{:.4e}".format(count2, eff2) )
+    print("boolean count{}, eff:{:.4e}".format(stage2_count, stage2_count/cuts[0]), )
 
 
 
