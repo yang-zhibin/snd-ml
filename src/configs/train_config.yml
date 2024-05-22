@@ -1,0 +1,10 @@
+# dataset
+datapath:
+  - /eos/user/z/zhibin/sndData/converted/toy_dataset/Neutrinos
+  - /eos/user/z/zhibin/sndData/converted/toy_dataset/neutrons
+  - /eos/user/z/zhibin/sndData/converted/toy_dataset/kaons
+partition: [8,1,1]
+
+train_list_outpath:
+# train
+
