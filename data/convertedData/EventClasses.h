@@ -1,6 +1,6 @@
 //#ifndef EventClasses_h
 #define EventClasses_h
-
+#include <vector>
 #include "TObject.h"
 
 class Id : public TObject {
@@ -31,6 +31,33 @@ public:
     ClassDef(Label, 1)
 };
 
+class MCTrack {
+public:
+    int trackId;
+    float ratio;
+    int pdgCode;
+    int mother;
+    float px, py, pz; // momentum components
+    float x, y, z;    // start positions
+
+    // Constructor with default values
+    MCTrack(int trackId = 0, float ratio = 0.0, int pdgCode = 0, int mother = 0,
+            float px = 0.0, float py = 0.0, float pz = 0.0,
+            float x = 0.0, float y = 0.0, float z = 0.0)
+    : trackId(trackId), ratio(ratio), pdgCode(pdgCode), mother(mother),
+      px(px), py(py), pz(pz), x(x), y(y), z(z) {}
+
+    // Reset function to reinitialize to default values
+    void reset() {
+        trackId = 0;
+        ratio = 0.0;
+        pdgCode = 0;
+        mother = 0;
+        px = py = pz = 0.0;
+        x = y = z = 0.0;
+    }
+};
+
 
 class Hit : public TObject {
 public:
@@ -39,6 +66,7 @@ public:
     float x2, y2, z2; // coordinates of the other end
     int detType;      // detector type 1: scifi, 2: us, 3: ds
     float hitTime;    // time of the hit
+    std::vector<MCTrack> tracks;
 
     Hit(bool orientation = true, 
         float x1 = 0.0, float y1 = 0.0, float z1 = 0.0,
@@ -49,11 +77,13 @@ public:
       x1(x1), y1(y1), z1(z1), 
       x2(x2), y2(y2), z2(z2), 
       detType(detType), 
-      hitTime(hitTime) {
-    }
+      hitTime(hitTime){}
 
     virtual ~Hit() {}
-
+    
+    void addTrack(const MCTrack& track) {
+        tracks.push_back(track);
+    }
     ClassDef(Hit, 1)
 };
 
