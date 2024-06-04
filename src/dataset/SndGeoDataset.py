@@ -23,13 +23,13 @@ class SndGeoDataset(InMemoryDataset):
 
         #return [path]
         return [path]
-
+    
     def process(self):
         all_event = []
         for file in self.raw_file_names:
             events = torch.load(file)
             for evt in events:
-                #print(evt)
+                print(evt)
                 hit_feature = evt.hitFeature
                 event_feature = evt.eventFeatures
                 pdgCode = evt.pdgCode
@@ -51,11 +51,17 @@ class SndGeoDataset(InMemoryDataset):
                 
                 hit_feature = hit_feature.T
                 event_feature = event_feature.T
+                print(hit_feature.shape)
+                print(hit_feature)
+                print(event_feature.shape)
+                print(event_feature)
+
+
                 
 
-                all_event.append(Data(x=hit_feature, x_e=event_feature, y=y, ids =[pdgCode, runId, eventId] ))
+                all_event.append(Data(x=hit_feature, x2=event_feature, y=y, ids =[pdgCode, runId, eventId] ))
         #print(all_event.shape)
 
         self.save(all_event, self.processed_paths[0])
        
-
+    
