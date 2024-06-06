@@ -29,21 +29,22 @@ def main(args):
     stage2_tree = stage2.Get('cbmsim')
 
     recoMuon = ROOT.TFile(args.recoMuon_path, 'read')
+
     recoMuon_tree = recoMuon.Get('cbmsim')
     
-
-    out_file = ROOT.TFile(args.out_path, "RECREATE")
+    open_mode = args.mode
+    out_file = ROOT.TFile(args.out_path, args.mode)
     new_tree = ROOT.TTree('cbmsim', 'converted cbmsim tree')
 
     ROOT.gROOT.ProcessLine(".L EventClasses.h+")
-    
+
     ids = ROOT.Id()
     labels = ROOT.Label()
     hits = ROOT.TClonesArray("Hit")
     scifiCluster = ROOT.TClonesArray("ScifiCluster")
     reco_Muon = ROOT.TClonesArray("RecoMuon")
     vm_selection = ROOT.VM_Selection()
-    
+
 
     new_tree.Branch("Id", ids)
     new_tree.Branch("Label", labels)
@@ -51,17 +52,15 @@ def main(args):
     new_tree.Branch("ScifiCluster", scifiCluster)
     new_tree.Branch("RecoMuon", reco_Muon)
     new_tree.Branch("VmSeclection", vm_selection)
-
     stage1_list = []
     for event in stage1_tree:
         stage1_list.append(event.EventHeader.GetEventNumber())
-
     stage2_list = []
+    #print('debug1')
+
     for event in stage2_tree:
-
         stage2_list.append(event.EventHeader.GetEventNumber())
-
-
+    print(recoMuon_tree.GetEntries())
     for i_event, event in enumerate(raw_tree):
         # reset
         hits.Clear()
@@ -76,7 +75,9 @@ def main(args):
         event_pdg0 = event.MCTrack[0].GetPdgCode()
         event_pdg1 = event.MCTrack[1].GetPdgCode()
         
-        if event_pdg0 == event_pdg1:
+        neutrino_pdgCode = [12, -12, 14, -14, 16, -16]
+        
+        if (event_pdg0 == event_pdg1) and (event_pdg0 in neutrino_pdgCode):
             labels.pdgCode = event_pdg0 - 100 if event_pdg0 < 0 else event_pdg0 + 100
         else:
             labels.pdgCode = event_pdg0
@@ -101,23 +102,33 @@ def main(args):
             vm_selection.stage2 = 0
 
         #reconstructed muon tracks
-        if (recoMuon_tree.GetEntries()>0):
-            recoMuon_tree.GetEntry(i_event)
-            muonTrack = recoMuon_tree.Reco_MuonTracks
-            if(len(muonTrack)>1):
-                j=0
-                for track in muonTrack:
-                    mom = track.getFittedState().getMom()
-                    pos = track.getFittedState().getPos()
-                    
-                    recoMuonTrack = reco_Muon.ConstructedAt(j)
-                    j+=1
-                    recoMuonTrack.px, recoMuonTrack.py, recoMuonTrack.pz = mom.X(), mom.Y(), mom.Z()
-                    recoMuonTrack.x, recoMuonTrack.y, recoMuonTrack.z = pos.X(), pos.Y(), pos.Z()
-
+        #print('recoMu N:', recoMuon_tree.GetEntry(i_event))
+        recoMuon_tree.GetEntry(i_event)
+        #print(recoMuon_tree)
+        muonTrack = recoMuon_tree.Reco_MuonTracks
+        #print(muonTrack)
+        #print(dir(muonTrack))
+        if(len(muonTrack)>=1):
+            j=0
+            for track in muonTrack:
+                mom = track.getTrackMom()
+                pos = track.getStart()
+                
+                recoMuonTrack = reco_Muon.ConstructedAt(j)
+                j+=1
+                recoMuonTrack.px = mom.x()
+                recoMuonTrack.py = mom.y() 
+                recoMuonTrack.pz = mom.z()
+                recoMuonTrack.x = pos.x() 
+                recoMuonTrack.y =  pos.y()
+                recoMuonTrack.z = pos.z()
+                print(mom.x(), mom.y(), mom.z(),recoMuonTrack.px, recoMuonTrack.py, recoMuonTrack.pz)
+                print(pos.x(), pos.y(), pos.z(),recoMuonTrack.x, recoMuonTrack.y, recoMuonTrack.z)
+            #print(recoMuonTrack)
             #hits
        
         i_hit = 0
+        #scifiHit2MC =event.Digi_ScifiHits2MCPoints
         for aHit in event.Digi_ScifiHits:
             detID = aHit.GetDetectorID()
             Scifi.GetSiPMPosition(detID, A, B)
@@ -131,6 +142,7 @@ def main(args):
             hit.detType = 1 # 1: scifi, 2: us, 3: ds
             hit.hitTime = aHit.GetTime()
 
+        #muFilterHit2MC =event.Digi_MuFilterHits2MCPoints
         for aHit in event.Digi_MuFilterHits:
             detID = aHit.GetDetectorID()
             Mufi.GetPosition(detID, A, B)
@@ -144,7 +156,9 @@ def main(args):
             hit.detType = detID // 10000 # 1: scifi, 2: us, 3: ds
             hit.hitTime = aHit.GetTime()
 
-
+        #ToDo 
+        #add deposit particle in hits
+        
         new_tree.Fill()
         #if (i_event>5):
         #    break
@@ -161,6 +175,7 @@ if __name__ == "__main__":
     parser.add_argument("-s2", "--stage2_file", dest="stage2_file", help="stage 2 filtered file",required=True)
     parser.add_argument("-g", "--geoFile", dest="geo_file", help="geo file", required=True)
     parser.add_argument("-o", "--outPath", dest="out_path", help="output directory", required=True)
+    parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
 
     args = parser.parse_args()
     
