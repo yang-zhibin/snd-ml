@@ -130,6 +130,8 @@ def main(args):
         i_hit = 0
         #scifiHit2MC =event.Digi_ScifiHits2MCPoints
         for aHit in event.Digi_ScifiHits:
+            if not aHit.isValid(): 
+                continue
             detID = aHit.GetDetectorID()
             Scifi.GetSiPMPosition(detID, A, B)
 
@@ -137,13 +139,15 @@ def main(args):
             i_hit+=1
 
             hit.orientation = aHit.isVertical()
-            hit.x1, hit.y1, hit.z1 = A.x(), A.y(), A.x()
-            hit.x2, hit.y2, hit.z2 = B.x(), B.y(), B.x()
-            hit.detType = 1 # 1: scifi, 2: us, 3: ds
+            hit.x1, hit.y1, hit.z1 = A.x(), A.y(), A.z()
+            hit.x2, hit.y2, hit.z2 = B.x(), B.y(), B.z()
+            hit.detType = 0 # 0: scifi,1: veto, 2: us, 3: ds
             hit.hitTime = aHit.GetTime()
 
         #muFilterHit2MC =event.Digi_MuFilterHits2MCPoints
         for aHit in event.Digi_MuFilterHits:
+            if not aHit.isValid(): 
+                continue
             detID = aHit.GetDetectorID()
             Mufi.GetPosition(detID, A, B)
 
@@ -151,9 +155,9 @@ def main(args):
             i_hit+=1
 
             hit.orientation = aHit.isVertical()
-            hit.x1, hit.y1, hit.z1 = A.x(), A.y(), A.x()
-            hit.x2, hit.y2, hit.z2 = B.x(), B.y(), B.x()
-            hit.detType = detID // 10000 # 1: scifi, 2: us, 3: ds
+            hit.x1, hit.y1, hit.z1 = A.x(), A.y(), A.z()
+            hit.x2, hit.y2, hit.z2 = B.x(), B.y(), B.z()
+            hit.detType = detID // 10000 # 0: scifi, 1: veto, 2: us, 3: ds
             hit.hitTime = aHit.GetTime()
 
         #ToDo 
