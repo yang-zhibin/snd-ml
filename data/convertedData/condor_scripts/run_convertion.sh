@@ -13,15 +13,16 @@ CUT_SET=0
 # RUN_RANGE_END=5
 # CUT_SET=4
 
- # Set up SND environment
+# Set up SND environment
 echo "Setting up SNDSW"
-SNDLHC_mymaster=/afs/cern.ch/work/z/zhibin/public/SNDBuild
+SNDLHC_mymaster=/afs/cern.ch/work/z/zhibin/public/SndBuild
 export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
 source /cvmfs/sndlhc.cern.ch/SNDLHC-2023/Aug30/setUp.sh
 eval `alienv load --no-refresh sndsw/latest`
 
 export EOSSHIP=root://eosuser.cern.ch/
 
+cp /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/EventClasses.h ./
 
 for i_run in `seq ${RUN_RANGE_START} ${RUN_RANGE_END}`
 do
@@ -69,13 +70,12 @@ do
     python ${SNDSW_ROOT}/analysis/neutrinoFilterGoldenSample_stage2.py -f ./${tmp_dir}/filtered_MC_00${i_run}_stage1.root -t ./${tmp_dir}/filtered_MC_00${i_run}_stage1__muonReco.root -o ./${tmp_dir}/filtered_MC_00${i_run}_stage2.root -g ${geo_file};
 	
     #convert
-    cp /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/EventClasses.h ./
 
     filename=$(basename "$input_file")
     base_name="${filename%.root}"
     muon_out_file="${base_name}__muonReco.root"
 
-    python /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/convert_rawData.py -r ${input_file} -g ${geo_file} -m ./${tmp_dir}/${muon_out_file} -s1 ./${tmp_dir}/filtered_MC_00${i_run}_stage1.root -s2 ./${tmp_dir}/filtered_MC_00${i_run}_stage2.root -o ./${tmp_dir}/${base_name}_converted_00${i_run}.root
+    python /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/convert_rawData.py -r ${input_file} -g ${geo_file} -m ./${tmp_dir}/${muon_out_file} -s1 ./${tmp_dir}/filtered_MC_00${i_run}_stage1.root -s2 ./${tmp_dir}/filtered_MC_00${i_run}_stage2.root -o ./${tmp_dir}/${base_name}_converted_00${i_run}.root -p ${i_run} 
 
     #check output directory
     mkdir -p ${BASE_OUT_DIR}/${i_run}/
