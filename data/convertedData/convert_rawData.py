@@ -60,7 +60,7 @@ def main(args):
 
     for event in stage2_tree:
         stage2_list.append(event.EventHeader.GetEventNumber())
-    print(recoMuon_tree.GetEntries())
+    #print(recoMuon_tree.GetEntries())
     for i_event, event in enumerate(raw_tree):
         # reset
         hits.Clear()
@@ -70,6 +70,7 @@ def main(args):
         # ids
         ids.runId = event.EventHeader.GetRunId()
         ids.eventId = event.EventHeader.GetEventNumber()
+        ids.partitionId = args.partition
 
         #labels
         event_pdg0 = event.MCTrack[0].GetPdgCode()
@@ -122,11 +123,16 @@ def main(args):
                 recoMuonTrack.x = pos.x() 
                 recoMuonTrack.y =  pos.y()
                 recoMuonTrack.z = pos.z()
-                print(mom.x(), mom.y(), mom.z(),recoMuonTrack.px, recoMuonTrack.py, recoMuonTrack.pz)
-                print(pos.x(), pos.y(), pos.z(),recoMuonTrack.x, recoMuonTrack.y, recoMuonTrack.z)
+                #print(mom.x(), mom.y(), mom.z(),recoMuonTrack.px, recoMuonTrack.py, recoMuonTrack.pz)
+                #print(pos.x(), pos.y(), pos.z(),recoMuonTrack.x, recoMuonTrack.y, recoMuonTrack.z)
             #print(recoMuonTrack)
             #hits
        
+        scifi_avg_ver = 0
+        scifi_avg_hor = 0
+        scifi_n_ver = 0
+        scifi_n_hor = 0
+
         i_hit = 0
         #scifiHit2MC =event.Digi_ScifiHits2MCPoints
         for aHit in event.Digi_ScifiHits:
@@ -143,7 +149,37 @@ def main(args):
             hit.x2, hit.y2, hit.z2 = B.x(), B.y(), B.z()
             hit.detType = 0 # 0: scifi,1: veto, 2: us, 3: ds
             hit.hitTime = aHit.GetTime()
+            hit.detId = detID
 
+            mat = aHit.GetMat()
+            sipm = aHit.GetSiPM()
+            channel = aHit.GetSiPMChan()
+
+            x = channel + sipm*128 + mat*4*128
+            if (aHit.isVertical()):
+                scifi_avg_ver += x
+                scifi_n_ver += 1
+            else:
+                scifi_avg_hor += x
+                scifi_n_hor += 1
+
+        if (scifi_n_hor):
+            scifi_avg_hor /= scifi_n_hor
+        else:
+            scifi_avg_hor = -1
+        
+        if (scifi_n_ver):
+            scifi_avg_ver /= scifi_n_ver
+        else:
+            scifi_avg_ver = -1
+
+        labels.scifi_avg_ver = scifi_avg_ver
+        labels.scifi_avg_hor = scifi_avg_hor
+
+        DS_avg_ver = 0
+        DS_avg_hor = 0
+        DS_n_ver = 0
+        DS_n_hor = 0
         #muFilterHit2MC =event.Digi_MuFilterHits2MCPoints
         for aHit in event.Digi_MuFilterHits:
             if not aHit.isValid(): 
@@ -157,8 +193,33 @@ def main(args):
             hit.orientation = aHit.isVertical()
             hit.x1, hit.y1, hit.z1 = A.x(), A.y(), A.z()
             hit.x2, hit.y2, hit.z2 = B.x(), B.y(), B.z()
-            hit.detType = detID // 10000 # 0: scifi, 1: veto, 2: us, 3: ds
+            hit.detType = aHit.GetSystem() # 0: scifi, 1: veto, 2: us, 3: ds
             hit.hitTime = aHit.GetTime()
+            hit.detId = detID
+
+            if(aHit.GetSystem() != 3):
+                continue
+            
+            x = detID % 1000
+            if (aHit.isVertical()):
+                DS_avg_ver += x
+                DS_n_ver += 1
+            else:
+                DS_avg_hor += x
+                DS_n_hor += 1
+
+        if (DS_n_hor):
+            DS_avg_hor /= DS_n_hor
+        else:
+            DS_avg_hor = -1
+        
+        if (DS_n_ver):
+            DS_avg_ver /= DS_n_ver
+        else:
+            DS_avg_ver = -1
+
+        labels.DS_avg_ver = DS_avg_ver
+        labels.DS_avg_hor = DS_avg_hor
 
         #ToDo 
         #add deposit particle in hits
@@ -180,6 +241,7 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--geoFile", dest="geo_file", help="geo file", required=True)
     parser.add_argument("-o", "--outPath", dest="out_path", help="output directory", required=True)
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
+    parser.add_argument("-p", "--partition", dest='partition', help='partition as file id', type=int, default=-1)
 
     args = parser.parse_args()
     
