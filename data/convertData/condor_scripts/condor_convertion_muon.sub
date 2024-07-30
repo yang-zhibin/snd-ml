@@ -1,0 +1,13 @@
+
+executable = run_convertion_muon.sh
+arguments = $(input_dir) $(geo_file) $(output_dir) $(partition) $(ClusterId)$(ProcId)
+log =    log/convert_$(particles)_$(partition).$(ClusterId).$(ProcId).log
+output = output/convert_$(particles)_$(partition).$(ClusterId).$(ProcId).log
+error =  error/convert_$(particles)_$(partition).$(ClusterId).$(ProcId).log
+
+should_transfer_files = Yes
+request_CPUs = 4
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "longlunch"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue particles, input_dir, geo_file, output_dir, partition from test.list
