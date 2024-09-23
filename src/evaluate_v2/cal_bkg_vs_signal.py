@@ -189,7 +189,7 @@ def eff_yield_from_model(df,model,signal, score, eff_yield_df, concern_particles
 
     
 
-def adaptive_step_search(df,model, signal, eff_yield_df, concern_particles,start_value=0, end_value=1, initial_step=0.1, tolerance=0.02):
+def adaptive_step_search(df,model, signal, eff_yield_df, concern_particles,start_value=1, end_value=0, initial_step=1e-3, tolerance=0.02):
     print('start adaptive_step_search')
     input_value = start_value
     step_size = initial_step
@@ -199,36 +199,28 @@ def adaptive_step_search(df,model, signal, eff_yield_df, concern_particles,start
 
 
     previous_signal_eff= eff_yield_from_model(df,model,signal,input_value, eff_yield_df,concern_particles)
-    input_value += step_size
+    input_value -= step_size
 
-    while previous_signal_eff > 1e-6:
-        #print("in step",df)
-        signal_eff = eff_yield_from_model(df,model,signal,input_value, eff_yield_df,concern_particles)
-        
-
-        # Adjust step size based on the rate of change of x
-        if (abs(signal_eff - previous_signal_eff) > tolerance and abs(signal_eff - previous_signal_eff) < (tolerance*5)):
-            step_size = max(step_size / 8, 1e-6)  # Decrease step size if change is rapid
-            input_value += step_size
-        elif abs(signal_eff - previous_signal_eff) > (tolerance*5):
-            input_value -= step_size
-            step_size = max(step_size / 10, 1e-6) 
-            input_value += step_size
-            signal_eff = eff_yield_from_model(df,model,signal,input_value, eff_yield_df,concern_particles)
-
-            input_value += step_size
+    while input_value > end_value:
+        if(previous_signal_eff< 0.1):
+            tolerance=0.005
         else:
-            step_size = min(step_size * 1.4, 0.1)  # Increase step size if change is slow
-            input_value += step_size
-        #print(input_value)
+            tolerance=0.05
+        signal_eff = eff_yield_from_model(df,model,signal,input_value, eff_yield_df,concern_particles)
+        if (abs(signal_eff - previous_signal_eff) > tolerance):
+            step_size = step_size * 0.9
+        elif (abs(signal_eff - previous_signal_eff) < tolerance):
+            step_size = step_size * 1.1
 
+        input_value -= step_size
         previous_signal_eff = signal_eff
+
 
         
 
     return 0
 
-def cal_eff_yield(model_output_path, model, signal, eff_yield_df, concern_particles):
+def cal_eff_yield(model_output_path, model, signal, eff_yield_df, concern_particles, initial, begin):
     print("reading output from", model_output_path)
 
     chain = ROOT.TChain("tree")
@@ -248,12 +240,12 @@ def cal_eff_yield(model_output_path, model, signal, eff_yield_df, concern_partic
     signal_class = particle_2_class[signal]
     lowest_score = df.Filter(f'PredClass == {signal_class}').Min(f'Prediction_{signal_class}').GetValue()
 
-    adaptive_step_search(df, model, signal, eff_yield_df, concern_particles, start_value=lowest_score)
+    adaptive_step_search(df, model, signal, eff_yield_df, concern_particles, start_value=begin, end_value=lowest_score, initial_step=initial)
 
 
     return 0
 
-def process(model_list, version, signal):
+def process(model_list, version, signal, initial, begin):
 
     concern_particles = ['ve', 'vm', 'kaon', 'neutron', 'muon']
 
@@ -268,21 +260,22 @@ def process(model_list, version, signal):
 
     print(eff_yield_df)
     for model in model_list:
-        model_output_path = f'/eos/user/z/zhibin/sndData/converted/pt/output/{model}/'
-        cal_eff_yield(model_output_path, model, signal, eff_yield_df, concern_particles)
+        #model_output_path = f'/eos/user/z/zhibin/sndData/converted/pt/output/{model}/'
+        model_output_path = f'./{model}/'
+        cal_eff_yield(model_output_path, model, signal, eff_yield_df, concern_particles, initial, begin)
 
 
     #print(eff_yield_df)
     return eff_yield_df
 
 
-def main(model, signal):
+def main(model, signal, initial, begin):
 
     #model_list = ['baseline', 'weight','normalized_weight', 'intRate_weight','intRate_weightX100','intRate_weightX100^2']
     model_list = [model]
     version = ''
 
-    eff_yield_df = process(model_list, version, signal)
+    eff_yield_df = process(model_list, version, signal, initial, begin)
 
     df = pd.DataFrame(eff_yield_df)
     print(df)
@@ -296,7 +289,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--model", dest="model", default='baseline')
     parser.add_argument("-s", "--signal", dest="signal", default='ve')
+    parser.add_argument("-i", "--initial", dest="initial", type=float, default=1e-4)
+    parser.add_argument("-b", "--begin", dest="begin", type=float, default=1)
     args = parser.parse_args()
-    main(args.model, args.signal)
+    main(args.model, args.signal, args.initial, args.begin)
     #plot(args.signal)
 
