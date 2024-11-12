@@ -104,7 +104,7 @@ def filter_scifi345(veto_and_us_ds,total_count):
 
     no_only_scifi1 = veto_and_us_ds_scifi345.Filter('Label.scifi1 == 0')
     no_only_scifi2 = veto_and_us_ds_scifi345.Filter('Label.scifi2 == 0')
-    no_only_scifi12 = veto_and_us_ds_scifi345.Filter('Label.scifi2 == 0 && Label.scifi2 == 0')
+    no_only_scifi12 = veto_and_us_ds_scifi345.Filter('Label.scifi1 == 0 && Label.scifi2 == 0')
 
     plot_2d_distribution (veto_and_us_ds_scifi345, 'veto_and_us_ds_scifi345', 'Label.scifi_avg_x_pos', 'Label.scifi_avg_y_pos')
     plot_2d_distribution (veto_and_us_ds_scifi345, 'veto_and_us_ds_scifi345','Label.DS_avg_x_pos', 'Label.DS_avg_y_pos')
@@ -158,16 +158,24 @@ def filter_no_us(veto_and_scifi):
 
 def filter_no_ds(veto_and_scifi):
     no_ds1 = veto_and_scifi.Filter(
-        "Label.ds1 == 0 && Label.us1 == 1 && Label.us2 == 1 && Label.us3 == 1 && Label.us4 == 1"
+        "Label.ds1 == 0 && Label.us1 == 1 && Label.us2 == 1 && Label.us3 == 1 && Label.us4 == 1 &&"
+        "(Label.ds2 > 0 && Label.ds2 < 4) && "
+        "(Label.ds3 > 0 && Label.ds3 < 4) && (Label.ds4 > 0 && Label.ds4 < 4)"
     )
     no_ds2 = veto_and_scifi.Filter(
-        "Label.ds2 == 0 && Label.us1 == 1 && Label.us2 == 1 && Label.us3 == 1 && Label.us4 == 1"
+        "Label.ds2 == 0 && Label.us1 == 1 && Label.us2 == 1 && Label.us3 == 1 && Label.us4 == 1 &&"
+        "(Label.ds1 > 0 && Label.ds1 < 4) && "
+        "(Label.ds3 > 0 && Label.ds3 < 4) && (Label.ds4 > 0 && Label.ds4 < 4)"
     )
     no_ds3 = veto_and_scifi.Filter(
-        "Label.ds3 == 0 && Label.us1 == 1 && Label.us2 == 1 && Label.us3 == 1 && Label.us4 == 1"
+        "Label.ds3 == 0 && Label.us1 == 1 && Label.us2 == 1 && Label.us3 == 1 && Label.us4 == 1 &&"
+        "(Label.ds1 > 0 && Label.ds1 < 4) && (Label.ds2 > 0 && Label.ds2 < 4) && "
+        "(Label.ds4 > 0 && Label.ds4 < 4)"
     )
     no_ds4 = veto_and_scifi.Filter(
-        "Label.ds4 == 0 && Label.us1 == 1 && Label.us2 == 1 && Label.us3 == 1 && Label.us4 == 1"
+        "Label.ds4 == 0 && Label.us1 == 1 && Label.us2 == 1 && Label.us3 == 1 && Label.us4 == 1 &&"
+        "(Label.ds1 > 0 && Label.ds1 < 4) && (Label.ds2 > 0 && Label.ds2 < 4) && "
+        "(Label.ds3 > 0 && Label.ds3 < 4) "
     )
 
     print(f'no ds1 count: {no_ds1.Count().GetValue():2e}, ratio: {(no_ds1.Count().GetValue()/veto_and_scifi_count if veto_and_scifi_count != 0 else 0):2e}')
