@@ -3,5 +3,16 @@ plots/
 error
 output
 log
+.pt
+.csv
+wandb/
+lightning_logs/
+test/
+test_data/
+csv*/
+plot*/
+root_output*/
+
+
 
 
