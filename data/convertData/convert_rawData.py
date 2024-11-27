@@ -170,7 +170,7 @@ def process_hits(event, snd_geo, hits):
             scifi_n_ver += 1
         else:
             scifi_avg_hor += x
-            scifi_avg_y_pos = hit.y1
+            scifi_avg_y_pos += hit.y1
             scifi_n_hor += 1
 
     # Process MuFilter hits

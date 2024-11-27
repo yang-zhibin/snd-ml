@@ -136,6 +136,90 @@ def plot_eff_yield(out_dir, eff_yield_df, signal):
     canvas_yield.Draw()
     canvas_yield.SaveAs(f"{out_dir}/{signal}_yield_compare_plot.pdf")
 
+def plot_yield(out_dir, eff_yield_df, signal):
+    groups = eff_yield_df.groupby('model')
+
+    # Define colors and markers for different models
+    colors = [
+    ROOT.kBlue, ROOT.kGreen, ROOT.kMagenta,  ROOT.kCyan,
+    ROOT.kYellow, ROOT.kOrange, ROOT.kViolet, ROOT.kPink, ROOT.kSpring
+    ]
+
+    markers = [
+        21, 22, 23, 24,
+        25, 26, 27, 28, 29
+    ]
+
+    # Loop over groups to create graphs
+    multi_graph_yield = ROOT.TMultiGraph()
+    for i, (name, group) in enumerate(groups):
+        n_points = len(group)
+
+
+        # Yield graph
+        signal_yield = group['signal_yield'].to_numpy()
+        
+        bkg_yield = group['bkg_yield'].to_numpy()
+        graph_yield = ROOT.TGraph(n_points, signal_yield, bkg_yield)
+        graph_yield.SetTitle(name)
+        
+        graph_yield.SetMarkerStyle(markers[i % len(markers)])
+        graph_yield.SetMarkerColor(colors[i % len(colors)])
+        graph_yield.SetLineColor(colors[i % len(colors)])
+        
+        # Add graphs to the multigraphs
+        multi_graph_yield.Add(graph_yield)
+    
+    if signal == 'vm':
+        cutbase = {
+        'model': 'cutbase',
+        'bkg_eff': 1.1097486512757378e-05,
+        'signal_eff': 0.04606038063356271,
+        'bkg_yield': 0.12389623629215483,
+        'signal_yield': 7.23147975946934
+        }
+        cutbase_df = pd.DataFrame([cutbase])
+        n_points = len(cutbase_df)
+        name = 'cut-based'
+        # Convert Pandas Series to numpy arrays
+        signal_yield = cutbase_df['signal_yield'].to_numpy()
+        bkg_yield = cutbase_df['bkg_yield'].to_numpy()
+
+
+        # Yield graph
+        graph_yield = ROOT.TGraph(n_points, signal_yield, bkg_yield)
+        graph_yield.SetTitle(name)
+        
+        graph_yield.SetMarkerStyle(20)
+        graph_yield.SetMarkerColor(ROOT.kRed)
+        graph_yield.SetLineColor(ROOT.kRed)
+        
+        # Add graphs to the multigraphs
+        multi_graph_yield.Add(graph_yield)
+        
+    # Create and save the yield plot
+    canvas_yield = ROOT.TCanvas("c_yield", "Signal vs Background Yield", 800, 600)
+    canvas_yield.SetLogy()
+    canvas_yield.SetLeftMargin(0.15)
+    #multi_graph_yield.SetTitle(f'{signal}')
+    multi_graph_yield.Draw("APL")
+    multi_graph_yield.GetXaxis().SetTitle("Signal Yield")
+    multi_graph_yield.GetYaxis().SetTitle("Neutral Background Yield")
+    multi_graph_yield.SetTitle("Background Yield vs Signal Yield")
+
+    y_axis = multi_graph_yield.GetYaxis()
+    y_axis.SetRangeUser(5e-2, 1)
+
+    #legend_yield = canvas_yield.BuildLegend(0.5, 0.2, 0.8, 0.5)
+    legend_yield = canvas_yield.BuildLegend()
+    legend_yield.SetHeader("Models", "C")
+    legend_yield.SetBorderSize(0)
+
+    canvas_yield.Update()
+    canvas_yield.Draw()
+    canvas_yield.SaveAs(f"{out_dir}/{signal}_yield_compare_plot.pdf")
+
+
 def plot_real_muon(out_dir, eff_yield_df, signal):
     groups = eff_yield_df.groupby('model')
 
@@ -245,7 +329,7 @@ def plot_real_muon(out_dir, eff_yield_df, signal):
     #multi_graph_yield.SetTitle(f'{signal}')
     multi_graph_yield.Draw("APL")
     multi_graph_yield.GetXaxis().SetTitle("Signal Yield")
-    multi_graph_yield.GetYaxis().SetTitle("Muon Yield")
+    multi_graph_yield.GetYaxis().SetTitle("Charged Particle Yield")
     multi_graph_yield.SetTitle("Muon Yield vs Signal Yield")
 
     legend_yield = canvas_yield.BuildLegend(0.5, 0.2, 0.8, 0.5)
@@ -304,7 +388,7 @@ def plot(signal):
     #eff_yield_df = pd.read_csv(csv_path)
 
     df_list = []
-    directory = '/afs/cern.ch/user/z/zhibin/work/snd-ml/src/evaluate_v2/csv_v2/'
+    directory = '/afs/cern.ch/user/z/zhibin/work/snd-ml/src/evaluate_v2/show2/'
     print('signal:', signal)
     # Iterate over all the files in the directory
     for filename in os.listdir(directory):
@@ -319,10 +403,13 @@ def plot(signal):
 
     # Concatenate all dataframes into one
     eff_yield_df = pd.concat(df_list, ignore_index=True)
-    #eff_yield_df['signal_yield']
+    eff_yield_df['signal_yield'] = eff_yield_df[f'{signal}_yield']
+    eff_yield_df['bkg_yield'] = eff_yield_df['kaon_yield'] +  eff_yield_df['neutron_yield']
 
-    out_dir = '/afs/cern.ch/user/z/zhibin/work/snd-ml/src/evaluate_v2/plot/'
-    plot_eff_yield(out_dir, eff_yield_df, signal)
+    out_dir = '/afs/cern.ch/user/z/zhibin/work/snd-ml/src/evaluate_v2/plot_v2/'
+    #plot_eff_yield(out_dir, eff_yield_df, signal)
+    plot_real_muon(out_dir, eff_yield_df, signal)
+    #plot_yield(out_dir, eff_yield_df, signal)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

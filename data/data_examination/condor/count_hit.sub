@@ -1,0 +1,13 @@
+
+executable = count_hit.sh
+arguments = $(partition) $(ClusterId)$(ProcId)
+log =    log/count_hit_$(partition).$(ClusterId).$(ProcId).log
+output = output/count_hit_$(partition).$(ClusterId).$(ProcId).log
+error =  error/count_hit_$(partition).$(ClusterId).$(ProcId).log
+
+should_transfer_files = Yes
+request_CPUs = 1
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "microcentury"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue partition, from count_hit.list

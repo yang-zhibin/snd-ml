@@ -1,0 +1,10 @@
+executable = /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/sndsw_test.sh
+arguments = $(ClusterId)$(ProcId)
+log=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/log/sndsw_test_$(ClusterId).$(ProcId).log
+output=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/output/sndsw_test_$(ClusterId).$(ProcId).log
+error=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/error/sndsw_test_$(ClusterId).$(ProcId).log
+
+should_transfer_files = Yes
+request_CPUs = 1
++JobFlavour = "espresso"
+queue

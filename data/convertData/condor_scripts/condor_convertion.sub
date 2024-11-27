@@ -1,0 +1,13 @@
+
+executable = run_convertion.sh
+arguments = $(input_dir) $(output_dir) $(range_start) $(range_end) $(ClusterId)$(ProcId)
+log =    log/convert_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+output = output/convert_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+error =  error/convert_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+
+should_transfer_files = Yes
+request_CPUs = 1
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "microcentury"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue particles, input_dir, output_dir, range_start, range_end from test.list

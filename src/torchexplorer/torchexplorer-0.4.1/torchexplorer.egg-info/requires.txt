@@ -1,0 +1,16 @@
+torch
+pygraphviz
+wandb
+flask
+numpy
+click
+loguru
+
+[dev]
+torchvision
+lightning
+scikit-learn
+pytest
+pyperclip
+mypy
+twine

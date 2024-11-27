@@ -1,0 +1,56 @@
+aggregation: mean_sum
+aggs:
+- add
+- max
+- mean
+batch_size: 256
+batchnorm: true
+class_weights:
+- 1
+- 1
+concat_all_layers: false
+emb_dims: 16
+factor: 0.93
+feature_dropout: 0.0
+feature_set:
+- Hits.detType
+- Hits.orientation
+- Hits.x1
+- Hits.y1
+- Hits.z1
+- Hits.x2
+- Hits.y2
+- Hits.z2
+final_dropout: 0.1
+global_feature_set:
+- RecoMuon.px
+- RecoMuon.py
+- RecoMuon.pz
+- RecoMuon.x
+- RecoMuon.y
+- RecoMuon.z
+graph_construction: null
+grav_weight: 3.0
+hidden: 32
+hidden_activation: ReLU
+knn: null
+layer_shape: pyramid
+layernorm: false
+lr: 0.003
+max_knn: 16
+n_graph_iters: 3
+n_grav_heads: 1
+nb_classes: 1
+nb_decoder_layer: 3
+nb_encoder_layer: 3
+nb_feature_layer: 3
+nb_spatial_layer: 3
+norm_embedding: false
+norm_hidden: true
+output_activation: null
+patience: 2
+r: 1.0
+rand_k: null
+self_loop: true
+spatial_channels: 14
+spatial_dropout: 0.0

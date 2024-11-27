@@ -16,7 +16,8 @@ particle_to_target = {
         112: 3, -112: 3, 114: 3, -114: 3, 116: 3, -116: 3,
         130: 4, 310: 4,
         2112: 5,
-        13:6, -13:6
+        13:6, -13:6,
+        0:6
 }
 particle_mapping = {
     12: 've', -12: 've',
@@ -25,7 +26,8 @@ particle_mapping = {
     112: 'NC', -112: 'NC', 114: 'NC', -114: 'NC', 116: 'NC', -116: 'NC',
     130: 'kaon', 310: 'kaon',
     2112: 'neutron',
-    13:'muon', -13:'muon'
+    13:'muon', -13:'muon',
+    0:'data'
 }
 
 class RootSaver(Callback):
@@ -61,15 +63,15 @@ class RootSaver(Callback):
         else:
             for i in range(predictions.shape[0]):  # Loop over the batch dimension
                 particle, pdg_code, run_id, event_id, file_id  = ids[i]
-                px,py,pz,pos_x,pos_y,pos_z, stage2= label[i]
+                px,py,pz,pos_x,pos_y,pos_z, stage2,scifi_avg_ver, scifi_avg_hor,DS_avg_ver,DS_avg_hor= label[i]
                 prediction_list = predictions[i].tolist() if predictions.ndim > 1 else [predictions[i]]
-                data_entry = prediction_list + [particle, pdg_code, run_id, event_id, file_id] + [px,py,pz,pos_x,pos_y, pos_z,stage2]
+                data_entry = prediction_list + [particle, pdg_code, run_id, event_id, file_id] + [px,py,pz,pos_x,pos_y, pos_z,stage2,scifi_avg_ver, scifi_avg_hor,DS_avg_ver,DS_avg_hor]
                 # Store all predictions for the current instance together with its identifiers
                 self.data.append(data_entry)
 
     def on_test_epoch_end(self, trainer, pl_module):
         #print(self.data)
-        columns = ['Prediction_{}'.format(i) for i in range(len(self.data[0]) - 12)] + ['particle','PdgCode', 'RunId', 'EventId', "FileId",'px', 'py', 'pz', 'pos_x', 'pos_y', 'pos_z','stage2']
+        columns = ['Prediction_{}'.format(i) for i in range(7)] + ['particle','PdgCode', 'RunId', 'EventId', "FileId",'px', 'py', 'pz', 'pos_x', 'pos_y', 'pos_z','stage2','scifi_avg_ver', 'scifi_avg_hor','DS_avg_ver','DS_avg_hor']
         data_dict = {col: [] for col in columns}
         
         # Populate the dictionary
@@ -100,12 +102,14 @@ class SndGeoDataset(InMemoryDataset):
         self.root = root
         self.weight_type = weight_type
 
-        print("In dataset process",split, file_path)
+        #print("In dataset process",split, file_path)
         if file_path == None:
-            self.path = os.path.join(root, 'input/{}_input.pt'.format(self.split))
+            #os.mkdir('./input/') 
+            #self.path = os.path.join(root, 'input/{}_input.pt'.format(self.split))
+            self.path = './{}_input.pt'.format(self.split)
         else:
             # for condor
-            self.path = './input/{}'.format(os.path.basename(file_path))
+            self.path = './{}'.format(os.path.basename(file_path))
             #self.path = os.path.join(root, 'input/{}'.format(os.path.basename(file_path)))
         # force_reload is not working, manually force rm old processed data
         
@@ -115,7 +119,7 @@ class SndGeoDataset(InMemoryDataset):
             except OSError:
                 pass
         super().__init__(root, transform, pre_transform, pre_filter, force_reload)
-        self.load(self.processed_paths[0])
+        self.load(self.path)
 
     @property
     def raw_file_names(self):
@@ -130,6 +134,7 @@ class SndGeoDataset(InMemoryDataset):
 
     @property
     def processed_file_names(self):
+        print('in processed_file_names',[self.path])
         return [self.path]
     
     def process(self):
@@ -157,11 +162,9 @@ class SndGeoDataset(InMemoryDataset):
                 elif(self.weight_type == 'intRate_weight'):
                     event_weight = evt.intRate_weight
                 elif(self.weight_type == 'intRate_weightX100'):
-                    event_weight = evt.intRate_weightX100
+                    event_weight = evt.intRate_weight * 100
                 elif(self.weight_type == 'intRate_weightX100^2'):
-                    print('testing condor ')
                     event_weight = (evt.weight * 100) * (evt.weight * 100)
-
 
                 px=evt.px
                 py=evt.py
@@ -170,15 +173,19 @@ class SndGeoDataset(InMemoryDataset):
                 pos_y =evt.y
                 pos_z =evt.z
                 stage2 = evt.stage2
+                scifi_avg_ver = evt.scifi_avg_ver
+                scifi_avg_hor = evt.scifi_avg_hor
+                DS_avg_ver = evt.DS_avg_ver
+                DS_avg_hor = evt.DS_avg_hor
                 
                 hit_feature = evt.hitFeature
                 event_feature = evt.eventFeatures
                 hit_feature = hit_feature.T
                 event_feature = event_feature.T      
 
-                all_event.append(Data(x=hit_feature, event_feature=event_feature,  weights = torch.tensor(event_weight), y=torch.tensor(y), ids =[particle,pdgCode, runId, eventId, fileId],label=[px,py,pz,pos_x,pos_y,pos_z,stage2] ))
+                all_event.append(Data(x=hit_feature, event_feature=event_feature,  weights = torch.tensor(event_weight), y=torch.tensor(y), ids =[particle,pdgCode, runId, eventId, fileId],label=[px,py,pz,pos_x,pos_y,pos_z,stage2, scifi_avg_ver, scifi_avg_hor,DS_avg_ver,DS_avg_hor] ))
         #print(all_event.shape)
-
-        self.save(all_event, self.processed_paths[0])
+        print('in process',self.processed_paths[0])
+        self.save(all_event, self.path)
        
     

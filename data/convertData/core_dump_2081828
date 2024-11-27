@@ -1,0 +1,143 @@
+
+Thread 15 (Thread 0x7f71fd811640 (LWP 2081923) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291491c48 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x00007f71ffba0c16 in XrdSysSemaphore::Wait (this=0x55d3efc69b70) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/./XrdSys/XrdSysPthread.hh:509
+#3  XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x55d3efce4b38) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/./XrdCl/XrdClSyncQueue.hh:66
+#4  XrdCl::JobManager::RunJobs (this=0x55d3efce4b20) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f71ffba0cb9 in RunRunnerThread (arg=<optimized out>) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#7  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 14 (Thread 0x7f71fe012640 (LWP 2081922) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291491c48 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x00007f71ffba0c16 in XrdSysSemaphore::Wait (this=0x55d3efc69b70) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/./XrdSys/XrdSysPthread.hh:509
+#3  XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x55d3efce4b38) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/./XrdCl/XrdClSyncQueue.hh:66
+#4  XrdCl::JobManager::RunJobs (this=0x55d3efce4b20) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f71ffba0cb9 in RunRunnerThread (arg=<optimized out>) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#7  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 13 (Thread 0x7f71fe813640 (LWP 2081921) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291491c48 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x00007f71ffba0c16 in XrdSysSemaphore::Wait (this=0x55d3efc69b70) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/./XrdSys/XrdSysPthread.hh:509
+#3  XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x55d3efce4b38) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/./XrdCl/XrdClSyncQueue.hh:66
+#4  XrdCl::JobManager::RunJobs (this=0x55d3efce4b20) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f71ffba0cb9 in RunRunnerThread (arg=<optimized out>) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#7  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 12 (Thread 0x7f71ff014640 (LWP 2081920) "python"):
+#0  0x00007f72914d4075 in clock_nanosleep
+GLIBC_2.2.5 () from /lib64/libc.so.6
+#1  0x00007f72914d8c87 in nanosleep () from /lib64/libc.so.6
+#2  0x00007f71ffc9d618 in XrdSysTimer::Wait (mills=<optimized out>) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdSys/XrdSysTimer.cc:239
+#3  0x00007f71ffb200f0 in XrdCl::TaskManager::RunTasks (this=0x55d3efce1a60) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdCl/XrdClTaskManager.cc:246
+#4  0x00007f71ffb201d9 in RunRunnerThread (arg=<optimized out>) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdCl/XrdClTaskManager.cc:38
+#5  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#6  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 11 (Thread 0x7f71ff815640 (LWP 2081919) "python"):
+#0  0x00007f729150e21e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f71ffc97cf2 in XrdSys::IOEvents::PollE::Begin (this=0x55d3efc6fcc0, syncsem=<optimized out>, retcode=<optimized out>, eTxt=<optimized out>) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/./XrdSys/XrdSysIOEventsPollE.icc:212
+#2  0x00007f71ffc9473d in XrdSys::IOEvents::BootStrap::Start (parg=0x7ffc08c31330) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f71ffc9cd18 in XrdSysThread_Xeq (myargs=0x55d3efd56290) at /home/sndco/SNDBUILD-truf/sw/BUILD/f166e00be08513a8d0d2a177ba347ac77f46ef72/XRootD/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#5  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 10 (Thread 0x7f725a593640 (LWP 2081914) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291488fa0 in pthread_cond_wait
+
+GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f726cfb66fb in blas_thread_server () from /afs/cern.ch/user/z/zhibin/.local/lib/python3.9/site-packages/numpy/core/../../numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+#3  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#4  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 9 (Thread 0x7f725ed94640 (LWP 2081913) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291488fa0 in pthread_cond_wait
+
+GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f726cfb66fb in blas_thread_server () from /afs/cern.ch/user/z/zhibin/.local/lib/python3.9/site-packages/numpy/core/../../numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+#3  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#4  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 8 (Thread 0x7f725f595640 (LWP 2081912) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291488fa0 in pthread_cond_wait
+
+GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f726cfb66fb in blas_thread_server () from /afs/cern.ch/user/z/zhibin/.local/lib/python3.9/site-packages/numpy/core/../../numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+#3  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#4  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 7 (Thread 0x7f7261d96640 (LWP 2081911) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291488fa0 in pthread_cond_wait
+
+GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f726cfb66fb in blas_thread_server () from /afs/cern.ch/user/z/zhibin/.local/lib/python3.9/site-packages/numpy/core/../../numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+#3  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#4  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 6 (Thread 0x7f7266597640 (LWP 2081910) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291488fa0 in pthread_cond_wait
+
+GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f726cfb66fb in blas_thread_server () from /afs/cern.ch/user/z/zhibin/.local/lib/python3.9/site-packages/numpy/core/../../numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+#3  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#4  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 5 (Thread 0x7f7266d98640 (LWP 2081909) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291488fa0 in pthread_cond_wait
+
+GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f726cfb66fb in blas_thread_server () from /afs/cern.ch/user/z/zhibin/.local/lib/python3.9/site-packages/numpy/core/../../numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+#3  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#4  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 4 (Thread 0x7f726b599640 (LWP 2081908) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291488fa0 in pthread_cond_wait
+
+GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f726cfb66fb in blas_thread_server () from /afs/cern.ch/user/z/zhibin/.local/lib/python3.9/site-packages/numpy/core/../../numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+#3  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#4  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 3 (Thread 0x7f726bd9a640 (LWP 2081907) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291488fa0 in pthread_cond_wait
+
+GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f726cfb66fb in blas_thread_server () from /afs/cern.ch/user/z/zhibin/.local/lib/python3.9/site-packages/numpy/core/../../numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+#3  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#4  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 2 (Thread 0x7f726c59b640 (LWP 2081906) "python"):
+#0  0x00007f729148679a in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f7291488fa0 in pthread_cond_wait
+
+GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f726cfb66fb in blas_thread_server () from /afs/cern.ch/user/z/zhibin/.local/lib/python3.9/site-packages/numpy/core/../../numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+#3  0x00007f7291489c02 in start_thread () from /lib64/libc.so.6
+#4  0x00007f729150ec40 in clone3 () from /lib64/libc.so.6
+
+Thread 1 (Thread 0x7f7291c37740 (LWP 2081828) "python"):
+#0  0x00007f72914d8a3f in wait4 () from /lib64/libc.so.6
+#1  0x00007f729144b243 in do_system () from /lib64/libc.so.6
+#2  0x00007f7290ef9ccc in TUnixSystem::Exec (shellcmd=<optimized out>, this=0x55d3dd5bb460) at /home/sndco/SNDBUILD-truf/sw/SOURCES/ROOT/v6-28-04/v6-28-04/core/unix/src/TUnixSystem.cxx:2104
+#3  TUnixSystem::StackTrace (this=0x55d3dd5bb460) at /home/sndco/SNDBUILD-truf/sw/SOURCES/ROOT/v6-28-04/v6-28-04/core/unix/src/TUnixSystem.cxx:2395
+#4  0x00007f71ffe1e399 in FairLogger::LogFatalMessage () at /home/sndco/SNDBUILD-truf/sw/SOURCES/FairRoot/v18.4.9/v18.4.9/fairtools/FairLogger.cxx:195
+#5  0x00007f71ffde82b4 in std::function<void ()>::operator()() const (this=0x7f71ffe11720 <fair::Logger::fFatalCallback>) at /usr/include/c++/11/bits/std_function.h:590
+#6  fair::Logger::~Logger (this=0x7ffc08c31980, __in_chrg=<optimized out>) at /home/sndco/SNDBUILD-truf/sw/SOURCES/FairLogger/v1.9.0/v1.9.0/logger/Logger.cxx:267
+#7  0x00007f720029819a in FairFileSource::Init (this=0x55d3f36c1ee0) at /home/sndco/SNDBUILD-truf/sw/slc9_x86-64/FairLogger/v1.9.0-local1/include/fairlogger/Logger.h:305
+#8  0x00007f72002b981e in FairRootManager::InitSource (this=0x55d3f0140e60) at /home/sndco/SNDBUILD-truf/sw/SOURCES/FairRoot/v18.4.9/v18.4.9/base/steer/FairRootManager.cxx:167
+#9  0x00007f72002c7cf3 in FairRunAna::Init (this=0x55d3f35b56c0) at /home/sndco/SNDBUILD-truf/sw/SOURCES/FairRoot/v18.4.9/v18.4.9/base/steer/FairRunAna.cxx:139
+#10 0x00007f71fc40d00d in ?? ()
+#11 0x0000000000000000 in ?? ()

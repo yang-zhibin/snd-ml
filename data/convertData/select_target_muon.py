@@ -40,7 +40,7 @@ def main(args):
     # Use RDataFrame to filter the tree
     muons_rdf = ROOT.RDataFrame("cbmsim", input_file)
     total_count = muons_rdf.Count()
-    scifi_cut = f"(Digi_ScifiHits.GetEntriesFast() > {args.n_scifiHit}) && Digi_MuFilterHits.GetEntriesFast() > {args.n_scifiHit}"
+    scifi_cut = f"(Digi_ScifiHits.GetEntriesFast() > {args.n_scifiHit}) || Digi_MuFilterHits.GetEntriesFast() > {args.n_scifiHit}"
     filtered_df = muons_rdf.Filter(scifi_cut)
     filtered_count = filtered_df.Count()
 

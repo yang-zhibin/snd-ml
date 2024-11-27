@@ -124,6 +124,7 @@ class GravNet(GNNBase):
         #print(x.shape)
         #print(batch.batch)
         #print(x)
+        print(f"Shape of x before batch norm: {x.shape}")
         x = self.batch_norm(x)
         #print(x.shape)
         #print(x)

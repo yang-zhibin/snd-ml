@@ -1,0 +1,13 @@
+
+executable = /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/Add_RecoMu.sh
+arguments = $(input_dir) $(output_dir) $(range_start) $(range_end) $(ClusterId)$(ProcId)
+log=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/log/recoMu_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+output=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/output/recoMu_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+error=/afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/error/recoMu_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+
+should_transfer_files = Yes
+request_CPUs = 1
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "longlunch"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue particles, input_dir, output_dir, range_stcondart, range_end from /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertedData/condor_scripts/test.list

@@ -23,7 +23,7 @@ def create_output_file(path, mode):
     new_tree = ROOT.TTree('cbmsim', 'converted cbmsim tree')
     return out_file, new_tree
 
-def process_event(args, event, snd_geo, ids, labels, hits, scifiCluster):
+def process_event(args, event, snd_geo, ids, labels, hits, scifiCluster,stage1_list):
     """Process each event and update data structures accordingly."""
 
     #print(process_event)
@@ -31,6 +31,8 @@ def process_event(args, event, snd_geo, ids, labels, hits, scifiCluster):
     ids.runId = event.EventHeader.GetRunId()
     ids.eventId = event.EventHeader.GetEventNumber()
     ids.partitionId = args.partition
+
+    vm_selection.stage1 = 1 if ids.eventId in stage1_list else 0
 
     # Process hits
     veto_flag, scifi_avg_ver, scifi_avg_hor, DS_avg_ver, DS_avg_hor = process_hits(event, snd_geo, hits)
@@ -99,7 +101,7 @@ def process_hits(event, snd_geo, hits):
         detType = aHit.GetSystem()  # 0: scifi, 1: veto, 2: us, 3: ds
         if(detType ==1):
             veto_count+=1
-            continue
+            #continue
         elif(detType ==2):
             us_count+=1
         elif(detType ==3):
@@ -148,7 +150,6 @@ def process_hits(event, snd_geo, hits):
         DS_avg_ver = -1
 
     veto_flag = 0
-    #if veto_count>0 and len(event.Digi_ScifiHits)>0 and (us_count>0 or ds_count>0):
     if veto_count>0 and (len(event.Digi_ScifiHits)>0 or us_count>0 or ds_count>0):
         #print(f'veto:{veto_count}, scifi:,{len(event.Digi_ScifiHits)}, us:{us_count}, ds:{ds_count}')
         veto_flag = 1
@@ -174,12 +175,23 @@ def prepare_event_lists(stage1_tree, stage2_tree):
         stage2_list.append(event.EventHeader.GetEventNumber())
     return stage1_list, stage2_list
 
+def prepare_event_lists(stage_tree):
+
+    stage_list = []
+    for event in stage_tree:
+        stage_list.append(event.EventHeader.GetEventNumber())
+
+    return stage_list
 
 def main(args):
     print('enter main function')
     snd_geo = setup_geometry(args.geo_file)
     raw_data, raw_tree = open_root_file(args.rawData_path)
     out_file, new_tree = create_output_file(args.out_path, args.mode)
+
+    #stage1, stage1_tree = open_root_file(args.stage1_file)
+    stage1_list = []
+
     # Define branches (assuming branch setup functions are defined)
     ROOT.gROOT.ProcessLine(".L EventClasses.h+")
     ids = ROOT.Id()
@@ -215,7 +227,7 @@ def main(args):
         if not (event.Digi_ScifiHits.GetEntriesFast() or event.Digi_MuFilterHits.GetEntriesFast()):
             continue
 
-        veto_flag = process_event(args, event, snd_geo, ids, labels, hits, scifiCluster)
+        veto_flag = process_event(args, event, snd_geo, ids, labels, hits, scifiCluster,vm_selection,stage1_list)
         #print(f"Processing event {ids.eventId}: Stage 1 Selected: {vm_selection.stage1}, Stage 2 Selected: {vm_selection.stage2}")
         #print(len(hits))
         if veto_flag == 0:
@@ -238,6 +250,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-r", "--rawData", dest="rawData_path", help="raw MC data digitized file path", required=True)
     #parser.add_argument("-m", "--recoMuon_path", dest="recoMuon_path", help="reco muon data path", required=True)
+    parser.add_argument("-s1", "--stage1_file", dest="stage1_file", help="stage 1 filtered data path", required=True)
     parser.add_argument("-g", "--geoFile", dest="geo_file", help="geo file", required=True)
     parser.add_argument("-o", "--outPath", dest="out_path", help="output directory", required=True)
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='NEW')

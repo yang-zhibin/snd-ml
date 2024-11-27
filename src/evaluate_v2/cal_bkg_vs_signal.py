@@ -36,10 +36,10 @@ def predict_class(df):
         else return std::string("unknown");
         """)
     argmax_expr = """
-        double vals[6] = {Prediction_0, Prediction_1, Prediction_2, Prediction_3, Prediction_4, Prediction_5};
+        double vals[7] = {Prediction_0, Prediction_1, Prediction_2, Prediction_3, Prediction_4, Prediction_5, Prediction_6};
         int idx = 0;
         double max_val = vals[0];
-        for (int i = 1; i < 6; ++i) {
+        for (int i = 1; i < 7; ++i) {
             if (vals[i] > max_val) {
                 max_val = vals[i];
                 idx = i;

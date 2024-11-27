@@ -1,0 +1,13 @@
+
+executable = convert_real_muon.sh
+arguments = $(input_list_csv) $(geo_file) $(output_dir) $(partition) $(particles) $(ClusterId)$(ProcId)
+log =    log/convert_$(particles)_$(range_start)_$(partition).$(ProcId).log
+output = output/convert_$(particles)_$(range_start)_$(partition).$(ProcId).log
+error =  error/convert_$(particles)_$(range_start)_$(partition).$(ProcId).log
+
+should_transfer_files = Yes
+request_CPUs = 1
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "microcentury"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue particles, input_list_csv, geo_file, output_dir, partition from convert_real_muon.list
