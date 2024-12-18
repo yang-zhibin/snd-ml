@@ -12,6 +12,7 @@ def main(args):
     # Open the source and target files
     source_file = ROOT.TFile.Open(pred_file, "READ")
     target_file = ROOT.TFile.Open(raw_file, "READ")
+    new_file = ROOT.TFile(output_file, "UPDATE")
 
     # Get the trees from both files
     source_tree = source_file.Get("tree")
@@ -33,25 +34,34 @@ def main(args):
 
     #new_tree = source_tree.CloneTree(0)
     # Add the source tree as a friend to the target tree
-    target_tree.AddFriend(source_tree, "tree")
+    
+
+    new_tree = target_tree.CloneTree()
+    new_tree.AddFriend(source_tree, args.model)
+
+    # Write the updated tree to the new file
+    new_tree.Write()
 
     # Create an RDataFrame for the target tree
-    target_df = ROOT.RDataFrame(target_tree)
-    print(target_df.GetColumnNames())
-    df_filter = target_df.Filter(f"(Id.eventId != tree.EventId) || (Id.runId != tree.RunId)")
-    print(df_filter.Count().GetValue())
+    # target_df = ROOT.RDataFrame(target_tree)
+    # print(target_df.GetColumnNames())
+    # df_filter = target_df.Filter(f"(Id.eventId != {args.model}.EventId) || (Id.runId != {args.model}.RunId)")
+    # print(df_filter.Count().GetValue())
+
+
 
     # Limit to the first 1000 entries
-    limited_df = target_df.Range(1000)
+    #limited_df = target_df.Range(1000)
 
 
 
     # Snapshot the updated tree to a new file
-    limited_df.Snapshot("cbmsim", output_file)
+    #limited_df.Snapshot("cbmsim", target_file)
 
     
 
     # Close the files
+    new_file.Close()
     source_file.Close()
     target_file.Close()
 
@@ -60,7 +70,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--model", dest="model", default='baseline_muon')
-    parser.add_argument("-p", "--pred_file", dest="pred_file", default = '/eos/user/z/zhibin/sndData/converted/pt/output/baseline_muon/test_neutrino_scifi_area_margin5cm_selection_output.root')
-    parser.add_argument("-r", "--raw_file", dest="raw_file", default = '/eos/user/z/zhibin/sndData/converted/Neutrinos_v2/selection_tmp/scifi_area_margin5cm_selection.root')
+    parser.add_argument("-p", "--pred_file", dest="pred_file", default = '/eos/user/z/zhibin/sndData/converted/pt/test/Neutrinos/output/baseline_muon/test_neutrino_partition_1_output.root')
+    parser.add_argument("-r", "--raw_file", dest="raw_file", default = '/eos/user/z/zhibin/sndData/converted/Neutrinos_v2/1/neutrinos_converted_sndLHC.Genie-TGeant4_20240126_digCPP.root')
     args = parser.parse_args()
     main(args)

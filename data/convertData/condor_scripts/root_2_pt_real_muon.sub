@@ -1,0 +1,13 @@
+
+executable = root_2_pt_real_muon.sh
+arguments = $(input_list_csv) $(output_dir) $(partition) $(particles) $(ClusterId)$(ProcId)
+log =    log/root_2_pt_$(particles)_$(ClusterId)_$(ProcId)_$(partition).log
+output = output/root_2_pt_$(particles)_$(ProcId).log
+error =  error/root_2_pt_$(particles)_$(ProcId).log
+
+#should_transfer_files = Yes
+request_CPUs = 1
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "longlunch"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue particles, input_list_csv, output_dir, partition from root_2_pt_real_muon.list

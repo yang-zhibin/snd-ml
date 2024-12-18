@@ -8,6 +8,9 @@ from pytorch_lightning import Callback
 import awkward as ak
 import uproot
 
+#print('check import ROOT')
+#import ROOT
+
 
 particle_to_target = {
         12: 0, -12: 0,
@@ -31,11 +34,13 @@ particle_mapping = {
 }
 
 class RootSaver(Callback):
-    def __init__(self, out_path, input_file):
+    def __init__(self, out_dir, input_file, model_name):
         super().__init__()
-        self.out_path = out_path
+        self.out_dir = out_dir
         self.input_file = input_file
+        self.model_name = model_name
         self.data = []
+        self.data_column_names = []
 
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):   
         # Convert prediction tensor to numpy and squeeze unnecessary dimensions
@@ -48,30 +53,28 @@ class RootSaver(Callback):
         # Assuming the IDs are passed as a tuple or list with the batch, accessible via `batch.ids`
         ids = batch.ids
         event_feature = batch.event_feature
-        label = batch.label
-
-
-        #print(outputs.shape,outputs.squeee().shape, predictions.size)
-        #print(outputs)
-        #print(outputs.squeeze())
-        # Store each prediction with its corresponding runId and eventId
-        
 
         #ToDo, fix output bug
         if (outputs.shape[0]<2):
-            pass
-        else:
-            for i in range(predictions.shape[0]):  # Loop over the batch dimension
-                particle, pdg_code, run_id, event_id, file_id  = ids[i]
-                px,py,pz,pos_x,pos_y,pos_z, stage2,scifi_avg_ver, scifi_avg_hor,DS_avg_ver,DS_avg_hor= label[i]
-                prediction_list = predictions[i].tolist() if predictions.ndim > 1 else [predictions[i]]
-                data_entry = prediction_list + [particle, pdg_code, run_id, event_id, file_id] + [px,py,pz,pos_x,pos_y, pos_z,stage2,scifi_avg_ver, scifi_avg_hor,DS_avg_ver,DS_avg_hor]
-                # Store all predictions for the current instance together with its identifiers
-                self.data.append(data_entry)
+            return
+        
+        for i in range(predictions.shape[0]):  # Loop over the batch dimension
+            particle, pdg_code, run_id, event_id, file_id  = ids[i]
+            prediction_list = predictions[i].tolist() if predictions.ndim > 1 else [predictions[i]]
+            data_entry = prediction_list + [particle, pdg_code, run_id, event_id, file_id]
+            # Store all predictions for the current instance together with its identifiers
+            self.data.append(data_entry)
+
+        self.data_column_names = [f'Prediction_{i}' for i in range(len(predictions[0]))] + ['particle', 'PdgCode', 'RunId', 'EventId', 'FileId']
+
 
     def on_test_epoch_end(self, trainer, pl_module):
+        if not self.data:
+            print("No data to save.")
+            return
+
         #print(self.data)
-        columns = ['Prediction_{}'.format(i) for i in range(7)] + ['particle','PdgCode', 'RunId', 'EventId', "FileId",'px', 'py', 'pz', 'pos_x', 'pos_y', 'pos_z','stage2','scifi_avg_ver', 'scifi_avg_hor','DS_avg_ver','DS_avg_hor']
+        columns = self.data_column_names
         data_dict = {col: [] for col in columns}
         
         # Populate the dictionary
@@ -83,10 +86,9 @@ class RootSaver(Callback):
         ak_array = ak.Array(data_dict)
 
         
-        file_name_with_ext = os.path.basename(self.input_file)
-        file_name, _ = os.path.splitext(file_name_with_ext)
+        base_name = os.path.splitext(os.path.basename(self.input_file))[0]
         # Save to ROOT file
-        pred_path = f"{self.out_path}/{file_name}_output.root"
+        pred_path = f"{self.out_dir}/output_{self.model_name}_{base_name}.root"
         with uproot.recreate(pred_path) as root_file:
             root_file["tree"] = {key: ak_array[key] for key in ak_array.fields}
         
@@ -95,24 +97,16 @@ class RootSaver(Callback):
         self.data.clear()
 
 class SndGeoDataset(InMemoryDataset):
-    def __init__(self, root, weight_type, split='train' ,file_path=None , use_event_feature=False, transform=None, pre_transform=None, pre_filter=None, force_reload=False):
-        self.split = split
+    def __init__(self, root, raw_file, weight_type , use_event_feature=False, transform=None, pre_transform=None, pre_filter=None, force_reload=False):
         self.use_event_feature = use_event_feature
-        self.file_path =file_path
         self.root = root
         self.weight_type = weight_type
+        self.raw_file = raw_file
 
-        #print("In dataset process",split, file_path)
-        if file_path == None:
-            #os.mkdir('./input/') 
-            #self.path = os.path.join(root, 'input/{}_input.pt'.format(self.split))
-            self.path = './{}_input.pt'.format(self.split)
-        else:
-            # for condor
-            self.path = './{}'.format(os.path.basename(file_path))
-            #self.path = os.path.join(root, 'input/{}'.format(os.path.basename(file_path)))
-        # force_reload is not working, manually force rm old processed data
-        
+        base_name = os.path.splitext(os.path.basename(raw_file))[0]
+        self.path = os.path.join(root, 'processed_input_{}.pt'.format(base_name))
+
+        #force_reload is not working, manually force rm old processed data
         if (force_reload):
             try:
                 os.remove(self.path)
@@ -123,69 +117,64 @@ class SndGeoDataset(InMemoryDataset):
 
     @property
     def raw_file_names(self):
-
-        if (self.split == 'train') or (self.split == 'val'):
-            list_files = [os.path.join(self.root,filename) for filename in os.listdir(self.root) if filename.startswith(self.split)]
-        else:
-            list_files = [self.file_path]
-
-        print(list_files)
-        return list_files
+        print("raw_file_names:",self.raw_file)
+        return [self.raw_file]
 
     @property
     def processed_file_names(self):
-        print('in processed_file_names',[self.path])
+        print('processed_file_names',[self.path])
         return [self.path]
     
     def process(self):
-        all_event = []
-        for file in self.raw_file_names:
-            print(file)
-            
-            events = torch.load(file)
-            for evt in events:
-                #print(f"-------{evt}--------")
-                
-                #print(evt)
-                pdgCode = evt.pdgCode
-                y = particle_to_target[pdgCode]
-                particle = particle_mapping[pdgCode]
+        # Load all files in one go
+        all_events_raw = [torch.load(file) for file in self.raw_file_names]
+        all_events_flattened = [evt for events in all_events_raw for evt in events]
 
-                runId = evt.runId
-                eventId = evt.eventId
-                fileId = evt.fileId
-                
-                if (self.weight_type == 'weight'):
-                    event_weight = evt.weight
-                elif(self.weight_type == 'normalized_weight'):
-                    event_weight = evt.normalized_weight
-                elif(self.weight_type == 'intRate_weight'):
-                    event_weight = evt.intRate_weight
-                elif(self.weight_type == 'intRate_weightX100'):
-                    event_weight = evt.intRate_weight * 100
-                elif(self.weight_type == 'intRate_weightX100^2'):
-                    event_weight = (evt.weight * 100) * (evt.weight * 100)
+        # Map the weight calculation for each weight type
+        weight_mapping = {
+            'weight': lambda evt: evt.weight,
+            'normalized_weight': lambda evt: evt.normalized_weight,
+            'intRate_weight': lambda evt: evt.intRate_weight,
+            'intRate_weightX100': lambda evt: evt.intRate_weight * 100,
+            'intRate_weightX100^2': lambda evt: (evt.weight * 100) ** 2,
+        }
 
-                px=evt.px
-                py=evt.py
-                pz=evt.pz
-                pos_x =evt.x
-                pos_y =evt.y
-                pos_z =evt.z
-                stage2 = evt.stage2
-                scifi_avg_ver = evt.scifi_avg_ver
-                scifi_avg_hor = evt.scifi_avg_hor
-                DS_avg_ver = evt.DS_avg_ver
-                DS_avg_hor = evt.DS_avg_hor
-                
-                hit_feature = evt.hitFeature
-                event_feature = evt.eventFeatures
-                hit_feature = hit_feature.T
-                event_feature = event_feature.T      
+        # Use the appropriate weight calculation function based on weight_type
+        calculate_weight = weight_mapping.get(self.weight_type, lambda evt: None)
 
-                all_event.append(Data(x=hit_feature, event_feature=event_feature,  weights = torch.tensor(event_weight), y=torch.tensor(y), ids =[particle,pdgCode, runId, eventId, fileId],label=[px,py,pz,pos_x,pos_y,pos_z,stage2, scifi_avg_ver, scifi_avg_hor,DS_avg_ver,DS_avg_hor] ))
-        #print(all_event.shape)
-        print('in process',self.processed_paths[0])
+        # Vectorized processing
+        all_event = [
+            Data(
+                # assign zero tensor for no hits event, otherwise raise an error 
+                x=evt.hitFeature.T if evt.hitFeature.numel() > 0 else torch.zeros((evt.hitFeature.shape[0],1)).T, 
+                event_feature=evt.eventFeatures.T,
+                weights=torch.tensor(calculate_weight(evt)),
+                y=torch.tensor(particle_to_target[evt.pdgCode]),
+                ids=[
+                    particle_mapping[evt.pdgCode],
+                    evt.pdgCode,
+                    evt.runId,
+                    evt.eventId,
+                    evt.fileId,
+                ],
+            )
+            for evt in all_events_flattened
+        ]
+
+
+        print('in process', self.processed_paths[0])
         self.save(all_event, self.path)
-       
+
+
+class SndGeoDatasetTest(InMemoryDataset):
+    def __init__(self, root, raw_file, weight_type , use_event_feature=False, transform=None, pre_transform=None, pre_filter=None, force_reload=False):
+        self.raw_file = raw_file
+        super().__init__(root, transform, pre_transform, pre_filter, force_reload)
+        self.load(self.raw_file)
+
+
+    @property
+    def processed_file_names(self):
+        print('processed_file_names',[self.path])
+        return [self.raw_file]
     

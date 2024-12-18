@@ -1,0 +1,13 @@
+
+executable = test_model_real_muon.sh
+arguments = $(input_list_csv) $(output_dir) $(partition) $(particles) $(ClusterId)$(ProcId)
+log =    log/test_model_real_muon_$(particles)_$(ClusterId)_partition$(partition).log
+output = output/test_model_real_muon_$(particles)_$(partition).$(ClusterId).log
+error =  error/test_model_real_muon_$(particles)_$(partition).$(ClusterId).log
+
+should_transfer_files = Yes
+request_GPUs = 1
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "microcentury"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue particles, input_list_csv, output_dir, partition from test_model_real_muon.list

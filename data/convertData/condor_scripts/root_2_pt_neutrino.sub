@@ -1,0 +1,13 @@
+
+executable = root_2_pt_neutrino.sh
+arguments = $(input_dir) $(output_dir) $(range_start) $(range_end) $(particles) $(ClusterId)$(ProcId)
+log =    log/root_2_pt_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+output = output/root_2_pt_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+error =  error/root_2_pt_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+
+should_transfer_files = Yes
+request_CPUs = 1
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "longlunch"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue particles input_dir, output_dir, range_start, range_end from root_2_pt_neutrino.list

@@ -274,7 +274,18 @@ def filter_no_ds(veto_and_scifi):
     print(f'no ds4 count: {no_ds4.Count().GetValue():2e}, ratio: {(no_ds4.Count().GetValue()/veto_and_scifi_count if veto_and_scifi_count != 0 else 0):2e}')
 
 
-def read_file_path(directory, n_file = 300):
+def read_file_path(directory, n_start=0, n_end=300):
+    """
+    List files in a directory and its subdirectories that match specific criteria, starting from n_start to n_end.
+
+    Args:
+        directory (str): The root directory to start searching.
+        n_start (int, optional): The starting index of files to return. Default is 0.
+        n_end (int, optional): The ending index of files to return. Default is 300.
+
+    Returns:
+        list: A list containing paths of the matching files within the specified range.
+    """
     # List to store the matching files
     file_list = []
 
@@ -283,10 +294,10 @@ def read_file_path(directory, n_file = 300):
         for filename in files:
             if "converted" in filename and filename.endswith('.root'):
                 file_list.append(os.path.join(root, filename))
-        if (len(file_list)>n_file):
-            break
 
-    return file_list
+    # Return the files in the specified range
+    return file_list[n_start:n_end]
+
 
 def linear_func(x, y):
     pass
@@ -408,7 +419,7 @@ def check_neutrino_selection():
     print('fitted track position cut')
     print_neutrino_count(counts, rdf_fitted)
 
-
+    
 
     if_save = False
 
@@ -424,12 +435,129 @@ def check_neutrino_selection():
     #filter_scifi_area(rdf, total_count, margin=margin, if_save=False)
 
 
+def tie_acceptance_selection():
+    # Directory to search files in
+    directory = "/eos/user/z/zhibin/sndData/converted/real_muon/2023_reprocess"
+    # directory = "/eos/user/z/zhibin/sndData/converted/Neutrinos_v2"
+
+    file_list = read_file_path(directory, 502, 800)
+    print(f"n files: {len(file_list)}")
+    rdf = ROOT.RDataFrame("cbmsim", file_list)
+
+    total_count = rdf.Count().GetValue()
+    print(f'Total count: {total_count:2e}')
+
+    margin = 5  # cm
+    x1 = -45.9 + margin
+    x2 = -6.9 - margin
+    y1 = 18.8 + margin
+    y2 = 57.8 - margin
+
+    print(f"acceptance area: scifi area - {margin} cm")
+
+    # Veto
+    veto = rdf.Filter('Label.veto1 > 0 || Label.veto2 > 0')
+    veto_count = veto.Count().GetValue()
+    print(f'Veto count: {veto_count:2e}, ratio: {veto_count / total_count:2e}')
+
+    # DS and US
+    veto_and_us_ds = veto.Filter(
+        "Label.us1 == 1 && Label.us2 == 1 && Label.us3 == 1 && Label.us4 == 1 && Label.us5 == 1 && "
+        "(Label.ds1 > 0 && Label.ds1 < 4) && (Label.ds2 > 0 && Label.ds2 < 4) && "
+        "(Label.ds3 > 0 && Label.ds3 < 4) && (Label.ds4 > 0 && Label.ds4 < 4)"
+    )
+    veto_and_us_ds_count = veto_and_us_ds.Count().GetValue()
+    print(f'Veto and US/DS count: {veto_and_us_ds_count:2e}, ratio: {veto_and_us_ds_count / total_count:2e}')
+
+    # Acceptance area
+    acceptance_ds = veto_and_us_ds.Filter(
+        f"Label.DS_avg_x_pos > {x1} && Label.DS_avg_x_pos < {x2} && "
+        f"Label.DS_avg_y_pos > {y1} && Label.DS_avg_y_pos < {y2}"
+    )
+    acceptance_ds_count = acceptance_ds.Count().GetValue()
+    print(f'In DS acceptance area count: {acceptance_ds_count:2e}, ratio: {acceptance_ds_count / total_count:2e}')
+
+    acceptance_scifi = acceptance_ds.Filter(
+        f"Label.scifi_avg_x_pos > {x1} && Label.scifi_avg_x_pos < {x2} && "
+        f"Label.scifi_avg_y_pos > {y1} && Label.scifi_avg_y_pos < {y2}"
+    )
+    acceptance_scifi_count = acceptance_scifi.Count().GetValue()
+    print(f'In SciFi acceptance area count: {acceptance_scifi_count:2e}, ratio: {acceptance_scifi_count / total_count:2e}')
+
+    acceptance = acceptance_scifi.Filter(f"!Any(Hits.detType == 1 && (Hits.y1 > {y2} || Hits.y1 < {y1}))")
+    acceptance_count = acceptance.Count().GetValue()
+    print(f'In Veto acceptance area count: {acceptance_count:2e}, ratio: {acceptance_count / total_count:2e}')
+
+    # SciFi 345
+    scifi345 = acceptance.Filter(
+        'Label.scifi3 > 0 && Label.scifi3 < 7 && Label.scifi4 > 0 && Label.scifi4 < 7 && Label.scifi5 > 0 && Label.scifi5 < 7'
+    )
+    scifi345_count = scifi345.Count().GetValue()
+    print(f'Has hits in SciFi345 count: {scifi345_count:2e}, ratio: {scifi345_count / total_count:2e}')
+
+    # DS track in acceptance area
+    scifi345 = scifi345.Define('ds_x', "Hits.x1[Hits.detType == 3 && Hits.orientation == 1]") \
+                       .Define('ds_z', "Hits.z1[Hits.detType == 3 && Hits.orientation == 1]")
+
+    scifi345 = scifi345.Define("fit_result", "LinearFitPerEvent(ds_z, ds_x)") \
+                       .Define("fit_slope", "fit_result.first") \
+                       .Define("fit_intercept", "fit_result.second")
+
+    scifi345 = scifi345.Define("scifi_intercept", "fit_slope*300+fit_intercept")
+    acceptance_track = scifi345.Filter(f"scifi_intercept > {x1} && scifi_intercept < {x2}")
+    acceptance_track_count = acceptance_track.Count().GetValue()
+    print(f'In acceptance area with fitted track count: {acceptance_track_count:2e}, ratio: {acceptance_track_count / total_count:2e}')
+
+
+    if_save =True
+    if (if_save):
+        dir = '/eos/user/z/zhibin/sndData/converted/real_muon/selection_tmp/'
+        out_file_path = f'{dir}/margin{margin}cm_tie_selection_2.root'
+        print(f'saving tie acceptance selection to {out_file_path}')
+        acceptance_track.Snapshot('cbmsim', out_file_path)
+
+    print()
+
+def check_ineff_correlation_selection():
+    margin = 5  # cm
+
+    dir = '/eos/user/z/zhibin/sndData/converted/real_muon/selection_tmp/'
+    file_path = f'{dir}/margin{margin}cm_tie_selection.root'
+    acceptance = ROOT.RDataFrame("cbmsim", file_path)
+
+    acceptance_count = acceptance.Count().GetValue()
+    no_scifi1_fiducial = acceptance.Filter('Label.scifi1 == 0')
+    no_scifi2_fiducial = acceptance.Filter('Label.scifi2 == 0')
+    no_scifi12_fiducial = acceptance.Filter('Label.scifi1 == 0 && Label.scifi2 == 0')
+
+    plot_2d_distribution (acceptance, 'tie_acceptance', 'Label.scifi_avg_x_pos', 'Label.scifi_avg_y_pos')
+    plot_2d_distribution (acceptance, 'tie_acceptance','Label.DS_avg_x_pos', 'Label.DS_avg_y_pos')
+    plot_2d_distribution (acceptance, 'tie_acceptance', 'Label.scifi_avg_ver', 'Label.scifi_avg_hor')
+    plot_2d_distribution (acceptance, 'tie_acceptance','Label.DS_avg_ver', 'Label.DS_avg_hor')
+
+    print()
+    print(f'tie acceptance count: {acceptance_count:2e}')
+    print(f'no scifi1 count: {no_scifi1_fiducial.Count().GetValue():2e}, ratio: {(no_scifi1_fiducial.Count().GetValue()/acceptance_count if acceptance_count != 0 else 0):2e}')
+    print(f'no scifi2 count: {no_scifi2_fiducial.Count().GetValue():2e}, ratio: {(no_scifi2_fiducial.Count().GetValue()/acceptance_count if acceptance_count != 0 else 0):2e}')
+    print(f'no scifi1 and 2 count: {no_scifi12_fiducial.Count().GetValue():2e}, ratio: {(no_scifi12_fiducial.Count().GetValue()/acceptance_count if acceptance_count != 0 else 0):2e}')
+
+
+
+    if_save =True
+    if (if_save):
+        dir = '/eos/user/z/zhibin/sndData/converted/real_muon/selection_tmp/'
+        out_file_path = f'{dir}/no_scifi12_margin{margin}cm_tie_selection.root'
+        print(f'saving scifi_area selection to {out_file_path}')
+        no_scifi12_fiducial.Snapshot('cbmsim', out_file_path)
+
+
+
 def check_selection():
     # Directory to search files in
     directory = "/eos/user/z/zhibin/sndData/converted/real_muon/2023_reprocess"
     #directory = "/eos/user/z/zhibin/sndData/converted/Neutrinos_v2"
 
-    file_list = read_file_path(directory, 400)
+    file_list = read_file_path(directory, 40)
     print(f"n files: {len(file_list)}")
     rdf = ROOT.RDataFrame("cbmsim", file_list)
 
@@ -441,27 +569,27 @@ def check_selection():
     y1 = 18.8 + margin
     y2 = 57.8 - margin
 
-    acceptance = rdf.Filter(
-        f"Label.DS_avg_x_pos > {x1} && Label.DS_avg_x_pos < {x2} && "
-        f"Label.DS_avg_y_pos > {y1} && Label.DS_avg_y_pos < {y2}"
-    )
-    acceptance_and_veto = acceptance.Filter('Label.veto1 > 0 || Label.veto2 > 0')
-    acceptance_and_no_veto = acceptance.Filter('Label.veto1 == 0 and Label.veto2 == 0')
+    # acceptance = rdf.Filter(
+    #     f"Label.DS_avg_x_pos > {x1} && Label.DS_avg_x_pos < {x2} && "
+    #     f"Label.DS_avg_y_pos > {y1} && Label.DS_avg_y_pos < {y2}"
+    # )
+    # acceptance_and_veto = acceptance.Filter('Label.veto1 > 0 || Label.veto2 > 0')
+    # acceptance_and_no_veto = acceptance.Filter('Label.veto1 == 0 and Label.veto2 == 0')
 
-    if_save = True
-    if (if_save):
-        dir = '/eos/user/z/zhibin/sndData/converted/real_muon/selection_tmp/'
-        out_file_path = f'{dir}/scifi_area_margin{margin}cm_veto.root'
-        print(f'saving scifi_area with veto hits selection to {out_file_path}')
-        acceptance_and_veto.Snapshot('cbmsim', out_file_path)
-    if (if_save):
-        dir = '/eos/user/z/zhibin/sndData/converted/real_muon/selection_tmp/'
-        out_file_path = f'{dir}/scifi_area_margin{margin}cm_no_veto.root'
-        print(f'saving scifi_area with no veto selection to {out_file_path}')
-        acceptance_and_no_veto.Snapshot('cbmsim', out_file_path)
+    # if_save = True
+    # if (if_save):
+    #     dir = '/eos/user/z/zhibin/sndData/converted/real_muon/selection_tmp/'
+    #     out_file_path = f'{dir}/scifi_area_margin{margin}cm_veto.root'
+    #     print(f'saving scifi_area with veto hits selection to {out_file_path}')
+    #     acceptance_and_veto.Snapshot('cbmsim', out_file_path)
+    # if (if_save):
+    #     dir = '/eos/user/z/zhibin/sndData/converted/real_muon/selection_tmp/'
+    #     out_file_path = f'{dir}/scifi_area_margin{margin}cm_no_veto.root'
+    #     print(f'saving scifi_area with no veto selection to {out_file_path}')
+    #     acceptance_and_no_veto.Snapshot('cbmsim', out_file_path)
 
-    # Apply veto filter
-    veto = rdf.Filter('Label.veto1 > 0 && Label.veto2 > 0')
+     # Apply veto filter
+    veto = rdf.Filter('Label.veto1 > 0 || Label.veto2 > 0')
 
 
     # Filter events that satisfy the upstream and downstream conditions
@@ -482,6 +610,7 @@ def check_selection():
 
     out_file_path = f'/eos/user/z/zhibin/sndData/converted/real_muon/selection_tmp//outside_scifi_area_selection.root'
     print(f'saving outside scifi_area selection to {out_file_path}')
+
     veto_and_us_ds_outside_acceptance.Snapshot('cbmsim', out_file_path)
 
     veto_and_us_ds_in_acceptance = veto_and_us_ds_in_acceptance.Define('ds_x', "Hits.x1[Hits.detType == 3 && Hits.orientation == 1]") \
@@ -547,6 +676,8 @@ if __name__ == "__main__":
     
     # main(args)
     #check_neutrino_selection()
-    check_selection()
+    #check_selection()
+    #check_ineff_correlation_selection()
+    tie_acceptance_selection()
 
 

@@ -1,6 +1,6 @@
 import yaml
 from torch_geometric.data import DataLoader as GeoDataLoader
-from dataset.SndGeoDataset import SndGeoDataset
+from dataset.SndGeoDataset import SndGeoDataset, SndGeoDatasetTest
 from dataset.SndGeoDataset import RootSaver
 
 import uproot
@@ -23,10 +23,14 @@ import wandb
 import pandas as pd
 from tqdm import tqdm
 
-def test_model(model_name):
+def test_model(args):
+    model_name = args.model
+    raw_file = args.in_file
+    out_dir = args.out_dir
+
     print("start testing")
-    pt_path = '/eos/user/z/zhibin/sndData/converted/pt'
-    split = 'test_muon_outside'
+    #pt_path = '/eos/user/z/zhibin/sndData/converted/pt/test/Neutrinos/'
+    split = 'test'
     config_path = f'/afs/cern.ch/user/z/zhibin/work/snd-ml/src/configs/{model_name}.yml'
     #config_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/src/configs/GravNetConfig.yml'
     with open(config_path, 'r') as file:
@@ -38,42 +42,28 @@ def test_model(model_name):
     ckpt_root = f'/afs/cern.ch/user/z/zhibin/work/snd-ml/log/snd-ml-GravNet/{model_name}/'
     #ckpt_root = f'/afs/cern.ch/user/z/zhibin/work/snd-ml/log/snd-ml-GravNet/multiClass_weight_recoMuon/'
     ckpt_path = f"{ckpt_root}/best.ckpt"
-    out_path = f"{pt_path}/output/{model_name}/"
-    #out_path = f"{pt_path}/output/multiClass_weight_recoMuon"
-    if not os.path.exists(out_path):
-        os.makedirs(out_path)
+
     print(f'model :{model_name}')
     print('reading model...')
     model = GravNet.load_from_checkpoint(ckpt_path)
 
-    list_files = [os.path.join(pt_path,filename) for filename in os.listdir(pt_path) if filename.startswith(split)]
-    print(list_files)
+    test_data=SndGeoDataset(root=out_dir, raw_file=raw_file, use_event_feature=config['use_event_feature'], force_reload=True,weight_type=config['weight_type'])
+    test_dataloader = GeoDataLoader(test_data, batch_size=config["batch_size"]['train'], shuffle=False, num_workers=4)
 
-    for file in tqdm(list_files):
-        print(f"processing {file}")
-        file_name_with_ext = os.path.basename(file)
-        file_name, _ = os.path.splitext(file_name_with_ext)
-        # Save to ROOT file
-        pred_path = f"{out_path}/{file_name}_output.root"
-
-        #if os.path.exists(pred_path):
-        #    continue
-
-        test_data=SndGeoDataset(root=pt_path,file_path=file, split=split, use_event_feature=config['use_event_feature'], force_reload=True,weight_type=config['weight_type'])
-        test_dataloader = GeoDataLoader(test_data, batch_size=config["batch_size"]['train'], shuffle=False, num_workers=4)
-
-        trainer = Trainer(
-            accelerator = accelerator,
-            devices="auto",
-            callbacks=[RootSaver(out_path,file)],
-            )
-        #print("model running test dataset")
-        trainer.test(model, test_dataloader)
+    trainer = Trainer(
+        accelerator = accelerator,
+        devices="auto",
+        callbacks=[RootSaver(out_dir,raw_file, model_name)],
+        )
+    #print("model running test dataset")
+    trainer.test(model, test_dataloader)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--model", dest="model", default='baseline_muon')
+    parser.add_argument("-o", "--out_dir", dest="out_dir", default = '/eos/user/z/zhibin/sndData/converted/pt_tmp/2/')
+    parser.add_argument("-i", "--in_file", dest="in_file", default = '/eos/user/z/zhibin/sndData/converted/pt_tmp/2/raw/test_neutrino_2.pt')
     args = parser.parse_args()
 
-    test_model(args.model)
+    test_model(args)

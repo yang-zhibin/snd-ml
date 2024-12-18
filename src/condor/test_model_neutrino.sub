@@ -1,0 +1,14 @@
+
+executable = test_model_neutrino.sh
+arguments = $(input_dir) $(output_dir) $(range_start) $(range_end) $(particles) $(ClusterId)$(ProcId)
+log =    log/test_model_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+output = output/test_model_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+error =  error/test_model_$(particles)_$(range_start)_$(range_end).$(ClusterId).$(ProcId).log
+
+should_transfer_files = Yes
+request_CPUs = 2
+request_GPUs = 1
+#+AccountingGroup = "group_u_SNDLHC.users"
++JobFlavour = "espresso"
+requirements = (TARGET.OpSysAndVer =?= "AlmaLinux9")
+queue particles input_dir, output_dir, range_start, range_end from test_model_neutrino.list

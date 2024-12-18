@@ -26,12 +26,20 @@ do
     i_run=${run_number}
     tmp_outfile=${PARTICLE}_converted_$(basename ${input_file})
 
-    python /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertData/convert_rawData.py -r ${input_file} -g ${GEO_FILE} -o ${tmp_outfile} -id ${i_run} -p ${PARTICLE} -t ${data_type}
-
     eos_out_dir=${BASE_OUT_DIR}/run_00${i_run}/
     if [ ! -d "${eos_out_dir}" ]; then
         mkdir -p "${eos_out_dir}"
     fi
+
+    # If ${eos_out_dir}/${tmp_outfile} exists, skip to the next iteration
+    if [ -f "${eos_out_dir}/${tmp_outfile}" ]; then
+        echo "File ${eos_out_dir}/${tmp_outfile} already exists. Skipping..."
+        continue
+    fi
+
+    python /afs/cern.ch/user/z/zhibin/work/snd-ml/data/convertData/convert_rawData.py -r ${input_file} -g ${GEO_FILE} -o ${tmp_outfile} -id ${i_run} -p ${PARTICLE} -t ${data_type}
+
+
 
     xrdcp -f ${tmp_outfile} ${eos_out_dir}/.
 

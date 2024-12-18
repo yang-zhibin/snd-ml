@@ -3,8 +3,8 @@ plots/
 error
 output
 log
-.pt
-.csv
+*.pt
+*.csv
 wandb/
 lightning_logs/
 test/
@@ -12,5 +12,5 @@ test_data/
 csv*/
 plot*/
 root_output*/
-.pdf
-.png
+*.pdf
+*.png
