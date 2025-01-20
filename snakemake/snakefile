@@ -1,0 +1,38 @@
+import pandas as pd
+
+# Load the metadata
+metadata_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/metadata/test_metadata.csv"
+metadata = pd.read_csv(metadata_file)
+
+# Convert metadata into a dictionary for easier lookup
+metadata_dict = metadata.set_index("feature_path").T.to_dict()
+
+wildcard_constraints:
+    hit_path=".*hit.*",
+    feature_path=".*feature.*"
+
+rule all:
+    input:
+        expand("{feature_path}", feature_path=metadata['feature_path']),
+        #expand("{hit_path}", hit_path=metadata['hit_path'])
+
+rule process_hits:
+    input:
+        digi=metadata[metadata["hit_path"] == "{hit_path}"]["digi_path"],
+        geo=metadata[metadata["hit_path"] == "{hit_path}"]["geo_path"],
+    output:
+        hit_path="{hit_path}"
+    shell:
+        """
+        python process_hits.py --digi {input.digi_path} --geo {input.geo_path} --output {output.hit_path}
+        """
+
+rule generate_features:
+    input:
+        hit_path=lambda wildcards: metadata_dict[wildcards.feature_path]['hit_path']
+    output:
+        feature_path="{feature_path}"
+    shell:
+        """
+        python generate_features.py --input {input.hit_path} --output {output.feature_path}
+        """
