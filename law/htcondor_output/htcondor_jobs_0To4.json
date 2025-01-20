@@ -1,0 +1,61 @@
+{
+    "jobs": {
+        "1": {
+            "job_id": "6089560.0",
+            "branches": [
+                0
+            ],
+            "status": "retry",
+            "code": 20,
+            "error": "job status set to 'failed' due to non-zero exit code 20",
+            "extra": {
+                "log": "/afs/cern.ch/work/z/zhibin/snd-ml/law/htcondor_output/stdall_0To1.txt"
+            }
+        },
+        "2": {
+            "job_id": "6089567.0",
+            "branches": [
+                1
+            ],
+            "status": "failed",
+            "code": 20,
+            "error": "job status set to 'failed' due to non-zero exit code 20",
+            "extra": {
+                "log": "/afs/cern.ch/work/z/zhibin/snd-ml/law/htcondor_output/stdall_1To2.txt"
+            }
+        },
+        "3": {
+            "job_id": "6089567.1",
+            "branches": [
+                2
+            ],
+            "status": "running",
+            "code": 0,
+            "error": null,
+            "extra": {
+                "log": "/afs/cern.ch/work/z/zhibin/snd-ml/law/htcondor_output/stdall_2To3.txt"
+            }
+        },
+        "4": {
+            "job_id": "6089560.2",
+            "branches": [
+                3
+            ],
+            "status": "retry",
+            "code": 20,
+            "error": "job status set to 'failed' due to non-zero exit code 20",
+            "extra": {
+                "log": "/afs/cern.ch/work/z/zhibin/snd-ml/law/htcondor_output/stdall_3To4.txt"
+            }
+        }
+    },
+    "unsubmitted_jobs": {},
+    "attempts": {
+        "1": 6,
+        "2": 6,
+        "3": 6,
+        "4": 6
+    },
+    "tasks_per_job": 1,
+    "dashboard_config": {}
+}

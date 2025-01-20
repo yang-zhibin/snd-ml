@@ -1,0 +1,20 @@
+universe = vanilla
+executable = htcondor_wrapper_e0c831e839_1.sh
+should_transfer_files = YES
+transfer_input_files = /afs/cern.ch/work/z/zhibin/snd-ml/law/htcondor_output/jobs/tmpxnn607qu/law_job_1d8cc5c1f3.sh,/afs/cern.ch/work/z/zhibin/snd-ml/law/htcondor_output/jobs/tmpxnn607qu/htcondor_wrapper_e0c831e839_1.sh
+transfer_output_files = stdall$(law_job_postfix).txt
+when_to_transfer_output = ON_EXIT
+transfer_output_remaps = "stdall$(law_job_postfix).txt = /afs/cern.ch/work/z/zhibin/snd-ml/law/htcondor_output/stdall$(law_job_postfix).txt"
+notification = Never
+initialdir = /afs/cern.ch/work/z/zhibin/snd-ml/law/htcondor_output
+MY.WantOS = el9
++MaxRuntime = 3599
+getenv = true
+log = /afs/cern.ch/work/z/zhibin/snd-ml/law/htcondor_output
+environment = "LAW_HTCONDOR_JOB_CLUSTER=$(Cluster) LAW_HTCONDOR_JOB_PROCESS=$(Process)"
+queue law_job_postfix, arguments from (
+    _0To1, _0To1 stdall$(law_job_postfix).txt
+    _1To2, _1To2 stdall$(law_job_postfix).txt
+    _2To3, _2To3 stdall$(law_job_postfix).txt
+    _3To4, _3To4 stdall$(law_job_postfix).txt
+)
