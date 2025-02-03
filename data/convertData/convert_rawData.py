@@ -166,11 +166,11 @@ def process_hits(event, snd_geo, hits):
         if aHit.isVertical():
             scifi_avg_ver += x
             #print(f'x1:{hit.x1}, x2:{hit.x2}, y1:{hit.y1}, y2:{hit.y2}')
-            scifi_avg_x_pos += hit.x1
+            scifi_avg_x_pos += A.x()
             scifi_n_ver += 1
         else:
             scifi_avg_hor += x
-            scifi_avg_y_pos += hit.y1
+            scifi_avg_y_pos += A.y()
             scifi_n_hor += 1
 
     # Process MuFilter hits
@@ -204,11 +204,11 @@ def process_hits(event, snd_geo, hits):
             x = detID % 1000
             if aHit.isVertical():
                 DS_avg_ver += x
-                DS_avg_x_pos +=hit.x1
+                DS_avg_x_pos +=A.x()
                 DS_n_ver += 1
             else:
                 DS_avg_hor += x
-                DS_avg_y_pos +=hit.y1
+                DS_avg_y_pos +=A.y()
                 DS_n_hor += 1
 
     # Compute final averages

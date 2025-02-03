@@ -1,38 +1,175 @@
 import pandas as pd
+import yaml
+import glob
+import os
 
 # Load the metadata
-metadata_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/metadata/test_metadata.csv"
-metadata = pd.read_csv(metadata_file)
+#metadata_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/metadata/test_metadata.csv"
+#metadata = pd.read_csv(metadata_file)
 
-# Convert metadata into a dictionary for easier lookup
-metadata_dict = metadata.set_index("feature_path").T.to_dict()
+metadata_csv_list = [
+    "MC_kaon_FTFP_BERT_metadata.csv",
+    "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
+    "MC_muon_down_metadata.csv",
+    "MC_muon_horizontal_metadata.csv",
+    "MC_muon_up_metadata.csv",
+    "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
+    "MC_neutrino_volTarget_100fb-1_metadata.csv",
+    "MC_neutron_FTFP_BERT_metadata.csv",
+    "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
+    "real_data_2022_metadata.csv",
+    "real_data_2023_reprocess_metadata.csv",
+]
 
 wildcard_constraints:
-    hit_path=".*hit.*",
-    feature_path=".*feature.*"
+    hit_path=".*hit.*.root",
+    feature_path=".*feature.*.root",
+    #data_type="MC.*|real.*"
+
+with open("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/metadata_config.yaml", "r") as file:
+    config = yaml.safe_load(file)
+
+metadata_rootpath = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata"
+
+
+def collect_target_paths(column_name):
+    # Collect paths after metadata is generated
+    metadata_files = glob.glob(os.path.join(metadata_rootpath, "test*_metadata.csv"))
+    target_paths = []
+    for file in metadata_files:
+        metadata = pd.read_csv(file)
+        target_paths.extend(metadata[column_name].tolist())
+    return target_paths
+
 
 rule all:
     input:
-        expand("{feature_path}", feature_path=metadata['feature_path']),
-        #expand("{hit_path}", hit_path=metadata['hit_path'])
+        expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        expand("{feature_path}", feature_path=collect_target_paths("feature_path"))
+        #expand("{pt_prefix}", pt_prefix=collect_target_paths("pt_prefix"))
+
+rule generate_metadata:
+    input:
+        script = '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/generate_path_file.py'
+    output:
+        raw_metadata = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}"
+    threads:1
+    resources:
+        runtime=240,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        """
+        echo "Generating metadata"
+        #avoid unbound variable error (only occur when using snakemake)
+        set +u 
+        source /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/envs/env_pyroot.sh
+        python {input.script} -o {output.raw_metadata}
+        """
+
+rule updated_metadata:
+    input:
+        raw_metadata = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}",
+        script = '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/update_path_file.py'
+    output:
+        updated_metadata = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}"
+    threads:1
+    resources:
+        runtime=60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        """
+        echo "Generating metadata"
+        #avoid unbound variable error (only occur when using snakemake)
+        set +u 
+        source /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/envs/env_pyroot.sh
+        python {input.script} -o {output.updated_metadata}
+        """
+
+
+#lambda wildcards: print(wildcards.data_type)
+
+def get_metadata_value(ref_name, ref_value, target_name):
+    metadata_files = glob.glob(os.path.join(metadata_rootpath, "*_metadata.csv"))
+    for file in metadata_files:
+        metadata = pd.read_csv(file)
+        if ref_value in metadata[ref_name].values:
+            return metadata.loc[metadata[ref_name] == ref_value, target_name].iloc[0]
+    raise ValueError(f"Reference value {ref_value} not found in column {ref_name} in any metadata file.")
 
 rule process_hits:
     input:
-        digi=metadata[metadata["hit_path"] == "{hit_path}"]["digi_path"],
-        geo=metadata[metadata["hit_path"] == "{hit_path}"]["geo_path"],
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/{metadata_csv}", metadata_csv=metadata_csv_list),
+        digi=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "digi_path"),
+        geo=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "geo_path"),
+        script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_hits.py"
+    params:
+        data_type=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "data_type"),
+        env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw.sh"
     output:
         hit_path="{hit_path}"
+    threads:1
+    resources:
+        runtime=60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
     shell:
         """
-        python process_hits.py --digi {input.digi_path} --geo {input.geo_path} --output {output.hit_path}
+        #avoid sndsw and conda python conflict 
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        
+        #avoid unbound variable error (only occur when using snakemake)
+        set +u 
+        
+        echo "Setting up SNDSW"
+        SNDLHC_mymaster=/afs/cern.ch/work/z/zhibin/public/SndBuild
+        export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
+        source /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/setUp.sh
+        eval `alienv load --no-refresh sndsw/latest`
+
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        cp /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h ./
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.script} -d {input.digi} -g {input.geo} -o {output.hit_path} -t {params.data_type}
         """
 
-rule generate_features:
+rule process_features:
     input:
-        hit_path=lambda wildcards: metadata_dict[wildcards.feature_path]['hit_path']
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/{metadata_csv}", metadata_csv=metadata_csv_list),
+        digi=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "digi_path"),
+        geo=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "geo_path"),
+        script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_features.py"
+    params:
+        data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
+        env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw.sh"
     output:
         feature_path="{feature_path}"
+    threads:1
+    resources:
+        runtime=60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
     shell:
         """
-        python generate_features.py --input {input.hit_path} --output {output.feature_path}
+        #avoid sndsw and conda python conflict 
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        
+        #avoid unbound variable error (only occur when using snakemake)
+        set +u 
+        
+        echo "Setting up SNDSW"
+        SNDLHC_mymaster=/afs/cern.ch/work/z/zhibin/public/SndBuild
+        export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
+        source /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/setUp.sh
+        eval `alienv load --no-refresh sndsw/latest`
+
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        cp /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h ./
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.script} -d {input.digi} -g {input.geo} -o {output.feature_path} -t {params.data_type}
         """

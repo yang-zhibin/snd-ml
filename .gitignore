@@ -4,7 +4,6 @@ error
 output
 log
 *.pt
-*.csv
 wandb/
 lightning_logs/
 test/
@@ -14,3 +13,7 @@ plot*/
 root_output*/
 *.pdf
 *.png
+.snakemake/
+.law/
+/htcondor_log
+

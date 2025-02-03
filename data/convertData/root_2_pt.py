@@ -102,7 +102,7 @@ def main(args):
 
     #in_file = '/eos/user/z/zhibin/sndData/converted/real_muon/2023_reprocess/run_005865/real_muon_converted_sndsw_raw-0001.root'
     #out_path = '/eos/user/z/zhibin/sndData/converted/real_muon/2023_reprocess/run_005865/pt/'
-    chunk_size = 1e5
+    chunk_size = 1e4
     process_root_file(in_file, out_path, chunk_size)
    
 
