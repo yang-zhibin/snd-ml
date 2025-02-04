@@ -7,6 +7,9 @@ import os
 #metadata_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/metadata/test_metadata.csv"
 #metadata = pd.read_csv(metadata_file)
 
+# snakemake --rulegraph | dot -Tpng > workflow_rulegraph.png
+
+
 metadata_csv_list = [
     "MC_kaon_FTFP_BERT_metadata.csv",
     "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
@@ -21,20 +24,24 @@ metadata_csv_list = [
     "real_data_2023_reprocess_metadata.csv",
 ]
 
+model_list = ['baseline']
+
 wildcard_constraints:
     hit_path=".*hit.*.root",
     feature_path=".*feature.*.root",
+    metadata_csv=".*metadata.*.csv",
+    model='baseline*'
     #data_type="MC.*|real.*"
 
 with open("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/metadata_config.yaml", "r") as file:
     config = yaml.safe_load(file)
 
-metadata_rootpath = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata"
+metadata_rootpath = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/"
 
 
 def collect_target_paths(column_name):
     # Collect paths after metadata is generated
-    metadata_files = glob.glob(os.path.join(metadata_rootpath, "test*_metadata.csv"))
+    metadata_files = glob.glob(os.path.join(metadata_rootpath, "MC_neutrino*_metadata.csv"))
     target_paths = []
     for file in metadata_files:
         metadata = pd.read_csv(file)
@@ -44,8 +51,11 @@ def collect_target_paths(column_name):
 
 rule all:
     input:
-        expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
-        expand("{feature_path}", feature_path=collect_target_paths("feature_path"))
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
+        #expand("{model}", model=model_list),
+        expand("{pt_prefix}_0", pt_prefix=collect_target_paths("pt_prefix")),
         #expand("{pt_prefix}", pt_prefix=collect_target_paths("pt_prefix"))
 
 rule generate_metadata:
@@ -55,7 +65,7 @@ rule generate_metadata:
         raw_metadata = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}"
     threads:1
     resources:
-        runtime=240,
+        runtime=120*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -76,7 +86,7 @@ rule updated_metadata:
         updated_metadata = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}"
     threads:1
     resources:
-        runtime=60,
+        runtime=15*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -86,7 +96,7 @@ rule updated_metadata:
         #avoid unbound variable error (only occur when using snakemake)
         set +u 
         source /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/envs/env_pyroot.sh
-        python {input.script} -o {output.updated_metadata}
+        python {input.script} -i {input.raw_metadata} -o {output.updated_metadata}
         """
 
 
@@ -102,7 +112,7 @@ def get_metadata_value(ref_name, ref_value, target_name):
 
 rule process_hits:
     input:
-        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/{metadata_csv}", metadata_csv=metadata_csv_list),
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         digi=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "geo_path"),
         script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_hits.py"
@@ -113,7 +123,7 @@ rule process_hits:
         hit_path="{hit_path}"
     threads:1
     resources:
-        runtime=60,
+        runtime=60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -133,13 +143,13 @@ rule process_hits:
 
         export EOSSHIP=root://eosuser.cern.ch/
 
-        cp /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h ./
+        #cp /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h ./
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.script} -d {input.digi} -g {input.geo} -o {output.hit_path} -t {params.data_type}
         """
 
 rule process_features:
     input:
-        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/{metadata_csv}", metadata_csv=metadata_csv_list),
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         digi=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "geo_path"),
         script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_features.py"
@@ -150,7 +160,7 @@ rule process_features:
         feature_path="{feature_path}"
     threads:1
     resources:
-        runtime=60,
+        runtime=60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -170,6 +180,47 @@ rule process_features:
 
         export EOSSHIP=root://eosuser.cern.ch/
 
-        cp /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h ./
+        #cp /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h ./
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.script} -d {input.digi} -g {input.geo} -o {output.feature_path} -t {params.data_type}
+        """
+
+
+rule process_pt:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        feature_path=lambda wildcards: get_metadata_value("pt_prefix", wildcards.pt_prefix, "feature_path"),
+        hit_pat=lambda wildcards: get_metadata_value("pt_prefix", wildcards.pt_prefix, "hit_path"),
+        #script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_features.py"
+        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
+
+    params:
+        #data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
+        #env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw.sh"
+    output:
+        pt_path="{pt_prefix}_0"
+    shell:
+        """
+        echo "process_pt"
+        """
+
+rule train:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        #expand("{hit_path}", hit_path=collect_target_paths("hit_path"))
+        script = ''
+        #config = 
+        #expand("{pt_prefix}_0", pt_prefix=collect_target_paths("pt_prefix")),
+    output:
+        trained_model = "{model}"
+    threads:2
+    resources:
+        runtime=60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=1
+    shell:
+        """
+        echo "train"
         """
