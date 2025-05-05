@@ -15,5 +15,6 @@ root_output*/
 *.png
 .snakemake/
 .law/
-/htcondor_log
+htcondor_log*/
+.snakemake/
 

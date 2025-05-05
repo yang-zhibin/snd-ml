@@ -3,7 +3,7 @@ cluster: "grid-submit.py"
 cluster-status: "grid-status.py"
 max-jobs-per-second: 100
 max-status-checks-per-second: 100
-restart-times: 0
+restart-times: 1
 local-cores: 10
 jobs: 5000
 verbose: false

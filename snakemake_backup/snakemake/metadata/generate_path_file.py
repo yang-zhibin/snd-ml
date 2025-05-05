@@ -3,10 +3,32 @@ import csv
 import ROOT
 import pandas as pd
 import glob
+import yaml
+from argparse import ArgumentParser
 
 
+def process_real_data_since2024(root_path, subfolder, data_type):
+    metadata = []
+    for subfolder in os.listdir(root_path):
+        subfolder_path = os.path.join(root_path, subfolder)
+        if not os.path.isdir(subfolder_path):
+            print(f"Skipping non-directory: {subfolder_path}")
+            continue
+        version = subfolder[6:] 
+        matching_files = glob.glob(f'{root_path}/geofile_sndlhc_TI18_V{version}_*')
+        print(matching_files)
+        if len(matching_files) == 1:
+            geo_file = matching_files[0]
+        else:
+            raise ValueError(f"Expected exactly one match, found {len(matching_files)}: {matching_files}")
 
-def process_real_data_subfolders(root_path, output_subfolder_name, data_type):
+        subfolder_metadata = process_real_data_subfolders(subfolder_path, subfolder, data_type, geo_file)
+
+        metadata.extend(subfolder_metadata)
+
+    return metadata
+
+def process_real_data_subfolders(root_path, output_subfolder_name, data_type, geo_file=None):
 
     tree_name = "cbmsim"
     metadata = []
@@ -17,13 +39,12 @@ def process_real_data_subfolders(root_path, output_subfolder_name, data_type):
             print(f"Skipping non-directory: {subfolder_path}")
             continue
 
-        geo_file = get_geo_file(subfolder)
-        if not geo_file:
+        current_geo_file = geo_file or get_geo_file(subfolder_path)
+        if not current_geo_file:
             print(f"No geo file found for {subfolder}. Skipping.")
             continue
 
         digi_file = ''
-        geo_file = ''
         partition = subfolder
         n_event = 0
 
@@ -49,11 +70,11 @@ def process_real_data_subfolders(root_path, output_subfolder_name, data_type):
             'partition': partition,
             'n_event': n_event,
             'digi_path': digi_file,
-            'geo_path': geo_file,
+            'geo_path': current_geo_file,
             }
             metadata.append(one_file_data)
         
-            print('add: ', one_file_data)
+            print('digi_file: ', digi_file)
 
     metadata.sort(key=lambda x: x['partition'])
     return metadata
@@ -95,16 +116,17 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
 
             elif file.startswith("geo"):
                 geo_file = file_path
-            one_file_data = {
-                'data_type': data_type,
-                'subfolder': output_subfolder_name,
-                'partition': partition,
-                'n_event': n_event,
-                'digi_path': digi_file,
-                'geo_path': geo_file,
-            }
-            metadata.append(one_file_data)
-            print('add: ', one_file_data)
+
+        one_file_data = {
+            'data_type': data_type,
+            'subfolder': output_subfolder_name,
+            'partition': partition,
+            'n_event': n_event,
+            'digi_path': digi_file,
+            'geo_path': geo_file,
+        }
+        metadata.append(one_file_data)
+        #print('add: ', one_file_data)
 
     metadata.sort(key=lambda x: x['partition'])
     return metadata
@@ -146,26 +168,29 @@ def get_geo_file(partition):
         range(4575, 4855): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V5_14August2022.root',
         range(4855, 5172): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V6_08October2022.root',
         range(5172, 5422): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V7_22November2022.root',
-        range(5482, 7347): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2023_reprocess/geofile_sndlhc_TI18_V4_2023.root',
+        range(5483, 7358): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2023/geofile_sndlhc_TI18_V4_2023.root',
     }
     for run_range, geo_file in geo_file_map.items():
         if run_number in run_range:
             return geo_file
     return None
 
-def generate_neutrino_path(data_type, root_path, subfolder):
-    csv_name = f'{data_type}_{subfolder}_metadata.csv'
-
+def generate_neutrino_path(data_type, root_path, subfolder,csv_file):
     metadata = process_MC_subfolders(root_path, subfolder,data_type)
-    save_metadata_to_csv(metadata, csv_name)
+    save_metadata_to_csv(metadata, csv_file)
 
-def generate_real_data_path(data_type, root_path, subfolder):
-    metadata = process_real_data_subfolders(root_path, subfolder, data_type)
+def generate_real_data_path(data_type, root_path, subfolder, csv_file):
+    file_name = os.path.basename(csv_file)
+    year = int(file_name.split("_")[2])
+    if year<2024:
+        metadata = process_real_data_subfolders(root_path, subfolder, data_type)
+        save_metadata_to_csv(metadata, csv_file)
+    else:
+        metadata = process_real_data_since2024(root_path, subfolder, data_type)
+        save_metadata_to_csv(metadata, csv_file)
 
-    csv_name = f'{data_type}_{subfolder}_metadata.csv'
-    save_metadata_to_csv(metadata, csv_name)
 
-def generate_neutral_hadron_path(data_type, root_path, output_subfolder_name):
+def generate_neutral_hadron_path(data_type, root_path, output_subfolder_name, csv_file):
 
     metadata = []
     for subfolder in os.listdir(root_path):
@@ -177,12 +202,10 @@ def generate_neutral_hadron_path(data_type, root_path, output_subfolder_name):
             tmp_metadata = process_MC_subfolders(second_subfolder_path, second_subfolder_name, data_type)
             metadata.extend(tmp_metadata)
     
-    csv_name = f'{data_type}_{output_subfolder_name}_metadata.csv'
-    save_metadata_to_csv(metadata, csv_name)
+    save_metadata_to_csv(metadata, csv_file)
 
-def generate_neutron_QGSP_path(data_type, root_path, output_subfolder_name):
+def generate_neutron_QGSP_path(data_type, root_path, output_subfolder_name, csv_file):
     #metadata = []
-    csv_name = f'{data_type}_{output_subfolder_name}_metadata.csv'
     for subfolder in os.listdir(root_path):
 
         subfolder_path = os.path.join(root_path, subfolder)
@@ -199,12 +222,12 @@ def generate_neutron_QGSP_path(data_type, root_path, output_subfolder_name):
             second_subfolder_path = os.path.join(subfolder_path, "Ntuples")
         second_subfolder_name = f'{output_subfolder_name}/{subfolder}'
         tmp_metadata = process_MC_subfolders(second_subfolder_path, second_subfolder_name, data_type)
-        save_metadata_to_csv(tmp_metadata, csv_name)
+        save_metadata_to_csv(tmp_metadata, csv_file)
 
     
 
 
-def generate_MC_muon(data_type, root_path, output_subfolder_name):
+def generate_MC_muon(data_type, root_path, output_subfolder_name, csv_file):
 
     extensions = {"dig.root", "digCPP.root"}  # Use a set for faster lookups
     metadata = []
@@ -246,13 +269,12 @@ def generate_MC_muon(data_type, root_path, output_subfolder_name):
                     'geo_path': geo_file,
                 }
                 metadata.append(one_file_data)
-                print('Added:', one_file_data)
+                #print('Added:', one_file_data)
 
             except Exception as e:
                 print(f"Error processing ROOT file {file_path}: {e}")
 
-    csv_name = f'{data_type}_{output_subfolder_name}_metadata.csv'
-    save_metadata_to_csv(metadata, csv_name)
+    save_metadata_to_csv(metadata, csv_file)
 
 
 
@@ -271,157 +293,73 @@ def process_root_file(file_path, tree_name):
         print(f"Error processing ROOT file {file_path}: {e}")
         return 0
 
-def update_csv_file(csv_file, updated_data):
+def simple_update_csv_file(csv_file, updated_data):
     """Save the updated DataFrame back to the CSV file."""
     updated_data.to_csv(csv_file, index=False)
     print(f"CSV file updated: {csv_file}")
 
-def check_meta_data(csv_file):
-    # Constants
-    TREE_NAME = 'cbmsim'
-    DIGI_FILE_SUFFIX = "digCPP.root"
-    GEO_FILE_PREFIX = "geo"
-
-    try:
-        # Read the CSV file
-        data = pd.read_csv(csv_file)
-
-        # Filter rows where n_event == 0
-        filtered_data = data[data['n_event'] == 0]
-
-
-        
-        # Process each row
-        for index, row in filtered_data.iterrows():
-            digi_file_path = row.get('digi_path', '')
-            if not digi_file_path:
-                print(f"Missing 'digi_path' in row {index}.")
-                continue
-            
-            folder_path = os.path.dirname(digi_file_path)
-            
-            if not os.path.exists(folder_path):
-                print(f"Folder not found: {folder_path}")
-                continue
-            
-            n_event = 0
-            geo_path = ''
-            
-            for file in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, file)
-                
-                # Check for digitized ROOT files
-                if file.endswith(DIGI_FILE_SUFFIX):
-                    n_event = process_root_file(file_path, TREE_NAME)
-                
-                # Check for geometry files
-                elif file.startswith(GEO_FILE_PREFIX):
-                    geo_path = file_path
-            
-            # Update the row if `n_event` is not 0
-            if n_event != 0:
-                print(f"Updating row {index}: n_event={n_event}, digi_path={digi_file_path}, geo_path={geo_path}")
-                data.at[index, 'n_event'] = n_event
-                data.at[index, 'digi_path'] = digi_file_path
-                data.at[index, 'geo_path'] = geo_path
-            elif n_event == 0:
-                print(f"row {index}: n_event={n_event}, digi_path={digi_file_path}, geo_path={geo_path}")
-        
-        # Save the updated CSV file
-        update_csv_file(csv_file, data)
     
-    except FileNotFoundError:
-        print(f"CSV file not found: {csv_file}")
-    except pd.errors.EmptyDataError:
-        print("The CSV file is empty.")
-    except KeyError as e:
-        print(f"Missing expected column: {e}")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+def process(data_type, root_path, subfolder, csv_file):
+    """
+    Calls appropriate helper functions based on the data type.
+    """
+    if data_type == "real_data":
+        generate_real_data_path(data_type, root_path, subfolder, csv_file)
+    elif data_type == "MC_neutrino":
+        generate_neutrino_path(data_type, root_path, subfolder, csv_file)
+    elif data_type == "MC_kaon" or data_type == "MC_neutron":
+        if "QGSP" in subfolder:
+            generate_neutron_QGSP_path(data_type, root_path, subfolder, csv_file)
+        else:
+            generate_neutral_hadron_path(data_type, root_path, subfolder, csv_file)
+    elif data_type == "MC_muon":
+        generate_MC_muon(data_type, root_path, subfolder, csv_file)
+    else:
+        print(f"Unknown data type: {data_type}")
+
+def extract_info(file_name):
+    parts = file_name.replace("_metadata.csv", "").split("_")
+    data_type = "_".join(parts[:2])  # First two parts as data_type
+    subfolder = "_".join(parts[2:]) if len(parts) > 2 else ""  # Remaining as subfolder
+    return data_type, subfolder
 
 
-def drop_0_event_row(csv_file):
 
-    # Read the CSV file
-    data = pd.read_csv(csv_file)
+def main(args):
     
-    # Drop rows where 'n_event' is 0
-    filtered_data = data[data['n_event'] != 0]
+    config_path = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/metadata_config.yaml"
+    with open(config_path, "r") as file:
+        config = yaml.safe_load(file)
     
-    # Save the updated CSV back
-    filtered_data.to_csv(csv_file, index=False)
-    print(f"Rows with n_event == 0 have been removed from {csv_file}.")
+    csv_file = args.csv_output
+    csv_name = os.path.basename(csv_file)
+    
+    data_type, particle_subfolder = extract_info(csv_name)
+    print(data_type, particle_subfolder)
 
+    data_paths = config.get(data_type, {})
+    for data_path in data_paths:
+        root_path = data_path['root_path']
+        subfolder = data_path['subfolder']
+        if (particle_subfolder != subfolder):
+            print(f"skip {subfolder} ")
+            continue
+        print(data_path)
+        file_exists = os.path.isfile(csv_file)
+        if (not file_exists):
+            print(f'{csv_file} does not exist, generating from raw data')
+            process(data_type, root_path, subfolder, csv_file)
+        elif (args.force_rerun):
+            print(f'{csv_file} force rerun, generating from raw data')
+            process(data_type, root_path, subfolder, csv_file)
+        else:
+            print(f'{csv_file} exist, skip generating from raw data')
 
-def main():
-    data_type = 'real_data'
-    root_path = "/eos/experiment/sndlhc/convertedData/physics/2023_reprocess/"
-    output_subfolder_name = '2023_reprocess'
-    generate_real_data_path(data_type, root_path, output_subfolder_name)
-
-    data_type = 'real_data'
-    root_path = "/eos/experiment/sndlhc/convertedData/physics/2022/"
-    output_subfolder_name = '2022'
-    generate_real_data_path(data_type, root_path, output_subfolder_name)
-
-    data_type = "MC_neutrino"
-    root_path = "/eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volMuFilter_20fb-1_SNDG18_02a_01_000"
-    subfolder = 'volMuFilter_20fb-1'
-    generate_neutrino_path(data_type, root_path, subfolder)
-
-    data_type = "MC_neutrino"
-    root_path = "/eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000"
-    subfolder = 'volTarget_100fb-1'
-    generate_neutrino_path(data_type, root_path, subfolder)
-
-
-    root_path = "/eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/"
-    subfolder = 'FTFP_BERT'
-    data_type = 'MC_kaon'
-    generate_neutral_hadron_path(data_type, root_path, subfolder)
-
-    root_path = "/eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/neutrons/"
-    subfolder = 'FTFP_BERT'
-    data_type = 'MC_neutron'
-    generate_neutral_hadron_path(data_type, root_path, subfolder)
-
-    root_path = "/eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/QGSP_BERT_HP_PEN/kaons/"
-    subfolder = 'QGSP_BERT_HP_PEN'
-    data_type = 'MC_kaon'
-    generate_neutral_hadron_path(data_type, root_path, subfolder)
-
-    root_path = "/eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/QGSP_BERT_HP_PEN/neutrons/"
-    subfolder = 'QGSP_BERT_HP_PEN'
-    data_type = 'MC_neutron'
-    generate_neutron_QGSP_path(data_type, root_path, subfolder)
-
-    root_path = '/afs/cern.ch/user/z/zhibin/sndlhc/MonteCarlo/MuonBackground/muons_down'
-    subfolder = 'down'
-    data_type = 'MC_muon'
-    generate_MC_muon(data_type,root_path, subfolder)
-
-    root_path = '/afs/cern.ch/user/z/zhibin/sndlhc/MonteCarlo/MuonBackground/muons_up'
-    subfolder = 'up'
-    data_type = 'MC_muon'
-    generate_MC_muon(data_type,root_path, subfolder)
-
-    root_path = '/afs/cern.ch/user/z/zhibin/sndlhc/MonteCarlo/MuonBackground/muons_horizontal'
-    subfolder = 'horizontal'
-    data_type = 'MC_muon'
-    generate_MC_muon(data_type,root_path, subfolder)
-
-    print('finish main function')
-
-def check_error():
-    folder_path = './'
-    csv_files = [os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith('.csv')]
-
-    for csv_file in csv_files:
-        print(f"Processing file: {csv_file}")
-        check_meta_data(csv_file)
-        drop_0_event_row(csv_file)
 
 if __name__ == "__main__":
-    main()
-    check_error()
-    
+    parser = ArgumentParser()
+    parser.add_argument("-f", "--forceRerun",dest="force_rerun",action="store_true",help="Force rerun")
+    parser.add_argument("-o", "--csv_output", dest="csv_output", help="csv output", required=True)
+    args = parser.parse_args()
+    main(args)
+

@@ -21,7 +21,7 @@ def open_root_file(file_path, mode='read'):
 def create_output_file(path, mode):
     """Create and return a new ROOT file and a new tree for output."""
     out_file = ROOT.TFile(path, mode)
-    new_tree = ROOT.TTree('cbmsim', 'converted cbmsim tree')
+    new_tree = ROOT.TTree('snddata', 'converted cbmsim tree')
     return out_file, new_tree
 
 def process_event(args, event, snd_geo, ids, labels, hits, scifiCluster,stage1_list):
@@ -68,7 +68,7 @@ def process_hits(event, snd_geo, branch_vars):
     DS_avg_y_pos = 0
 
     scifi_counts = [0] * 5  # scifi1 to scifi5
-    veto_counts = [0] * 2 # veto1 to veto2
+    veto_counts = [0] * 3 # veto1 to veto3
     ds_counts = [0] * 4  # ds1 to ds4
     us_counts = [0] * 5  # us1 to us5
 
@@ -176,7 +176,7 @@ def process_hits(event, snd_geo, branch_vars):
         branch_vars[f"scifi{i+1}"][0] = scifi_counts[i]
 
     # Updating Veto counts
-    for i in range(2):
+    for i in range(3):
         branch_vars[f"veto{i+1}"][0] = veto_counts[i]
 
     # Updating Downstream station counts
@@ -205,7 +205,7 @@ def main(args):
         ("DS_avg_ver", 'd'), ("DS_avg_hor", 'd'),
         ("scifi_avg_x_pos", 'd'), ("scifi_avg_y_pos", 'd'),
         ("DS_avg_x_pos", 'd'), ("DS_avg_y_pos", 'd'),
-        ("veto1", 'i'), ("veto2", 'i'),  # Integers
+        ("veto1", 'i'), ("veto2", 'i'), ("veto3", 'i'),  # Integers
         ("scifi1", 'i'), ("scifi2", 'i'), ("scifi3", 'i'),("scifi4", 'i'), ("scifi5", 'i'),
         ("us1", 'i'), ("us2", 'i'), ("us3", 'i'),("us4", 'i'), ("us5", 'i'),
         ("ds1", 'i'), ("ds2", 'i'), ("ds3", 'i'), ("ds4", 'i')
@@ -230,7 +230,14 @@ def main(args):
 
         if ('MC' in  args.type):
             branch_vars["isMC"][0] = 1
-            branch_vars["eventId"][0] = event.EventHeader.GetMCEntryNumber()
+            #print(dir(event.EventHeader))
+            if ('kaon' in args.type or 'neutron' in args.type):
+                try:
+                    branch_vars["eventId"][0] = event.EventHeader.GetEventNumber()
+                except Exception:
+                    branch_vars["eventId"][0] = event.EventHeader.GetMCEntryNumber()
+            else:
+                branch_vars["eventId"][0] = event.EventHeader.GetMCEntryNumber()
             # Particle codes and initial position
             event_pdg0 = event.MCTrack[0].GetPdgCode()
             event_pdg1 = event.MCTrack[1].GetPdgCode()
@@ -261,8 +268,6 @@ def main(args):
     new_tree.Write()
     out_file.Close()
     print("finish processing digi to feature")
-
-
 
 if __name__ == "__main__":
     parser = ArgumentParser()

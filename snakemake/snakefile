@@ -7,7 +7,7 @@ import os
 
 
 metadata_csv_list = [
-    #  "MC_kaon_FTFP_BERT_metadata.csv",
+      "MC_kaon_FTFP_BERT_metadata.csv",
     # "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
     # "MC_muon_down_metadata.csv",
     # "MC_muon_horizontal_metadata.csv",
@@ -18,7 +18,7 @@ metadata_csv_list = [
     # "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
     # "real_data_2022_metadata.csv",
     # "real_data_2023_metadata.csv",
-     "real_data_2024_metadata.csv",
+    # "real_data_2024_metadata.csv",
 ]
 
 
@@ -48,6 +48,7 @@ def load_metadata():
         return df
 
 METADATA = load_metadata()
+#print(METADATA)
 
 def get_metadata_from_model_output(model_output, target_name):
     file_name = os.path.basename(model_output)

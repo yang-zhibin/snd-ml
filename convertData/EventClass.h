@@ -27,19 +27,21 @@ public:
     int detType;      // detector type 1: scifi, 2: us, 3: ds
     float hitTime;    // time of the hit
     int detId;         // detector Id
+    float qdc;          // hit qdc 
 
     Hit(bool orientation = true, 
         float x1 = 0.0, float y1 = 0.0, float z1 = 0.0,
         float x2 = 0.0, float y2 = 0.0, float z2 = 0.0,
         int detType = 0, 
         float hitTime = 0.0, 
-        int detId = 0) 
+        int detId = 0,
+        float qdc=0.0) 
     : orientation(orientation), 
       x1(x1), y1(y1), z1(z1), 
       x2(x2), y2(y2), z2(z2), 
       detType(detType), 
       hitTime(hitTime),
-      detId(detId){}
+      detId(detId), qdc(qdc){}
 
     virtual ~Hit() {}
 
@@ -50,6 +52,7 @@ public:
         detType = 0;
         hitTime = 0.0;
         detId = 0;
+        qdc=0.0;
     }
 
     ClassDef(Hit, 1)

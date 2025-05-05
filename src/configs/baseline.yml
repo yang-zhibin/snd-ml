@@ -2,7 +2,7 @@
 logger:
   project: 'snd-ml-GravNet'
   entity: "1246249540"
-  name: 'baseline_muon'
+  name: 'baseline'
   version: 11
   save_dir: '/afs/cern.ch/user/z/zhibin/work/snd-ml/log/snd-ml-GravNet/'
 
@@ -17,12 +17,13 @@ batch_size:
   val: 1024
   test: 1024
 
-max_epochs: 200
+max_epochs: 10
 data: '/eos/user/z/zhibin/sndData/converted/pt'
 #data: '/eos/user/z/zhibin/sndData/converted/toy_dataset/pt_data/'
+metadata_dir: '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated'
 
 #val_check_interval: 5000
-check_val_every_n_epoch: 5
+check_val_every_n_epoch: 1
 
 
 

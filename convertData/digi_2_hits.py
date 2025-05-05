@@ -53,13 +53,25 @@ def process_hits(event, snd_geo, hits):
         hit.hitTime = aHit.GetTime()
         hit.detId = detID
 
+        max_QDC = 200 * 16
+        this_qdc = 0
+        ns = max(1,aHit.GetnSides())
+        for side in range(ns):
+            for m in  range(aHit.GetnSiPMs()):
+                qdc = aHit.GetSignal(m+side*aHit.GetnSiPMs())
+                if not qdc < 0:
+                    this_qdc += qdc
+        if this_qdc > max_QDC :
+            this_qdc = max_QDC
+        hit.qdc = this_qdc
+
 
     # Process MuFilter hits
     for aHit in event.Digi_MuFilterHits:
-        if not aHit.isValid():
+        #drop invalid hit and veto hit not using in training
+        if not aHit.isValid() or aHit.GetSystem() == 2:
             continue
         detID = aHit.GetDetectorID()
-
 
         MuFilter.GetPosition(detID, A, B)
         hit = hits.ConstructedAt(hits.GetEntries())
@@ -70,6 +82,17 @@ def process_hits(event, snd_geo, hits):
         hit.hitTime = aHit.GetTime()
         hit.detId = detID
 
+        max_QDC = 200 * 16
+        this_qdc = 0
+        ns = max(1,aHit.GetnSides())
+        for side in range(ns):
+            for m in  range(aHit.GetnSiPMs()):
+                qdc = aHit.GetSignal(m+side*aHit.GetnSiPMs())
+                if not qdc < 0:
+                    this_qdc += qdc
+        if this_qdc > max_QDC :
+            this_qdc = max_QDC
+        hit.qdc = this_qdc
 
 
 
@@ -82,7 +105,7 @@ def main(args):
     out_file, new_tree = create_output_file(args.out_path, args.mode)
     
     # Define branches (assuming branch setup functions are defined)
-    ROOT.gROOT.ProcessLine(".L EventClass.h+")
+    ROOT.gROOT.ProcessLine(".L /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h+")
 
     ids = ROOT.Id()
     hits = ROOT.TClonesArray("Hit")
@@ -95,18 +118,21 @@ def main(args):
     # Process each event
     for i_event, event in enumerate(raw_tree):
         #reset
+        print(i_event)
         hits.Clear()
-
-        # add least one hit
-        if not (event.Digi_ScifiHits.GetEntriesFast() or event.Digi_MuFilterHits.GetEntriesFast()):
-            continue
-        
+        ids.clear()
         ids.runId = event.EventHeader.GetRunId()
         
 
         if ('MC' in  args.type):
             ids.isMC = 1
-            ids.eventId = event.EventHeader.GetMCEntryNumber()
+            if ('kaon' in args.type or 'neutron' in args.type):
+                try:
+                    ids.eventId = event.EventHeader.GetEventNumber()
+                except Exception:
+                    ids.eventId = event.EventHeader.GetMCEntryNumber()
+            else:
+                ids.eventId = event.EventHeader.GetMCEntryNumber()
             # Particle codes and initial position
             event_pdg0 = event.MCTrack[0].GetPdgCode()
             event_pdg1 = event.MCTrack[1].GetPdgCode()
@@ -122,8 +148,12 @@ def main(args):
             ids.pdgCode=0
             ids.eventId = event.EventHeader.GetEventNumber()
 
-        process_hits(event, snd_geo, hits)
-        new_tree.Fill()
+        # add least one hit to process
+        if not (event.Digi_ScifiHits.GetEntriesFast() or event.Digi_MuFilterHits.GetEntriesFast()):
+            new_tree.Fill()
+        else:
+            process_hits(event, snd_geo, hits)
+            new_tree.Fill()
 
     # Finalize the output file
     new_tree.Write()

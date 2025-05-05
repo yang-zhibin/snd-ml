@@ -1,6 +1,7 @@
 import yaml
 from torch_geometric.data import DataLoader as GeoDataLoader
 from dataset.SndGeoDataset import SndGeoDataset
+from dataset.ROOTGraphDataset import ROOTGraphDataset
 
 import uproot
 from lightning.pytorch.loggers import WandbLogger

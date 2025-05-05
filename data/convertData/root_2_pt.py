@@ -19,7 +19,7 @@ def process_root_file(path, out_path, chunk_size=1e5):
     event_features_name = ['RecoMuon.px', 'RecoMuon.py', 'RecoMuon.pz', 'RecoMuon.x', 'RecoMuon.y', 'RecoMuon.z']
     ids_name = ['pdgCode', 'runId', 'eventId', 'partitionId']
 
-    tree_name = 'cbmsim'
+    tree_name = 'snddata'
 
     recreate = True
 
