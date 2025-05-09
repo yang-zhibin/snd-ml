@@ -131,7 +131,7 @@ def cal_matrix(df, true_class):
             p_class_number = particle_2_class[p_class]
             #print(p_class_number)
             if (p_class=='ve'):
-                df_pred = df_true.Filter(f'PredClass=={p_class_number} && Prediction_{p_class_number} > 0.99662')
+                df_pred = df_true.Filter(f'PredClass=={p_class_number}')
             else:
                 df_pred = df_true.Filter(f'PredClass=={p_class_number}')
             pred_count = df_pred.Count().GetValue()
@@ -149,6 +149,10 @@ def process(rdf, real_data_lumi, mc_neutrino_lumi):
     print("veto_inverted",veto_inverted.Count().GetValue())
     #print("signal_region",signal_region.Count().GetValue())
     print("mc_neutrino",mc_neutrino.Count().GetValue()/mc_neutrino_lumi*real_data_lumi)
+
+    print(f"MC lumi: {mc_neutrino_lumi:.4e}, read data lumi: {real_data_lumi:.4e}")
+    print(f"Normalisation factor : {real_data_lumi/mc_neutrino_lumi:.4e}")
+    print(f"MC neutrino count, before norm: {mc_neutrino.Count().GetValue()}, after norm: {mc_neutrino.Count().GetValue()/mc_neutrino_lumi*real_data_lumi}")
     #cal matrix
     mc_neutrino_matrix = cal_matrix(mc_neutrino, ["ve", "vm", "vt", "NC"])
     veto_inverted_matrix = cal_matrix(veto_inverted, ['real_data'])

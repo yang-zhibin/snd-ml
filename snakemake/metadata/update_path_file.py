@@ -101,7 +101,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     model_names = [list(model.keys())[0] for model in models]
     for model in model_names:
         df = add_new_path(f"model_{model}_output", "root", df, csv_input, eos_root_path)
-        df = add_new_path(f"eval_{model}", "root", df, csv_input, eos_root_path)
+        df = add_new_path(f"eval_{model}_output", "root", df, csv_input, eos_root_path)
     
 
     df.to_csv(csv_output, index=False)

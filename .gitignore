@@ -17,4 +17,5 @@ root_output*/
 .law/
 htcondor_log*/
 .snakemake/
+old_log/
 

@@ -139,10 +139,10 @@ def plot_2d_vt_score(df):
     canvas.Divide(1, 1)
 
     # Open the PDF file
-    canvas.Print("plot/2d_vt_score.pdf[")
+    canvas.Print("plot/2d_vt_score_2.pdf[")
 
     for name, idx in particle_2_class.items():
-        df_filtered = df.Filter(f'ParticleType == "{name}"')
+        df_filtered = df.Filter(f'ParticleType == "vt"')
 
 
         x_col = "Prediction_2"
@@ -167,12 +167,13 @@ def plot_2d_vt_score(df):
 
         canvas.Modified()
         canvas.Update()
-        canvas.Print("plot/2d_vt_score.pdf")  # Save this page
+        canvas.Print("plot/2d_vt_score_2.pdf")  # Save this page
 
     # Close the PDF file
-    canvas.Print("plot/2d_vt_score.pdf]")
+    canvas.Print("plot/2d_vt_score_2.pdf]")
 
 def plot_max_pred_score(df):
+    df = df.Filter(f'ParticleType == "vt"')
     df = df.Define("max_pred_score", 
     "std::max({Prediction_0, Prediction_1, Prediction_2, Prediction_3, Prediction_4, Prediction_5, Prediction_6})")
 
@@ -195,7 +196,7 @@ def plot_max_pred_score(df):
         stats.SetY2NDC(0.3)
     c.Modified()
     c.Update()
-    c.SaveAs("plot/max_vs_pred2.pdf")
+    c.SaveAs("plot/max_vs_pred2_vt_true2.pdf")
 def main():
     metadata_mc_neutrino_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated/MC_neutrino_volTarget_100fb-1_metadata.csv'  
     metadata_mc_neutrino_df = pd.read_csv(metadata_mc_neutrino_path)

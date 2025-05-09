@@ -1,6 +1,7 @@
 
 import ROOT
 import argparse
+import pandas as pd
 
 
 # mode 
@@ -75,22 +76,29 @@ def main(args):
 
     rdf = ROOT.RDataFrame(feature_chain)
     #fiducial cuts
-    #
+    # 
     cuts = {
-        "scifi_gt_10": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 10",
-        "scifi_gt_30": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 30",
-        "scifi_gt_50": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 50",
-        "scifi_gt_70": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 70",
-        "scifi_gt_90": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 90",
-        "ds_fudicial": "DS_avg_ver >=70 && DS_avg_ver <=105 && DS_avg_hor >=10 && DS_avg_hor<=50",
-        "scifi_fudicial": "scifi_avg_ver >=200 && scifi_avg_ver <=1200 && scifi_avg_hor >=300 && scifi_avg_hor<=1336",
-        "no_hit_scifi1": "scifi1==0",
-        "no_hit_scifi2": "scifi2==0",
-    }
+        "scifi_gt_100": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 100",
+        "scifi_gt_300": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 300",
+        "scifi_gt_500": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 500",
+        "scifi_gt_700": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 700",
+        "scifi_gt_900": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 900",
+        "fudicial_0": "DS_avg_ver >=70 && DS_avg_ver <=105 && DS_avg_hor >=10 && DS_avg_hor<=50 && scifi_avg_ver >=200 && scifi_avg_ver <=1200 && scifi_avg_hor >=300 && scifi_avg_hor<=1336",
+        "fudicial_1": "DS_avg_ver >=65 && DS_avg_ver <=110 && DS_avg_hor >=5 && DS_avg_hor<=55 && scifi_avg_ver >=100 && scifi_avg_ver <=1350 && scifi_avg_hor >=200 && scifi_avg_hor<=1400",
+    }   
 
-    score_cuts = {}
+    score_df = pd.read_csv('/afs/cern.ch/user/z/zhibin/work/snd-ml/data_quality_check/ve_cut_scores.csv')
+    score_list = score_df['score'].astype(float)
 
-    columns_to_keep = ["ParticleType", "ParticleClass", "eventId", "runId", "pdgCode"]
+    particle_class = 0
+    score_cuts = {
+            f"score_{str(score).replace('.', '_')}": f"Prediction_{particle_class} > {score}"
+            for score in score_list
+        }
+    
+    cuts.update(score_cuts)
+
+    columns_to_keep = ["ParticleType", "ParticleClass", "eventId", "runId", "pdgCode", "PredClass"]
 
     rdf = pdg_2_particle(rdf)
 

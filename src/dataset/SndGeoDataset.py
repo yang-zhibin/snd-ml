@@ -45,7 +45,7 @@ class RootSaver(Callback):
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):   
         # Convert prediction tensor to numpy and squeeze unnecessary dimensions
         outputs=outputs['outputs']
-        predictions = torch.sigmoid(outputs)
+        predictions = torch.softmax(outputs)
         #print("pred",predictions.shape)
         predictions = predictions.detach().cpu().numpy().squeeze()
         
