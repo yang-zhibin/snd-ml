@@ -6,5 +6,5 @@ max-jobs-per-second: 100
 max-status-checks-per-second: 100
 restart-times: 1
 local-cores: 10
-jobs: 5000
+jobs: 1000
 verbose: false

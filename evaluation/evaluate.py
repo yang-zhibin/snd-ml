@@ -2,6 +2,7 @@
 import ROOT
 import argparse
 import pandas as pd
+import numpy as np
 
 
 # mode 
@@ -20,6 +21,8 @@ particle_2_class = {
     'neutron': 5,
     'muon': 6,
 }
+
+
 def pdg_2_particle(rdf):
     rdf = rdf.Define("ParticleType", """
         if (PdgCode == 12 || PdgCode == -12) return std::string("ve");
@@ -59,6 +62,38 @@ def pdg_2_particle(rdf):
     rdf = rdf.Define("PredClass", argmax_expr)
     return rdf
 
+def cal_scan_fiducial_area():
+
+    scifi_tl_xs = list(range(-46, -40, 1)) 
+    scifi_tl_ys = list(range(53, 47, -1))  
+    DS_tl_xs = list(range(-61, -45, 3))    
+    DS_tl_ys = list(range(67, 56, -2))     
+
+    scifi_br_xs = list(range(-7, -16, -1)) 
+    scifi_br_ys = list(range(14, 23))      
+    DS_br_xs = list(np.arange(1, -9.1, -1.25).tolist())      
+    DS_br_ys = list(np.arange(8, 18.1, 1.25).tolist())      
+    
+    fiducial_tl_exprs = []
+    for i in range(len(scifi_tl_xs)):
+        scifi_tl_x = scifi_tl_xs[i]
+        scifi_tl_y = scifi_tl_ys[i]
+        DS_tl_x = DS_tl_xs[i]
+        DS_tl_y = DS_tl_ys[i]
+        fiducial_tl_expr = f'scifi_avg_x_pos >={scifi_tl_x} && scifi_avg_y_pos <= {scifi_tl_y} && DS_avg_x_pos >={DS_tl_x} && DS_avg_y_pos <= {DS_tl_y} '
+        fiducial_tl_exprs.append(fiducial_tl_expr)
+    
+    fiducial_br_exprs = []
+    for i in range(len(scifi_br_xs)):
+        scifi_br_x = scifi_br_xs[i]
+        scifi_br_y = scifi_br_ys[i]
+        DS_br_x = DS_br_xs[i]
+        DS_br_y = DS_br_ys[i]
+        fiducial_br_expr = f'scifi_avg_x_pos <={scifi_br_x} && scifi_avg_y_pos >= {scifi_br_y} && DS_avg_x_pos <={DS_br_x} && DS_avg_y_pos >= {DS_br_y} '
+        fiducial_br_exprs.append(fiducial_br_expr)
+
+    return fiducial_tl_exprs, fiducial_br_exprs
+
 def main(args):
 
     print('evaluating prediction results...')
@@ -83,20 +118,23 @@ def main(args):
         "scifi_gt_500": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 500",
         "scifi_gt_700": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 700",
         "scifi_gt_900": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 900",
-        "fudicial_0": "DS_avg_ver >=70 && DS_avg_ver <=105 && DS_avg_hor >=10 && DS_avg_hor<=50 && scifi_avg_ver >=200 && scifi_avg_ver <=1200 && scifi_avg_hor >=300 && scifi_avg_hor<=1336",
-        "fudicial_1": "DS_avg_ver >=65 && DS_avg_ver <=110 && DS_avg_hor >=5 && DS_avg_hor<=55 && scifi_avg_ver >=100 && scifi_avg_ver <=1350 && scifi_avg_hor >=200 && scifi_avg_hor<=1400",
+        "fiducial_0": "DS_avg_ver >=70 && DS_avg_ver <=105 && DS_avg_hor >=10 && DS_avg_hor<=50 && scifi_avg_ver >=200 && scifi_avg_ver <=1200 && scifi_avg_hor >=300 && scifi_avg_hor<=1336",
     }   
 
-    score_df = pd.read_csv('/afs/cern.ch/user/z/zhibin/work/snd-ml/data_quality_check/ve_cut_scores.csv')
-    score_list = score_df['score'].astype(float)
+    fiducial_tl_exprs, fiducial_br_exprs = cal_scan_fiducial_area()
 
-    particle_class = 0
-    score_cuts = {
-            f"score_{str(score).replace('.', '_')}": f"Prediction_{particle_class} > {score}"
-            for score in score_list
-        }
-    
-    cuts.update(score_cuts)
+    fiducial_tl_cuts = {
+        f"fiducial_tl_{i}": expr
+        for i, expr in enumerate(fiducial_tl_exprs, 1)
+    }
+
+    fiducial_br_cuts = {
+        f"fiducial_br_{i}": expr
+        for i, expr in enumerate(fiducial_br_exprs, 1)
+    }
+
+    cuts.update(fiducial_tl_cuts)
+    cuts.update(fiducial_br_cuts)
 
     columns_to_keep = ["ParticleType", "ParticleClass", "eventId", "runId", "pdgCode", "PredClass"]
 
