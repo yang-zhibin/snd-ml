@@ -13,7 +13,7 @@ class RootSaver(Callback):
 
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):   
         outputs=outputs['outputs']
-        print(f"output shape:", outputs.shape)
+        #print(f"output shape:", outputs.shape)
         predictions = torch.softmax(outputs,dim=1)
         predictions = predictions.detach().cpu().numpy().squeeze()
         

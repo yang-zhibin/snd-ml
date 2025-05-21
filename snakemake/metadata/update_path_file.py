@@ -4,6 +4,7 @@ import pandas as pd
 import glob
 import yaml
 from argparse import ArgumentParser
+import re
 
 def generate_full_path(row, path_name, suffix, csv_input, eos_root_path):
     
@@ -34,7 +35,12 @@ def add_new_path(path_name, path_type, df, csv_input, eos_root_path, force_rerun
     df['subfolder'] = df['subfolder'].astype(str)
     
     # Determine suffix based on path_type
-    suffix = ".pt.gz" if path_type == "pt" else ".root"
+    if path_type == "pt":
+        suffix = ".pt.gz"
+    elif path_type == "pkl":
+        suffix = ".pkl.gz"
+    else:
+        suffix = ".root"
     
     df[column_name] = df.apply(lambda row: generate_full_path(row, path_name, suffix, csv_input, eos_root_path),axis=1)
     
@@ -81,14 +87,111 @@ def drop_run_without_lumi(df, lumi_file):
     df['lumi_per_file'] = pd.concat(lumi_per_file_list)
 
     return df
+
+
+def get_int_rate():
+    # from paper CERN-SND@LHC-NOTE-2023-002
+    # Neutron yield data
+    neutron_yield_FTFP_BERT = {
+        "Energy [GeV]": [
+            "(5,10)", "(10,20)", "(20,30)", "(30,40)", "(40,50)", "(50,60)", "(60,70)",
+            "(70,80)", "(80,90)", "(90,100)", "(100,150)", "(150,200)"
+        ],
+        "Int. Rate": [
+            "4.62e+04", "7.59e+03", "1.18e+03", "5.30e+02", "4.66e+02", "2.60e+01",
+            "1.80e+01", "8.48", "8.48", "0", "0", "0"
+        ]
+    }
+    neutron_yield_FTFP_BERT_2022 = pd.DataFrame(neutron_yield_FTFP_BERT)
+
+    # Kaon yield data
+    kaon_yield_FTFP_BERT = {
+        "Energy [GeV]": [
+            "(5,10)", "(10,20)", "(20,30)", "(30,40)", "(40,50)", "(50,60)", "(60,70)",
+            "(70,80)", "(80,90)", "(90,100)", "(100,150)", "(150,200)"
+        ],
+        "Int. Rate": [
+            "2.51e+04", "5.72e+03", "8.53e+02", "1.10e+02", "9.38e+01", "6.48e+01",
+            "9.90e+00", "2.32e+01", "1.15e+01", "1.15e+01", "0", "0"
+        ]
+    }
+    kaon_yield_FTFP_BERT_2022 = pd.DataFrame(kaon_yield_FTFP_BERT)
+
+    # Luminosity in fb^-1
+    lumi_2022 = 36.77
+
+    # Convert to float
+    neutron_yield_FTFP_BERT_2022["Int. Rate"] = neutron_yield_FTFP_BERT_2022["Int. Rate"].astype(float)
+    kaon_yield_FTFP_BERT_2022["Int. Rate"] = kaon_yield_FTFP_BERT_2022["Int. Rate"].astype(float)
+
+    # Create normalized DataFrames
+    neutron_yield_FTFP_BERT_per_fb = pd.DataFrame({
+        "Energy [GeV]": neutron_yield_FTFP_BERT_2022["Energy [GeV]"],
+        "Rate per fb^-1": neutron_yield_FTFP_BERT_2022["Int. Rate"] / lumi_2022
+    })
+
+    kaon_yield_FTFP_BERT_per_fb = pd.DataFrame({
+        "Energy [GeV]": kaon_yield_FTFP_BERT_2022["Energy [GeV]"],
+        "Rate per fb^-1": kaon_yield_FTFP_BERT_2022["Int. Rate"] / lumi_2022
+    })
+
+    return neutron_yield_FTFP_BERT_per_fb, kaon_yield_FTFP_BERT_per_fb
+
+
+def extract_energy(subfolder):
+    match = re.search(r'[_/]([a-zA-Z]+)_(\d+)_?(\d+)?', subfolder)
+    if match:
+        low = int(match.group(2))
+        high = int(match.group(3)) if match.group(3) else None
+        return (low, high)
+    return None
+
+def cal_lumi_for_neutral_bkg(int_rate_df, metadata_df):
+    metadata_df["energy_range"] = metadata_df["subfolder"].apply(extract_energy)
+
+
+    rate_dict = dict(zip(int_rate_df["Energy [GeV]"], int_rate_df["Rate per fb^-1"]))
     
+    def compute_lumi(row):
+        energy_range = row["energy_range"]
+        if energy_range is None:
+            return None
+        energy_str = f"({energy_range[0]},{energy_range[1]})"
+        rate = rate_dict.get(energy_str)
+        n_event = row.get("n_event")
+        #print("energy_range",energy_str,"rate",rate, "n_event", n_event)
+        if rate == 0 or rate is None:
+            return None
+        return n_event / rate
+
+    metadata_df["lumi_per_file"] = metadata_df.apply(compute_lumi, axis=1)
+
+    #print(metadata_df)
+    return metadata_df
+    
+
+
 
 def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input, eos_root_path, models,lumi_file):
     
     df = pd.read_csv(csv_input)
     if (data_type=='real_data'):
         df = drop_run_without_lumi(df, lumi_file)
-    
+        if("2024" in csv_input):
+            df['veto_ineff'] = 1e-8
+        else:
+            pass #todo: apply veto ineff for different periods
+    elif (data_type=='MC_kaon' or data_type=='MC_neutron'):
+        neutron_rates, kaon_rates = get_int_rate()
+        if ("FTFP_BERT" in subfolder) and (data_type=='MC_neutron'):
+            df = cal_lumi_for_neutral_bkg(neutron_rates, df)
+        elif ("FTFP_BERT" in subfolder) and (data_type=='MC_kaon'):
+            df = cal_lumi_for_neutral_bkg(neutron_rates, df)        
+    elif (data_type=='MC_neutrino'):
+        if '100fb-1' in csv_input:
+            df['lumi_per_file'] =100
+        elif '20fb-1' in csv_input:
+            df['lumi_per_file'] =20
 
     # hit path
     df = add_new_path("hit","root", df, csv_input,  eos_root_path)
@@ -96,12 +199,19 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     df = add_new_path("feature","root", df, csv_input, eos_root_path)
     # pt hit path
     df = add_new_path("pt_hit","pt", df, csv_input, eos_root_path)
+    # add 3d hit path
+    df = add_new_path("pkl_hit","pkl", df, csv_input, eos_root_path)
 
     # 
     model_names = [list(model.keys())[0] for model in models]
     for model in model_names:
-        df = add_new_path(f"model_{model}_output", "root", df, csv_input, eos_root_path)
-        df = add_new_path(f"eval_{model}_output", "root", df, csv_input, eos_root_path)
+        
+        if "3d" in model :
+            df = add_new_path(f"eval_{model}_output", "pkl", df, csv_input, eos_root_path)
+            df = add_new_path(f"model_{model}_output", "pkl", df, csv_input, eos_root_path)
+        else:
+            df = add_new_path(f"eval_{model}_output", "root", df, csv_input, eos_root_path)
+            df = add_new_path(f"model_{model}_output", "root", df, csv_input, eos_root_path)
     
 
     df.to_csv(csv_output, index=False)

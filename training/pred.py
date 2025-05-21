@@ -62,8 +62,8 @@ def main(args):
         model = GravNet.load_from_checkpoint(ckpt_path)
 
 
-    tmp_dir = tempfile.mkdtemp(prefix="zhibin-", dir="/tmp/")
-    print("Temporary directory created:", tmp_dir)
+    tmp_dir = args.tmpdir
+    print("Temporary directory for dataloader:", tmp_dir)
     
     test_data= PredGeoDataset(root=tmp_dir, pt_file=pt_hit_path, use_event_feature=config['use_event_feature'], weight_type=config['weight_type'], force_reload=True)
     
@@ -84,6 +84,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", dest="input", help='input pt hit file path')
     parser.add_argument("-o", "--output", dest="output", help='prediction output file path')
+    parser.add_argument("-t", "--tmpdir", dest="tmpdir", help='tmpdir for dataloader')
     parser.add_argument("-m", "--models", dest="models", help='models config file path', default='/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/model_config.yaml')
+
     args = parser.parse_args()
     main(args)

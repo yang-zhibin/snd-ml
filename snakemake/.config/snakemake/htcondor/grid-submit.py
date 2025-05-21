@@ -38,7 +38,7 @@ sub = htcondor.Submit(
 
 # Add GPU request if specified in job properties
 if "nvidia_gpu" in job_properties["resources"] and job_properties["resources"]["nvidia_gpu"] != 0:
-    sub_dict["request_GPUs"] = str(job_properties["resources"]["nvidia_gpu"])
+    sub["request_GPUs"] = str(job_properties["resources"]["nvidia_gpu"])
 
 
 request_memory = job_properties["resources"].get("mem_mb", None)

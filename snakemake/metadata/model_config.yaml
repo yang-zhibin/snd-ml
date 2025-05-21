@@ -1,6 +1,9 @@
-- baseline:
-  - config: /afs/cern.ch/user/z/zhibin/work/snd-ml/training/configs/baseline.yml
-  - ckpt:  /afs/cern.ch/user/z/zhibin/work/snd-ml/log/snd-ml-GravNet/baseline/best.ckpt 
+# - baseline:
+#   - config: /afs/cern.ch/user/z/zhibin/work/snd-ml/training/configs/baseline.yml
+#   - ckpt:  /afs/cern.ch/user/z/zhibin/work/snd-ml/log/snd-ml-GravNet/baseline/best.ckpt 
 - baseline_muon:
   - config: /afs/cern.ch/user/z/zhibin/work/snd-ml/training/configs/baseline_muon.yml
   - ckpt:  /afs/cern.ch/user/z/zhibin/work/snd-ml/log/snd-ml-GravNet/baseline_muon/best.ckpt
+# - baseline_3d:
+#   - config: /afs/cern.ch/user/z/zhibin/work/snd-ml/training_3d/configs/baseline_3D.yml
+#   - ckpt:  /afs/cern.ch/work/z/zhibin/snd-ml/training_3d/train_log/snd-ml-3D/baseline_3D/last-v4.ckpt

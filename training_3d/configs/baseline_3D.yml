@@ -1,0 +1,81 @@
+
+logger:
+  project: 'snd-ml-3D'
+  entity: "1246249540"
+  name: 'baseline_3D'
+  version: 5
+  save_dir: '/afs/cern.ch/user/z/zhibin/work/snd-ml/training_3d/train_log/snd-ml-3D/'
+
+ModelCheckpoint:
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+  save_last: True
+
+batch_size: 
+  train: 32
+  val: 1
+  test: 1
+
+max_epochs: 1000
+datalaoder_dir: '/eos/user/z/zhibin/train_3D/'
+#data: '/eos/user/z/zhibin/sndData/converted/toy_dataset/pt_data/'
+metadata_dir: '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated'
+
+check_val_every_n_epoch: 1
+
+
+global_feature_set: ['RecoMuon.px', 'RecoMuon.py', 'RecoMuon.pz', 'RecoMuon.x', 'RecoMuon.y', 'RecoMuon.z']
+feature_set: ['Hits.detType','Hits.orientation','Hits.x1', 'Hits.y1', 'Hits.z1', 'Hits.x2', 'Hits.y2', 'Hits.z2']
+factor: 0.8
+patience: 1
+lr: 0.5
+
+nb_classes: 1
+#class_weights: [3.0, 2.0, 0.2, 0.2, 1.0, 1.0]
+class_weights: [0.2, 0.8]
+use_weights: True
+weight_type: "weight"
+use_event_feature: False
+spatial_channels: 4
+global_feature_channels: 6
+
+final_dropout: 0.1 # The dropout of the final layer
+feature_dropout: 0.0 # This is the dropout within the GNN convolutions
+spatial_dropout: 0.0
+
+
+
+# MLP params
+
+#n_glabal_feature: 6
+layernorm: False # True
+batchnorm: True
+aggregation: mean_sum
+hidden_activation: ReLU # SiLU
+output_activation: 
+
+# Layer Structure
+n_grav_heads: 2 # 5
+hidden: 16
+n_graph_iters: 2 # 5
+nb_encoder_layer: 2
+nb_decoder_layer: 2
+nb_feature_layer: 2
+nb_spatial_layer: 2
+concat_all_layers: False # True
+layer_shape: pyramid # flat
+
+# GravNet-specific parameters
+knn: # 16
+rand_k: 
+aggs: [add, max, mean]
+
+r: 1.
+max_knn: 4
+
+emb_dims: 4
+grav_weight: 3.0
+norm_hidden: True
+norm_embedding: False
+self_loop: True
