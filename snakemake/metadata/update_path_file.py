@@ -39,6 +39,8 @@ def add_new_path(path_name, path_type, df, csv_input, eos_root_path, force_rerun
         suffix = ".pt.gz"
     elif path_type == "pkl":
         suffix = ".pkl.gz"
+    elif path_type == "csv":
+        suffix = ".csv"
     else:
         suffix = ".root"
     
@@ -212,7 +214,8 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
         else:
             df = add_new_path(f"eval_{model}_output", "root", df, csv_input, eos_root_path)
             df = add_new_path(f"model_{model}_output", "root", df, csv_input, eos_root_path)
-    
+        
+        df = add_new_path(f"matrix_{model}_output", "csv", df, csv_input, eos_root_path)
 
     df.to_csv(csv_output, index=False)
 

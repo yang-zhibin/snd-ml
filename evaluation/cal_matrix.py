@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from tqdm import tqdm
 import numpy as np
+import argparse
 
 particle_2_class = {
     've': 0,
@@ -14,34 +15,7 @@ particle_2_class = {
     'muon': 6,
 }
 
-
-def read_metadata():
-    metadata_paths = {
-        #"neutrino": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_volTarget_100fb-1_metadata.csv',
-        "kaon": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_kaon_FTFP_BERT_metadata.csv',
-        #"neutron": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutron_FTFP_BERT_metadata.csv',
-        #"real_data_2024": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/real_data_2024_metadata.csv'
-    }
-
-    cleaned_metadata = {}
-    path_column = "eval_baseline_muon_output_path" 
-
-    for key, file_path in metadata_paths.items():
-        if os.path.exists(file_path):
-            df = pd.read_csv(file_path, nrows = 10) # debug
-            print(df)
-            if path_column in df.columns:
-                df = df[df[path_column].apply(os.path.exists)]
-                cleaned_metadata[key] = df
-            else:
-                print(f"Column '{path_column}' not found in {file_path}")
-        else:
-            print(f"Metadata file not found: {file_path}")
-    
-    return cleaned_metadata
-
-def save_to_csv(matrices):
-    combined_csv_path = './csv/all_confusion_matrices.csv'
+def save_to_csv(matrices, outpath):
     combined_df_list = []
 
     for label, matrix in matrices.items():
@@ -52,7 +26,9 @@ def save_to_csv(matrices):
 
     # Concatenate all matrices into one DataFrame
     combined_df = pd.concat(combined_df_list)
-    combined_df.to_csv(combined_csv_path, index=True)
+    combined_df.to_csv(outpath, index=True)
+    print(f"matrices save to {outpath}")
+
 
 
 def cal_matrix(rdf, true_class, cuts):
@@ -111,20 +87,11 @@ def cal_matrix(rdf, true_class, cuts):
         #print(f"cut: {label}",confusion_matrix)
         matrices[label] = confusion_matrix
     print(matrices)
-    save_to_csv(matrices)
+    #save_to_csv(matrices)
     return matrices
 
-
-def process_row(row, cuts):
-    eval_path = row['eval_baseline_muon_output_path']
-    feature_path = row['feature_path']
-    lumi_per_file = row['lumi_per_file']
-    data_type = row['data_type']
-    pred_path = row['model_baseline_muon_output_path']
-
-    
+def process(eval_path,feature_path,pred_path, data_type, cuts, outpath):
     if "real_data" in data_type:
-        veto_ineff = row.get('veto_ineff', None)
         true_class = ['veto_inverted', 'signal_region']
 
         eval_chain = ROOT.TChain("snddata")
@@ -141,7 +108,7 @@ def process_row(row, cuts):
 
         
         rdf = ROOT.RDataFrame(eval_chain)
-        cal_matrix(rdf, true_class, cuts)
+        matrices = cal_matrix(rdf, true_class, cuts)
     else:
         if 'kaon' in data_type:
             true_class = ['kaon']
@@ -149,6 +116,8 @@ def process_row(row, cuts):
             true_class = ['neutron']
         elif 'neutrino' in data_type:
             true_class = ["ve", "vm", "vt", "NC"]
+        elif 'muon' in [data_type]:
+            true_class = ['muon']
         eval_chain = ROOT.TChain("snddata")
         pred_chain = ROOT.TChain("snddata")
         eval_chain.Add(eval_path)
@@ -157,28 +126,38 @@ def process_row(row, cuts):
         eval_chain.AddFriend(pred_chain, 'predTree')
         rdf = ROOT.RDataFrame(eval_chain)
 
-        cal_matrix(rdf, true_class, cuts)
+        matrices = cal_matrix(rdf, true_class, cuts)
 
+    save_to_csv(matrices, outpath)
     print("RDataFrame run times: ",rdf.GetNRuns())
 
+def get_data_type(feature_path):
+    if 'MC_kaon' in feature_path:
+        data_type = 'MC_kaon'
+    elif 'MC_neutron' in feature_path:
+        data_type = 'MC_neutron'
+    elif 'MC_muon' in feature_path:
+        data_type = 'MC_muon'
+    elif 'MC_neutrino' in feature_path:
+        data_type = 'MC_neutrino'
+    elif 'real_data' in feature_path:
+        data_type = 'real_data'
+    else:
+        data_type = 'unknown'
+
+    return data_type
 
 
-def process_exist_metadata(exist_metadata):
-    for name, df in exist_metadata.items():
-        print(f"Dataset: {name}, Entries: {len(df)}")
+def main(args):
+    pred_path = args.pred
+    feature_path = args.feature
+    eval_path = args.eval
+    outpath = args.output
 
-        matrix_path = f"./csv/matrix_{name}.csv"
 
-        # Load existing matrix if it exists
-        if os.path.exists(matrix_path):
-            matrix_df = pd.read_csv(matrix_path, index_col=0)
-            existing_ids = set(matrix_df.index)
-        else:
-            matrix_df = pd.DataFrame()
-            existing_ids = set()
+    data_type = get_data_type(feature_path)
 
-        
-        cuts = [
+    cuts = [
             None,
             'Prediction_0 > 0.85',
             'Prediction_0 > 0.9',
@@ -201,38 +180,14 @@ def process_exist_metadata(exist_metadata):
             'fiducial_br_9',
         ]
 
-
-        updated_rows = []
-        for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing rows"):
-            #if idx in existing_ids:
-            #    continue  # Skip if already processed
-            
-            results = process_row(row, cuts)
-            print(results)
-            # Store the result with index = idx
-            updated_rows.append((idx, results))
-
-            break
-
-        if updated_rows:
-            updated_df = pd.DataFrame(
-                data=[r[1] for r in updated_rows],
-                index=[r[0] for r in updated_rows]
-            )
-            matrix_df = pd.concat([matrix_df, updated_df])
-            matrix_df.to_csv(matrix_path)
-            print(f"Updated matrix saved: {matrix_path}")
-        else:
-            print(f"No new entries to process for {name}")
-
-def main():
-    # plot exist data
-    # loop over file to compute matrixs and save to csv, do not change index, keep it for checking if the matrix is saved before compute the matrixs
-
-    exist_metadata = read_metadata()
-    process_exist_metadata(exist_metadata)
-
+    process(eval_path, feature_path, pred_path, data_type, cuts, outpath)
 
 
 if __name__ == "__main__": 
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--pred", dest="pred", help="prediction output")
+    parser.add_argument("-f", "--feature", dest="feature", help='feature file')
+    parser.add_argument("-e", "--eval", dest="eval", help="eval output")
+    parser.add_argument("-o", "--output", dest="output", help='output path')
+    args = parser.parse_args()
+    main(args)
