@@ -54,6 +54,28 @@ def plot_avg(df, output_pdf):
     DS_hor_bar = [10, 50]
     DS_ver_bar = [70, 105]
 
+    # Define top-left and bottom-right fiducial boxes
+    top_left_regions = [
+        (-46, 53, -61, 67),
+        (-45, 52, -58, 65),
+        (-44, 51, -55, 63),
+        (-43, 50, -52, 61),
+        (-42, 49, -49, 59),
+        (-41, 48, -46, 57),
+    ]
+
+    bottom_right_regions = [
+        (-7, 14, 1.0, 8.0),
+        (-8, 15, -0.25, 9.25),
+        (-9, 16, -1.5, 10.5),
+        (-10, 17, -2.75, 11.75),
+        (-11, 18, -4.0, 13.0),
+        (-12, 19, -5.25, 14.25),
+        (-13, 20, -6.5, 15.5),
+        (-14, 21, -7.75, 16.75),
+        (-15, 22, -9.0, 18.0),
+    ]
+
     latex = ROOT.TLatex()
     latex.SetNDC(True)
     latex.SetTextSize(0.03)
@@ -68,6 +90,7 @@ def plot_avg(df, output_pdf):
     ]
 
     for x_col, y_col, title, x_min, x_max, y_min, y_max in plots:
+        boxes = []
         hist = df.Histo2D(
             (f"h_{x_col}_{y_col}", title, 100, x_min, x_max, 100, y_min, y_max),
             x_col, y_col
@@ -96,7 +119,25 @@ def plot_avg(df, output_pdf):
             box.SetLineWidth(2)
             box.SetFillStyle(0)
             box.Draw()
+            boxes.append(box)
             #hist.GetXaxis().SetRangeUser(x_max, x_min)
+            # Top-left and bottom-right fiducials
+            for x_min_tl, y_max_tl, *_ in top_left_regions:
+                print(x_min_tl,y_max_tl)
+                box = ROOT.TBox(x_min_tl, 14.2, -7, y_max_tl)
+                box.SetLineColor(ROOT.kGreen + 2)
+                box.SetLineWidth(2)
+                box.SetFillStyle(0)
+                box.Draw()
+                boxes.append(box)
+
+            for x_max_br, y_min_br, *_ in bottom_right_regions:
+                box = ROOT.TBox(-46, y_min_br, x_max_br, 53.51)
+                box.SetLineColor(ROOT.kYellow)
+                box.SetLineWidth(2)
+                box.SetFillStyle(0)
+                box.Draw()
+                boxes.append(box)
 
         elif "DS" in x_col and "pos" in x_col:
             # Draw DS position fiducial box
@@ -105,7 +146,25 @@ def plot_avg(df, output_pdf):
             box.SetLineWidth(2)
             box.SetFillStyle(0)
             box.Draw()
+            boxes.append(box)
             #hist.GetXaxis().SetRangeUser(x_max, x_min)
+
+            # Top-left and bottom-right fiducials
+            for _, _, x_min_tl, y_max_tl in top_left_regions:
+                box = ROOT.TBox(x_min_tl, 7.61, 1.34, y_max_tl)
+                box.SetLineColor(ROOT.kGreen + 2)
+                box.SetLineWidth(2)
+                box.SetFillStyle(0)
+                box.Draw()
+                boxes.append(box)
+
+            for _, _, x_max_br, y_min_br in bottom_right_regions:
+                box = ROOT.TBox(-61.97, y_min_br, x_max_br, 67.58)
+                box.SetLineColor(ROOT.kYellow)
+                box.SetLineWidth(2)
+                box.SetFillStyle(0)
+                box.Draw()
+                boxes.append(box)
 
         elif "scifi" in x_col and "ver" in x_col:
             # Draw SciFi channel cut box
@@ -114,6 +173,7 @@ def plot_avg(df, output_pdf):
             box.SetLineWidth(2)
             box.SetFillStyle(0)
             box.Draw()
+            boxes.append(box)
             #hist.GetXaxis().SetRangeUser(x_max, x_min)
 
         elif "DS" in x_col and "ver" in x_col:
@@ -123,6 +183,7 @@ def plot_avg(df, output_pdf):
             box.SetLineWidth(2)
             box.SetFillStyle(0)
             box.Draw()
+            boxes.append(box)
 
         latex.DrawLatex(0.12, 0.85, f"{x_col}: min = {x_min_val:.2f}, max = {x_max_val:.2f}")
         latex.DrawLatex(0.12, 0.80, f"{y_col}: min = {y_min_val:.2f}, max = {y_max_val:.2f}")
@@ -189,9 +250,9 @@ def main():
 
     rdf = ROOT.RDataFrame(t_chain)
 
-    output_pdf = "plot/avg_pos.pdf"
+    output_pdf = "plot/avg_pos_MC_neutrino.pdf"
     plot_avg(rdf,output_pdf)
 
 if __name__ == "__main__":
-    #main()
-    cal_scan_fiducial_area()
+    main()
+    #cal_scan_fiducial_area()

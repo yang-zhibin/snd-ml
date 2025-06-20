@@ -4,6 +4,7 @@ import os
 from tqdm import tqdm
 import numpy as np
 import argparse
+import re
 
 particle_2_class = {
     've': 0,
@@ -44,7 +45,17 @@ def cal_matrix(rdf, true_class, cuts):
             label = 'no_cut'
         else:
             is_score_cut = 'Prediction_' in cut
-            rdf_cut = rdf if is_score_cut else rdf.Filter(cut)
+
+            if is_score_cut:
+                match = re.match(r'\s*(Prediction_0\s*>\s*[\d.]+)\s*&&\s*(.*)', cut)
+                if match:
+                    prediction_score_condition = match.group(1) 
+                    rest_cuts = match.group(2)  
+                    rdf_cut = rdf.Filter(rest_cuts)
+                else:
+                    raise ValueError("Expression does not match the expected format: 'Prediction_0 > <score> && <rest>'")
+            else:
+                rdf_cut = rdf.Filter(cut)
             label = cut
 
         # Apply cut filter if not a score cut
@@ -73,10 +84,10 @@ def cal_matrix(rdf, true_class, cuts):
                 p_class_number = particle_2_class[p_class]
 
                 if p_class == 've' and is_score_cut:
-                    filter_expr = f'ParticleType == "{t_class_ParticleType}" && PredClass == {p_class_number} && {cut}'
-                    #print(filter_expr)
+                    filter_expr = f'ParticleType == "{t_class_ParticleType}" && PredClass == {p_class_number} && {prediction_score_condition}'
+                    #print(filter_expr)s
                 else:
-                    filter_expr = f'ParticleType == "{t_class_ParticleType}" && PredClass == {p_class_number}'
+                    filter_expr = f'(ParticleType == "{t_class_ParticleType}" && PredClass == {p_class_number})'
 
                 if (t_class == "signal_region" and (p_class=='ve' or p_class=='vm' or p_class=='vt' or p_class=='NC')):
                     pred_count = np.nan
@@ -159,25 +170,18 @@ def main(args):
 
     cuts = [
             None,
-            'Prediction_0 > 0.85',
-            'Prediction_0 > 0.9',
-            'Prediction_0 > 0.95',
-            'fiducial_0',
-            'fiducial_tl_1',
-            'fiducial_tl_2',
-            'fiducial_tl_3',
-            'fiducial_tl_4',
-            'fiducial_tl_5',
-            'fiducial_tl_6',
-            'fiducial_br_1',
-            'fiducial_br_2',
-            'fiducial_br_3',
-            'fiducial_br_4',
-            'fiducial_br_5',
-            'fiducial_br_6',
-            'fiducial_br_7',
-            'fiducial_br_8',
-            'fiducial_br_9',
+            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1',
+            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1 && scifi_gt_100',
+            'scifi_gt_100 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_300 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_500 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_700 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_900 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_100',
+            'scifi_gt_300',
+            'scifi_gt_500',
+            'scifi_gt_700',
+            'scifi_gt_900',
         ]
 
     process(eval_path, feature_path, pred_path, data_type, cuts, outpath)

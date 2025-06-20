@@ -169,9 +169,9 @@ rule finish:
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
         #expand("{model_3d_ckpt}", model_3d_ckpt=collect_model_path('ckpt')),
         #expand("{model_output}", model_output=collect_model_path('model_output')),
-        expand("{eval_output}", eval_output=collect_model_path('eval_output')),
+        #expand("{eval_output}", eval_output=collect_model_path('eval_output')),
         #expand("{model_3d_output}", model_3d_output=collect_model_path('model_output'))
-        #expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
+        expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
 
 
 rule generate_raw_metadata:

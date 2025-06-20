@@ -28,34 +28,26 @@ def check_signal_region(full_matrix):
 
 
     cut_groups = {
-        "Prediction cuts": [
+        "Prediction score cuts": [
             "no_cut",
-            "Prediction_0 > 0.85",
-            "Prediction_0 > 0.9",
-            "Prediction_0 > 0.95",
+            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1',
+            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1 && scifi_gt_100',
         ],
-        "Top-Left fiducial cuts": [
+        "Scifi hit with fiducial cuts": [
             "no_cut",
-            "fiducial_tl_1",
-            "fiducial_tl_2",
-            "fiducial_tl_3",
-            "fiducial_tl_4",
-            "fiducial_tl_5",
-            "fiducial_tl_6",
-            "fiducial_0",
+            'scifi_gt_100 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_300 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_500 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_700 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_900 && fiducial_tl_1 && fiducial_br_1',
         ],
-        "Bottom-Right fiducial cuts": [
+        "Scifi hit cuts": [
             "no_cut",
-            "fiducial_br_1",
-            "fiducial_br_2",
-            "fiducial_br_3",
-            "fiducial_br_4",
-            "fiducial_br_5",
-            "fiducial_br_6",
-            "fiducial_br_7",
-            "fiducial_br_8",
-            "fiducial_br_9",
-            "fiducial_0",
+            'scifi_gt_100',
+            'scifi_gt_300',
+            'scifi_gt_500',
+            'scifi_gt_700',
+            'scifi_gt_900',
         ],
     }
 
@@ -150,41 +142,33 @@ def plot_full_matrix(full_matrix):
     all_matrix = all_matrix.reset_index()
 
     print(f"real data lumi: {realdata_lumi}")
-    #print(all_matrix)
+    print(all_matrix)
 
-    # for cut_name, group in all_matrix.groupby('cut'):
-    #     print(f"\nGroup: {cut_name}")
-    #     print(group.reset_index(drop=True).to_string(index=False))
+    for cut_name, group in all_matrix.groupby('cut'):
+        print(f"\nGroup: {cut_name}")
+        print(group.reset_index(drop=True).to_string(index=False))
 
     cut_groups = {
-        "Prediction cuts": [
+        "Prediction score cuts": [
             "no_cut",
-            "Prediction_0 > 0.85",
-            "Prediction_0 > 0.9",
-            "Prediction_0 > 0.95",
+            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1',
+            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1 && scifi_gt_100',
         ],
-        "Top-Left fiducial cuts": [
+        "Scifi hit with fiducial cuts": [
             "no_cut",
-            "fiducial_tl_1",
-            "fiducial_tl_2",
-            "fiducial_tl_3",
-            "fiducial_tl_4",
-            "fiducial_tl_5",
-            "fiducial_tl_6",
-            "fiducial_0",
+            'scifi_gt_100 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_300 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_500 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_700 && fiducial_tl_1 && fiducial_br_1',
+            'scifi_gt_900 && fiducial_tl_1 && fiducial_br_1',
         ],
-        "Bottom-Right fiducial cuts": [
+        "Scifi hit cuts": [
             "no_cut",
-            "fiducial_br_1",
-            "fiducial_br_2",
-            "fiducial_br_3",
-            "fiducial_br_4",
-            "fiducial_br_5",
-            "fiducial_br_6",
-            "fiducial_br_7",
-            "fiducial_br_8",
-            "fiducial_br_9",
-            "fiducial_0",
+            'scifi_gt_100',
+            'scifi_gt_300',
+            'scifi_gt_500',
+            'scifi_gt_700',
+            'scifi_gt_900',
         ],
     }
 
@@ -252,7 +236,7 @@ def read_metadata():
         "neutrino": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_volTarget_100fb-1_metadata.csv',
         "kaon": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_kaon_FTFP_BERT_metadata.csv',
         "neutron": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutron_FTFP_BERT_metadata.csv',
-        "real_data_2024": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/real_data_2024_metadata.csv'
+        "real_data_2024": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/real_data_2022_metadata.csv'
     }
 
     cleaned_metadata = {}
@@ -324,7 +308,7 @@ def process_exist_metadata(exist_metadata):
     #print(full_matrix)
     
     plot_full_matrix(full_matrix)
-    #check_signal_region(full_matrix)
+    check_signal_region(full_matrix)
 
 
 def main():
