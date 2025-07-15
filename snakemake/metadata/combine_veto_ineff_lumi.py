@@ -11,6 +11,7 @@ def main():
     df_ineff['From'] = pd.to_datetime(df_ineff['From'])
     df_ineff['To'] = pd.to_datetime(df_ineff['To'])
 
+    print(df_ineff)
     # Add ineff column, defaulting to None
     df_lumi['ineff'] = None
 
@@ -18,11 +19,12 @@ def main():
     for i, run_row in df_lumi.iterrows():
         for _, ineff_row in df_ineff.iterrows():
             if run_row['From'] >= ineff_row['From'] and run_row['To'] <= ineff_row['To']:
+                #print(df_lumi)
                 df_lumi.at[i, 'ineff'] = ineff_row['ineff']
-                break  # Stop after finding the first matching period
+                #break  # Stop after finding the first matching period
 
     # Save or return the result
-    df_lumi.to_csv("lumi_with_ineff.csv", index=False)
+    df_lumi.to_csv("SND_lumi_with_ineff.csv", index=False)
     print("Saved combined DataFrame to lumi_with_ineff.csv")
 
 if __name__ == "__main__":

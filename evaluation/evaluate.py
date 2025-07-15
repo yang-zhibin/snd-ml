@@ -47,19 +47,39 @@ def pdg_2_particle(rdf):
         else return -1;  // e.g. for "real_data" or "others"
     """)
 
-    argmax_expr = """
-        double vals[7] = {Prediction_0, Prediction_1, Prediction_2, Prediction_3, Prediction_4, Prediction_5, Prediction_6};
-        int idx = 0;
-        double max_val = vals[0];
-        for (int i = 1; i < 7; ++i) {
-            if (vals[i] > max_val) {
-                max_val = vals[i];
-                idx = i;
-            }
-        }
-        return idx;
-        """
-    rdf = rdf.Define("PredClass", argmax_expr)
+    # argmax_expr = """
+    #     double vals[7] = {Prediction_0, Prediction_1, Prediction_2, Prediction_3, Prediction_4, Prediction_5, Prediction_6};
+    #     int idx = 0;
+    #     double max_val = vals[0];
+    #     for (int i = 1; i < 7; ++i) {
+    #         if (vals[i] > max_val) {
+    #             max_val = vals[i];
+    #             idx = i;
+    #         }
+    #     }
+    #     return idx;
+    #     """
+    #rdf = rdf.Define("PredClass", argmax_expr)
+
+    rdf = rdf.Define("pred_sorted_indices", """
+        std::vector<int> sorted_indices = [&]() {
+            std::vector<std::pair<int, double>> preds = {
+                {0, Prediction_0}, {1, Prediction_1}, {2, Prediction_2},
+                {3, Prediction_3}, {4, Prediction_4}, {5, Prediction_5},
+                {6, Prediction_6}
+            };
+            std::sort(preds.begin(), preds.end(),
+                [](const auto &a, const auto &b) { return a.second > b.second; });
+            std::vector<int> indices;
+            for (auto &p : preds) indices.push_back(p.first);
+            return indices;
+        }();
+        return sorted_indices;
+    """)
+
+    for i, name in enumerate(["first", "second", "third", "fourth", "fifth", "sixth", "seventh"]):
+        rdf = rdf.Define(f"pred_class_{name}", f"pred_sorted_indices[{i}]")
+
     return rdf
 
 def cal_scan_fiducial_area():
@@ -110,16 +130,38 @@ def main(args):
     feature_chain.AddFriend(prediction_chain, 'predTree')
 
     rdf = ROOT.RDataFrame(feature_chain)
-    #fiducial cuts
-    # 
+
     cuts = {
-        "scifi_gt_100": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 100",
-        "scifi_gt_300": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 300",
-        "scifi_gt_500": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 500",
-        "scifi_gt_700": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 700",
-        "scifi_gt_900": "(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > 900",
         "fiducial_0": "DS_avg_ver >=70 && DS_avg_ver <=105 && DS_avg_hor >=10 && DS_avg_hor<=50 && scifi_avg_ver >=200 && scifi_avg_ver <=1200 && scifi_avg_hor >=300 && scifi_avg_hor<=1336",
-    }   
+    }
+    
+    cuts.update({
+        "ds4_eq_0": "(ds4 == 0)",
+        "ds34_eq_0": "(ds3 + ds4 == 0)",
+        "ds234_eq_0": "(ds2 + ds3 + ds4 == 0)",
+        "ds1234_eq_0": "(ds1 + ds2 + ds3 + ds4 == 0)",
+
+        "us5_eq_0": "(us5 == 0)",
+        "us45_eq_0": "(us4 + us5 == 0)",
+        "us345_eq_0": "(us3 + us4 + us5 == 0)",
+        "us2345_eq_0": "(us2 + us3 + us4 + us5 == 0)",
+        "us12345_eq_0": "(us1 + us2 + us3 + us4 + us5 == 0)",
+    })
+
+    for threshold in range(0, 601, 50):
+        cut_name = f"scifi_gt_{threshold}"
+        cut_expr = f"(scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > {threshold}"
+        cuts[cut_name] = cut_expr
+    
+    hit_pairs = [
+        (200, 1), (250, 1), (300, 1), (350, 1), (400, 1),
+        (200, 2), (250, 2), (300, 2), (350, 2), (400, 2),
+    ]
+    
+    for x, y in hit_pairs:
+        cut_name = f"scifi_gt_{x}_us1_gt_{y}"
+        cut_expr = f"((scifi1 + scifi2 + scifi3 + scifi4 + scifi5) > {x}) && (us1 > {y})"
+        cuts[cut_name] = cut_expr
 
     fiducial_tl_exprs, fiducial_br_exprs = cal_scan_fiducial_area()
 
@@ -132,11 +174,23 @@ def main(args):
         f"fiducial_br_{i}": expr
         for i, expr in enumerate(fiducial_br_exprs, 1)
     }
+    
+
 
     cuts.update(fiducial_tl_cuts)
     cuts.update(fiducial_br_cuts)
 
-    columns_to_keep = ["ParticleType", "ParticleClass", "eventId", "runId", "pdgCode", "PredClass"]
+    columns_to_keep = [
+        "ParticleType", "ParticleClass", "eventId", "runId", "pdgCode"
+    ]
+
+    # Add the new prediction rank columns
+    rank_names = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh"]
+    columns_to_keep += [f"pred_class_{name}" for name in rank_names]
+
+    # Add prediction score columns
+    num_classes = 7 
+    columns_to_keep += [f"Prediction_{i}" for i in range(num_classes)]
 
     rdf = pdg_2_particle(rdf)
 

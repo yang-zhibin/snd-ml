@@ -28,43 +28,75 @@ def check_signal_region(full_matrix):
 
 
     cut_groups = {
-        "Prediction score cuts": [
-            "no_cut",
-            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1',
-            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1 && scifi_gt_100',
-        ],
-        "Scifi hit with fiducial cuts": [
-            "no_cut",
-            'scifi_gt_100 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_300 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_500 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_700 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_900 && fiducial_tl_1 && fiducial_br_1',
+        "Fiducial cuts": [
+            "fiducial_0",
+            "fiducial_tl_1", "fiducial_tl_2", "fiducial_tl_3", "fiducial_tl_4", "fiducial_tl_5", "fiducial_tl_6",
+            "fiducial_br_1", "fiducial_br_2", "fiducial_br_3", "fiducial_br_4", "fiducial_br_5",
+            "fiducial_br_6", "fiducial_br_7", "fiducial_br_8", "fiducial_br_9",
         ],
         "Scifi hit cuts": [
             "no_cut",
-            'scifi_gt_100',
-            'scifi_gt_300',
-            'scifi_gt_500',
-            'scifi_gt_700',
-            'scifi_gt_900',
+            "scifi_gt_0", "scifi_gt_50", "scifi_gt_100", "scifi_gt_150", "scifi_gt_200",
+            "scifi_gt_250", "scifi_gt_300", "scifi_gt_350", "scifi_gt_400", "scifi_gt_450",
+            "scifi_gt_500", "scifi_gt_550", "scifi_gt_600",
         ],
+        "MuFilter cuts": [
+            "no_cut",
+            "ds4_eq_0", "ds34_eq_0", "ds234_eq_0", "ds1234_eq_0",
+            "us5_eq_0", "us45_eq_0", "us345_eq_0", "us2345_eq_0", "us12345_eq_0",
+        ],
+        "Prediction_0 score cuts": [
+            "Prediction_0 > 0.50",
+            "Prediction_0 > 0.52",
+            "Prediction_0 > 0.54",
+            "Prediction_0 > 0.56",
+            "Prediction_0 > 0.58",
+            "Prediction_0 > 0.60",
+            "Prediction_0 > 0.62",
+            "Prediction_0 > 0.64",
+            "Prediction_0 > 0.66",
+            "Prediction_0 > 0.68",
+            "Prediction_0 > 0.70",
+            "Prediction_0 > 0.72",
+            "Prediction_0 > 0.74",
+            "Prediction_0 > 0.76",
+            "Prediction_0 > 0.78",
+            "Prediction_0 > 0.80",
+            "Prediction_0 > 0.82",
+            "Prediction_0 > 0.84",
+            "Prediction_0 > 0.86",
+            "Prediction_0 > 0.88",
+            "Prediction_0 > 0.90",
+            "Prediction_0 > 0.92",
+            "Prediction_0 > 0.94",
+            "Prediction_0 > 0.96",
+            "Prediction_0 > 0.98",
+            "Prediction_0 > 0.99",
+        ],
+        "N hit cuts": [
+            'scifi_gt_200_us1_gt_1', 'scifi_gt_250_us1_gt_1', 'scifi_gt_300_us1_gt_1',
+            'scifi_gt_350_us1_gt_1', 'scifi_gt_400_us1_gt_1',
+            'scifi_gt_200_us1_gt_2', 'scifi_gt_250_us1_gt_2', 'scifi_gt_300_us1_gt_2',
+            'scifi_gt_350_us1_gt_2', 'scifi_gt_400_us1_gt_2',
+            #'scifi_gt_300_us1_gt_2 && Prediction_0 > 0.92'
+        ]
     }
+    
 
     # Group all_matrix by 'cut'
     grouped = dict(tuple(all_matrix.groupby('cut')))
 
     bkg_defs = {
-        #"veto_inverted": lambda g: g[g["true_class"] == "veto_inverted"]["ve"].values[0],
-        "pred_kaon": lambda g: g[g["true_class"] == "signal_region"]["kaon"].values[0],
-        "pred_neutron ": lambda g: g[g["true_class"] == "signal_region"]["neutron"].values[0],
-        "pred_muon ": lambda g: g[g["true_class"] == "signal_region"]["muon"].values[0],
-        "pred_total_bkg ": lambda g: g[g["true_class"] == "signal_region"]["muon"].values[0] + g[g["true_class"] == "signal_region"]["neutron"].values[0] + g[g["true_class"] == "signal_region"]["kaon"].values[0],
+        #"data_veto_tagged": lambda g: g[g["true_class"] == "data_veto_tagged"]["ve"].values[0],
+        "pred_kaon": lambda g: g[g["true_class"] == "data_zero_veto"]["kaon"].values[0],
+        "pred_neutron ": lambda g: g[g["true_class"] == "data_zero_veto"]["neutron"].values[0],
+        "pred_muon ": lambda g: g[g["true_class"] == "data_zero_veto"]["muon"].values[0],
+        "pred_total_bkg ": lambda g: g[g["true_class"] == "data_zero_veto"]["muon"].values[0] + g[g["true_class"] == "data_zero_veto"]["neutron"].values[0] + g[g["true_class"] == "data_zero_veto"]["kaon"].values[0],
         # "vm": lambda g: g[g["true_class"] == "vm"]["ve"].values[0],
         # "NC": lambda g: g[g["true_class"] == "NC"]["ve"].values[0],
         # "vt": lambda g: g[g["true_class"] == "vt"]["ve"].values[0],
         # "total_bkg": lambda g: (
-        #     g[g["true_class"] == "veto_inverted"]["ve"].values[0] +
+        #     g[g["true_class"] == "data_veto_tagged"]["ve"].values[0] +
         #     g[g["true_class"] == "kaon"]["ve"].values[0] +
         #     g[g["true_class"] == "neutron"]["ve"].values[0] +
         #     g[g["true_class"] == "vm"]["ve"].values[0] +
@@ -110,7 +142,9 @@ def check_signal_region(full_matrix):
         plt.savefig(filename)
         print(f'saved {filename}')
         plt.close()
-
+        
+        
+def plot_table(group, cut_name)
 
 def plot_full_matrix(full_matrix):
     # Unpack each (matrix, lumi) tuple
@@ -147,41 +181,74 @@ def plot_full_matrix(full_matrix):
     for cut_name, group in all_matrix.groupby('cut'):
         print(f"\nGroup: {cut_name}")
         print(group.reset_index(drop=True).to_string(index=False))
+        plot_table(group, cut_name)
 
     cut_groups = {
-        "Prediction score cuts": [
-            "no_cut",
-            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1',
-            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1 && scifi_gt_100',
-        ],
-        "Scifi hit with fiducial cuts": [
-            "no_cut",
-            'scifi_gt_100 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_300 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_500 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_700 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_900 && fiducial_tl_1 && fiducial_br_1',
+        "Fiducial cuts": [
+            "fiducial_0",
+            "fiducial_tl_1", "fiducial_tl_2", "fiducial_tl_3", "fiducial_tl_4", "fiducial_tl_5", "fiducial_tl_6",
+            "fiducial_br_1", "fiducial_br_2", "fiducial_br_3", "fiducial_br_4", "fiducial_br_5",
+            "fiducial_br_6", "fiducial_br_7", "fiducial_br_8", "fiducial_br_9",
         ],
         "Scifi hit cuts": [
             "no_cut",
-            'scifi_gt_100',
-            'scifi_gt_300',
-            'scifi_gt_500',
-            'scifi_gt_700',
-            'scifi_gt_900',
+            "scifi_gt_0", "scifi_gt_50", "scifi_gt_100", "scifi_gt_150", "scifi_gt_200",
+            "scifi_gt_250", "scifi_gt_300", "scifi_gt_350", "scifi_gt_400", "scifi_gt_450",
+            "scifi_gt_500", "scifi_gt_550", "scifi_gt_600",
         ],
+        "MuFilter cuts": [
+            "no_cut",
+            "ds4_eq_0", "ds34_eq_0", "ds234_eq_0", "ds1234_eq_0",
+            "us5_eq_0", "us45_eq_0", "us345_eq_0", "us2345_eq_0", "us12345_eq_0",
+        ],
+        "Prediction_0 score cuts": [
+            "no_cut",
+            "Prediction_0 > 0.50",
+            "Prediction_0 > 0.52",
+            "Prediction_0 > 0.54",
+            "Prediction_0 > 0.56",
+            "Prediction_0 > 0.58",
+            "Prediction_0 > 0.60",
+            "Prediction_0 > 0.62",
+            "Prediction_0 > 0.64",
+            "Prediction_0 > 0.66",
+            "Prediction_0 > 0.68",
+            "Prediction_0 > 0.70",
+            "Prediction_0 > 0.72",
+            "Prediction_0 > 0.74",
+            "Prediction_0 > 0.76",
+            "Prediction_0 > 0.78",
+            "Prediction_0 > 0.80",
+            "Prediction_0 > 0.82",
+            "Prediction_0 > 0.84",
+            "Prediction_0 > 0.86",
+            "Prediction_0 > 0.88",
+            "Prediction_0 > 0.90",
+            "Prediction_0 > 0.92",
+            "Prediction_0 > 0.94",
+            "Prediction_0 > 0.96",
+            "Prediction_0 > 0.98",
+            "Prediction_0 > 0.99",
+        ],
+        "N hit cuts": [
+            'scifi_gt_200_us1_gt_1', 'scifi_gt_250_us1_gt_1', 'scifi_gt_300_us1_gt_1',
+            'scifi_gt_350_us1_gt_1', 'scifi_gt_400_us1_gt_1',
+            'scifi_gt_200_us1_gt_2', 'scifi_gt_250_us1_gt_2', 'scifi_gt_300_us1_gt_2',
+            'scifi_gt_350_us1_gt_2', 'scifi_gt_400_us1_gt_2',
+            #'scifi_gt_300_us1_gt_2 && Prediction_0 > 0.92',
+        ]
     }
 
     # Background definitions
     bkg_defs = {
-        #"veto_inverted": lambda g: g[g["true_class"] == "veto_inverted"]["ve"].values[0],
+        #"data_veto_tagged": lambda g: g[g["true_class"] == "data_veto_tagged"]["ve"].values[0],
         #"neutral_bkg": lambda g: g[g["true_class"] == "kaon"]["ve"].values[0] + g[g["true_class"] == "neutron"]["ve"].values[0],
-        #"neutral_bkg_and_veto_inverted ": lambda g: g[g["true_class"] == "kaon"]["ve"].values[0] + g[g["true_class"] == "neutron"]["ve"].values[0] + g[g["true_class"] == "veto_inverted"]["ve"].values[0],
+        #"neutral_bkg_and_data_veto_tagged ": lambda g: g[g["true_class"] == "kaon"]["ve"].values[0] + g[g["true_class"] == "neutron"]["ve"].values[0] + g[g["true_class"] == "data_veto_tagged"]["ve"].values[0],
         "vm": lambda g: g[g["true_class"] == "vm"]["ve"].values[0],
         "NC": lambda g: g[g["true_class"] == "NC"]["ve"].values[0],
         "vt": lambda g: g[g["true_class"] == "vt"]["ve"].values[0],
         "total_bkg": lambda g: (
-            g[g["true_class"] == "veto_inverted"]["ve"].values[0] +
+            g[g["true_class"] == "data_veto_tagged"]["ve"].values[0] +
             g[g["true_class"] == "kaon"]["ve"].values[0] +
             g[g["true_class"] == "neutron"]["ve"].values[0] +
             g[g["true_class"] == "vm"]["ve"].values[0] +
@@ -236,7 +303,7 @@ def read_metadata():
         "neutrino": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_volTarget_100fb-1_metadata.csv',
         "kaon": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_kaon_FTFP_BERT_metadata.csv',
         "neutron": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutron_FTFP_BERT_metadata.csv',
-        "real_data_2024": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/real_data_2022_metadata.csv'
+        "real_data_2024": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/real_data_2024_metadata.csv'
     }
 
     cleaned_metadata = {}
@@ -264,7 +331,7 @@ def process_row(row):
     if "real_data" in data_type:
         veto_ineff = row['veto_ineff']
         matrix = pd.read_csv(matrix_path, index_col=0)
-        matrix.loc['veto_inverted', target_columns] *= veto_ineff
+        matrix.loc['data_veto_tagged', target_columns] *= veto_ineff
         
     else:
         matrix = pd.read_csv(matrix_path, index_col=0)
@@ -285,6 +352,7 @@ def process_exist_metadata(exist_metadata):
         for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing rows"):
             
             lumi, matrix = process_row(row)
+            
             #print(matrix)
             # add lumi to particle_matrix
             particle_lumi += lumi
@@ -299,16 +367,21 @@ def process_exist_metadata(exist_metadata):
             #print(matrix)
             if (name == 'kaon' or name == 'neutron'):
                 break
+            if (name == 'real_data_2024' and count > 1):
+                break
+            if (name == 'neutrino' and count > 1):
+                break
             #if count>500:
             #    break
             count+=1
         full_matrix[name] = (particle_matrix, particle_lumi)
         #print(f"name {name}, particle_lumi {particle_lumi}")
         #print(particle_matrix)
-    #print(full_matrix)
+    print(full_matrix)
+    
     
     plot_full_matrix(full_matrix)
-    check_signal_region(full_matrix)
+    #check_signal_region(full_matrix)
 
 
 def main():

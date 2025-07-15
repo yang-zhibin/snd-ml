@@ -198,7 +198,7 @@ def main(args):
     out_file, new_tree = create_output_file(args.out_path, args.mode)
 
     branches = [
-        ("runId", 'i'), ("eventId", 'i'), ("pdgCode", 'i'), ("isMC", 'i'),  
+        ("runId", 'i'), ("eventId", 'i'), ("pdgCode", 'i'), ("isMC", 'i'), ("eventIndex", 'i'),
         ("px", 'f'), ("py", 'f'), ("pz", 'f'),  # Floats
         ("x", 'f'), ("y", 'f'), ("z", 'f'),    # Floats
         ("scifi_avg_ver", 'd'), ("scifi_avg_hor", 'd'),  # Doubles
@@ -221,17 +221,21 @@ def main(args):
         
     # Process each event
     for i_event, event in enumerate(raw_tree):
+        branch_vars["eventIndex"][0] = i_event
 
         # add least one hit
-        if not (event.Digi_ScifiHits.GetEntriesFast() or event.Digi_MuFilterHits.GetEntriesFast()):
+        #if not (event.Digi_ScifiHits.GetEntriesFast() or event.Digi_MuFilterHits.GetEntriesFast()):
+        #    continue
+        if (event.Digi_ScifiHits.GetEntriesFast() < 200):
             continue
+        
         
         branch_vars["runId"][0] = event.EventHeader.GetRunId()
 
         if ('MC' in  args.type):
             branch_vars["isMC"][0] = 1
             #print(dir(event.EventHeader))
-            if ('kaon' in args.type or 'neutron' in args.type):
+            if ('kaon' in args.type or 'neutron' in args.type or 'muon' in args.type):
                 try:
                     branch_vars["eventId"][0] = event.EventHeader.GetEventNumber()
                 except Exception:

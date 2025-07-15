@@ -5,16 +5,17 @@ import pandas as pd
 import glob
 import yaml
 from argparse import ArgumentParser
+from tqdm import tqdm
 
 
 def process_real_data_since2024(root_path, subfolder, data_type):
     metadata = []
-    for subfolder in os.listdir(root_path):
+    for subfolder in tqdm(os.listdir(root_path), desc=f"Processing subfolders"):
         subfolder_path = os.path.join(root_path, subfolder)
         if not os.path.isdir(subfolder_path):
             print(f"Skipping non-directory: {subfolder_path}")
             continue
-        version = subfolder[6:] 
+        version = 12
         matching_files = glob.glob(f'{root_path}/geofile_sndlhc_TI18_V{version}_*')
         print(matching_files)
         if len(matching_files) == 1:
@@ -33,7 +34,8 @@ def process_real_data_subfolders(root_path, output_subfolder_name, data_type, ge
     tree_name = "cbmsim"
     metadata = []
 
-    for subfolder in os.listdir(root_path):
+    for subfolder in tqdm(os.listdir(root_path), desc=f"Processing run folder"):
+        
         subfolder_path = os.path.join(root_path, subfolder)
         if not os.path.isdir(subfolder_path):
             print(f"Skipping non-directory: {subfolder_path}")
@@ -48,7 +50,7 @@ def process_real_data_subfolders(root_path, output_subfolder_name, data_type, ge
         partition = subfolder
         n_event = 0
 
-        for file in os.listdir(subfolder_path):
+        for file in tqdm(os.listdir(subfolder_path), desc=f"Files in {subfolder}", leave=False):
             file_path = os.path.join(subfolder_path, file)
             if file.endswith(".root"):
                 
@@ -74,7 +76,7 @@ def process_real_data_subfolders(root_path, output_subfolder_name, data_type, ge
             }
             metadata.append(one_file_data)
         
-            print('digi_file: ', digi_file)
+            #print('digi_file: ', digi_file)
 
     metadata.sort(key=lambda x: x['partition'])
     return metadata

@@ -9,10 +9,14 @@ import pandas as pd
 import argparse
 import os
 import ROOT
+from tqdm import tqdm
+
+ROOT.gROOT.SetBatch(True)
+ROOT.ROOT.EnableImplicitMT()
 
 def read_exist_output(dir_data, metadata_data_df):
     def file_exists(row):
-        file_path = row['model_baseline_output_path']
+        file_path = row['eval_baseline_muon_output_path']
         return os.path.isfile(file_path)
 
     metadata_data_df = metadata_data_df[metadata_data_df.apply(file_exists, axis=1)].reset_index(drop=True)
@@ -246,14 +250,100 @@ def plot_avg_pos(rdf):
 
     pred_muon = rdf.Filter(f"PredClass == 6")
     plot_avg(pred_muon, f"pred_muon_avg_pos.pdf")
+    
+
+def plot_hist_each_plane(rdf):
+    # ── 1. Per-plane binning ─────────────────────────────────────────────
+    plane_binning = {
+        'scifi1': (100, 0, 200),
+        'scifi2': (100, 0, 200),
+        'scifi3': (100, 0, 200),
+        'scifi4': (100, 0, 200),
+        'scifi5': (100, 0, 200),
+        # 'us1':    (13, 0, 13),
+        # 'us2':    (13, 0, 13),
+        # 'us3':    (13, 0, 13),
+        # 'us4':    (13, 0, 13),
+        # 'us5':    (13, 0, 13),
+        # 'ds1':   (40, 0, 40),
+        # 'ds2':   (40, 0, 40),
+        # 'ds3':   (40, 0, 40),
+        # 'ds4':   (40, 0, 40),
+    }
+
+    # ── 2. Class labels and colours ──────────────────────────────────────
+    class_labels = {4: "pred_kaon", 5: "pred_neutron"}
+
+    colors = {
+        0: ROOT.kRed,
+        1: ROOT.kBlue,
+        2: ROOT.kGreen + 2,
+        3: ROOT.kMagenta,
+        4: ROOT.kOrange + 7,
+        5: ROOT.kCyan,
+        6: ROOT.kBlack,
+    }
+
+    # ── 3. Loop over each plane and generate plots ───────────────────────
+    for plane, (n_bins, x_min, x_max) in tqdm(plane_binning.items(), desc="Processing planes"):
+        canvas  = ROOT.TCanvas("c", f"Number of hits in {plane}", 800, 600)
+        legend  = ROOT.TLegend(0.70, 0.60, 0.90, 0.90)
+        out_pdf = f"plot/control_region_n_hits_{plane}.pdf"
+
+        any_drawn = False
+        hist_proxies = []
+
+        for class_id, label in tqdm(class_labels.items(), desc="Processing class labels"):
+            rdf_f = rdf.Filter(f"pred_class_first == {class_id} && scifi_gt_100")
+            n_evt = rdf_f.Count().GetValue()
+            if n_evt == 0:
+                continue
+
+            h_proxy = rdf_f.Histo1D(
+                (f"h_{plane}_{label}",
+                 f"N hits in {plane};N hits;Probability density",
+                 n_bins, x_min, x_max),
+                plane
+            )
+            h = h_proxy.GetValue()
+            hist_proxies.append(h_proxy)
+
+            if h.Integral() == 0:
+                continue
+
+            h.Scale(1.0 / h.Integral())
+            color = colors.get(class_id, ROOT.kBlack)
+
+            h.SetMarkerStyle(20)
+            h.SetMarkerSize(0.5)
+            h.SetMarkerColor(color)
+            h.SetLineColorAlpha(color, 0.9)
+            h.SetLineWidth(2)
+            h.SetStats(0)
+
+            h.GetYaxis().SetRangeUser(0, 1)
+            h.Draw("SAME" if any_drawn else "HIST")
+            legend.AddEntry(h, f"{label} ({n_evt})", "l")
+            any_drawn = True
+
+        legend.Draw()
+        if any_drawn:
+            os.makedirs("plot", exist_ok=True)
+            canvas.SaveAs(out_pdf)
+            print(f"Saved: {out_pdf}")
+        else:
+            print(f"[{plane}] no valid histograms – skipped.")
+
 
 def plot_rdf(rdf):
     #plot_hits(rdf, 'pred_bkg_gt2')
-    plot_avg_pos(rdf)
+    #plot_avg_pos(rdf)
+    plot_hist_each_plane(rdf)
+    
     
 def main():
     metadata_data_df = read_metadata()
-
+    print(metadata_data_df)
     feature_chain = ROOT.TChain("snddata")
     prediction_chain = ROOT.TChain("snddata")
 
@@ -261,8 +351,9 @@ def main():
     for index, row in metadata_data_df.iterrows():
         
         feature_path = row['feature_path']
-        pred_path = row[f'model_baseline_muon_output_path']
-        #print(pred_path, feature_path)
+        pred_path = row['eval_baseline_muon_output_path']
+        #pred_path = row[f'model_baseline_muon_output_path']
+        print(pred_path, feature_path)
 
         if not(os.path.isfile(pred_path)) or not((os.path.isfile(feature_path))):
             continue
@@ -270,21 +361,22 @@ def main():
         prediction_chain.Add(pred_path)
 
     
-        if count>25:
+        if count>8:
             break
         count+=1
 
+    print(f"{count} files read...")
     feature_chain.AddFriend(prediction_chain, 'predTree')
     rdf = ROOT.RDataFrame(feature_chain)
 
-    rdf = pdg_2_particle(rdf)
+    #rdf = pdg_2_particle(rdf)
 
-    #columns = rdf.GetColumnNames()
-    #print("Columns in RDataFrame:", [str(c) for c in columns])
+    columns = rdf.GetColumnNames()
+    print("Columns in RDataFrame:", [str(c) for c in columns])
 
-    pred_bkg = rdf.Filter("(PredClass == 4 || PredClass == 5 || PredClass == 6) && ((veto1 + veto2 + veto3) ==0 )" )
+    #pred_bkg = rdf.Filter("(pred_class_first == 4 || pred_class_first == 5 || pred_class_first == 6) && scifi_gt_100" )
 
-    plot_rdf(pred_bkg)
+    plot_rdf(rdf)
 
     # pred_muon
     # pred_kaon

@@ -2,6 +2,7 @@ import pandas as pd
 import yaml
 import os
 
+
 # snakemake --rulegraph | dot -Tpng > workflow_rulegraph.png
 #-profile
 
@@ -9,16 +10,19 @@ import os
 metadata_csv_list = [
     #  "MC_kaon_FTFP_BERT_metadata.csv",
     # "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
-    # "MC_muon_down_metadata.csv",
+    # "MC_muon_down_metadata_filtered.csv",
+    #  "MC_muon_down_metadata.csv",
     # "MC_muon_horizontal_metadata.csv",
     # "MC_muon_up_metadata.csv",
+    # "MC_muon_up_metadata_filtered.csv",
     # "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
     # "MC_neutrino_volTarget_100fb-1_metadata.csv",
     # "MC_neutron_FTFP_BERT_metadata.csv",
     # "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
-     "real_data_2022_metadata.csv",
+    # "real_data_2022_metadata.csv",
     # "real_data_2023_metadata.csv",
     #  "real_data_2024_metadata.csv",
+      "real_data_2024_skim_runs.csv",
 ]
 
 
@@ -384,6 +388,7 @@ rule process_pt_hit:
     input:
         script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/root_2_pt.py",
         #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+
         feature_path=lambda wildcards: get_metadata_value("pt_hit_path", wildcards.pt_hit_path, "feature_path"),
         hit_path=lambda wildcards: get_metadata_value("pt_hit_path", wildcards.pt_hit_path, "hit_path"),
         
@@ -551,7 +556,7 @@ rule prediction:
 
     threads:1
     resources:
-        runtime=12*60*60,
+        runtime=3*60*60,
         mem_mb=4000,
         disk_mb=4000,
         nvidia_gpu=0
@@ -586,9 +591,10 @@ rule prediction:
  
 rule evaluate:
     input:
+        script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/evaluate.py',
         model_output=lambda wildcards: get_metadata_from_output(wildcards.eval_output, "model_output", 'eval'),
+
         feature_path=lambda wildcards: get_metadata_from_output(wildcards.eval_output, "feature_path", 'eval'),
-        script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/evaluate.py'
     output:
         eval_output = '{eval_output}'
     threads:1
@@ -628,15 +634,19 @@ rule evaluate:
 
 rule cal_matrix:
     input:
-        model_output=lambda wildcards: get_metadata_from_output(wildcards.matrix_output, "model_output", "matrix"),
-        feature_path=lambda wildcards: get_metadata_from_output(wildcards.matrix_output, "feature_path", "matrix"),
+        script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_matrix.py',
+    params:
         eval_path=lambda wildcards: get_metadata_from_output(wildcards.matrix_output, "eval_output", "matrix"),
-        script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_matrix.py'
+    
+        model_output=lambda wildcards: get_metadata_from_output(wildcards.matrix_output, "model_output", "matrix"),
+        
+        
+        feature_path=lambda wildcards: get_metadata_from_output(wildcards.matrix_output, "feature_path", "matrix"),
     output:
         matrix_output = '{matrix_output}'
     threads:1
     resources:
-        runtime=29*60,
+        runtime=60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -661,9 +671,9 @@ rule cal_matrix:
 
         # Run evaluation script
         python {input.script} \
-            -p {input.model_output} \
-            -f {input.feature_path} \
-            -e {input.eval_path} \
+            -p {params.model_output} \
+            -f {params.feature_path} \
+            -e {params.eval_path} \
             -o "${{tmp_output}}"
 
         # Copy result to final destination

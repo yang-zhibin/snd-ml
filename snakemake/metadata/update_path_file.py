@@ -68,7 +68,7 @@ def drop_0_event_row(csv_file):
     rm_rows = len(data) - len(filtered_data)
     print(f" {rm_rows} rows with n_event == 0 have been removed from {csv_file}.")
 
-def drop_run_without_lumi(df, lumi_file):
+def drop_run_without_lumi_and_add_ineff(df, lumi_file):
     lumi_df = pd.read_csv(lumi_file)
     df['run'] = df['partition'].str.extract(r'run_(\d+)').astype(int)
 
@@ -76,18 +76,25 @@ def drop_run_without_lumi(df, lumi_file):
 
     # Create a mapping from run_id to lumi
     lumi_map = dict(zip(lumi_df['run'], lumi_df['lumi']))
+    ineff_map = dict(zip(lumi_df['run'], lumi_df['ineff']))
 
     # Compute lumi per file
     lumi_per_file_list = []
+    ineff_per_file_list = []
     for run_id, run_df in df.groupby('run'):
         total_events = run_df['n_event'].sum()
         run_lumi = lumi_map.get(run_id, 0)
+        run_ineff = ineff_map.get(run_id, 0)
+
         lumi_per_file = run_df['n_event'] * run_lumi / total_events
         lumi_per_file_list.append(lumi_per_file)
 
-    # Flatten the list and assign back
-    df['lumi_per_file'] = pd.concat(lumi_per_file_list)
+        ineff_per_file = pd.Series(run_ineff, index=run_df.index)
+        ineff_per_file_list.append(ineff_per_file)
 
+    # Flatten the list and assign back
+    df['lumi_per_file'] = pd.concat(lumi_per_file_list).sort_index()
+    df['veto_ineff'] = pd.concat(ineff_per_file_list).sort_index()
     return df
 
 
@@ -178,11 +185,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     
     df = pd.read_csv(csv_input)
     if (data_type=='real_data'):
-        df = drop_run_without_lumi(df, lumi_file)
-        if("2024" in csv_input):
-            df['veto_ineff'] = 1e-8
-        else:
-            pass #todo: apply veto ineff for different periods
+        df = drop_run_without_lumi_and_add_ineff(df, lumi_file)
     elif (data_type=='MC_kaon' or data_type=='MC_neutron'):
         neutron_rates, kaon_rates = get_int_rate()
         if ("FTFP_BERT" in subfolder) and (data_type=='MC_neutron'):
@@ -259,7 +262,7 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--root_path", dest="root_path", help="root path of the output file of the workflow", default='/eos/experiment/sndlhc/users/zhibin')
     parser.add_argument("-c", "--config", dest="config", help="metadata config file path", default='/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/metadata_config.yaml')
     parser.add_argument("-m", "--model", dest="model", help="model config file path", default='/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/model_config.yaml')
-    parser.add_argument("-l", "--lumi", dest="lumi", help="lumi record file path", default='/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/SND_lumi.csv')
+    parser.add_argument("-l", "--lumi", dest="lumi", help="lumi record file path", default='/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/SND_lumi_with_ineff.csv')
     args = parser.parse_args()
     main(args)
 

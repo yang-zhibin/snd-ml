@@ -118,15 +118,23 @@ def main(args):
     # Process each event
     for i_event, event in enumerate(raw_tree):
         #reset
+        
+        #
+        #if not (event.Digi_ScifiHits.GetEntriesFast() or event.Digi_MuFilterHits.GetEntriesFast()):
+        #    continue
+        if (event.Digi_ScifiHits.GetEntriesFast() < 200):
+            continue
+        
         print(i_event)
         hits.Clear()
         ids.clear()
         ids.runId = event.EventHeader.GetRunId()
         
+        
 
         if ('MC' in  args.type):
             ids.isMC = 1
-            if ('kaon' in args.type or 'neutron' in args.type):
+            if ('kaon' in args.type or 'neutron' in args.type or 'muon' in args.type):
                 try:
                     ids.eventId = event.EventHeader.GetEventNumber()
                 except Exception:
@@ -149,11 +157,8 @@ def main(args):
             ids.eventId = event.EventHeader.GetEventNumber()
 
         # add least one hit to process
-        if not (event.Digi_ScifiHits.GetEntriesFast() or event.Digi_MuFilterHits.GetEntriesFast()):
-            new_tree.Fill()
-        else:
-            process_hits(event, snd_geo, hits)
-            new_tree.Fill()
+        process_hits(event, snd_geo, hits)
+        new_tree.Fill()
 
     # Finalize the output file
     new_tree.Write()

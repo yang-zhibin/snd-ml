@@ -5,6 +5,8 @@ from tqdm import tqdm
 import numpy as np
 import argparse
 import re
+from typing import Tuple
+
 
 particle_2_class = {
     've': 0,
@@ -32,6 +34,36 @@ def save_to_csv(matrices, outpath):
 
 
 
+def split_prediction_clause(expr: str) -> Tuple[int, float, str]:
+    """
+    Extracts (prediction_class, prediction_cut, other_cuts) from a boolean expression.
+
+    If the expression contains no 'Prediction_<class> > <value>' clause,
+    it returns (0, 0.0, expr) unchanged.
+    """
+    if expr is None:
+        return 0, 0.0, ""
+    # 1  Find the Prediction clause (if any)
+    m = re.search(r'\bPrediction_(\d+)\s*>\s*([0-9]*\.?[0-9]+)', expr)
+
+    if not m:
+        # --- default return when clause is absent ---
+        return 0, 0.0, expr.strip()
+
+    # 2  Normal extraction
+    prediction_class = int(m.group(1))
+    prediction_cut   = float(m.group(2))
+
+    # 3  Remove the clause and tidy leftovers
+    start, end = m.span()
+    other_cuts_raw = (expr[:start] + expr[end:]).strip()
+
+    # collapse duplicated ampersands (& clean edges)
+    other_cuts = re.sub(r'(\s*&{2}\s*){2,}', ' && ', other_cuts_raw).strip(' &')
+
+    return prediction_class, prediction_cut, other_cuts
+
+
 def cal_matrix(rdf, true_class, cuts):
     pred_class = ["ve", "vm", "vt", "NC", "kaon", "neutron", "muon"]
     matrices = {}  # Store confusion matrix for each cut
@@ -39,41 +71,27 @@ def cal_matrix(rdf, true_class, cuts):
     #print(list(rdf.GetColumnNames()))
 
     for cut in cuts:
+        prediction_score_class, prediction_score_cut, other_cuts = split_prediction_clause(cut)
+        print(f"other_cuts: {other_cuts}, prediction_score_class: {prediction_score_class}, prediction_score_cut: {prediction_score_cut}")
         if cut is None:
-            is_score_cut = False
             rdf_cut = rdf
             label = 'no_cut'
         else:
-            is_score_cut = 'Prediction_' in cut
-
-            if is_score_cut:
-                match = re.match(r'\s*(Prediction_0\s*>\s*[\d.]+)\s*&&\s*(.*)', cut)
-                if match:
-                    prediction_score_condition = match.group(1) 
-                    rest_cuts = match.group(2)  
-                    rdf_cut = rdf.Filter(rest_cuts)
-                else:
-                    raise ValueError("Expression does not match the expected format: 'Prediction_0 > <score> && <rest>'")
+            if other_cuts == "":
+                rdf_cut = rdf
             else:
-                rdf_cut = rdf.Filter(cut)
+                rdf_cut = rdf.Filter(other_cuts)
             label = cut
-
-        # Apply cut filter if not a score cut
-        # if is_score_cut or (cut is None):
-        #     rdf_cut = rdf
-        # else:
-        #     rdf_cut = rdf.Filter(cut)
-        #     #print(f"cut {cut}, before filter count: {rdf.Count().GetValue()}, after filter count: {rdf_cut.Count().GetValue()},")
 
         confusion_matrix = pd.DataFrame(0.0, index=true_class, columns=pred_class)
 
         for t_class in true_class:
             rdf_class = rdf_cut
             #print(f"t_class: {t_class}")
-            if t_class == "veto_inverted":
+            if t_class == "data_veto_tagged":
                 rdf_class = rdf_class.Filter("(veto1 + veto2 + veto3) > 0") #
                 t_class_ParticleType = 'real_data'
-            elif t_class == "signal_region":
+            elif t_class == "data_zero_veto":
                 rdf_class = rdf_class.Filter("(veto1 + veto2 + veto3) == 0")
                 t_class_ParticleType = 'real_data'
             else:
@@ -82,14 +100,28 @@ def cal_matrix(rdf, true_class, cuts):
             for p_class in pred_class:
                 
                 p_class_number = particle_2_class[p_class]
-
-                if p_class == 've' and is_score_cut:
-                    filter_expr = f'ParticleType == "{t_class_ParticleType}" && PredClass == {p_class_number} && {prediction_score_condition}'
-                    #print(filter_expr)s
+                
+                if p_class_number == prediction_score_class:
+                    filter_expr = (
+                        f'(ParticleType == "{t_class_ParticleType}" && '
+                        f'pred_class_first == {p_class_number} && '
+                        f'(Prediction_{prediction_score_class} > {prediction_score_cut}))'
+                    )
                 else:
-                    filter_expr = f'(ParticleType == "{t_class_ParticleType}" && PredClass == {p_class_number})'
+                    filter_expr = (
+                        f'(ParticleType == "{t_class_ParticleType}" && '
+                        f'pred_class_first == {p_class_number}) || '
+                        f'(ParticleType == "{t_class_ParticleType}" && '
+                        f'pred_class_second == {p_class_number} && '
+                        f'pred_class_first == {prediction_score_class} && '
+                        f'Prediction_{prediction_score_class} <= {prediction_score_cut})'
+                    )
+                    
 
-                if (t_class == "signal_region" and (p_class=='ve' or p_class=='vm' or p_class=='vt' or p_class=='NC')):
+                print(f"filter_expr : {filter_expr}")
+                if not isinstance(filter_expr, str):
+                    raise ValueError(f"Invalid filter expression: {filter_expr}")
+                if (t_class == "data_zero_veto" and (p_class=='ve' or p_class=='vm' or p_class=='vt' or p_class=='NC')):
                     pred_count = np.nan
                 else:
                     pred_count = rdf_class.Filter(filter_expr).Count().GetValue()
@@ -103,7 +135,7 @@ def cal_matrix(rdf, true_class, cuts):
 
 def process(eval_path,feature_path,pred_path, data_type, cuts, outpath):
     if "real_data" in data_type:
-        true_class = ['veto_inverted', 'signal_region']
+        true_class = ['data_veto_tagged', 'data_zero_veto']
 
         eval_chain = ROOT.TChain("snddata")
         feature_chain = ROOT.TChain("snddata")
@@ -127,7 +159,7 @@ def process(eval_path,feature_path,pred_path, data_type, cuts, outpath):
             true_class = ['neutron']
         elif 'neutrino' in data_type:
             true_class = ["ve", "vm", "vt", "NC"]
-        elif 'muon' in [data_type]:
+        elif 'muon' in data_type:
             true_class = ['muon']
         eval_chain = ROOT.TChain("snddata")
         pred_chain = ROOT.TChain("snddata")
@@ -136,7 +168,7 @@ def process(eval_path,feature_path,pred_path, data_type, cuts, outpath):
 
         eval_chain.AddFriend(pred_chain, 'predTree')
         rdf = ROOT.RDataFrame(eval_chain)
-
+        
         matrices = cal_matrix(rdf, true_class, cuts)
 
     save_to_csv(matrices, outpath)
@@ -168,21 +200,39 @@ def main(args):
 
     data_type = get_data_type(feature_path)
 
-    cuts = [
-            None,
-            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1',
-            'Prediction_0 > 0.95 && fiducial_tl_1 && fiducial_br_1 && scifi_gt_100',
-            'scifi_gt_100 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_300 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_500 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_700 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_900 && fiducial_tl_1 && fiducial_br_1',
-            'scifi_gt_100',
-            'scifi_gt_300',
-            'scifi_gt_500',
-            'scifi_gt_700',
-            'scifi_gt_900',
-        ]
+    cuts = [None]
+    
+    for threshold in np.arange(0.5, 0.99, 0.02):
+        cut_name = f"Prediction_0 > {threshold}"
+        cuts.append(cut_name)
+        
+    for threshold in range(0, 601, 50):
+        cut_name = f"scifi_gt_{threshold}"
+        cuts.append(cut_name)
+        
+    cuts += [
+        "ds4_eq_0",
+        "ds34_eq_0",
+        "ds234_eq_0",
+        "ds1234_eq_0",
+        "us5_eq_0",
+        "us45_eq_0",
+        "us345_eq_0",
+        "us2345_eq_0",
+        "us12345_eq_0"
+    ]
+    
+    hit_pairs = [
+        (200, 1), (250, 1), (300, 1), (350, 1), (400, 1),
+        (200, 2), (250, 2), (300, 2), (350, 2), (400, 2),
+    ]
+    
+    for x, y in hit_pairs:
+        cut_name = f"scifi_gt_{x}_us1_gt_{y}"
+        cuts.append(cut_name)
+
+    cuts += ["scifi_gt_300_us1_gt_2 && Prediction_0 > 0.92"]
+    print(cuts)
 
     process(eval_path, feature_path, pred_path, data_type, cuts, outpath)
 
@@ -195,3 +245,6 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", dest="output", help='output path')
     args = parser.parse_args()
     main(args)
+
+
+#python cal_matrix.py -p {params.model_output} -f {params.feature_path} -e {params.eval_path} -o "${{tmp_output}}"

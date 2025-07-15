@@ -2,256 +2,646 @@ import ROOT
 import pandas as pd
 import os
 import numpy as np
+import re
+from tqdm import tqdm
 
-def cal_scan_fiducial_area():
+ROOT.gROOT.SetBatch(True)
+ROOT.ROOT.EnableImplicitMT()
 
-    scifi_tl_xs = list(range(-46, -40, 1)) 
-    scifi_tl_ys = list(range(53, 47, -1))  
-    DS_tl_xs = list(range(-61, -45, 3))    
-    DS_tl_ys = list(range(67, 56, -2))     
+particle_2_class = {
+    've': 0,
+    'vm': 1,
+    'vt': 2,
+    'NC': 3,
+    'kaon': 4,
+    'neutron': 5,
+    'muon': 6,
+}
+class_2_particle = {v: k for k, v in particle_2_class.items()}
 
-    scifi_br_xs = list(range(-7, -16, -1)) 
-    scifi_br_ys = list(range(14, 23))      
-    DS_br_xs = list(np.arange(1, -9.1, -1.25).tolist())      
-    DS_br_ys = list(np.arange(8, 18.1, 1.25).tolist())      
-    
-    fiducial_tl_exprs = []
-    for i in range(len(scifi_tl_xs)):
-        scifi_tl_x = scifi_tl_xs[i]
-        scifi_tl_y = scifi_tl_ys[i]
-        DS_tl_x = DS_tl_xs[i]
-        DS_tl_y = DS_tl_ys[i]
-        fiducial_tl_expr = f'scifi_avg_x_pos >={scifi_tl_x} && scifi_avg_y_pos <= {scifi_tl_y} && DS_avg_x_pos >={DS_tl_x} && DS_avg_y_pos <= {DS_tl_y} '
-        fiducial_tl_exprs.append(fiducial_tl_expr)
-    
-    fiducial_br_exprs = []
-    for i in range(len(scifi_br_xs)):
-        scifi_br_x = scifi_br_xs[i]
-        scifi_br_y = scifi_br_ys[i]
-        DS_br_x = DS_br_xs[i]
-        DS_br_y = DS_br_ys[i]
-        fiducial_br_expr = f'scifi_avg_x_pos <={scifi_br_x} && scifi_avg_y_pos >= {scifi_br_y} && DS_avg_x_pos <={DS_br_x} && DS_avg_y_pos >= {DS_br_y} '
-        fiducial_br_exprs.append(fiducial_br_expr)
 
-    print("Top-left fiducial expressions:")
-    for i, expr in enumerate(fiducial_tl_exprs, 1):
-        print(f"{i:2d}: {expr}")
-
-    print("\nBottom-right fiducial expressions:")
-    for i, expr in enumerate(fiducial_br_exprs, 1):
-        print(f"{i:2d}: {expr}")
- 
+def load_metadata_files(file_list, root_path):
+    loaded_data = {}
+    for fname in file_list:
+        var_name = fname.replace("_metadata.csv", "").replace("-", "_").replace(".", "_")
+        full_path = os.path.join(root_path, fname)
+        loaded_data[var_name] = pd.read_csv(full_path)
+    return loaded_data
         
-def plot_avg(df, output_pdf):
-    os.makedirs("plot", exist_ok=True)
 
-    canvas = ROOT.TCanvas("canvas", "", 800, 600)
-    canvas.Print(output_pdf + "[")
 
-    scifi_hor_pos, scifi_ver_pos, DS_hor_pos, DS_ver_pos = check_fiducial_pos()
-    scifi_hor_ch = [300, 1336]
-    scifi_ver_ch = [200, 1200]
-    DS_hor_bar = [10, 50]
-    DS_ver_bar = [70, 105]
+def drop_missing_files(df: pd.DataFrame, column_name: str, metadata_name: str = "") -> pd.DataFrame:
+    """Drop rows where the file in column_name does not exist. Print summary per metadata."""
+    exists_mask = df[column_name].apply(lambda path: os.path.exists(path))
+    missing_count = (~exists_mask).sum()
 
-    # Define top-left and bottom-right fiducial boxes
-    top_left_regions = [
-        (-46, 53, -61, 67),
-        (-45, 52, -58, 65),
-        (-44, 51, -55, 63),
-        (-43, 50, -52, 61),
-        (-42, 49, -49, 59),
-        (-41, 48, -46, 57),
-    ]
+    if metadata_name:
+        print(f"{metadata_name}: {missing_count} missing files in '{column_name}'")
+    else:
+        print(f"{missing_count} missing files in '{column_name}'")
 
-    bottom_right_regions = [
-        (-7, 14, 1.0, 8.0),
-        (-8, 15, -0.25, 9.25),
-        (-9, 16, -1.5, 10.5),
-        (-10, 17, -2.75, 11.75),
-        (-11, 18, -4.0, 13.0),
-        (-12, 19, -5.25, 14.25),
-        (-13, 20, -6.5, 15.5),
-        (-14, 21, -7.75, 16.75),
-        (-15, 22, -9.0, 18.0),
-    ]
+    return df[exists_mask].reset_index(drop=True)
 
-    latex = ROOT.TLatex()
-    latex.SetNDC(True)
-    latex.SetTextSize(0.03)
-    latex.SetTextFont(42)
-    # Format: (x_col, y_col, title, x_min, x_max, y_min, y_max)
-    plots = [
-        ("scifi_avg_x_pos", "scifi_avg_y_pos", "Scifi X vs Y;X Position;Y Position", -90, 10, 0, 90),
-        ("DS_avg_x_pos", "DS_avg_y_pos", "DS X vs Y;X Position;Y Position", -90, 10, 0, 90),
 
-        ("scifi_avg_ver", "scifi_avg_hor", "Scifi Ver vs Hor;Vertical;Horizontal", 0, 1600, 0, 1600),
-        ("DS_avg_ver", "DS_avg_hor", "DS Ver vs Hor;Vertical;Horizontal", 60, 120, 0, 60),
-    ]
+def select_neutral_bkg(df):
+    
+    pat = re.compile(r"""
+        (?P<model>[^/]+)/                    # mc_model_type
+        (?P<particle>[^_]+)_                 # particle
+        (?P<E_low>\d+\.?\d*)_                # E_low
+        (?P<E_high>\d+\.?\d*)                # E_high
+        (?:_.*)?                             # optional suffix
+    """, re.VERBOSE)
 
-    for x_col, y_col, title, x_min, x_max, y_min, y_max in plots:
-        boxes = []
-        hist = df.Histo2D(
-            (f"h_{x_col}_{y_col}", title, 100, x_min, x_max, 100, y_min, y_max),
-            x_col, y_col
+    def _parse(row):
+        m = pat.fullmatch(row["subfolder"])
+        if m is None:
+            raise ValueError(f"Unparsable subfolder: {row['subfolder']}")
+        gd = m.groupdict()
+        return pd.Series({
+            "mc_model": gd["model"],
+            "particle": gd["particle"],
+            "E_low": float(gd["E_low"]),
+            "E_high": float(gd["E_high"]),
+        })
+
+    df = df.join(df.apply(_parse, axis=1))
+
+    high_energy = df[df["E_low"] >= 100].copy()
+    low_energy = df[df["E_low"] < 100].copy()
+
+    selected_low = []
+
+    # Group by bin
+    for _, group in low_energy.groupby(["mc_model", "particle", "E_low", "E_high"]):
+        group = group.sort_values("n_event", ascending=False)
+        total = 0
+        selected = []
+        for _, row in group.iterrows():
+            if total >= 100000:
+                break
+            selected.append(row)
+            total += row["n_event"]
+        selected_low.extend(selected)
+
+    
+    return pd.concat([high_energy, pd.DataFrame(selected_low)], ignore_index=True)
+
+def plot_avg_pos(
+    rdf,
+    name,
+    detector="scifi",
+    bin_width_x=1.0,
+    bin_width_y=1.0,
+    label_title="",
+    bottom_title="",
+    logz=False
+    
+):
+    #ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetOptStat("emr")
+
+    # Choose variables and defaults
+    if detector == "scifi":
+        x_col, y_col = "scifi_avg_x_pos", "scifi_avg_y_pos"
+        default_label = "Scifi X vs Y"
+        output_path = f"avg_pos_plot/scifi_avg_pos_{name}.pdf"
+    elif detector == "DS":
+        x_col, y_col = "DS_avg_x_pos", "DS_avg_y_pos"
+        default_label = "DS X vs Y"
+        output_path = f"avg_pos_plot/DS_avg_pos_{name}.pdf"
+    else:
+        raise ValueError(f"Unknown detector type: {detector}")
+
+    if not label_title:
+        label_title = default_label
+    if not bottom_title:
+        bottom_title = "X vs Y Position Map"
+
+    # Filter invalid values
+    rdf = rdf.Filter(f"{x_col} > -99")
+
+    # Define binning and ranges
+    x_min, x_max = -70, 10
+    y_min, y_max = 0, 80
+    nbins_x = int((x_max - x_min) / bin_width_x)
+    nbins_y = int((y_max - y_min) / bin_width_y)
+
+    # Create histogram
+    hist2d = rdf.Histo2D(
+        ("h2", f";X Position [cm];Y Position [cm]", nbins_x, x_min, x_max, nbins_y, y_min, y_max),
+        x_col, y_col
+    )
+
+    # Canvas setup
+    canvas = ROOT.TCanvas(name, "", 800, 600)
+    canvas.SetRightMargin(0.15)
+    canvas.SetTopMargin(0.12)
+    canvas.SetBottomMargin(0.15)
+
+        
+    hist2d.SetTitle("")  # Disable default title
+    hist2d.Draw("COLZ")
+    
+    canvas.Update()
+    stat = hist2d.GetListOfFunctions().FindObject("stats")
+    if stat:
+        stat.SetX1NDC(0.75)  # Left edge of box
+        stat.SetX2NDC(0.85)  # Right edge (avoid overlap with color bar)
+        stat.SetY1NDC(0.77)  # Bottom edge
+        stat.SetY2NDC(0.87) 
+        stat.SetName("")  # remove title from stat box 
+        canvas.Update()
+        
+        
+    if logz:
+        canvas.SetLogz()
+
+    # Draw top-left label
+    label = ROOT.TLatex()
+    label.SetNDC()
+    label.SetTextFont(42)
+    label.SetTextSize(0.05)
+    label.DrawLatex(0.12, 0.92, label_title)
+
+    # Draw bottom title
+    bottom = ROOT.TLatex()
+    bottom.SetNDC()
+    bottom.SetTextAlign(21)  # Centered
+    bottom.SetTextFont(42)
+    bottom.SetTextSize(0.05)
+    bottom.DrawLatex(0.5, 0.04, bottom_title)
+
+    canvas.SaveAs(output_path)
+
+
+
+def process_avg_pos(metadata_df, metadata_name):
+    # read feature path and eval path into rdf
+    # filter rdf is needed
+    # plot
+    
+    feature_chain = ROOT.TChain("snddata")
+    eval_chain = ROOT.TChain("snddata")
+
+    count = 0
+    for index, row in metadata_df.iterrows():
+        feature_path = row['feature_path']
+        eval_path = row['eval_baseline_muon_output_path']
+        feature_chain.Add(feature_path)
+        eval_chain.Add(eval_path)
+
+        if count>700:
+           break
+        count+=1
+
+    print(f"{count} files read from {metadata_name}")
+    feature_chain.AddFriend(eval_chain, 'eval')
+    rdf = ROOT.RDataFrame(feature_chain)
+    
+    if "kaon" in metadata_name:
+        plot_avg_pos(
+            rdf, metadata_name,
+            detector="scifi",
+            bin_width_x=0.5, bin_width_y=0.5,
+            label_title="Kaon [MC Simulation]",
+            bottom_title="Average SciFi Position"
         )
-        df_filtered = df.Filter(f"{x_col} > -100 && {y_col} > -100")
-        x_min_val = df_filtered.Min(x_col).GetValue()
-        x_max_val = df_filtered.Max(x_col).GetValue()
-        y_min_val = df_filtered.Min(y_col).GetValue()
-        y_max_val = df_filtered.Max(y_col).GetValue()
+        plot_avg_pos(
+            rdf, metadata_name,
+            detector="DS",
+            bin_width_x=1.5, bin_width_y=1.5,
+            label_title="Kaon [MC Simulation]",
+            bottom_title="Average DS Position"
+        )
 
-        # draw fiducial box for pos plot with scifi_hor_pos, scifi_ver_pos, DS_hor_pos, DS_ver_pos, and ch/bar box with scifi_hor_ch, scifi_ver_ch, DS_hor_bar, DS_ver_bar
+    elif "neutron" in metadata_name:
+        plot_avg_pos(
+            rdf, metadata_name,
+            detector="scifi",
+            bin_width_x=0.5, bin_width_y=0.5,
+            label_title="Neutron [MC Simulation]",
+            bottom_title="Average SciFi Position"
+        )
+        plot_avg_pos(
+            rdf, metadata_name,
+            detector="DS",
+            bin_width_x=1.5, bin_width_y=1.5,
+            label_title="Neutron [MC Simulation]",
+            bottom_title="Average DS Position"
+        )
 
-        #x_axis = hist.GetXaxis()
-        #x_axis.SetLimits(x_max, x_min)
-        #hist.GetXaxis().SetLimits(x_max, x_min)
-        #hist.GetXaxis().SetRangeUser(x_max, x_min)
-        hist.Draw("COLZ")
-        #hist.GetXaxis().SetRangeUser(x_max, x_min)
+    elif "muon" in metadata_name:
+        plot_avg_pos(
+            rdf, metadata_name,
+            detector="scifi",
+            bin_width_x=0.55, bin_width_y=0.5,
+            label_title="Muon [MC Simulation]",
+            bottom_title="Average SciFi Position"
+        )
+        plot_avg_pos(
+            rdf, metadata_name,
+            detector="DS",
+            bin_width_x=1.5, bin_width_y=1.5,
+            label_title="Muon [MC Simulation]",
+            bottom_title="Average DS Position"
+        )
+
+    elif "neutrino" in metadata_name:
+        plot_avg_pos(
+            rdf, metadata_name,
+            detector="scifi",
+            bin_width_x=0.5, bin_width_y=0.5,
+            label_title="Neutrino [MC Simulation]",
+            bottom_title="Average SciFi Position"
+        )
+        plot_avg_pos(
+            rdf, metadata_name,
+            detector="DS",
+            bin_width_x=1.5, bin_width_y=1.5,
+            label_title="Neutrino [MC Simulation]",
+            bottom_title="Average DS Position"
+        )
+
+    elif "real_data" in metadata_name:
+        # muon-like 
+        muon_like_rdf = rdf.Filter("pred_class_first == 6 && (veto1+veto2+veto3 == 0) ")
+        plot_avg_pos(
+            muon_like_rdf, 'real_data_muon_like',
+            detector="scifi",
+            bin_width_x=0.5, bin_width_y=0.5,
+            label_title="Muon-like [Real Data]",
+            bottom_title="Average SciFi Position"
+        )
+        # plot_avg_pos(
+        #     muon_like_rdf, 'real_data_muon_like',
+        #     detector="DS",
+        #     bin_width_x=1.5, bin_width_y=1.5,
+        #     label_title="Muon-like [Real Data]",
+        #     bottom_title="Average DS Position"
+        # )
+
+        # kaon-like
+        kaon_like_rdf = rdf.Filter("pred_class_first == 4 && (veto1+veto2+veto3 == 0) ")
+        plot_avg_pos(
+            kaon_like_rdf, 'real_data_kaon_like',
+            detector="scifi",
+            bin_width_x=0.5, bin_width_y=0.5,
+            label_title="Kaon-like [Real Data]",
+            bottom_title="Average SciFi Position"
+        )
+        # plot_avg_pos(
+        #     kaon_like_rdf, 'real_data_kaon_like',
+        #     detector="DS",
+        #     bin_width_x=1.5, bin_width_y=1.5,
+        #     label_title="Kaon-like [Real Data]",
+        #     bottom_title="Average DS Position"
+        # )
+
+        # neutron-like
+        neutron_like_rdf = rdf.Filter("pred_class_first == 5 && (veto1+veto2+veto3 == 0) ")
+        plot_avg_pos(
+            neutron_like_rdf, 'real_data_neutron_like',
+            detector="scifi",
+            bin_width_x=0.5, bin_width_y=0.5,
+            label_title="Neutron-like [Real Data]",
+            bottom_title="Average SciFi Position"
+        )
+        # plot_avg_pos(
+        #     neutron_like_rdf, 'real_data_neutron_like',
+        #     detector="DS",
+        #     bin_width_x=1.5, bin_width_y=1.5,
+        #     label_title="Neutron-like [Real Data]",
+        #     bottom_title="Average DS Position"
+        # )
+        
+        
+        
+        veto_tagged_rdf = rdf.Filter("(veto1+veto2+veto3 > 0) ")
+        
+        plot_avg_pos(
+            veto_tagged_rdf, 'real_data_veto_tagged',
+            detector="scifi",
+            bin_width_x=0.5, bin_width_y=0.5,
+            label_title="Veto-tagged [Real Data]",
+            bottom_title="Average SciFi Position"
+        )
+        # plot_avg_pos(
+        #     veto_tagged_rdf, 'real_data_veto_tagged',
+        #     detector="DS",
+        #     bin_width_x=1.5, bin_width_y=1.5,
+        #     label_title="Veto-tagged [Real Data]",
+        #     bottom_title="Average DS Position"
+        # )
+
+        
+        
+        
+        plot_avg_pos(
+            rdf, metadata_name,
+            detector="scifi",
+            bin_width_x=0.5, bin_width_y=0.5,
+            label_title="SND@LHC Real Data",
+            bottom_title="Average SciFi Position"
+        )
+        # plot_avg_pos(
+        #     rdf, metadata_name,
+        #     detector="DS",
+        #     bin_width_x=1.5, bin_width_y=1.5,
+        #     label_title="SND@LHC Real Data",
+        #     bottom_title="Average DS Position"
+        # )
+
+
+def read_rdf(metadata_df, metadata_name):
+    feature_chain = ROOT.TChain("snddata")
+    eval_chain = ROOT.TChain("snddata")
+
+    count = 0
+
+    for index, row in metadata_df.iterrows():
+        feature_path = row['feature_path']
+        eval_path = row['eval_baseline_muon_output_path']
+
+        print(f"feature_path: {feature_path}")
+        print(f"eval_path: {eval_path}")
+
+        # sanity check before adding
+        f1 = ROOT.TFile.Open(feature_path)
+        if not f1 or f1.IsZombie() or not f1.Get("snddata"):
+            print(f"Warning: {feature_path} is not valid.")
+            continue
+
+        f2 = ROOT.TFile.Open(eval_path)
+        if not f2 or f2.IsZombie() or not f2.Get("snddata"):
+            print(f"Warning: {eval_path} is not valid.")
+            continue
+        
+        feature_chain.Add(feature_path)
+        eval_chain.Add(eval_path)
+
+        count+=1
+        if count> 400:
+           break
+
+    print(f"{count} files read from {metadata_name}")
+    #feature_chain.AddFriend(eval_chain, 'eval')
+    feature_chain.AddFriend(eval_chain, 'eval')
+    rdf = ROOT.RDataFrame(feature_chain)
+    
+    #print(rdf.GetColumnNames())
+    rdf = rdf.Define('scifi', 'scifi1 + scifi2 + scifi3 + scifi4 + scifi5')
+    rdf = rdf.Define('us', 'us1 + us2 + us3 + us4 + us5')
+    rdf = rdf.Define('ds', 'ds1 + ds2 + ds3 + ds4')
+    return rdf, feature_chain
+    
+
+
+def process_n_hit(MC_neutrino,  MC_muon, MC_kaon, MC_neutron, real_data_2024):
+    
+    MC_neutrino_rdf, MC_neutrino_chain = read_rdf(MC_neutrino, "MC_neutrino")
+    MC_muon_rdf, MC_muon_chain = read_rdf(MC_muon, "MC_muon")
+    MC_kaon_rdf, MC_kaon_chain = read_rdf(MC_kaon, "MC_kaon")
+    real_data_2024_rdf, real_data_2024_chain = read_rdf(real_data_2024, "real_data_2024")
+    
+    colors = {
+        0: ROOT.kRed,
+        1: ROOT.kBlue,
+        2: ROOT.kGreen + 2,
+        3: ROOT.kMagenta,
+        4: ROOT.kOrange + 7,
+        5: ROOT.kCyan,
+        6: ROOT.kBlack,
+    }
+
+    #plane, (n_bins, x_min, x_max), plane name
+    plane_binning = {
+    'scifi':  (120, 0, 1200, 'SciFi Total'),
+    'us':     (13, 0, 13, 'US Total'),
+    'ds':     (40, 0, 40, 'DS Total'),
+    
+    'us1':    (13, 0, 13, 'US Station 1'),
+    
+    'scifi1': (120, 0, 1200, 'SciFi Station 1'),
+    'scifi2': (120, 0, 1200, 'SciFi Station 2'),
+    'scifi3': (120, 0, 1200, 'SciFi Station 3'),
+    'scifi4': (120, 0, 1200, 'SciFi Station 4'),
+    'scifi5': (120, 0, 1200, 'SciFi Station 5'),
+
+    
+    'us2':    (13, 0, 13, 'US Station 2'),
+    'us3':    (13, 0, 13, 'US Station 3'),
+    'us4':    (13, 0, 13, 'US Station 4'),
+    'us5':    (13, 0, 13, 'US Station 5'),
+
+    'ds1':    (40, 0, 40, 'DS Station 1'),
+    'ds2':    (40, 0, 40, 'DS Station 2'),
+    'ds3':    (40, 0, 40, 'DS Station 3'),
+    'ds4':    (40, 0, 40, 'DS Station 4'),
+    }
+    neutrino_label = {0: "ve", 1: "vm", 2: "vt", 3: "NC"}
+    control_region_label = {4: "Kaon-like", 5: "Neutron-like", 6: "Muon-like"}
+    
+    print(real_data_2024_rdf.GetColumnNames())
+    rdf = real_data_2024_rdf
+    class_labels = control_region_label
+    
+    for plane, (n_bins, x_min, x_max, plane_name) in plane_binning.items():
+        
+        out_file = f"./n_hits/neutrino_and_data_no_preselection_n_hits_{plane}.pdf"
+        canvas  = ROOT.TCanvas("c", f"Number of hits in {plane}", 800, 600)
+        canvas.SetLogy()
+        legend  = ROOT.TLegend(0.55, 0.50, 0.90, 0.90)
+        
+        any_drawn = False
+        hist_proxies = []
         
 
-        # Add fiducial box depending on detector
-        if "scifi" in x_col and "pos" in x_col:
-            # Draw scifi position fiducial box
-            box = ROOT.TBox(scifi_ver_pos[0],scifi_hor_pos[0], scifi_ver_pos[1], scifi_hor_pos[1])
-            box.SetLineColor(ROOT.kRed)
-            box.SetLineWidth(2)
-            box.SetFillStyle(0)
-            box.Draw()
-            boxes.append(box)
-            #hist.GetXaxis().SetRangeUser(x_max, x_min)
-            # Top-left and bottom-right fiducials
-            for x_min_tl, y_max_tl, *_ in top_left_regions:
-                print(x_min_tl,y_max_tl)
-                box = ROOT.TBox(x_min_tl, 14.2, -7, y_max_tl)
-                box.SetLineColor(ROOT.kGreen + 2)
-                box.SetLineWidth(2)
-                box.SetFillStyle(0)
-                box.Draw()
-                boxes.append(box)
+        for class_id, label in tqdm(control_region_label.items(), desc="Processing class labels"):
+            
+            rdf_f = real_data_2024_rdf.Filter(f"pred_class_first == {class_id} && scifi >= 2")
+            n_evt = rdf_f.Count().GetValue()
+            if n_evt == 0:
+                continue
+            title = f"{plane_name}"
+            h_proxy = rdf_f.Histo1D(
+                (f"h_{plane}_{label}",
+                 f";Number of hits;Probability density",
+                 n_bins, x_min, x_max),
+                plane
+            )
+            h = h_proxy.GetValue()
+            hist_proxies.append(h_proxy)
 
-            for x_max_br, y_min_br, *_ in bottom_right_regions:
-                box = ROOT.TBox(-46, y_min_br, x_max_br, 53.51)
-                box.SetLineColor(ROOT.kYellow)
-                box.SetLineWidth(2)
-                box.SetFillStyle(0)
-                box.Draw()
-                boxes.append(box)
+            if h.Integral() == 0:
+                continue
 
-        elif "DS" in x_col and "pos" in x_col:
-            # Draw DS position fiducial box
-            box = ROOT.TBox(DS_ver_pos[0], DS_hor_pos[0], DS_ver_pos[1], DS_hor_pos[1])
-            box.SetLineColor(ROOT.kRed)
-            box.SetLineWidth(2)
-            box.SetFillStyle(0)
-            box.Draw()
-            boxes.append(box)
-            #hist.GetXaxis().SetRangeUser(x_max, x_min)
+            h.Scale(1.0 / h.Integral())
+            color = colors.get(class_id, ROOT.kBlack)
 
-            # Top-left and bottom-right fiducials
-            for _, _, x_min_tl, y_max_tl in top_left_regions:
-                box = ROOT.TBox(x_min_tl, 7.61, 1.34, y_max_tl)
-                box.SetLineColor(ROOT.kGreen + 2)
-                box.SetLineWidth(2)
-                box.SetFillStyle(0)
-                box.Draw()
-                boxes.append(box)
+            h.SetMarkerStyle(20)
+            h.SetMarkerSize(0.5)
+            h.SetMarkerColor(color)
+            h.SetLineColorAlpha(color, 0.9)
+            h.SetLineWidth(2)
+            h.SetStats(0)
+            #h.GetYaxis().SetRangeUser(0, 0.4)
 
-            for _, _, x_max_br, y_min_br in bottom_right_regions:
-                box = ROOT.TBox(-61.97, y_min_br, x_max_br, 67.58)
-                box.SetLineColor(ROOT.kYellow)
-                box.SetLineWidth(2)
-                box.SetFillStyle(0)
-                box.Draw()
-                boxes.append(box)
+            h.SetFillColorAlpha(color, 0.3)
 
-        elif "scifi" in x_col and "ver" in x_col:
-            # Draw SciFi channel cut box
-            box = ROOT.TBox(scifi_ver_ch[0], scifi_hor_ch[0], scifi_ver_ch[1], scifi_hor_ch[1])
-            box.SetLineColor(ROOT.kRed)
-            box.SetLineWidth(2)
-            box.SetFillStyle(0)
-            box.Draw()
-            boxes.append(box)
-            #hist.GetXaxis().SetRangeUser(x_max, x_min)
+            h.GetYaxis().SetRangeUser(1e-5, 80)
+            draw_option = "HIST SAME " if any_drawn else "HIST"
+            h.Draw(draw_option)
+            legend.AddEntry(h, f"{label} ({n_evt})", "fl")
+            any_drawn = True
 
-        elif "DS" in x_col and "ver" in x_col:
-            # Draw DS bar range box
-            box = ROOT.TBox(DS_ver_bar[0], DS_hor_bar[0], DS_ver_bar[1], DS_hor_bar[1])
-            box.SetLineColor(ROOT.kRed)
-            box.SetLineWidth(2)
-            box.SetFillStyle(0)
-            box.Draw()
-            boxes.append(box)
+                
+        for class_id, label in tqdm(neutrino_label.items(), desc="Processing class labels"):
+            
+            rdf_f = MC_neutrino_rdf.Filter(f"ParticleClass == {class_id}")
+            n_evt = rdf_f.Count().GetValue()
+            if n_evt == 0:
+                continue
+            title = f"{plane_name}"
+            h_proxy = rdf_f.Histo1D(
+                (f"h_{plane}_{label}",
+                 f";Number of hits;Probability density",
+                 n_bins, x_min, x_max),
+                plane
+            )
+            h = h_proxy.GetValue()
+            hist_proxies.append(h_proxy)
 
-        latex.DrawLatex(0.12, 0.85, f"{x_col}: min = {x_min_val:.2f}, max = {x_max_val:.2f}")
-        latex.DrawLatex(0.12, 0.80, f"{y_col}: min = {y_min_val:.2f}, max = {y_max_val:.2f}")
-        canvas.Print(output_pdf)
+            if h.Integral() == 0:
+                continue
 
-    canvas.Print(output_pdf + "]")
+            h.Scale(1.0 / h.Integral())
+            color = colors.get(class_id, ROOT.kBlack)
 
+            h.SetMarkerStyle(20)
+            h.SetMarkerSize(0.5)
+            h.SetMarkerColor(color)
+            h.SetLineColorAlpha(color, 0.9)
+            h.SetLineWidth(2)
+            h.SetStats(0)
 
-def read_exist_output(dir_data, metadata_data_df, file_column_name):
-    def file_exists(row):
-        file_path = row[file_column_name]
-        return os.path.isfile(file_path)
+            h.GetYaxis().SetRangeUser(1e-5, 80)
+            draw_option = "SAME P E" if any_drawn else "HIST P E"
+            h.Draw(draw_option)
+            legend.AddEntry(h, f"{label} ({n_evt})", "lep")
+            any_drawn = True
+            
+            
+        legend.Draw()
+        if any_drawn:
+            label = ROOT.TLatex()
+            label.SetNDC()
+            label.SetTextFont(42)
+            label.SetTextSize(0.05)
+            label.DrawLatex(0.12, 0.92, plane_name)
+        
+            os.makedirs("plot", exist_ok=True)
+            
+            canvas.SaveAs(out_file)
+            
+            print(f"Saved: {out_file}")
+        else:
+            print(f"[{plane}] no valid histograms – skipped.")
+        canvas.Close()
+        
+        break
+   
+    
 
-    metadata_data_df = metadata_data_df[metadata_data_df.apply(file_exists, axis=1)].reset_index(drop=True)
+def select_eval_neutrion(MC_neutrino):
+    train_csv = '/eos/user/z/zhibin/sndData/converted/combined_train.csv'
+    train_df = pd.read_csv(train_csv)
+    
+    # Filter to Neutrinos
+    train_df = train_df[train_df['partition'] == 'Neutrinos'].copy()
+    
+    # Extract partition
+    train_df['partition'] = train_df['file'].str.extract(r'/Neutrinos/(\d+)/sndLHC')[0]
+    train_df.dropna(subset=['partition'], inplace=True)
 
-    return metadata_data_df
+    # Ensure type consistency
+    train_partitions = train_df['partition'].astype(str).unique()
+    MC_neutrino['partition'] = MC_neutrino['partition'].astype(str)
 
-def cal_pos(index, n_ch, pos_range):
-    return pos_range[0] + (index) * (pos_range[1] - pos_range[0]) / (n_ch)
+    # Debug print of matching rows
+    matching_rows = MC_neutrino[MC_neutrino['partition'].isin(train_partitions)]
+    print("Dropping the following paths:")
+    #print(matching_rows[['partition', 'digi_path']])
 
-
-def check_fiducial_pos():
-    scifi_n_ch = 1536
-    scifi_hor_ch = [300, 1336]
-    scifi_ver_ch = [200, 1200]
-    scfit_hor_limit_pos = [14.21, 53.86]
-    scfit_ver_limit_pos = [-46.09, -6.99]
-
-    DS_n_bar = 60
-    DS_hor_bar = [10, 50]
-    DS_ver_bar = [15, 50]#DS_ver_bar = [70-60, 105-60]
-    DS_hor_limit_pos = [7.61, 67.58]
-    DS_ver_limit_pos = [-61.98, 1.72]
-
-    scifi_hor_pos = []
-    scifi_ver_pos = []
-    DS_hor_pos = []
-    DS_ver_pos = []
-
-    scifi_hor_pos = [cal_pos(ch, scifi_n_ch, scfit_hor_limit_pos) for ch in scifi_hor_ch]
-    scifi_ver_pos = [cal_pos(ch, scifi_n_ch, scfit_ver_limit_pos) for ch in scifi_ver_ch]
-
-    DS_hor_pos = [cal_pos(bar, DS_n_bar, DS_hor_limit_pos) for bar in DS_hor_bar]
-    DS_ver_pos = [cal_pos(bar, DS_n_bar, DS_ver_limit_pos) for bar in DS_ver_bar]
-
-    return scifi_hor_pos, scifi_ver_pos, DS_hor_pos, DS_ver_pos
+    # Filter out training partitions
+    MC_neutrino = MC_neutrino[~MC_neutrino['partition'].isin(train_partitions)]
+    #print(MC_neutrino)
+    return MC_neutrino
+    
+    
+    
+    
 
 def main():
-    metadata_mc_neutrino_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated/MC_neutrino_volTarget_100fb-1_metadata.csv'  
-    #metadata_mc_neutrino_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated/real_data_2024_metadata.csv'  
-    metadata_mc_neutrino_df = pd.read_csv(metadata_mc_neutrino_path,nrows=100)
-    dir_MC = '/eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1'
-    #dir_MC = '/eos/experiment/sndlhc/users/zhibin/real_data/2024'
+    mc_files = [
+        "MC_kaon_FTFP_BERT_metadata.csv",
+        "MC_neutron_FTFP_BERT_metadata.csv",
+        "MC_muon_down_metadata.csv",
+        "MC_muon_horizontal_metadata.csv",
+        "MC_muon_up_metadata.csv",
+        "MC_neutrino_volTarget_100fb-1_metadata.csv",
+        "real_data_2024_metadata.csv",
+    ]
 
-    file_column_name = 'feature_path'
-    metadata_mc_neutrino_df = read_exist_output(dir_MC, metadata_mc_neutrino_df, file_column_name)    
+    root_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated'
 
-    t_chain = ROOT.TChain("snddata")
+    metadata_vars = load_metadata_files(mc_files, root_path)
 
-    for index, row in metadata_mc_neutrino_df.iterrows():
-        file_path = row[file_column_name]
-        print('reading:',file_path)
-        t_chain.Add(file_path)
-
-    rdf = ROOT.RDataFrame(t_chain)
-
-    output_pdf = "plot/avg_pos_MC_neutrino.pdf"
-    plot_avg(rdf,output_pdf)
+    MC_kaon_FTFP_BERT = metadata_vars["MC_kaon_FTFP_BERT"]
+    MC_neutron_FTFP_BERT = metadata_vars["MC_neutron_FTFP_BERT"]
+    MC_muon_down = metadata_vars["MC_muon_down"]
+    MC_muon_horizontal = metadata_vars["MC_muon_horizontal"]
+    MC_muon_up = metadata_vars["MC_muon_up"]
+    MC_neutrino_volTarget_100fb_1 = metadata_vars["MC_neutrino_volTarget_100fb_1"]
+    real_data_2024 = metadata_vars["real_data_2024"]
+    
+    # Drop missing 'feature_path' files
+    MC_muon_down = drop_missing_files(MC_muon_down, "eval_baseline_muon_output_path", "MC_muon_down")
+    MC_muon_horizontal = drop_missing_files(MC_muon_horizontal, "eval_baseline_muon_output_path", "MC_muon_horizontal")
+    MC_muon_up = drop_missing_files(MC_muon_up, "eval_baseline_muon_output_path", "MC_muon_up")
+    MC_muon = pd.concat([MC_muon_down, MC_muon_horizontal, MC_muon_up], ignore_index=True)
+    
+    
+    # Drop missing 'eval_baseline_muon_output_path' files
+    # MC_kaon_FTFP_BERT = drop_missing_files(MC_kaon_FTFP_BERT, "eval_baseline_muon_output_path", "MC_kaon_FTFP_BERT")
+    # MC_neutron_FTFP_BERT = drop_missing_files(MC_neutron_FTFP_BERT, "eval_baseline_muon_output_path", "MC_neutron_FTFP_BERT")
+    # MC_neutrino_volTarget_100fb_1 = drop_missing_files(MC_neutrino_volTarget_100fb_1, "eval_baseline_muon_output_path", "MC_neutrino_volTarget_100fb_1")
+    
+    real_data_2024 = drop_missing_files(real_data_2024, "eval_baseline_muon_output_path", "real_data_2024")
+        
+    
+    # select portion of kaon and neutron()
+    MC_kaon_FTFP_BERT = select_neutral_bkg(MC_kaon_FTFP_BERT)
+    MC_neutron_FTFP_BERT = select_neutral_bkg(MC_neutron_FTFP_BERT)
+    MC_neutrino_volTarget_100fb_1 = select_eval_neutrion(MC_neutrino_volTarget_100fb_1)
+    
+    
+    #print(MC_kaon_FTFP_BERT.groupby("E_low")["n_event"].sum())
+    #print(MC_muon_down)
+    
+    # process_avg_pos(MC_muon, 'MC_muon')
+    # process_avg_pos(MC_kaon_FTFP_BERT, 'MC_kaon_FTFP_BERT')
+    # process_avg_pos(MC_neutron_FTFP_BERT, 'MC_neutron_FTFP_BERT')
+    # process_avg_pos(MC_neutrino_volTarget_100fb_1, 'MC_neutrino')
+    
+    #process_avg_pos(real_data_2024, 'real_data_2024')
+    
+    process_n_hit(MC_neutrino_volTarget_100fb_1, MC_muon, MC_kaon_FTFP_BERT, MC_neutron_FTFP_BERT, real_data_2024)
+    
+    #process_cut_eff(MC_neutrino_volTarget_100fb_1, MC_muon, MC_kaon_FTFP_BERT, MC_neutron_FTFP_BERT, real_data_2024)
+    
+    
+    
 
 if __name__ == "__main__":
     main()
