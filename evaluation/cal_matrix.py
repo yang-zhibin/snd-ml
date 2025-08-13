@@ -191,6 +191,62 @@ def get_data_type(feature_path):
     return data_type
 
 
+particle_2_class = {
+    've': 0,
+    'vm': 1,
+    'vt': 2,
+    'NC': 3,
+    'kaon': 4,
+    'neutron': 5,
+    'muon': 6,
+}
+class_2_particle = {v: k for k, v in particle_2_class.items()}
+
+def load_metadata_files(file_list, root_path):
+    loaded_data = {}
+    for fname in file_list:
+        var_name = fname.replace("_metadata.csv", "").replace("-", "_").replace(".", "_")
+        full_path = os.path.join(root_path, fname)
+        loaded_data[var_name] = pd.read_csv(full_path)
+    return loaded_data
+        
+def drop_missing_files(df: pd.DataFrame, column_name: str, metadata_name: str = "") -> pd.DataFrame:
+    """Drop rows where the file in column_name does not exist. Print summary per metadata."""
+    exists_mask = df[column_name].apply(lambda path: os.path.exists(path))
+    missing_count = (~exists_mask).sum()
+
+    if metadata_name:
+        print(f"{metadata_name}: {missing_count} missing files in '{column_name}'")
+    else:
+        print(f"{missing_count} missing files in '{column_name}'")
+
+    return df[exists_mask].reset_index(drop=True)
+
+def select_eval_neutrion(MC_neutrino):
+    train_csv = '/eos/user/z/zhibin/sndData/converted/combined_train.csv'
+    train_df = pd.read_csv(train_csv)
+    
+    # Filter to Neutrinos
+    train_df = train_df[train_df['partition'] == 'Neutrinos'].copy()
+    
+    # Extract partition
+    train_df['partition'] = train_df['file'].str.extract(r'/Neutrinos/(\d+)/sndLHC')[0]
+    train_df.dropna(subset=['partition'], inplace=True)
+
+    # Ensure type consistency
+    train_partitions = train_df['partition'].astype(str).unique()
+    MC_neutrino['partition'] = MC_neutrino['partition'].astype(str)
+
+    # Debug print of matching rows
+    matching_rows = MC_neutrino[MC_neutrino['partition'].isin(train_partitions)]
+    print("Dropping the following paths:")
+    #print(matching_rows[['partition', 'digi_path']])
+
+    # Filter out training partitions
+    MC_neutrino = MC_neutrino[~MC_neutrino['partition'].isin(train_partitions)]
+    #print(MC_neutrino)
+    return MC_neutrino
+
 def main(args):
     pred_path = args.pred
     feature_path = args.feature
@@ -239,7 +295,6 @@ def main(args):
 
 if __name__ == "__main__": 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--pred", dest="pred", help="prediction output")
     parser.add_argument("-f", "--feature", dest="feature", help='feature file')
     parser.add_argument("-e", "--eval", dest="eval", help="eval output")
     parser.add_argument("-o", "--output", dest="output", help='output path')
@@ -247,4 +302,4 @@ if __name__ == "__main__":
     main(args)
 
 
-#python cal_matrix.py -p {params.model_output} -f {params.feature_path} -e {params.eval_path} -o "${{tmp_output}}"
+#python cal_matrix.py -f {params.feature_path} -e {params.eval_path} -o "${{tmp_output}}"

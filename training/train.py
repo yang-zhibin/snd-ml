@@ -6,6 +6,7 @@ import torchexplorer
 import wandb
 import pandas as pd
 import argparse
+import glob
 
 from pytorch_lightning import Trainer
 from lightning.pytorch.loggers import WandbLogger
@@ -18,11 +19,13 @@ from models.test_model.model import LinearNet
 from models.GravNet.Models.gravnet import GravNet
 
 
-def main(model_name):
-    config_path = f'/afs/cern.ch/user/z/zhibin/work/snd-ml/training/configs/{model_name}.yml'
+def main(args):
+    config_path = args.config
+    tmp_dir = args.tmp_dir
+
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
-
+    model_name = config['model_name']
     wandb_log_dir = os.path.join(config['logger']['save_dir'], f"{config['logger']['name']}")
     
     if not os.path.exists(wandb_log_dir):
@@ -34,6 +37,7 @@ def main(model_name):
         name = f"{config['logger']['name']}_v{config['logger']['version']}",
         entity = config['logger']['entity'],
         id = f"{config['logger']['name']}_v{config['logger']['version']}",
+        resume='allow'
     )
 
     logger = WandbLogger(
@@ -47,7 +51,7 @@ def main(model_name):
         monitor=config['ModelCheckpoint']['monitor'], 
         mode=config['ModelCheckpoint']['mode'], 
         save_top_k=config['ModelCheckpoint']['save_top_k'], 
-        save_last=config['ModelCheckpoint']['save_last']
+        save_last=config['ModelCheckpoint']['save_last'],
     )
 
     model = GravNet(config)
@@ -63,26 +67,33 @@ def main(model_name):
         check_val_every_n_epoch = config['check_val_every_n_epoch'],
         logger=logger,
         callbacks=[checkpoint_callback],
+        
     )
 
-    train_data_root = '/eos/user/z/zhibin/sndData/train_data'
-    train_data= torchGeoDataset(root=train_data_root, metadata_dir=config['metadata_dir'],split='train', use_event_feature=config['use_event_feature'],weight_type=config['weight_type'])
-    val_data= torchGeoDataset(root=train_data_root, metadata_dir=config['metadata_dir'],split='validation', use_event_feature=config['use_event_feature'],weight_type=config['weight_type'])
-
+    train_data = TrainGeoDataset(root=config['processed_pt_root'], metadata_dir=config['metadata_dir'],model_name=model_name,split='train',
+                                 use_veto_hits=config['use_veto_hits'], use_event_feature=config['use_event_feature'], weight_type=config['weight_type'],
+                                 selected_hit_columns=config['hit_feature_cols'], selected_veto_hit_columns=config['hit_feature_cols'], selected_event_columns=config['event_feature_cols'],
+                                 force_reload=True)
+    
+    val_data = TrainGeoDataset(root=config['processed_pt_root'], metadata_dir=config['metadata_dir'],model_name=model_name,split='val',
+                                 use_veto_hits=config['use_veto_hits'], use_event_feature=config['use_event_feature'], weight_type=config['weight_type'],
+                                 selected_hit_columns=config['hit_feature_cols'], selected_veto_hit_columns=config['hit_feature_cols'], selected_event_columns=config['event_feature_cols'],
+                                 force_reload=True)
+    
     
     print("prepare dataloader")
     train_dataloader = DataLoader(train_data, batch_size=config["batch_size"]['train'], shuffle=True, num_workers=4)
     val_dataloader = DataLoader(val_data, batch_size=config["batch_size"]['val'], shuffle=False, num_workers=4)
     
     print("start training")
-    trainer.fit(model, train_dataloader, val_dataloader)
+    trainer.fit(model, train_dataloader, val_dataloader, ckpt_path=config.get("resume_from_checkpoint", None)) # 
     wandb.save(('{}/*ckpt*'.format(ckpt_path)))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-m", "--model", dest="model", default='baseline')
+    parser.add_argument("-c", "--config", dest="config")
+    parser.add_argument("-t", "--tmp_dir", dest="tmp_dir")
     args = parser.parse_args()
 
-    print("start training model:", args.model)
-    main(args.model)
+    main(args)

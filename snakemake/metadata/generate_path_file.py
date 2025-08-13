@@ -6,6 +6,7 @@ import glob
 import yaml
 from argparse import ArgumentParser
 from tqdm import tqdm
+import difflib
 
 
 def process_real_data_since2024(root_path, subfolder, data_type):
@@ -82,6 +83,15 @@ def process_real_data_subfolders(root_path, output_subfolder_name, data_type, ge
     return metadata
 
 
+def find_best_matching_geo(root_filename, geo_files):
+    if not geo_files:
+        return None
+    best_match = max(geo_files, key=lambda geo: difflib.SequenceMatcher(
+        None, os.path.basename(root_filename), os.path.basename(geo)
+    ).ratio())
+    return best_match
+
+
 def process_MC_subfolders(root_path, output_subfolder_name, data_type):
 
     tree_name = "cbmsim"
@@ -94,18 +104,31 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
             print(f"Skipping non-directory: {subfolder_path}")
             continue
 
-        digi_file = ''
-        geo_file = ''
+        digi_file = None
+        fallback_digi_file = None
+        geo_file = None
         partition = subfolder
         n_event = 0
 
         for file in os.listdir(subfolder_path):
             file_path = os.path.join(subfolder_path, file)
-            #print(file_path)
-            if file.endswith("digCPP.root"):
-                
+            if file.endswith("20240126_digCPP.root"):
                 try:
                     digi_file = file_path
+                    root_file = ROOT.TFile(file_path)
+                    if not root_file or root_file.IsZombie():
+                        raise ValueError(f"Invalid or corrupted ROOT file: {file_path}")
+                    tree = root_file.Get(tree_name)
+                    n_event = tree.GetEntries() if tree else 0
+                    root_file.Close()
+                    
+                except Exception as e:
+                    print(f"Error processing ROOT file {file_path}: {e}")
+            
+            elif file.endswith("digCPP.root") and fallback_digi_file is None:
+                
+                try:
+                    fallback_digi_file = file_path
                     root_file = ROOT.TFile(file_path)
                     if not root_file or root_file.IsZombie():
                         raise ValueError(f"Invalid or corrupted ROOT file: {file_path}")
@@ -118,6 +141,10 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
 
             elif file.startswith("geo"):
                 geo_file = file_path
+                
+            
+        if digi_file is None:
+            digi_file = fallback_digi_file
 
         one_file_data = {
             'data_type': data_type,
@@ -251,13 +278,15 @@ def generate_MC_muon(data_type, root_path, output_subfolder_name, csv_file):
                 n_event = tree.GetEntries() if tree else 0
                 root_file.Close()
 
-                # Generate metadata
+                #get the lastest geo file (geo file will be updated correctly in the next step)                
                 geo_files = glob.glob(os.path.join(dirpath, "geo*"))
-                geo_file = geo_files[0] if geo_files else None  # Take the first match, or None if no match
+                geo_file = max(geo_files, key=os.path.getmtime) if geo_files else None
 
                 #ToDo: a universal way to get partition
                 partition = os.path.basename(dirpath)
                 if partition == 'muons_down':
+                    partition = 'scoring_2'
+                elif partition == 'muons_up':
                     partition = 'scoring_2'
                 elif partition == '7016245':
                     partition = 'scoring_2.5'

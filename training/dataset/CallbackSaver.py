@@ -19,6 +19,10 @@ class RootSaver(Callback):
         
         # Extract runId and eventId from the batch
         ids = batch.ids
+        
+        
+        print("predictions", predictions.shape)
+        print("ids", ids.shape)
 
         #ToDo, fix output bug
         #if (outputs.shape[0]<2):
@@ -53,7 +57,7 @@ class RootSaver(Callback):
         
 
         with uproot.recreate(self.out_path) as root_file:
-            root_file["snddata"] = {key: ak_array[key] for key in ak_array.fields}
+            root_file["sndData"] = {key: ak_array[key] for key in ak_array.fields}
         
         print(f"Predictions saved to '{self.out_path}'.")
         # Optionally clear the list to save memory

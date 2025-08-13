@@ -1,0 +1,13 @@
+Building DAG of jobs...
+InputFunctionException in rule prediction in file /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/snakefile, line 630:
+Error:
+  IndexError: single positional indexer is out-of-bounds
+Wildcards:
+  model_output=/eos/experiment/sndlhc/users/zhibin/MC_neutron/FTFP_BERT/neu_5_10_highstat/368/vetoFree_prediction_baseline_muon_output_MC_neutron_FTFP_BERT_neu_5_10_highstat_368.root
+Traceback:
+  File "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/snakefile", line 637, in <lambda>
+  File "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/snakefile", line 99, in get_metadata_from_output
+  File "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/snakefile", line 117, in get_metadata_value
+  File "/afs/cern.ch/work/z/zhibin/miniconda3/envs/snd-pytorch/lib/python3.10/site-packages/pandas/core/indexing.py", line 1153, in __getitem__
+  File "/afs/cern.ch/work/z/zhibin/miniconda3/envs/snd-pytorch/lib/python3.10/site-packages/pandas/core/indexing.py", line 1714, in _getitem_axis
+  File "/afs/cern.ch/work/z/zhibin/miniconda3/envs/snd-pytorch/lib/python3.10/site-packages/pandas/core/indexing.py", line 1647, in _validate_integer

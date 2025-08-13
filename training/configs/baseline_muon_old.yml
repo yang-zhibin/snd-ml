@@ -24,32 +24,33 @@ data: '/eos/user/z/zhibin/sndData/converted/pt'
 #val_check_interval: 5000
 check_val_every_n_epoch: 5
 
+
+
+global_feature_set: ['RecoMuon.px', 'RecoMuon.py', 'RecoMuon.pz', 'RecoMuon.x', 'RecoMuon.y', 'RecoMuon.z']
+feature_set: ['Hits.detType','Hits.orientation','Hits.x1', 'Hits.y1', 'Hits.z1', 'Hits.x2', 'Hits.y2', 'Hits.z2']
 factor: 0.93
 patience: 2
 lr: 0.003
 
 nb_classes: 7
+#class_weights: [3.0, 2.0, 0.2, 0.2, 1.0, 1.0]
+class_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 use_weights: False
 weight_type: "weight"
-class_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-
 use_event_feature: False
-global_feature_channels: 6
-event_feature_cols: ['RecoMuon.px', 'RecoMuon.py', 'RecoMuon.pz', 'RecoMuon.x', 'RecoMuon.y', 'RecoMuon.z']
-
-
-hit_feature_cols: ['detType','orientation','x1', 'y1', 'z1', 'x2', 'y2', 'z2']
-
-
 use_veto_hits: False
-
-
-
-
 spatial_channels: 8
+global_feature_channels: 6
+
+
+
 final_dropout: 0.1 # The dropout of the final layer
 feature_dropout: 0.0 # This is the dropout within the GNN convolutions
 spatial_dropout: 0.0
+
+
+
+
 
 # MLP params
 

@@ -3,8 +3,8 @@
 import sys
 import htcondor
 from htcondor import JobEventType
+import os
 from os.path import join
-
 
 def print_and_exit(s):
     print(s)
@@ -13,7 +13,8 @@ def print_and_exit(s):
 
 jobID, UUID, clusterID = sys.argv[1].split("_")
 
-jobDir = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/htcondor_log/{}_{}".format(jobID, UUID)
+log_dir = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/htcondor_log"
+jobDir = f"{log_dir}/{jobID}_{UUID}"
 jobLog = join(jobDir, "condor.log")
 
 failed_states = [

@@ -6,6 +6,7 @@ from os import makedirs
 from os.path import join
 from uuid import uuid4
 from datetime import datetime
+import os
 
 from snakemake.utils import read_job_properties
 
@@ -16,7 +17,10 @@ job_properties = read_job_properties(jobscript)
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 UUID = uuid4()  # random UUID
-jobDir = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/htcondor_log/{}_{}".format(job_properties["jobid"], UUID)
+log_dir = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/htcondor_log"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+jobDir = f"{log_dir}/{job_properties['jobid']}_{UUID}"
 makedirs(jobDir, exist_ok=True)
 
 sub = htcondor.Submit(
@@ -25,10 +29,11 @@ sub = htcondor.Submit(
         "arguments": jobscript,
         "max_retries": "0",
         "log": join(jobDir, "condor.log"),
-        "output": join(jobDir, "condor.out"),
-        "error": join(jobDir, "condor.err"),
+        "output": "condor.out", # join(jobDir, "condor.out"), "condor.out", 
+        "error": "condor.err", #join(jobDir, "condor.err"), "condor.err", 
+        "should_transfer_files": "NO",
         "getenv": "True",
-        "request_cpus": str(job_properties["threads"]),
+#        "request_cpus": str(job_properties["threads"]),
         "+MaxRuntime": job_properties["resources"]["runtime"],
         # Add your custom HTCondor settings
         "+AccountingGroup": '"group_u_SNDLHC.users"',

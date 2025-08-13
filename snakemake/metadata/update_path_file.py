@@ -6,12 +6,12 @@ import yaml
 from argparse import ArgumentParser
 import re
 
-def generate_full_path(row, path_name, suffix, csv_input, eos_root_path):
+def generate_full_path(row, index, path_name, suffix, csv_input, eos_root_path):
     
     base = f"{path_name}_{row['data_type']}_{row['subfolder'].replace('/', '_')}_{row['partition']}"
     
     if 'muon' in csv_input:
-        filename = f"{base}_{row['n_event']}{suffix}"
+        filename = f"{base}_{index}{suffix}"
     elif 'real_data' in csv_input:
         unique_file_id = os.path.splitext(os.path.basename(row['digi_path']))[0]
         filename = f"{base}_{unique_file_id}{suffix}"
@@ -22,14 +22,10 @@ def generate_full_path(row, path_name, suffix, csv_input, eos_root_path):
     return full_path
 
 
-def add_new_path(path_name, path_type, df, csv_input, eos_root_path, force_rerun=True):
+def add_new_path(path_name, path_type, df, csv_input, eos_root_path, seperate_veto=True,force_rerun=True):
     # Determine column name
-    column_name = f"{path_name}_path"
     
-    # Check if the column already exists
-    if (column_name in df.columns) and (not force_rerun):
-        print(f"The column '{column_name}' already exists in the CSV file.")
-        return df
+    column_name = f"{path_name}_path"
     
     # Ensure 'subfolder' column is treated as string
     df['subfolder'] = df['subfolder'].astype(str)
@@ -43,10 +39,16 @@ def add_new_path(path_name, path_type, df, csv_input, eos_root_path, force_rerun
         suffix = ".csv"
     else:
         suffix = ".root"
+        
+    if seperate_veto:
+        df[f"vetoTagged_{column_name}"] = df.apply(lambda row: generate_full_path(row,row.name, f"vetoTagged_{path_name}", suffix, csv_input, eos_root_path),axis=1)
+        df[f"vetoFree_{column_name}"] = df.apply(lambda row: generate_full_path(row,row.name, f"vetoFree_{path_name}", suffix, csv_input, eos_root_path),axis=1)
+        print(f"The column (vetoTagged_{column_name}) and (vetoFree_{column_name}) have been added")
+        
+    else:
+        df[column_name] = df.apply(lambda row: generate_full_path(row,row.name, path_name, suffix, csv_input, eos_root_path),axis=1)
     
-    df[column_name] = df.apply(lambda row: generate_full_path(row, path_name, suffix, csv_input, eos_root_path),axis=1)
-    
-    print(f"The column '{column_name}' has been added")
+        print(f"The column '{column_name}' has been added")
     return df
 
 
@@ -177,8 +179,60 @@ def cal_lumi_for_neutral_bkg(int_rate_df, metadata_df):
 
     #print(metadata_df)
     return metadata_df
-    
 
+
+def process_muon_path(df):
+    # Normalize digi_path
+    df['digi_path'] = df['digi_path'].str.replace('//', '/', regex=False)
+
+    # Drop geo_path if it exists
+    if 'geo_path' in df.columns:
+        df = df.drop(columns=['geo_path'])
+
+    # Load muon metadata table
+    muon_table = pd.read_csv("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/SND_muon_background_table.csv")
+
+    # Match output_path as prefix of digi_path
+    def find_longest_prefix(digi_path, output_paths):
+        matches = [op for op in output_paths if digi_path.startswith(op)]
+        return max(matches, key=len) if matches else None
+
+
+    
+    output_paths = muon_table['output_path'].tolist()
+    df['matched_output_path'] = df['digi_path'].apply(lambda x: find_longest_prefix(x, output_paths))
+
+    # Merge matched data
+    merged_df = df.merge(muon_table, how='left', left_on='matched_output_path', right_on='output_path')
+    #print(merged_df)
+
+    # Calculate number of files per output_path group
+    file_counts = merged_df['output_path'].value_counts().to_dict()
+    merged_df['files_in_group'] = merged_df['output_path'].map(file_counts)
+
+    
+    # Compute n_collisions_per_file
+    merged_df['n_collisions_per_file'] = merged_df['n_collisions'] / merged_df['files_in_group']
+
+    # Compute luminosity per file (in fb⁻¹)
+    cross_section_fb = 80e9  # 80 mb = 80 * 1e9 fb
+    merged_df['lumi_per_file'] = merged_df['n_collisions_per_file'] / cross_section_fb
+
+    # update geo_path since they raise error when calling SiPM Mapping function
+    def replace_geo_path(path):
+        if path == "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/geofile_full.Ntuple-TGeant4.root":
+            return "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_2.5/geofile_full.Ntuple-TGeant4.root"
+        elif path == "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_up/geofile_full.Ntuple-TGeant4.root":
+            return "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_up/scoring_2.5/geofile_full.Ntuple-TGeant4.root"
+        return path
+
+    if 'geo_path' in merged_df.columns:
+        merged_df['geo_path'] = merged_df['geo_path'].apply(replace_geo_path)
+
+    #drop useless column (n_collisions, files_in_group, output_path)
+    merged_df = merged_df.drop(columns=['n_collisions', 'files_in_group', 'output_path'])
+    
+    return merged_df
 
 
 def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input, eos_root_path, models,lumi_file):
@@ -191,21 +245,27 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
         if ("FTFP_BERT" in subfolder) and (data_type=='MC_neutron'):
             df = cal_lumi_for_neutral_bkg(neutron_rates, df)
         elif ("FTFP_BERT" in subfolder) and (data_type=='MC_kaon'):
-            df = cal_lumi_for_neutral_bkg(neutron_rates, df)        
+            df = cal_lumi_for_neutral_bkg(kaon_rates, df)        
     elif (data_type=='MC_neutrino'):
         if '100fb-1' in csv_input:
             df['lumi_per_file'] =100
         elif '20fb-1' in csv_input:
             df['lumi_per_file'] =20
+    elif (data_type == "MC_muon" ):
+        df = process_muon_path(df)
 
+    
+    #add preSelect path
+    df = add_new_path("preSelect","root", df, csv_input,  eos_root_path, seperate_veto=False)
+    
+    
     # hit path
     df = add_new_path("hit","root", df, csv_input,  eos_root_path)
     # feature path
     df = add_new_path("feature","root", df, csv_input, eos_root_path)
     # pt hit path
     df = add_new_path("pt_hit","pt", df, csv_input, eos_root_path)
-    # add 3d hit path
-    df = add_new_path("pkl_hit","pkl", df, csv_input, eos_root_path)
+
 
     # 
     model_names = [list(model.keys())[0] for model in models]
@@ -213,10 +273,10 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
         
         if "3d" in model :
             df = add_new_path(f"eval_{model}_output", "pkl", df, csv_input, eos_root_path)
-            df = add_new_path(f"model_{model}_output", "pkl", df, csv_input, eos_root_path)
+            df = add_new_path(f"prediction_{model}_output", "pkl", df, csv_input, eos_root_path)
         else:
             df = add_new_path(f"eval_{model}_output", "root", df, csv_input, eos_root_path)
-            df = add_new_path(f"model_{model}_output", "root", df, csv_input, eos_root_path)
+            df = add_new_path(f"prediction_{model}_output", "root", df, csv_input, eos_root_path)
         
         df = add_new_path(f"matrix_{model}_output", "csv", df, csv_input, eos_root_path)
 

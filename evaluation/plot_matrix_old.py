@@ -14,9 +14,8 @@ particle_2_class = {
     'neutron': 5,
     'muon': 6,
 }
-class_2_particle = {v: k for k, v in particle_2_class.items()}
-target_columns = ['ve', 'vm', 'vt', 'NC', 'kaon', 'neutron', 'muon']
 
+target_columns = ['ve', 'vm', 'vt', 'NC', 'kaon', 'neutron', 'muon']
 
 def format_to_sigfigs(value, sigfigs=2, sci_threshold=4):
     if not math.isfinite(value):
@@ -230,8 +229,23 @@ def cal_uncertainty(group, neutrino_lumi, realdata_lumi, kaon_lumi, neutron_lumi
     return normalized_values_df, normalized_uncertainty_df
     
     
-def plot_table(all_matrix, realdata_lumi):
-    #print(all_matrix)
+def plot_table(full_matrix):
+     # Unpack each (matrix, lumi) tuple
+    neutrino_matrix, neutrino_lumi = full_matrix["neutrino"]
+    realdata_matrix, realdata_lumi = full_matrix["real_data_2024"]
+    kaon_matrix, kaon_lumi = full_matrix["kaon"]
+    neutron_matrix, neutron_lumi = full_matrix["neutron"]
+    
+    all_matrix = pd.concat([
+        neutrino_matrix,
+        realdata_matrix,
+        kaon_matrix,
+        neutron_matrix
+    ], ignore_index=False)
+    
+    all_matrix.index.name = 'true_class'
+    all_matrix = all_matrix.reset_index()
+    
     drop_veto_tagged_data = False
     drop_veto_0_data = False
     drop_neutral = False
@@ -241,14 +255,11 @@ def plot_table(all_matrix, realdata_lumi):
         #print(cut_name)
         #if (not(cut_name == 'Prediction_0 > 0.9200000000000004' or cut_name == 'no_cut')):
         #    continue
-        #if (cut_name != 'no_cut'):
-        #    continue
-        
-        numeric_cols = group.select_dtypes(include=[np.number]).columns
-        normalized_values_df = group[numeric_cols]
-        normalized_uncertainty_df = normalized_values_df # for debug
+        if (cut_name != 'no_cut'):
+            continue
 
-        #normalized_values_df, normalized_uncertainty_df = cal_uncertainty(group, neutrino_lumi, realdata_lumi, kaon_lumi, neutron_lumi)
+
+        normalized_values_df, normalized_uncertainty_df = cal_uncertainty(group, neutrino_lumi, realdata_lumi, kaon_lumi, neutron_lumi)
 
         if drop_veto_tagged_data:
             mask = ~normalized_values_df.index.isin(['data_veto_tagged'])
@@ -274,7 +285,7 @@ def plot_table(all_matrix, realdata_lumi):
         #drop rows kaon and muon if drop_neutral
         
         safe_name = cut_name.replace(" ", "_").replace(">", "gt").replace("<", "lt")
-        filename = f"new_normalisation_full_matrix_{safe_name}.pdf"
+        filename = f"full_matrix_{safe_name}.pdf"
         if (cut_name == 'no_cut'):
             title = f""
         else:
@@ -284,7 +295,7 @@ def plot_table(all_matrix, realdata_lumi):
         plot_confusion_matrix_with_uncertainty(normalized_values_df, normalized_uncertainty_df, realdata_lumi, title=title, filename=filename)
 
 
-        #break
+        break
 
 
 
@@ -313,6 +324,61 @@ def select_eval_neutrion(MC_neutrino):
     #print(MC_neutrino)
     return MC_neutrino
 
+
+def select_with_lumi(df):
+    dropped_rows = df[(df["lumi_per_file"] == 0) | (df["lumi_per_file"].isna())]
+    #print("Dropped rows:")
+    #print(dropped_rows)
+
+    df = df[ (df["lumi_per_file"] != 0) & (df["lumi_per_file"].notna()) ]
+    
+    return df
+    
+
+def read_metadata():
+    metadata_paths = {
+        "neutrino": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_volTarget_100fb-1_metadata.csv',
+        "kaon": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_kaon_FTFP_BERT_metadata.csv',
+        "neutron": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutron_FTFP_BERT_metadata.csv',
+        "real_data_2024": '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/real_data_2024_metadata.csv'
+    }
+
+    cleaned_metadata = {}
+    path_column = "matrix_baseline_muon_output_path" 
+
+    for key, file_path in metadata_paths.items():
+        if os.path.exists(file_path):
+            df = pd.read_csv(file_path) 
+            if (key=='neutrino'):
+                df = select_eval_neutrion(df)
+            elif (key=='kaon' or key=='neutron'):
+                df = select_with_lumi(df)
+            #print(df)
+            
+            if path_column in df.columns:
+                df = df[df[path_column].apply(os.path.exists)]
+                cleaned_metadata[key] = df
+            else:
+                print(f"Column '{path_column}' not found in {file_path}")
+        else:
+            print(f"Metadata file not found: {file_path}")
+    
+    return cleaned_metadata
+
+def process_row(row):
+    matrix_path = row['matrix_baseline_muon_output_path']
+    lumi_per_file = np.nan_to_num(row['lumi_per_file'], nan=0.0)
+    data_type = row['data_type']
+    
+    # if "real_data" in data_type:
+    #     veto_ineff = row['veto_ineff']
+    #     matrix = pd.read_csv(matrix_path, index_col=0)
+    #     matrix.loc['data_veto_tagged', target_columns] *= veto_ineff
+        
+    # else:
+    matrix = pd.read_csv(matrix_path, index_col=0)
+
+    return lumi_per_file, matrix
 
 def plot_scifi_cut_eff(matrix):
     Scifi_hit_cuts = [
@@ -536,226 +602,60 @@ def process_cut_efficiency(full_matrix):
             "Prediction_0 > 0.98",
             "Prediction_0 > 0.99",
         ]
-
-
-def process_row(row):
-    matrix_path = row['matrix_baseline_muon_output_path']
-    lumi_per_file = np.nan_to_num(row['lumi_per_file'], nan=0.0)
-    data_type = row['data_type']
     
     
-    matrix = pd.read_csv(matrix_path, index_col=0)
-    if "real_data" in data_type:
-        veto_ineff = row['veto_ineff']
-    else:
-        
-        veto_ineff = 1
-    
-    return matrix, lumi_per_file, veto_ineff
-
-def load_matrix_from_csv(df, max_file=1e5):
-    #print(df)
-    particle_matrix = None
-    particle_lumi = 0
     
 
-    count = 0
-    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing rows"):
-        #print(idx,row)
-        matrix, lumi_per_file, veto_ineff = process_row(row)
-        if "data_veto_tagged" in matrix.index:
-            numeric_cols = matrix.select_dtypes(include='number').columns
-            matrix.loc["data_veto_tagged", numeric_cols] *= veto_ineff
+
+def process_exist_metadata(exist_metadata):
+    full_matrix = {} # name -> (matrix, lumi)
+
+    for name, df in exist_metadata.items():
+        print(f"Dataset: {name}, Entries: {len(df)}")
+        particle_matrix = None
+        particle_lumi = 0
+
+        count = 0
+        for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing rows"):
+            
+            lumi, matrix = process_row(row)
+            
             #print(matrix)
-        
-        #print(matrix)
-        # add lumi to particle_matrix
-        particle_lumi += lumi_per_file
+            # add lumi to particle_matrix
+            particle_lumi += lumi
 
-        # add matrix to particle_matrix
-        if particle_matrix is None:
-            particle_matrix = matrix.copy()
-        else:
-            # Add values for summable keys only
-            particle_matrix[target_columns] = particle_matrix[target_columns].add(matrix[target_columns], fill_value=0)
-        
-        count+=1
-        if count > max_file:
-            break
-    #print(particle_matrix)
-    return particle_matrix, particle_lumi
-
-def load_neutral_bkg_matrix(df):
-    results = []
-
-    # Ensure 'energy_range' exists in the DataFrame
-    if 'energy_range' not in df.columns:
-        raise ValueError("DataFrame must contain an 'energy_range' column.")
-
-    # Group by energy_range
-    grouped = df.groupby('energy_range')
-
-    for energy_range, group in grouped:
-        # Load matrix and lumi for this energy range
-        matrix, lumi = load_matrix_from_csv(group)
-        #print(matrix)
-
-        # Append the result as a tuple: (energy_range, (matrix, lumi))
-        results.append((energy_range, (matrix, lumi)))
-
-    return results
-
-def sum_normalized_neutral_bkg_matrix(matrix_list, factor=1.0):
-    total_matrix = None
-
-    for energy_range, (matrix, lumi) in matrix_list:
-        if lumi == 0:
-            continue  # Skip to avoid division by zero
-
-        
-        normalized_matrix = normalize_matrix(matrix, lumi, factor)
-
-        if total_matrix is None:
-            total_matrix = normalized_matrix.copy()
-        else:
-            total_matrix[target_columns] = total_matrix[target_columns].add(normalized_matrix[target_columns], fill_value=0)
-
-    return total_matrix
-
-def normalize_matrix(matrix, lumi, factor):
-    if lumi == 0:
-        raise ValueError("Cannot normalize matrix with lumi=0")
-    numeric_cols = matrix.select_dtypes(include='number').columns
-    matrix = matrix.copy()
-    matrix[numeric_cols] = matrix[numeric_cols] / lumi * factor
-    return matrix
-
-
-def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC_neutron_metadata):
-    
-    realdata_matrix, realdata_lumi = load_matrix_from_csv(realdata_metadata, 700)
-    #print(realdata_matrix)
-    MC_neutrino_matrix, MC_neutrino_lumi = load_matrix_from_csv(MC_neutrino_metadata)
-    
-    MC_kaon_matrix_list= load_neutral_bkg_matrix(MC_kaon_metadata)
-    MC_neutron_matrix_list = load_neutral_bkg_matrix(MC_neutron_metadata)
-    
-    normalized_MC_neutrino_matrix = normalize_matrix(MC_neutrino_matrix, MC_neutrino_lumi, realdata_lumi)
-    
-    normalized_MC_kaon_matrix = sum_normalized_neutral_bkg_matrix(MC_kaon_matrix_list, realdata_lumi)
+                        # add matrix to particle_matrix
+            if particle_matrix is None:
+                particle_matrix = matrix.copy()
+            else:
+                # Add values for summable keys only
+                particle_matrix[target_columns] = particle_matrix[target_columns].add(matrix[target_columns], fill_value=0)
+            
+            #print(matrix)
+            #if ((name == 'kaon' or name == 'neutron') and count>100):
+            #    break
+            if (name == 'real_data_2024' and count > 700):
+                break
+            #if (name == 'neutrino' and count < 200):
+            #    continue
+                #break
+            #if count>500:
+            #    break
+            count+=1
+        full_matrix[name] = (particle_matrix, particle_lumi)
+        print(f"name {name}, particle_lumi {particle_lumi}")
+        #print(particle_matrix)
+    #print(full_matrix)
     
     
-    #print((MC_kaon_matrix_list))
-    normalized_MC_neutron_matrix = sum_normalized_neutral_bkg_matrix(MC_neutron_matrix_list, realdata_lumi)
-    #print((normalized_MC_neutron_matrix))
-    #print(normalized_MC_neutrino_matrix)
-    #print()
-    
-    all_matrix = pd.concat([
-        normalized_MC_neutrino_matrix,
-        realdata_matrix,
-        normalized_MC_kaon_matrix,
-        normalized_MC_neutron_matrix
-    ], ignore_index=False)
-    
-    plot_table(all_matrix, realdata_lumi)
+    plot_table(full_matrix)
+    #process_cut_efficiency(full_matrix)
 
-
-def load_metadata_files(file_list, root_path):
-    loaded_data = {}
-    for fname in file_list:
-        var_name = fname.replace("_metadata.csv", "").replace("-", "_").replace(".", "_")
-        full_path = os.path.join(root_path, fname)
-        loaded_data[var_name] = pd.read_csv(full_path)
-    return loaded_data
-        
-def drop_missing_files(df: pd.DataFrame, column_name: str, metadata_name: str = "") -> pd.DataFrame:
-    """Drop rows where the file in column_name does not exist. Print summary per metadata."""
-    exists_mask = df[column_name].apply(lambda path: os.path.exists(path))
-    missing_count = (~exists_mask).sum()
-
-    if metadata_name:
-        print(f"{metadata_name}: {missing_count} missing files in '{column_name}'")
-    else:
-        print(f"{missing_count} missing files in '{column_name}'")
-
-    return df[exists_mask].reset_index(drop=True)
-
-def select_eval_neutrion(MC_neutrino):
-    train_csv = '/eos/user/z/zhibin/sndData/converted/combined_train.csv'
-    train_df = pd.read_csv(train_csv)
-    
-    # Filter to Neutrinos
-    train_df = train_df[train_df['partition'] == 'Neutrinos'].copy()
-    
-    # Extract partition
-    train_df['partition'] = train_df['file'].str.extract(r'/Neutrinos/(\d+)/sndLHC')[0]
-    train_df.dropna(subset=['partition'], inplace=True)
-
-    # Ensure type consistency
-    train_partitions = train_df['partition'].astype(str).unique()
-    MC_neutrino['partition'] = MC_neutrino['partition'].astype(str)
-
-    # Debug print of matching rows
-    matching_rows = MC_neutrino[MC_neutrino['partition'].isin(train_partitions)]
-    print("Dropping the following paths:")
-    #print(matching_rows[['partition', 'digi_path']])
-
-    # Filter out training partitions
-    MC_neutrino = MC_neutrino[~MC_neutrino['partition'].isin(train_partitions)]
-    #print(MC_neutrino)
-    return MC_neutrino
 
 def main():
-    mc_files = [
-        "MC_kaon_FTFP_BERT_metadata.csv",
-        "MC_neutron_FTFP_BERT_metadata.csv",
-        "MC_muon_down_metadata.csv",
-        "MC_muon_horizontal_metadata.csv",
-        "MC_muon_up_metadata.csv",
-        "MC_neutrino_volTarget_100fb-1_metadata.csv",
-        "real_data_2024_metadata.csv",
-    ]
+    exist_metadata = read_metadata()
+    process_exist_metadata(exist_metadata)
 
-    root_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated'
-
-    metadata_vars = load_metadata_files(mc_files, root_path)
-
-    MC_kaon_FTFP_BERT = metadata_vars["MC_kaon_FTFP_BERT"]
-    MC_neutron_FTFP_BERT = metadata_vars["MC_neutron_FTFP_BERT"]
-    MC_muon_down = metadata_vars["MC_muon_down"]
-    MC_muon_horizontal = metadata_vars["MC_muon_horizontal"]
-    MC_muon_up = metadata_vars["MC_muon_up"]
-    MC_neutrino_volTarget_100fb_1 = metadata_vars["MC_neutrino_volTarget_100fb_1"]
-    real_data_2024 = metadata_vars["real_data_2024"]
-    
-    # Drop missing 'feature_path' files
-    MC_muon_down = drop_missing_files(MC_muon_down, "eval_baseline_muon_output_path", "MC_muon_down")
-    MC_muon_horizontal = drop_missing_files(MC_muon_horizontal, "eval_baseline_muon_output_path", "MC_muon_horizontal")
-    MC_muon_up = drop_missing_files(MC_muon_up, "eval_baseline_muon_output_path", "MC_muon_up")
-    MC_muon = pd.concat([MC_muon_down, MC_muon_horizontal, MC_muon_up], ignore_index=True)
-    
-    
-    #Drop missing 'eval_baseline_muon_output_path' files
-    MC_kaon_FTFP_BERT = drop_missing_files(MC_kaon_FTFP_BERT, "matrix_baseline_muon_output_path", "MC_kaon_FTFP_BERT")
-    MC_neutron_FTFP_BERT = drop_missing_files(MC_neutron_FTFP_BERT, "matrix_baseline_muon_output_path", "MC_neutron_FTFP_BERT")
-    MC_neutrino_volTarget_100fb_1 = drop_missing_files(MC_neutrino_volTarget_100fb_1, "matrix_baseline_muon_output_path", "MC_neutrino_volTarget_100fb_1")
-    
-    real_data_2024 = drop_missing_files(real_data_2024, "matrix_baseline_muon_output_path", "real_data_2024")
-    
-    
-    #process_n_hits_in_diff_energy(MC_kaon_FTFP_BERT, MC_neutron_FTFP_BERT)
-    
-    #select portion of kaon and neutron()
-    MC_neutrino_volTarget_100fb_1 = select_eval_neutrion(MC_neutrino_volTarget_100fb_1)
-    
-    
-    process_matrix(real_data_2024, MC_neutrino_volTarget_100fb_1, MC_kaon_FTFP_BERT, MC_neutron_FTFP_BERT)
-    
-    
-    
-    
-    
 
 
 if __name__ == "__main__": 

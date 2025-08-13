@@ -103,10 +103,12 @@ class GNNBase(LightningModule):
         return acc, auc, accs
     
     def apply_loss_function(self, output, batch):
-        #print(batch.weights.shape)
+        # print("output.shape",output.shape)
+        # print("batch.y.shape", batch.y.shape)
+        # print("batch.weights.shape",batch.weights.shape)
         #print(batch.weights)
        
-        if (self.hparams['use_weights']):
+        if (self.hparams['use_weights']==False):
             if self.hparams["nb_classes"] == 1 :
                 return F.binary_cross_entropy_with_logits(output, batch.y.float(), weight = batch.weights) #, pos_weight=torch.tensor(self.hparams["pos_weight"]))
             else:

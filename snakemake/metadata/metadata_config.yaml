@@ -31,8 +31,3 @@ MC_muon:
     root_path: "/eos/experiment//sndlhc/MonteCarlo/MuonBackground/muons_up"
   - subfolder: "horizontal"
     root_path: "/eos/experiment//sndlhc/MonteCarlo/MuonBackground/muons_horizontal"
-
-model:
-  - baseline:
-    - config: /afs/cern.ch/user/z/zhibin/work/snd-ml/training/configs/baseline.yml
-    - ckpt:  /afs/cern.ch/user/z/zhibin/work/snd-ml/log/snd-ml-GravNet/baseline/best.ckpt 

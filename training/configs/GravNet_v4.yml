@@ -1,10 +1,12 @@
 
+model_name: GravNet_v4
+
 logger:
   project: 'snd-ml-GravNet'
   entity: "1246249540"
-  name: 'baseline_muon'
-  version: 11
-  save_dir: '/afs/cern.ch/user/z/zhibin/work/snd-ml/log/snd-ml-GravNet/'
+  name: 'GravNet_v4'
+  version: 1
+  save_dir: '/afs/cern.ch/user/z/zhibin/work/snd-ml/training/log/'
 
 ModelCheckpoint:
   monitor: "val_loss"
@@ -13,43 +15,47 @@ ModelCheckpoint:
   save_last: True
 
 batch_size: 
-  train: 1024
-  val: 1024
-  test: 1024
+  train: 512
+  val: 512
+  test: 512
 
-max_epochs: 200
-data: '/eos/user/z/zhibin/sndData/converted/pt'
-#data: '/eos/user/z/zhibin/sndData/converted/toy_dataset/pt_data/'
-
+max_epochs: 1000
 #val_check_interval: 5000
-check_val_every_n_epoch: 5
+check_val_every_n_epoch: 1
+
+
+metadata_dir: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/training
+
+processed_pt_root: /eos/user/z/zhibin/processed_pt_root
+
+#resume_from_checkpoint: None
 
 factor: 0.93
-patience: 2
+patience: 5
 lr: 0.003
 
 nb_classes: 7
-use_weights: False
+use_weights: True
 weight_type: "weight"
-class_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+class_weights: [1.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 use_event_feature: False
 global_feature_channels: 6
 event_feature_cols: ['RecoMuon.px', 'RecoMuon.py', 'RecoMuon.pz', 'RecoMuon.x', 'RecoMuon.y', 'RecoMuon.z']
 
 
-hit_feature_cols: ['detType','orientation','x1', 'y1', 'z1', 'x2', 'y2', 'z2']
-
-
+hit_feature_cols: ['detType','orientation','x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'qdc']
 use_veto_hits: False
 
 
-
-
-spatial_channels: 8
+spatial_channels: 9 
 final_dropout: 0.1 # The dropout of the final layer
 feature_dropout: 0.0 # This is the dropout within the GNN convolutions
 spatial_dropout: 0.0
+
+
+
+
 
 # MLP params
 
