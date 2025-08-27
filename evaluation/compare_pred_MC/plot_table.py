@@ -121,7 +121,7 @@ def process_table():
     real_data = METADATA_dict['real_data_2024']
     
     #reading real data
-    data_rdf, data_chain, data_int_lumi = read_rdf(real_data[:20])
+    data_rdf, data_chain, data_int_lumi = read_rdf(real_data)
     print(f'data_int_lumi:{data_int_lumi}')
     pred_classes = [ "kaon", "neutron", "muon"]
     

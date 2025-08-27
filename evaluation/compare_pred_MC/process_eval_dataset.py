@@ -84,8 +84,8 @@ def load_metadata_files(file_list, root_path):
 
 def process_metadata():
     mc_files = [
-        "MC_kaon_FTFP_BERT_metadata.csv",
-        "MC_neutron_FTFP_BERT_metadata.csv",
+        "MC_kaon_FTFP_BERT_metadata_subset.csv",
+        "MC_neutron_FTFP_BERT_metadata_subset.csv",
         "MC_muon_down_metadata.csv",
         "MC_muon_horizontal_metadata.csv",
         "MC_muon_up_metadata.csv",
@@ -112,8 +112,8 @@ def process_metadata():
         ("MC_muon", pd.concat([
             metadata_vars["MC_muon_up"]
         ], ignore_index=True)),
-        ("MC_kaon", metadata_vars["MC_kaon_FTFP_BERT"]),
-        ("MC_neutron", metadata_vars["MC_neutron_FTFP_BERT"]),
+        ("MC_kaon", metadata_vars["MC_kaon_FTFP_BERT_metadata_subset_csv"]),
+        ("MC_neutron", metadata_vars["MC_neutron_FTFP_BERT_metadata_subset_csv"]),
         ("real_data_2024", metadata_vars["real_data_2024_skim_runs"]),
     ]
 

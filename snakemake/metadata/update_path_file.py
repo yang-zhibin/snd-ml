@@ -184,6 +184,12 @@ def cal_lumi_for_neutral_bkg(int_rate_df, metadata_df):
 def process_muon_path(df):
     # Normalize digi_path
     df['digi_path'] = df['digi_path'].str.replace('//', '/', regex=False)
+    df['geo_path'] = df['geo_path'].str.replace('//', '/', regex=False)
+    
+    
+    # duplicate file
+    df = df[df['digi_path'] != "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_2.5/7016245/sndLHC.Ntuple-TGeant4_-150urad_1e7pr_dig.root"]
+
 
     # Drop geo_path if it exists
     if 'geo_path' in df.columns:
@@ -201,13 +207,33 @@ def process_muon_path(df):
     
     output_paths = muon_table['output_path'].tolist()
     df['matched_output_path'] = df['digi_path'].apply(lambda x: find_longest_prefix(x, output_paths))
+    
+   
 
     # Merge matched data
     merged_df = df.merge(muon_table, how='left', left_on='matched_output_path', right_on='output_path')
     #print(merged_df)
-
+    
+    for idx, row in merged_df.iterrows():
+        print(f"Row {idx}:matched_output_path={row['matched_output_path']}")
+        print(f"Row {idx}:        output_path={row['output_path']}")
+        print(f"Row {idx}:          digi_path={row['digi_path']}")
+        print(f"Row {idx}:       n_collisions={row['n_collisions']:.2e}")
+        print()  # blank line for readability
     # Calculate number of files per output_path group
     file_counts = merged_df['output_path'].value_counts().to_dict()
+    
+    # Count occurrences in each column
+    file_counts_output = merged_df['output_path'].value_counts().to_dict()
+    file_counts_matched = merged_df['matched_output_path'].value_counts().to_dict()
+
+    print("\nCounts for output_path:")
+    print(file_counts_output)
+
+    print("\nCounts for matched_output_path:")
+    print(file_counts_matched)
+    
+    # print file_counts, and file_counts_2 to compare diff
     merged_df['files_in_group'] = merged_df['output_path'].map(file_counts)
 
     
@@ -279,7 +305,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
             df = add_new_path(f"prediction_{model}_output", "root", df, csv_input, eos_root_path)
         
         df = add_new_path(f"matrix_{model}_output", "csv", df, csv_input, eos_root_path)
-
+    
     df.to_csv(csv_output, index=False)
 
 

@@ -25,28 +25,33 @@ wildcard_constraints:
 
 
 metadata_csv_list = [
-    #"MC_kaon_FTFP_BERT_metadata_subset.csv",
-    #"MC_neutron_FTFP_BERT_metadata_subset.csv",
+    # "MC_kaon_FTFP_BERT_metadata_subset.csv",
+    # "MC_neutron_FTFP_BERT_metadata_subset.csv",
 
 
     #"MC_kaon_FTFP_BERT_metadata.csv",
     # "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
-    #   "MC_muon_down_metadata.csv",
+    
+   #"MC_muon_down_metadata.csv",
+    #"MC_muon_down_2022_normalisation_metadata.csv",
+
     #  "MC_muon_horizontal_metadata.csv",
     #  "MC_muon_up_metadata.csv",
-    "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
-    # "MC_neutrino_volTarget_100fb-1_metadata.csv",
+
+    #"MC_neutrino_volMuFilter_20fb-1_metadata.csv",
+    #"MC_neutrino_volTarget_100fb-1_metadata.csv",
     #"MC_neutron_FTFP_BERT_metadata.csv",
     #"MC_neutron_FTFP_BERT_metadata_test.csv",
     # "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
-    #  "real_data_2022_metadata.csv",
-    #  "real_data_2023_metadata.csv",
+     "real_data_2022_metadata.csv",
+     "real_data_2023_metadata.csv",
     #   "real_data_2024_metadata.csv",
     #   "real_data_2024_skim_runs_metadata.csv",
 ]
 
 
-process_vetoTagged=False
+process_vetoTagged=True
+process_vetoFree = True
 process_model = ['baseline_muon'] #'baseline_muon', 
 
 train_mode = False
@@ -76,7 +81,7 @@ def load_metadata():
             df = pd.concat((pd.read_csv(file) for file in metadata_files), ignore_index=True)
             return df
 METADATA = load_metadata()
-#print(METADATA)
+print(METADATA)
 
 
 def get_metadata_from_output(ref_name, ref_value, target_name):
@@ -101,7 +106,7 @@ def get_metadata_from_output(ref_name, ref_value, target_name):
         print("Pattern not found.")
 
 def get_metadata_value(ref_name, ref_value, target_name):
-    #print((ref_name, ref_value, target_name))
+    # print((ref_name, ref_value, target_name))
     if METADATA is None:
        return ''
     if "vetoFree" in ref_value and (ref_name not in METADATA.columns):
@@ -119,14 +124,18 @@ def get_metadata_value(ref_name, ref_value, target_name):
 def collect_target_paths(target_name):
     if METADATA is None:
        return ''
-    if (target_name == "preSelect_path"):
-        target_paths = METADATA[f"{target_name}"].tolist()
+    def drop_nan_str(seq):
+        return [x for x in seq if str(x).strip().lower() != "nan"]
+    
+    if target_name == "preSelect_path":
+        target_paths = drop_nan_str(METADATA[f"{target_name}"].tolist())
     else:
-        target_paths = METADATA[f"vetoFree_{target_name}"].tolist()
+        target_paths = []
+        if process_vetoFree:
+            target_paths.extend(drop_nan_str(METADATA[f"vetoFree_{target_name}"].tolist()))
         if process_vetoTagged:
-            target_paths += METADATA[f"vetoTagged_{target_name}"].tolist()
+            target_paths.extend(drop_nan_str(METADATA[f"vetoTagged_{target_name}"].tolist()))
 
-    #print(target_paths)
     return target_paths
 
 
@@ -175,16 +184,16 @@ def collect_model_path(target_name):
 
 rule finish:
     input:
-        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
-        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+         expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
+         expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
-        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        # expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
         #expand("{model_3d_ckpt}", model_3d_ckpt=collect_model_path('ckpt')),
-        expand("{model_output}", model_output=collect_model_path('model_output')),
-        #expand("{eval_output}", eval_output=collect_model_path('eval_output')),
+        # expand("{model_output}", model_output=collect_model_path('model_output')),
+        # expand("{eval_output}", eval_output=collect_model_path('eval_output')),
         #expand("{model_3d_output}", model_3d_output=collect_model_path('model_output'))
         #expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
 
@@ -719,11 +728,10 @@ rule cal_matrix:
     input:
         script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_matrix.py',
         eval_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "eval_output"),
-    params:
-        model_output=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "model_output"),
-        
-        
         feature_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "feature_path"),
+    #params:
+        
+        
     output:
         matrix_output = '{matrix_output}'
     threads:1
@@ -753,8 +761,7 @@ rule cal_matrix:
 
         # Run evaluation script
         python {input.script} \
-            -p {params.model_output} \
-            -f {params.feature_path} \
+            -f {input.feature_path} \
             -e {input.eval_path} \
             -o "${{tmp_output}}"
 
@@ -772,42 +779,102 @@ HIST_NAMES = [
     "centroid_slope_x", "start_avgPos_x", "start_avgPos_y", "avgPos_slope_x",
     "avgPos_slope_y",
 ]
+HIST_2d_NAMES = [
+    "start_avgPos",
+    "avg_scifi", "avg_scifi1", "avg_scifi2", "avg_scifi3", "avg_scifi4", "avg_scifi5",
+    "avg_ds", "avg_ds1", "avg_ds2", "avg_ds3",
+    "start_centroid",
+    "centroid_scifi", "centroid_scifi1", "centroid_scifi2", "centroid_scifi3", "centroid_scifi4", "centroid_scifi5",
+    "centroid_ds", "centroid_ds1", "centroid_ds2", "centroid_ds3",
+    "centroid_slope", "avgPos_slope", "signed_slope",
+]
 
-# Build all hist flags
+CUT_STATES = ["cut", "nocut"]
+
+# Build all hist flags for both cut states
 rule plots:
     input:
-        expand("/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_plots/plot_flags/hist.{hist_name}.done",
-               hist_name=HIST_NAMES)
+        expand(
+            "/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_plots/plot_flags/{cut}/hist.{hist_name}.done",
+            hist_name=HIST_NAMES,
+            cut=CUT_STATES,
+        ),
+        expand(
+            "/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_2d_plots/plot_flags/{cut}/hist.{hist_name}.done",
+            hist_name=HIST_2d_NAMES,
+            cut=CUT_STATES,
+        )
 
 rule plot_distribution:
     input:
         script="/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/plot_distribution.py"
     output:
-        # one flag file per histogram name (wildcard)
-        touch("/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_plots/plot_flags/hist.{hist_name}.done")
+        # one flag file per histogram name *and* cut state
+        flag=touch("/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_plots/plot_flags/{cut}/hist.{hist_name}.done")
     params:
-        # where to copy final plots
-        dest_dir="/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_plots/"
+        # separate destinations for cut/nocut
+        dest_dir=lambda wc: f"/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_plots/{wc.cut}",
+        # if your script expects a boolean value for -c instead of a bare flag, use the next line instead:
+        # cut_arg=lambda wc: ("-c True" if wc.cut == "cut" else "-c False")
     threads: 1
     resources:
-        runtime=2*60*60,
+        runtime=12*60*60,
         mem_mb=8000,
         disk_mb=4000,
         nvidia_gpu=0
     shell:
         r"""
-        echo "running plot_distribution for {wildcards.hist_name}"
+        echo "running plot_distribution for {wildcards.hist_name} ({wildcards.cut})"
 
-        # Avoid unbound variable error (only occurs when using Snakemake)
-        set +u 
+        set +u
 
-        # Set up environment
         source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
 
-        # Run evaluation script for this histogram
-        python {input.script} -n {wildcards.hist_name}
+        # Build cut flag: presence of -c means "apply cut"
+        CUT_FLAG=""
+        if [[ "{wildcards.cut}" == "cut" ]]; then
+            CUT_FLAG="-c"
+        fi
 
-        # Copy result to final destination
+        python {input.script} -n {wildcards.hist_name} $CUT_FLAG
+
         mkdir -p {params.dest_dir}/{wildcards.hist_name}
         xrdcp ./plots/{wildcards.hist_name}/* {params.dest_dir}/{wildcards.hist_name}/
+        """
+
+rule plot_2d_distribution:
+    input:
+        script="/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/plot_2d_distribution.py"
+    output:
+        # one flag file per histogram name *and* cut state
+        flag=touch("/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_2d_plots/plot_flags/{cut}/hist.{hist_name}.done")
+    params:
+        # separate destinations for cut/nocut
+        dest_dir=lambda wc: f"/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_2d_plots/{wc.cut}",
+        # if your script expects a boolean value for -c instead of a bare flag, use the next line instead:
+        # cut_arg=lambda wc: ("-c True" if wc.cut == "cut" else "-c False")
+    threads: 1
+    resources:
+        runtime=12*60*60,
+        mem_mb=8000,
+        disk_mb=4000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        echo "running plot_2d_distribution for {wildcards.hist_name} ({wildcards.cut})"
+
+        set +u
+
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+
+        # Build cut flag: presence of -c means "apply cut"
+        CUT_FLAG=""
+        if [[ "{wildcards.cut}" == "cut" ]]; then
+            CUT_FLAG="-c"
+        fi
+
+        python {input.script} -n {wildcards.hist_name} $CUT_FLAG
+
+        mkdir -p {params.dest_dir}/{wildcards.hist_name}
+        xrdcp ./2d_plots/{wildcards.hist_name}/* {params.dest_dir}/{wildcards.hist_name}/
         """

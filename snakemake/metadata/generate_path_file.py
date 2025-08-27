@@ -193,11 +193,8 @@ def get_geo_file(partition):
         
 
     geo_file_map = {
-        range(0, 4575): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V2_12July2022.root',
-        range(4575, 4855): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V5_14August2022.root',
-        range(4855, 5172): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V6_08October2022.root',
-        range(5172, 5422): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V7_22November2022.root',
-        range(5483, 7358): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2023/geofile_sndlhc_TI18_V4_2023.root',
+        range(0, 5422): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V4.root',
+        range(5483, 7358): '/eos/experiment/sndlhc/convertedData/physics/2023/geofile_sndlhc_TI18_V3_2023.root',
     }
     for run_range, geo_file in geo_file_map.items():
         if run_number in run_range:
@@ -253,14 +250,31 @@ def generate_neutron_QGSP_path(data_type, root_path, output_subfolder_name, csv_
         tmp_metadata = process_MC_subfolders(second_subfolder_path, second_subfolder_name, data_type)
         save_metadata_to_csv(tmp_metadata, csv_file)
 
-    
 
 
 def generate_MC_muon(data_type, root_path, output_subfolder_name, csv_file):
 
-    extensions = {"dig.root", "digCPP.root"}  # Use a set for faster lookups
+    extensions = {"Trks.root","dig.root", "digCPP.root"}  # Use a set for faster lookups
     metadata = []
     tree_name = 'cbmsim'
+
+    # helper: get common prefix before the digi-kind suffix
+    def _prefix_from_filename(name: str) -> str:
+        for suf in ("_digCPP_Trks.root", "_dig_Trks.root", "_dig.root", "_digCPP.root"):
+            if name.endswith(suf):
+                return name[:-len(suf)]
+        # fallback: strip .root if none matched (shouldn't happen with our filter)
+        return os.path.splitext(name)[0]
+
+    # helper: classify which kind this file is
+    def _kind_from_filename(name: str) -> str:
+        if name.endswith("_Trks.root"):
+            return "Trks"
+        if name.endswith("_dig.root"):
+            return "dig"
+        if name.endswith("_digCPP.root"):
+            return "digCPP"
+        return "unknown"
 
     for dirpath, _, filenames in os.walk(root_path):
         for filename in filenames:
@@ -276,36 +290,65 @@ def generate_MC_muon(data_type, root_path, output_subfolder_name, csv_file):
 
                 tree = root_file.Get(tree_name)
                 n_event = tree.GetEntries() if tree else 0
-                root_file.Close()
-
-                #get the lastest geo file (geo file will be updated correctly in the next step)                
-                geo_files = glob.glob(os.path.join(dirpath, "geo*"))
-                geo_file = max(geo_files, key=os.path.getmtime) if geo_files else None
-
-                #ToDo: a universal way to get partition
-                partition = os.path.basename(dirpath)
-                if partition == 'muons_down':
-                    partition = 'scoring_2'
-                elif partition == 'muons_up':
-                    partition = 'scoring_2'
-                elif partition == '7016245':
-                    partition = 'scoring_2.5'
-                
-                one_file_data = {
-                    'data_type': data_type,
-                    'subfolder': output_subfolder_name,
-                    'partition': partition,
-                    'n_event': n_event,
-                    'digi_path': file_path,
-                    'geo_path': geo_file,
-                }
-                metadata.append(one_file_data)
-                #print('Added:', one_file_data)
 
             except Exception as e:
                 print(f"Error processing ROOT file {file_path}: {e}")
+                n_event = 0
+            finally:
+                try:
+                    if root_file:
+                        root_file.Close()
+                except Exception:
+                    pass
 
-    save_metadata_to_csv(metadata, csv_file)
+            # get the latest geo file (geo file will be updated correctly in the next step)
+            geo_files = glob.glob(os.path.join(dirpath, "geo*"))
+            geo_file = max(geo_files, key=os.path.getmtime) if geo_files else None
+
+            # ToDo: a universal way to get partition
+            partition = os.path.basename(dirpath)
+            if partition in ('muons_down', 'muons_up'):
+                partition = 'scoring_2'
+            elif partition == '7016245':
+                partition = 'scoring_2.5'
+
+            one_file_data = {
+                'data_type': data_type,
+                'subfolder': output_subfolder_name,
+                'partition': partition,
+                'n_event': n_event,
+                'digi_path': file_path,
+                'geo_path': geo_file,
+                'prefix': _prefix_from_filename(file_path),
+                'kind': _kind_from_filename(filename),  # Trks / dig / digCPP
+            }
+            metadata.append(one_file_data)
+
+    # --- Drop duplicate digi files rule ---
+    # If a prefix has both Trks and any non-Trks (dig or digCPP), drop the Trks entries.
+    by_prefix = {}
+    for rec in metadata:
+        p = rec['prefix']
+        by_prefix.setdefault(p, []).append(rec)
+
+    #print(by_prefix)
+    filtered = []
+    for p, recs in by_prefix.items():
+        has_non_trks = any(r['kind'] in ('dig', 'digCPP') for r in recs)
+        if has_non_trks:
+            # keep only non-Trks for this prefix
+            filtered.extend(r for r in recs if r['kind'] in ('dig', 'digCPP'))
+        else:
+            # keep whatever exists (only Trks available)
+            filtered.extend(recs)
+
+    # strip helper fields before saving
+    for r in filtered:
+        r.pop('prefix', None)
+        r.pop('kind', None)
+        
+        
+    save_metadata_to_csv(filtered, csv_file)
 
 
 

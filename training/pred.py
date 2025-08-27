@@ -88,3 +88,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     main(args)
+    
+#python pred.py -i /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/0/vetoFree_hit_MC_neutrino_volTarget_100fb-1_0.root -o /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/0/vetoFree_prediction_baseline_muon_output_MC_neutrino_volTarget_100fb-1_0.root -t ./test_data/

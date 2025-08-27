@@ -33,9 +33,9 @@ def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compar
         if file.endswith(".csv"):
             key = file.replace(".csv", "")
             metadata_dict[key] = pd.read_csv(os.path.join(directory, file))
-    return metadata_dict
+    return metadata_dict                  
 
-def read_rdf(metadata_df, MC_muon=False):
+def read_rdf(args, metadata_df, MC_muon=False):
     feature_chain = ROOT.TChain("sndData")
     eval_chain = ROOT.TChain("snddata")
     
@@ -152,13 +152,15 @@ def read_rdf(metadata_df, MC_muon=False):
         .Define("signed_slope_y",   expr_signed_slope_y)
     )
     
-    #rdf = rdf.Filter("count_scifi > 200")
+    if (args.cut):
+        rdf = rdf.Filter("count_scifi > 200")
         
     return rdf, feature_chain, int_lumi
 
     
     
-def process_hist(hist_name):
+def process_hist(args):
+    hist_name=args.hist_name
     n_bins, x_min, x_max, axis_title, logy = hist_info[hist_name]
     
     neutrino_df = METADATA_dict['MC_neutrino']
@@ -168,7 +170,7 @@ def process_hist(hist_name):
     real_data = METADATA_dict['real_data_2024']
     
     #reading real data
-    data_rdf, data_chain, data_int_lumi = read_rdf(real_data)
+    data_rdf, data_chain, data_int_lumi = read_rdf(args,real_data)
     print(f'data_int_lumi:{data_int_lumi}')
     pred_classes = [ "kaon", "neutron", "muon"]
     
@@ -193,7 +195,7 @@ def process_hist(hist_name):
     normalise_lumi = data_int_lumi
     
     ## reading neutrino
-    neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(neutrino_df[:10])
+    neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(args, neutrino_df)
     
     scale_factor = normalise_lumi/ neutrino_int_lumi  if neutrino_int_lumi else 1.0
     
@@ -243,7 +245,7 @@ def process_hist(hist_name):
         sub_df = muon_df[muon_df['subfolder'] == beam_type]
 
         # build RDF and lumi for this slice
-        rdf, _, int_lumi = read_rdf(sub_df[:5], MC_muon=True)
+        rdf, _, int_lumi = read_rdf(args, sub_df, MC_muon=True)
         if not int_lumi:
             continue
 
@@ -295,7 +297,7 @@ def process_hist(hist_name):
         sub_df = kaon_df[kaon_df['energy_range'] == erange]
 
         # build RDF and lumi for this slice
-        rdf, _, int_lumi = read_rdf(sub_df[:5])
+        rdf, _, int_lumi = read_rdf(args, sub_df)
         if not int_lumi:
             continue
 
@@ -348,7 +350,7 @@ def process_hist(hist_name):
 
         # build RDF and lumi for this slice
         
-        rdf, _, int_lumi = read_rdf(sub_df[:5])
+        rdf, _, int_lumi = read_rdf(args, sub_df)
         if not int_lumi:
             continue
 
@@ -395,13 +397,30 @@ def process_hist(hist_name):
     plot_MC_pred_VS_data_pred(data_pred_hists, muon_pred_hists, kaon_pred_hists, neutron_pred_hists, hist_name, data_int_lumi, logy)
     plot_data_pred_bkg(data_pred_hists, hist_name, data_int_lumi, logy)
     plot_MC(MC_neutrino_true_hists, muon_true_hists, kaon_true_hists,neutron_true_hists, hist_name, data_int_lumi, logy)
-    plot_MC_VS_MC_pred(MC_neutrino_true_hists, MC_neutrino_pred_hists, 
+    plot_MC_VS_MC_pred(data_pred_hists,
+                       MC_neutrino_true_hists, MC_neutrino_pred_hists, 
                        muon_true_hists, muon_pred_hists, 
                        kaon_true_hists, kaon_pred_hists, 
                        neutron_true_hists, neutron_pred_hists, 
                        hist_name, data_int_lumi, logy)
+    
+    plot_2d_hist(data_pred_hists,
+                       MC_neutrino_true_hists, MC_neutrino_pred_hists, 
+                       muon_true_hists, muon_pred_hists, 
+                       kaon_true_hists, kaon_pred_hists, 
+                       neutron_true_hists, neutron_pred_hists, 
+                       hist_name, data_int_lumi)
 
-def plot_MC_VS_MC_pred(MC_neutrino_true_hists, MC_neutrino_pred_hists,
+def plot_2d_hist(data_pred_hists,
+                MC_neutrino_true_hists, MC_neutrino_pred_hists, 
+                muon_true_hists, muon_pred_hists, 
+                kaon_true_hists, kaon_pred_hists, 
+                neutron_true_hists, neutron_pred_hists, 
+                hist_name, data_int_lumi):
+    pass
+
+def plot_MC_VS_MC_pred(data_pred_hists,
+                       MC_neutrino_true_hists, MC_neutrino_pred_hists,
                        muon_true_hists, muon_pred_hists,
                        kaon_true_hists, kaon_pred_hists,
                        neutron_true_hists, neutron_pred_hists, 
@@ -420,6 +439,12 @@ def plot_MC_VS_MC_pred(MC_neutrino_true_hists, MC_neutrino_pred_hists,
     ka_pred  = _sum_th1_dict(kaon_pred_hists,        "ka_pred")
     neutron_true  = _sum_th1_dict(neutron_true_hists,        "neutron_true")
     neutron_pred  = _sum_th1_dict(neutron_pred_hists,        "neutron_pred")
+    
+    data_muon = data_pred_hists["muon"]
+    data_kaon = data_pred_hists["kaon"]
+    data_neutron = data_pred_hists["neutron"]
+    
+    
 
     out_nu = os.path.join(outdir, f"MC_bkg_vs_MC_pred_bkg_neutrino_{hist_name}.pdf")
     out_mu = os.path.join(outdir, f"MC_bkg_vs_MC_pred_bkg_muon_{hist_name}.pdf")
@@ -432,81 +457,136 @@ def plot_MC_VS_MC_pred(MC_neutrino_true_hists, MC_neutrino_pred_hists,
     
     
     
-    _draw_pair(nu_true, nu_pred, f"Neutrino: MC True vs Pred ({hist_name})", out_nu, "Neutrino",int_lumi,logy)
-    _draw_pair(mu_true, mu_pred, f"Muon: MC True vs Pred ({hist_name})",     out_mu, "Muon", int_lumi,logy)
-    _draw_pair(ka_true, ka_pred, f"Kaon: MC True vs Pred ({hist_name})",     out_ka,"Kaon", int_lumi,logy)
-    _draw_pair(neutron_true, neutron_pred, f"Neutron: MC True vs Pred ({hist_name})", out_neutron,"Neutron", int_lumi,logy)
+    _draw_pair(nu_true, nu_pred, f"Neutrino: MC True vs Pred ({hist_name})", out_nu, "Neutrino",int_lumi, logy=logy)
+    _draw_pair(mu_true, mu_pred, f"Muon: MC True vs Pred ({hist_name})",     out_mu, "Muon", int_lumi,h_data=data_muon, logy=logy)
+    _draw_pair(ka_true, ka_pred, f"Kaon: MC True vs Pred ({hist_name})",     out_ka,"Kaon", int_lumi,h_data=data_kaon, logy=logy)
+    _draw_pair(neutron_true, neutron_pred, f"Neutron: MC True vs Pred ({hist_name})", out_neutron,"Neutron", int_lumi,h_data=data_neutron, logy=logy)
     
     _draw_pair(
         MC_neutrino_true_hists['ve'], MC_neutrino_pred_hists['ve'],
-        f"#nu_{{e}} CC: MC True vs Pred ({hist_name})", out_ve, "#nu_{e} CC", int_lumi, logy
+        f"#nu_{{e}} CC: MC True vs Pred ({hist_name})", out_ve, "#nu_{e} CC", int_lumi, logy=logy
     )
     _draw_pair(
         MC_neutrino_true_hists['vm'], MC_neutrino_pred_hists['vm'],
-        f"#nu_{{#mu}} CC: MC True vs Pred ({hist_name})", out_vm, "#nu_{#mu} CC", int_lumi, logy
+        f"#nu_{{#mu}} CC: MC True vs Pred ({hist_name})", out_vm, "#nu_{#mu} CC", int_lumi, logy=logy
     )
     _draw_pair(
         MC_neutrino_true_hists['vt'], MC_neutrino_pred_hists['vt'],
-        f"#nu_{{#tau}} CC: MC True vs Pred ({hist_name})", out_vt, "#nu_{#tau} CC", int_lumi, logy
+        f"#nu_{{#tau}} CC: MC True vs Pred ({hist_name})", out_vt, "#nu_{#tau} CC", int_lumi, logy=logy
     )
-    _draw_pair(MC_neutrino_true_hists['NC'], MC_neutrino_pred_hists['NC'], f"NC: MC True vs Pred ({hist_name})", out_NC, "NC", int_lumi, logy)
+    _draw_pair(MC_neutrino_true_hists['NC'], MC_neutrino_pred_hists['NC'], f"NC: MC True vs Pred ({hist_name})", out_NC, "NC", int_lumi, logy=logy)
 
     
+def _draw_pair(h_true, h_pred, title, out_pdf, particle, int_lumi, h_data=None, logy=False, as_density=True):
 
-def _draw_pair(h_true, h_pred, title, out_pdf, particle, int_lumi, logy=False, as_density=True):
     # Clone so we don't touch inputs
     t = h_true.Clone(f"{h_true.GetName()}_draw"); t.SetDirectory(0)
     p = h_pred.Clone(f"{h_pred.GetName()}_draw"); p.SetDirectory(0)
     
-     # Style
-    t.SetLineColorAlpha(ROOT.kBlue, 0.5); t.SetLineWidth(3)
-    p.SetLineColorAlpha(ROOT.kRed, 0.5);  p.SetLineWidth(3)
-
     
+    d = None
+    if h_data is not None:
+        d = h_data.Clone(f"{h_data.GetName()}_draw"); d.SetDirectory(0)
+
+
+     # ---- Normalize to probability density (unit area) if requested ----
+    def _to_density(h):
+        if not h:
+            return
+        integral = h.Integral()
+        if integral != 0:
+            h.Scale(1.0 / integral)
+
+    if as_density:
+        _to_density(t)
+        _to_density(p)
+        _to_density(d)
+        
+    # Style
+    t.SetLineColorAlpha(ROOT.kBlue, 0.5); t.SetLineWidth(3)
+    p.SetLineColorAlpha(ROOT.kRed,  0.5); p.SetLineWidth(3)
+    if d:
+        d.SetMarkerStyle(20); d.SetMarkerSize(1.0)
+        d.SetLineColor(ROOT.kBlack); d.SetMarkerColor(ROOT.kBlack)
+
     # Canvas
-    c = ROOT.TCanvas(f"c_{title}", title, 900, 700)
+    c = ROOT.TCanvas(f"c_{title}", title, 900, 750)
     if logy: c.SetLogy()
 
-    # Axis setup
-    ymax = max(t.GetMaximum(), p.GetMaximum())
-    t.SetTitle("")
-    t.GetYaxis().SetTitle("Probability density" if as_density else "Events")
-    t.SetMaximum(ymax * (10.0 if logy else 1.35))
+    # Pick a histogram to own the axes (first non-empty among t, p, d)
+    axis_hist = None
+    for h in (t, p, d):
+        if h is not None and h.Integral() != 0:
+            axis_hist = h
+            break
+    if axis_hist is None:
+        axis_hist = t  # fall back to t even if empty, to avoid crashes
+
+    # Axis setup (include data if present)
+    hists = [h for h in (t, p, d) if h is not None]
+    ymax = max(h.GetMaximum() for h in hists) if hists else 1.0
+
+    axis_hist.SetTitle("")
+    axis_hist.GetYaxis().SetTitle("Probability density" if as_density else "Events")
+    axis_hist.SetMaximum(ymax * (10.0 if logy else 1.35))
 
     if logy:
-        ymin = min(
-            (h.GetBinContent(i)
-            for h in (t, p)
+        positive_bins = [
+            h.GetBinContent(i)
+            for h in hists
             for i in range(1, h.GetNbinsX() + 1)
-            if h.GetBinContent(i) > 0),
-            default=1e-9
-        )
-        t.SetMinimum(ymin * 0.1)
+            if h.GetBinContent(i) > 0
+        ]
+        ymin = min(positive_bins) if positive_bins else 1e-9
+        axis_hist.SetMinimum(ymin * 0.1)
     else:
-        t.SetMinimum(min(t.GetMinimum(), p.GetMinimum()) * 0.5)
+        mins = [h.GetMinimum() for h in hists] if hists else [0.0]
+        axis_hist.SetMinimum(min(mins) * 0.5)
 
-    # Draw
-    if t.Integral() != 0:
-        t.Draw("HIST")
-    if p.Integral() != 0:
-        p.Draw("HIST SAME")
-        p.Draw("E1 SAME")  # markers + error bars
+    # Draw (make sure the axis_hist is drawn first)
+    def draw_hist(h, primary_opt, same_opt=None, also_err=False):
+        if h is None or h.Integral() == 0: return
+        h.Draw(primary_opt)
+        if same_opt:
+            h.Draw(same_opt)
+        if also_err:
+            h.Draw("E1 SAME")
+
+    # Primary draw for axis owner
+    if axis_hist is t:
+        draw_hist(t, "HIST")
+    elif axis_hist is p:
+        draw_hist(p, "HIST"); p.Draw("E1 SAME")
+    elif axis_hist is d:
+        draw_hist(d, "E1")
+
+    # Draw the others
+    if axis_hist is not t: draw_hist(t, "HIST SAME")
+    if axis_hist is not p:
+        draw_hist(p, "HIST SAME")
+        if p is not None and p.Integral() != 0:
+            p.Draw("E1 SAME")
+    if d and axis_hist is not d:
+        draw_hist(d, "E1 SAME")
 
     # Legend
     leg = ROOT.TLegend(0.60, 0.70, 0.88, 0.88)
     leg.SetBorderSize(0); leg.SetFillStyle(0)
-    leg.AddEntry(t,f"MC {particle}", "l")
+    leg.AddEntry(t, f"MC {particle}", "l")
     leg.AddEntry(p, f"MC {particle} (GNN Selected)", "l")
+    if d:
+        lbl = f"{particle}-like (Data)"
+        leg.AddEntry(d, lbl, "lep")
     leg.Draw()
 
-    # Title
+    # Title placeholder (kept as in original)
     pave = ROOT.TPaveText(0.12, 0.92, 0.88, 0.99, "NDC")
     pave.SetFillStyle(0); pave.SetBorderSize(0); pave.AddText(""); pave.Draw()
 
     c.Print(out_pdf)
     print(f"[OK] wrote {out_pdf}")
 
-def _sum_th1_dict(hdict, name):
+def _sum_th1_dict(hdict, name, normalize=False):
     """Sum all TH1 in a dict into a single TH1 clone."""
     if not hdict:
         raise ValueError(f"{name}: empty histogram dict")
@@ -515,6 +595,12 @@ def _sum_th1_dict(hdict, name):
     hsum.SetDirectory(0)
     for h in it:
         hsum.Add(h)
+        
+    if normalize:
+        integral = hsum.Integral()
+        if integral != 0:
+            hsum.Scale(1.0 / integral)
+        
     return hsum
 
 def _draw_totals_overlay(hsum_dict, title, out_pdf,int_lumi, logy=True):
@@ -677,7 +763,7 @@ def plot_data_pred_bkg(data_pred_hists, hist_name, int_lumi, logy=True):
         h.SetMinimum(ymin * 0.5)
 
     # Canvas
-    c = ROOT.TCanvas(f"c_{hist_name}", hist_name, 900, 700)
+    c = ROOT.TCanvas(f"c_{hist_name}", hist_name, 900, 750)
     if logy: c.SetLogy()
 
     # Draw
@@ -902,10 +988,14 @@ hist_info = {
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", "--hist_name", dest="hist_name", help="hist name", default="count_scifi")
+    parser.add_argument("-c", "--cut", action="store_true", help="apply cut")
     args = parser.parse_args()
     
-    print(f'processing hist of {args.hist_name}')
-    process_hist(args.hist_name)
+    print(f"processing hist of {args.hist_name}")
+    if args.cut:
+        print("→ applying cut")
+    
+    process_hist(args)
     
     # plot options
     # control region (scifi hits, density, shower direction)

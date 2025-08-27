@@ -68,6 +68,8 @@ def cal_matrix(rdf, true_class, cuts):
     pred_class = ["ve", "vm", "vt", "NC", "kaon", "neutron", "muon"]
     matrices = {}  # Store confusion matrix for each cut
 
+    
+    rdf = rdf.Define("scifi_gt_300_us1_gt_2", "count_scifi>300 && count_us1>2")
     #print(list(rdf.GetColumnNames()))
 
     for cut in cuts:
@@ -87,12 +89,10 @@ def cal_matrix(rdf, true_class, cuts):
 
         for t_class in true_class:
             rdf_class = rdf_cut
-            #print(f"t_class: {t_class}")
-            if t_class == "data_veto_tagged":
-                rdf_class = rdf_class.Filter("(veto1 + veto2 + veto3) > 0") #
+            print(f"t_class: {t_class}")
+            if t_class == "data_vetoTagged":
                 t_class_ParticleType = 'real_data'
-            elif t_class == "data_zero_veto":
-                rdf_class = rdf_class.Filter("(veto1 + veto2 + veto3) == 0")
+            elif t_class == "data_vetoFree":
                 t_class_ParticleType = 'real_data'
             else:
                 t_class_ParticleType = t_class
@@ -117,11 +117,10 @@ def cal_matrix(rdf, true_class, cuts):
                         f'Prediction_{prediction_score_class} <= {prediction_score_cut})'
                     )
                     
-
                 print(f"filter_expr : {filter_expr}")
                 if not isinstance(filter_expr, str):
                     raise ValueError(f"Invalid filter expression: {filter_expr}")
-                if (t_class == "data_zero_veto" and (p_class=='ve' or p_class=='vm' or p_class=='vt' or p_class=='NC')):
+                if (t_class == "data_vetoFree" and (p_class=='ve' or p_class=='vm' or p_class=='vt' or p_class=='NC')):
                     pred_count = np.nan
                 else:
                     pred_count = rdf_class.Filter(filter_expr).Count().GetValue()
@@ -133,48 +132,37 @@ def cal_matrix(rdf, true_class, cuts):
     #save_to_csv(matrices)
     return matrices
 
-def process(eval_path,feature_path,pred_path, data_type, cuts, outpath):
-    if "real_data" in data_type:
-        true_class = ['data_veto_tagged', 'data_zero_veto']
+def process(eval_path,feature_path, data_type, cuts, outpath, vetoTagged):
 
-        eval_chain = ROOT.TChain("snddata")
-        feature_chain = ROOT.TChain("snddata")
-        pred_chain = ROOT.TChain("snddata")
+    if 'kaon' in data_type:
+        true_class = ['kaon']
+    elif 'neutron' in data_type:
+        true_class = ['neutron']
+    elif 'neutrino' in data_type:
+        true_class = ["ve", "vm", "vt", "NC"]
+    elif 'muon' in data_type:
+        true_class = ['muon']
+    elif "data_vetoFree" in data_type:
+        true_class = ["data_vetoFree"]
+    elif "data_vetoTagged" in data_type:
+        true_class = ["data_vetoTagged"]
+    eval_chain = ROOT.TChain("snddata")
+    feature_chain = ROOT.TChain("sndData")
+    
+    feature_chain.Add(feature_path)
+    eval_chain.Add(eval_path)
+    
+    eval_chain.AddFriend(feature_chain, 'featureTree')
 
-        eval_chain.Add(eval_path)
-        feature_chain.Add(feature_path)
-        pred_chain.Add(pred_path)
+    rdf = ROOT.RDataFrame(eval_chain)
+    matrices = cal_matrix(rdf, true_class, cuts)
 
-        eval_chain.AddFriend(feature_chain, 'featureTree')
-        eval_chain.AddFriend(pred_chain, 'predTree')
-        rdf = ROOT.RDataFrame(eval_chain)
-
-        
-        rdf = ROOT.RDataFrame(eval_chain)
-        matrices = cal_matrix(rdf, true_class, cuts)
-    else:
-        if 'kaon' in data_type:
-            true_class = ['kaon']
-        elif 'neutron' in data_type:
-            true_class = ['neutron']
-        elif 'neutrino' in data_type:
-            true_class = ["ve", "vm", "vt", "NC"]
-        elif 'muon' in data_type:
-            true_class = ['muon']
-        eval_chain = ROOT.TChain("snddata")
-        pred_chain = ROOT.TChain("snddata")
-        eval_chain.Add(eval_path)
-        pred_chain.Add(pred_path)
-
-        eval_chain.AddFriend(pred_chain, 'predTree')
-        rdf = ROOT.RDataFrame(eval_chain)
-        
-        matrices = cal_matrix(rdf, true_class, cuts)
 
     save_to_csv(matrices, outpath)
     print("RDataFrame run times: ",rdf.GetNRuns())
 
 def get_data_type(feature_path):
+    print(feature_path)
     if 'MC_kaon' in feature_path:
         data_type = 'MC_kaon'
     elif 'MC_neutron' in feature_path:
@@ -184,7 +172,10 @@ def get_data_type(feature_path):
     elif 'MC_neutrino' in feature_path:
         data_type = 'MC_neutrino'
     elif 'real_data' in feature_path:
-        data_type = 'real_data'
+        if "vetoTagged" in feature_path:
+            data_type = 'data_vetoTagged'
+        elif "vetoFree" in feature_path:
+            data_type = 'data_vetoFree'
     else:
         data_type = 'unknown'
 
@@ -247,8 +238,9 @@ def select_eval_neutrion(MC_neutrino):
     #print(MC_neutrino)
     return MC_neutrino
 
+
+
 def main(args):
-    pred_path = args.pred
     feature_path = args.feature
     eval_path = args.eval
     outpath = args.output
@@ -257,40 +249,13 @@ def main(args):
     data_type = get_data_type(feature_path)
 
     cuts = [None]
-    
-    for threshold in np.arange(0.5, 0.99, 0.02):
-        cut_name = f"Prediction_0 > {threshold}"
-        cuts.append(cut_name)
-        
-    for threshold in range(0, 601, 50):
-        cut_name = f"scifi_gt_{threshold}"
-        cuts.append(cut_name)
-        
-    cuts += [
-        "ds4_eq_0",
-        "ds34_eq_0",
-        "ds234_eq_0",
-        "ds1234_eq_0",
-        "us5_eq_0",
-        "us45_eq_0",
-        "us345_eq_0",
-        "us2345_eq_0",
-        "us12345_eq_0"
-    ]
-    
-    hit_pairs = [
-        (200, 1), (250, 1), (300, 1), (350, 1), (400, 1),
-        (200, 2), (250, 2), (300, 2), (350, 2), (400, 2),
-    ]
-    
-    for x, y in hit_pairs:
-        cut_name = f"scifi_gt_{x}_us1_gt_{y}"
-        cuts.append(cut_name)
-
     cuts += ["scifi_gt_300_us1_gt_2 && Prediction_0 > 0.92"]
     print(cuts)
-
-    process(eval_path, feature_path, pred_path, data_type, cuts, outpath)
+    if "vetoTagged" in feature_path:
+        vetoTagged = True
+    else:
+        vetoTagged = False
+    process(eval_path, feature_path, data_type, cuts, outpath, vetoTagged)
 
 
 if __name__ == "__main__": 
@@ -303,3 +268,4 @@ if __name__ == "__main__":
 
 
 #python cal_matrix.py -f {params.feature_path} -e {params.eval_path} -o "${{tmp_output}}"
+#python cal_matrix.py -f /eos/experiment/sndlhc/users/zhibin/real_data/run_241/run_008285/vetoTagged_feature_real_data_run_241_run_008285_sndsw_raw-0000.root -e /eos/experiment/sndlhc/users/zhibin/real_data/run_241/run_008285/vetoTagged_eval_GravNet_v2_output_real_data_run_241_run_008285_sndsw_raw-0000.root -o /eos/experiment/sndlhc/users/zhibin/real_data/run_241/run_008285/vetoTagged_matrix_baseline_muon_output_real_data_run_241_run_008285_sndsw_raw-0000.csv
