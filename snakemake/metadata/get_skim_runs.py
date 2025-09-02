@@ -84,8 +84,6 @@ def process_neutral_bkg(
 
 if __name__ == "__main__":
     # 
-    #process_real_data()
-    #process_kaon()
+    process_real_data()
     kaon_df,kaon_path = process_neutral_bkg("./updated/MC_kaon_FTFP_BERT_metadata.csv")
     neutron_df,neutron_path = process_neutral_bkg("./updated/MC_neutron_FTFP_BERT_metadata.csv")
-    #process_neutron()

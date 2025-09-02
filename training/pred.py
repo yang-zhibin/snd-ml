@@ -14,7 +14,7 @@ from pytorch_lightning import Trainer
 
 from dataset.torchGeoDataset import PredGeoDataset
 from torch_geometric.loader import DataLoader
-from dataset.CallbackSaver import RootSaver
+from dataset.CallbackSaver_new import RootSaver
 
 from models.GravNet.Models.gravnet import GravNet
 

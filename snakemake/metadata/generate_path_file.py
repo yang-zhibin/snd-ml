@@ -67,15 +67,15 @@ def process_real_data_subfolders(root_path, output_subfolder_name, data_type, ge
                 except Exception as e:
                     print(f"Error processing ROOT file {file_path}: {e}")
 
-            one_file_data = {
-            'data_type': data_type,
-            'subfolder': output_subfolder_name,
-            'partition': partition,
-            'n_event': n_event,
-            'digi_path': digi_file,
-            'geo_path': current_geo_file,
-            }
-            metadata.append(one_file_data)
+                one_file_data = {
+                'data_type': data_type,
+                'subfolder': output_subfolder_name,
+                'partition': partition,
+                'n_event': n_event,
+                'digi_path': digi_file,
+                'geo_path': current_geo_file,
+                }
+                metadata.append(one_file_data)
         
             #print('digi_file: ', digi_file)
 
@@ -193,7 +193,7 @@ def get_geo_file(partition):
         
 
     geo_file_map = {
-        range(0, 5422): '/afs/cern.ch/user/z/zhibin/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V4.root',
+        range(0, 5422): '/eos/experiment/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V4_2022.root',
         range(5483, 7358): '/eos/experiment/sndlhc/convertedData/physics/2023/geofile_sndlhc_TI18_V3_2023.root',
     }
     for run_range, geo_file in geo_file_map.items():

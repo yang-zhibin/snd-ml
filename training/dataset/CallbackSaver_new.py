@@ -128,6 +128,7 @@ class RootSaver(Callback):
 
         # particle type & class (vectorized)
         ptype = self._pdg_to_particle_type_vec(pdg_codes)
+        # print(f"particle type: {ptype}")
         pclass = self._ptype_to_class_vec(ptype)
         self.data["ParticleType"].extend(ptype.tolist())
         self.data["ParticleClass"].extend(pclass.tolist())

@@ -25,7 +25,7 @@ particle_2_class = {
 class_2_particle = {v: k for k, v in particle_2_class.items()}
 
 
-def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compare_pred_MC/processed_metadata"):
+def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compare_pred_MC/processed_metadata_muon_down"):
     
     """Load all processed metadata CSVs into a dictionary."""
     metadata_dict = {}
@@ -144,13 +144,13 @@ def read_rdf(args, metadata_df, MC_muon=False):
     """
 
     # Use them in RDataFrame
-    rdf = (
-        rdf.Define("start_centroid_x", expr_start_centroid_x)
-        .Define("start_centroid_y", expr_start_centroid_y)
-        .Define("start_z",          expr_start_z)
-        .Define("signed_slope_x",   expr_signed_slope_x)
-        .Define("signed_slope_y",   expr_signed_slope_y)
-    )
+    # rdf = (
+    #     rdf.Define("start_centroid_x", expr_start_centroid_x)
+    #     .Define("start_centroid_y", expr_start_centroid_y)
+    #     .Define("start_z",          expr_start_z)
+    #     .Define("signed_slope_x",   expr_signed_slope_x)
+    #     .Define("signed_slope_y",   expr_signed_slope_y)
+    # )
     
     if (args.cut):
         rdf = rdf.Filter("count_scifi > 200")
@@ -164,10 +164,10 @@ def process_hist(args):
     n_bins, x_min, x_max, axis_title, logy = hist_info[hist_name]
     
     neutrino_df = METADATA_dict['MC_neutrino']
-    muon_df = METADATA_dict['MC_muon']
+    muon_df = METADATA_dict['MC_muon_down']
     kaon_df = METADATA_dict['MC_kaon']
     neutron_df = METADATA_dict['MC_neutron']
-    real_data = METADATA_dict['real_data_2024']
+    real_data = METADATA_dict['real_data_2022']
     
     #reading real data
     data_rdf, data_chain, data_int_lumi = read_rdf(args,real_data)
@@ -195,7 +195,7 @@ def process_hist(args):
     normalise_lumi = data_int_lumi
     
     ## reading neutrino
-    neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(args, neutrino_df)
+    neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(args, neutrino_df[:10])
     
     scale_factor = normalise_lumi/ neutrino_int_lumi  if neutrino_int_lumi else 1.0
     
@@ -297,7 +297,7 @@ def process_hist(args):
         sub_df = kaon_df[kaon_df['energy_range'] == erange]
 
         # build RDF and lumi for this slice
-        rdf, _, int_lumi = read_rdf(args, sub_df)
+        rdf, _, int_lumi = read_rdf(args, sub_df[:15])
         if not int_lumi:
             continue
 
@@ -350,7 +350,7 @@ def process_hist(args):
 
         # build RDF and lumi for this slice
         
-        rdf, _, int_lumi = read_rdf(args, sub_df)
+        rdf, _, int_lumi = read_rdf(args, sub_df[:15])
         if not int_lumi:
             continue
 
@@ -395,29 +395,36 @@ def process_hist(args):
 
     
     plot_MC_pred_VS_data_pred(data_pred_hists, muon_pred_hists, kaon_pred_hists, neutron_pred_hists, hist_name, data_int_lumi, logy)
-    plot_data_pred_bkg(data_pred_hists, hist_name, data_int_lumi, logy)
-    plot_MC(MC_neutrino_true_hists, muon_true_hists, kaon_true_hists,neutron_true_hists, hist_name, data_int_lumi, logy)
-    plot_MC_VS_MC_pred(data_pred_hists,
-                       MC_neutrino_true_hists, MC_neutrino_pred_hists, 
-                       muon_true_hists, muon_pred_hists, 
-                       kaon_true_hists, kaon_pred_hists, 
-                       neutron_true_hists, neutron_pred_hists, 
-                       hist_name, data_int_lumi, logy)
+    # plot_data_pred_bkg(data_pred_hists, hist_name, data_int_lumi, logy)
+    # plot_MC(MC_neutrino_true_hists, muon_true_hists, kaon_true_hists,neutron_true_hists, hist_name, data_int_lumi, logy)
+    # plot_MC_VS_MC_pred(data_pred_hists,
+    #                    MC_neutrino_true_hists, MC_neutrino_pred_hists, 
+    #                    muon_true_hists, muon_pred_hists, 
+    #                    kaon_true_hists, kaon_pred_hists, 
+    #                    neutron_true_hists, neutron_pred_hists, 
+    #                    hist_name, data_int_lumi, logy)
     
-    plot_2d_hist(data_pred_hists,
-                       MC_neutrino_true_hists, MC_neutrino_pred_hists, 
-                       muon_true_hists, muon_pred_hists, 
-                       kaon_true_hists, kaon_pred_hists, 
-                       neutron_true_hists, neutron_pred_hists, 
-                       hist_name, data_int_lumi)
-
-def plot_2d_hist(data_pred_hists,
-                MC_neutrino_true_hists, MC_neutrino_pred_hists, 
-                muon_true_hists, muon_pred_hists, 
-                kaon_true_hists, kaon_pred_hists, 
-                neutron_true_hists, neutron_pred_hists, 
-                hist_name, data_int_lumi):
-    pass
+    # plot_2d_hist(data_pred_hists,
+    #                    MC_neutrino_true_hists, MC_neutrino_pred_hists, 
+    #                    muon_true_hists, muon_pred_hists, 
+    #                    kaon_true_hists, kaon_pred_hists, 
+    #                    neutron_true_hists, neutron_pred_hists, 
+    #                    hist_name, data_int_lumi)
+    
+    # plot_muon_down(muon_true_hists, hist_name, data_int_lumi, logy)
+    
+def plot_muon_down(muon_true_hists, hist_name, int_lumi, logy):
+    outdir = f"./plots/{hist_name}"
+    os.makedirs(outdir, exist_ok=True)
+    mu_true  = _sum_th1_dict(muon_true_hists,        "mu_true")
+    _draw_totals_overlay(
+        {"muon": mu_true},
+        title=f"MC Muon — {hist_name}",
+        out_pdf=os.path.join(outdir, f"MC_muon_down_{hist_name}.pdf"),
+        int_lumi=int_lumi,
+        logy=logy)
+    
+    
 
 def plot_MC_VS_MC_pred(data_pred_hists,
                        MC_neutrino_true_hists, MC_neutrino_pred_hists,
@@ -603,7 +610,7 @@ def _sum_th1_dict(hdict, name, normalize=False):
         
     return hsum
 
-def _draw_totals_overlay(hsum_dict, title, out_pdf,int_lumi, logy=True):
+def _draw_totals_overlay(hsum_dict, title, out_pdf,int_lumi, logy=False):
     # Style map
     colmap = {
         "ve":      ROOT.kMagenta+1,   # electron neutrino
@@ -661,6 +668,10 @@ def _draw_totals_overlay(hsum_dict, title, out_pdf,int_lumi, logy=True):
 
     first.SetTitle("")
     first.GetYaxis().SetTitle("Expected Events")
+    ya = first.GetYaxis()
+    ya.SetNoExponent(False)     
+    #ya.SetMaxDigits(1)  
+    #ROOT.TGaxis.SetExponentOffset(-0.07, 0.01, "y")
     
     first.Draw("E1")
 
@@ -679,7 +690,7 @@ def _draw_totals_overlay(hsum_dict, title, out_pdf,int_lumi, logy=True):
     label.SetTextFont(42)
     label.SetTextSize(0.040)  # smaller than 0.045
     label.SetTextAlign(31)
-    label.DrawLatex(0.88, 0.94, f"#int #font[12]{{L}} dt = {int_lumi:.2f} fb^{{-1}}")
+    label.DrawLatex(0.88, 0.94, f"#int #font[12]{{L}} dt = {int_lumi:.3f} fb^{{-1}}")
     label.DrawLatex(0.20, 0.94, "")
 
 
@@ -791,7 +802,7 @@ def plot_data_pred_bkg(data_pred_hists, hist_name, int_lumi, logy=True):
     label.SetTextFont(42)
     label.SetTextSize(0.040)  # smaller than 0.045
     label.SetTextAlign(31)
-    label.DrawLatex(0.88, 0.94, f"#int #font[12]{{L}} dt = {int_lumi:.2f} fb^{{-1}}")
+    label.DrawLatex(0.88, 0.94, f"#int #font[12]{{L}} dt = {int_lumi:.3f} fb^{{-1}}")
     label.DrawLatex(0.20, 0.94, "")
 
     outpath = os.path.join(outdir, f"Pred_bkgs_{hist_name}.pdf")
@@ -904,7 +915,7 @@ def _draw_mc_stack_with_pred(stack, comps, h_pred, particle, out_pdf,int_lumi,
     label.SetTextFont(42)
     label.SetTextSize(0.040)  # smaller than 0.045
     label.SetTextAlign(31)
-    label.DrawLatex(0.88, 0.94, f"#int #font[12]{{L}} dt = {int_lumi:.2f} fb^{{-1}}")
+    label.DrawLatex(0.88, 0.94, f"#int #font[12]{{L}} dt = {int_lumi:.3f} fb^{{-1}}")
     label.DrawLatex(0.20, 0.94, "")
     
 
@@ -982,12 +993,17 @@ hist_info = {
     "start_avgPos_y": (80, 0, 80, 'Start AvgPos Y', True),
     "avgPos_slope_x": (60,-3, 3, 'Centroid Slope X', True),
     "avgPos_slope_y": (60,-3, 3, 'Centroid Slope Y', True),
+    "avg_scifi1_y": (70, 0, 70, 'Scifi1 AvgPos Y', True),
+    "avg_scifi2_y": (70, 0, 70, 'Scifi2 AvgPos Y', False),
+    "avg_scifi3_y": (70, 0, 70, 'Scifi3 AvgPos Y', False),
+    "avg_scifi4_y": (70, 0, 70, 'Scifi4 AvgPos Y', False),
+    "avg_scifi5_y": (70, 0, 70, 'Scifi5 AvgPos Y', False),
 
 }
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--hist_name", dest="hist_name", help="hist name", default="count_scifi")
+    parser.add_argument("-n", "--hist_name", dest="hist_name", help="hist name", default="avg_scifi1_y")
     parser.add_argument("-c", "--cut", action="store_true", help="apply cut")
     args = parser.parse_args()
     

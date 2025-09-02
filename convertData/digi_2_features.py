@@ -534,44 +534,54 @@ def main(args):
         ("count_us1", 'i'), ("count_us2", 'i'), ("count_us3", 'i'),("count_us4", 'i'), ("count_us5", 'i'), ("count_us", 'i'),
         ("count_ds1", 'i'), ("count_ds2", 'i'), ("count_ds3", 'i'), ("count_ds4", 'i'),("count_ds", 'i'),
         
-        ("avg_veto1_y", 'd'), ("avg_veto2_y", 'd'), ("avg_veto3_x", 'd'),
+        ("avg_veto1_y", 'd'), ("avg_veto2_y", 'd'), ("avg_veto3_x", 'd'), ("avg_veto_x", 'd'), ("avg_veto_y", 'd'),
         ("avg_scifi1_x", 'd'), ("avg_scifi1_y", 'd'),
         ("avg_scifi2_x", 'd'), ("avg_scifi2_y", 'd'),
         ("avg_scifi3_x", 'd'), ("avg_scifi3_y", 'd'),
         ("avg_scifi4_x", 'd'), ("avg_scifi4_y", 'd'),
-        ("avg_scifi5_x", 'd'), ("avg_scifi5_y", 'd'),
-        ("avg_us1_y", 'd'), ("avg_us2_y", 'd'), ("avg_us3_y", 'd'), ("avg_us4_y", 'd'), ("avg_us5_y", 'd'),
+        ("avg_scifi5_x", 'd'), ("avg_scifi5_y", 'd'), ("avg_scifi_y", 'd'), ("avg_scifi_x", 'd'),
+        ("avg_us1_y", 'd'), ("avg_us2_y", 'd'), ("avg_us3_y", 'd'), ("avg_us4_y", 'd'), ("avg_us5_y", 'd'), ("avg_us_y", 'd'),
         ("avg_ds1_x", 'd'), ("avg_ds1_y", 'd'),
         ("avg_ds2_x", 'd'), ("avg_ds2_y", 'd'),
         ("avg_ds3_x", 'd'), ("avg_ds3_y", 'd'),
-        ("avg_ds4_x", 'd'), ("avg_ds4_y", 'd'),
+        ("avg_ds4_x", 'd'), ("avg_ds4_y", 'd'), ("avg_ds_x", 'd'), ("avg_ds_y", 'd'),
         
-        ("centroid_veto1_y", 'd'), ("centroid_veto2_y", 'd'), ("centroid_veto3_x", 'd'),
+        ("centroid_veto1_y", 'd'), ("centroid_veto2_y", 'd'), ("centroid_veto3_x", 'd'), ("centroid_veto_y", 'd'), ("centroid_veto_x", 'd'), 
         ("centroid_scifi1_x", 'd'), ("centroid_scifi1_y", 'd'),
         ("centroid_scifi2_x", 'd'), ("centroid_scifi2_y", 'd'),
         ("centroid_scifi3_x", 'd'), ("centroid_scifi3_y", 'd'),
         ("centroid_scifi4_x", 'd'), ("centroid_scifi4_y", 'd'),
-        ("centroid_scifi5_x", 'd'), ("centroid_scifi5_y", 'd'),
-        ("centroid_us1_y", 'd'), ("centroid_us2_y", 'd'),("centroid_us3_y", 'd'), ("centroid_us4_y", 'd'), ("centroid_us5_y", 'd'),
+        ("centroid_scifi5_x", 'd'), ("centroid_scifi5_y", 'd'), ("centroid_scifi_x", 'd'), ("centroid_scifi_y", 'd'),
+        ("centroid_us1_y", 'd'), ("centroid_us2_y", 'd'),("centroid_us3_y", 'd'), ("centroid_us4_y", 'd'), ("centroid_us5_y", 'd'), ("centroid_us_y", 'd'),
         ("centroid_ds1_x", 'd'), ("centroid_ds1_y", 'd'),
         ("centroid_ds2_x", 'd'), ("centroid_ds2_y", 'd'),
         ("centroid_ds3_x", 'd'), ("centroid_ds3_y", 'd'),
-        ("centroid_ds4_x", 'd'), ("centroid_ds4_y", 'd'),
+        ("centroid_ds4_x", 'd'), ("centroid_ds4_y", 'd'), ("centroid_ds_x", 'd'), ("centroid_ds_y", 'd'),
 
 
         # Hit density sums per plane
-        ("density_veto1", 'd'), ("density_veto2", 'd'), ("density_veto3", 'd'),
-        ("density_scifi1", 'd'), ("density_scifi2", 'd'), ("density_scifi3", 'd'), ("density_scifi4", 'd'), ("density_scifi5", 'd'),
-        ("density_us1", 'd'), ("density_us2", 'd'), ("density_us3", 'd'), ("density_us4", 'd'), ("density_us5", 'd'),
-        ("density_ds1", 'd'), ("density_ds2", 'd'), ("density_ds3", 'd'), ("density_ds4", 'd'),
+        ("density_veto1", 'd'), ("density_veto2", 'd'), ("density_veto3", 'd'), ("density_veto", 'd'),
+        ("density_scifi1", 'd'), ("density_scifi2", 'd'), ("density_scifi3", 'd'), ("density_scifi4", 'd'), ("density_scifi5", 'd'), ("density_scifi", 'd'),
+        ("density_us1", 'd'), ("density_us2", 'd'), ("density_us3", 'd'), ("density_us4", 'd'), ("density_us5", 'd'), ("density_us", 'd'),
+        ("density_ds1", 'd'), ("density_ds2", 'd'), ("density_ds3", 'd'), ("density_ds4", 'd'), ("density_ds", 'd'),
 
         ("showerTagged", 'i'),
         ("showerStartStation", 'i'),
+        ("showerStart_z", 'd'),
+        ("showerStart_centroid_x", 'd'), ("showerStart_centroid_y", 'd'),
+        ("showerStart_avg_x", 'd'), ("showerStart_avg_y", 'd'),
+        
+        ("hitStartStation",'i'),
+        ("hitStart_z", 'd'),
+        ("hitStart_centroid_x", 'd'), ("hitStart_centroid_y", 'd'),
+        ("hitStart_avg_x", 'd'), ("hitStart_avg_y", 'd'),
+
+        
         
         ("avgPos_slope_x", 'd'), ("avgPos_slope_y", 'd'),
         ("centroid_slope_x", 'd'), ("centroid_slope_y", 'd'),
-
-        #energy, 
+        ("signed_slope_x",'d'), ("signed_slope_y",'d'),
+        
     ]
 
     # Dictionary to hold branch variables

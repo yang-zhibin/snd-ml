@@ -1,2 +1,218 @@
 hostname:
-b9p29p6628.cern.ch
+b9p16p9531.cern.ch
+running cal_matrix
+tmp_dir: /pool/condor/dir_430341/tmp/tmp.T00HtBE3fw
+filename: vetoFree_matrix_baseline_muon_output_MC_neutrino_volTarget_100fb-1_274.csv
+tmp_output: /pool/condor/dir_430341/tmp/tmp.T00HtBE3fw/vetoFree_matrix_baseline_muon_output_MC_neutrino_volTarget_100fb-1_274.csv
+/eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/vetoFree_feature_MC_neutrino_volTarget_100fb-1_274.root
+-------0_raw--------
+other_cuts: , prediction_score_class: 0, prediction_score_cut: 0.0
+t_class: ve
+filter_expr : (ParticleType == "ve" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "ve" && pred_class_first == 1) || (ParticleType == "ve" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 2) || (ParticleType == "ve" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 3) || (ParticleType == "ve" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 4) || (ParticleType == "ve" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 5) || (ParticleType == "ve" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 6) || (ParticleType == "ve" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: vm
+filter_expr : (ParticleType == "vm" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "vm" && pred_class_first == 1) || (ParticleType == "vm" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 2) || (ParticleType == "vm" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 3) || (ParticleType == "vm" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 4) || (ParticleType == "vm" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 5) || (ParticleType == "vm" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 6) || (ParticleType == "vm" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: vt
+filter_expr : (ParticleType == "vt" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "vt" && pred_class_first == 1) || (ParticleType == "vt" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 2) || (ParticleType == "vt" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 3) || (ParticleType == "vt" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 4) || (ParticleType == "vt" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 5) || (ParticleType == "vt" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 6) || (ParticleType == "vt" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: NC
+filter_expr : (ParticleType == "NC" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "NC" && pred_class_first == 1) || (ParticleType == "NC" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 2) || (ParticleType == "NC" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 3) || (ParticleType == "NC" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 4) || (ParticleType == "NC" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 5) || (ParticleType == "NC" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 6) || (ParticleType == "NC" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+-------1_scifi>200--------
+other_cuts: count_scifi>200, prediction_score_class: 0, prediction_score_cut: 0.0
+count_scifi>200, count: 224
+t_class: ve
+filter_expr : (ParticleType == "ve" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "ve" && pred_class_first == 1) || (ParticleType == "ve" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 2) || (ParticleType == "ve" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 3) || (ParticleType == "ve" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 4) || (ParticleType == "ve" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 5) || (ParticleType == "ve" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 6) || (ParticleType == "ve" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: vm
+filter_expr : (ParticleType == "vm" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "vm" && pred_class_first == 1) || (ParticleType == "vm" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 2) || (ParticleType == "vm" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 3) || (ParticleType == "vm" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 4) || (ParticleType == "vm" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 5) || (ParticleType == "vm" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 6) || (ParticleType == "vm" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: vt
+filter_expr : (ParticleType == "vt" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "vt" && pred_class_first == 1) || (ParticleType == "vt" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 2) || (ParticleType == "vt" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 3) || (ParticleType == "vt" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 4) || (ParticleType == "vt" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 5) || (ParticleType == "vt" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 6) || (ParticleType == "vt" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: NC
+filter_expr : (ParticleType == "NC" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "NC" && pred_class_first == 1) || (ParticleType == "NC" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 2) || (ParticleType == "NC" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 3) || (ParticleType == "NC" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 4) || (ParticleType == "NC" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 5) || (ParticleType == "NC" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 6) || (ParticleType == "NC" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+-------2_scifi>300--------
+other_cuts: count_scifi>300, prediction_score_class: 0, prediction_score_cut: 0.0
+count_scifi>300, count: 181
+t_class: ve
+filter_expr : (ParticleType == "ve" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "ve" && pred_class_first == 1) || (ParticleType == "ve" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 2) || (ParticleType == "ve" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 3) || (ParticleType == "ve" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 4) || (ParticleType == "ve" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 5) || (ParticleType == "ve" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 6) || (ParticleType == "ve" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: vm
+filter_expr : (ParticleType == "vm" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "vm" && pred_class_first == 1) || (ParticleType == "vm" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 2) || (ParticleType == "vm" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 3) || (ParticleType == "vm" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 4) || (ParticleType == "vm" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 5) || (ParticleType == "vm" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 6) || (ParticleType == "vm" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: vt
+filter_expr : (ParticleType == "vt" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "vt" && pred_class_first == 1) || (ParticleType == "vt" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 2) || (ParticleType == "vt" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 3) || (ParticleType == "vt" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 4) || (ParticleType == "vt" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 5) || (ParticleType == "vt" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 6) || (ParticleType == "vt" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: NC
+filter_expr : (ParticleType == "NC" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "NC" && pred_class_first == 1) || (ParticleType == "NC" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 2) || (ParticleType == "NC" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 3) || (ParticleType == "NC" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 4) || (ParticleType == "NC" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 5) || (ParticleType == "NC" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 6) || (ParticleType == "NC" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+-------3_us1>2--------
+other_cuts: count_scifi>300 && count_us1>2, prediction_score_class: 0, prediction_score_cut: 0.0
+count_scifi>300 && count_us1>2, count: 171
+t_class: ve
+filter_expr : (ParticleType == "ve" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "ve" && pred_class_first == 1) || (ParticleType == "ve" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 2) || (ParticleType == "ve" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 3) || (ParticleType == "ve" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 4) || (ParticleType == "ve" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 5) || (ParticleType == "ve" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "ve" && pred_class_first == 6) || (ParticleType == "ve" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: vm
+filter_expr : (ParticleType == "vm" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "vm" && pred_class_first == 1) || (ParticleType == "vm" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 2) || (ParticleType == "vm" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 3) || (ParticleType == "vm" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 4) || (ParticleType == "vm" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 5) || (ParticleType == "vm" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vm" && pred_class_first == 6) || (ParticleType == "vm" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: vt
+filter_expr : (ParticleType == "vt" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "vt" && pred_class_first == 1) || (ParticleType == "vt" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 2) || (ParticleType == "vt" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 3) || (ParticleType == "vt" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 4) || (ParticleType == "vt" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 5) || (ParticleType == "vt" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "vt" && pred_class_first == 6) || (ParticleType == "vt" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+t_class: NC
+filter_expr : (ParticleType == "NC" && pred_class_first == 0 && (Prediction_0 > 0.0))
+filter_expr : (ParticleType == "NC" && pred_class_first == 1) || (ParticleType == "NC" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 2) || (ParticleType == "NC" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 3) || (ParticleType == "NC" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 4) || (ParticleType == "NC" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 5) || (ParticleType == "NC" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.0)
+filter_expr : (ParticleType == "NC" && pred_class_first == 6) || (ParticleType == "NC" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.0)
+-------4_veScore>0.92--------
+other_cuts: count_scifi>300 && count_us1>2, prediction_score_class: 0, prediction_score_cut: 0.92
+count_scifi>300 && count_us1>2, count: 171
+t_class: ve
+filter_expr : (ParticleType == "ve" && pred_class_first == 0 && (Prediction_0 > 0.92))
+filter_expr : (ParticleType == "ve" && pred_class_first == 1) || (ParticleType == "ve" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "ve" && pred_class_first == 2) || (ParticleType == "ve" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "ve" && pred_class_first == 3) || (ParticleType == "ve" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "ve" && pred_class_first == 4) || (ParticleType == "ve" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "ve" && pred_class_first == 5) || (ParticleType == "ve" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "ve" && pred_class_first == 6) || (ParticleType == "ve" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.92)
+t_class: vm
+filter_expr : (ParticleType == "vm" && pred_class_first == 0 && (Prediction_0 > 0.92))
+filter_expr : (ParticleType == "vm" && pred_class_first == 1) || (ParticleType == "vm" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vm" && pred_class_first == 2) || (ParticleType == "vm" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vm" && pred_class_first == 3) || (ParticleType == "vm" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vm" && pred_class_first == 4) || (ParticleType == "vm" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vm" && pred_class_first == 5) || (ParticleType == "vm" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vm" && pred_class_first == 6) || (ParticleType == "vm" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.92)
+t_class: vt
+filter_expr : (ParticleType == "vt" && pred_class_first == 0 && (Prediction_0 > 0.92))
+filter_expr : (ParticleType == "vt" && pred_class_first == 1) || (ParticleType == "vt" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vt" && pred_class_first == 2) || (ParticleType == "vt" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vt" && pred_class_first == 3) || (ParticleType == "vt" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vt" && pred_class_first == 4) || (ParticleType == "vt" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vt" && pred_class_first == 5) || (ParticleType == "vt" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "vt" && pred_class_first == 6) || (ParticleType == "vt" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.92)
+t_class: NC
+filter_expr : (ParticleType == "NC" && pred_class_first == 0 && (Prediction_0 > 0.92))
+filter_expr : (ParticleType == "NC" && pred_class_first == 1) || (ParticleType == "NC" && pred_class_second == 1 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "NC" && pred_class_first == 2) || (ParticleType == "NC" && pred_class_second == 2 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "NC" && pred_class_first == 3) || (ParticleType == "NC" && pred_class_second == 3 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "NC" && pred_class_first == 4) || (ParticleType == "NC" && pred_class_second == 4 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "NC" && pred_class_first == 5) || (ParticleType == "NC" && pred_class_second == 5 && pred_class_first == 0 && Prediction_0 <= 0.92)
+filter_expr : (ParticleType == "NC" && pred_class_first == 6) || (ParticleType == "NC" && pred_class_second == 6 && pred_class_first == 0 && Prediction_0 <= 0.92)
+{'0_raw':       ve     vm   vt   NC  kaon  neutron  muon
+ve  39.0    3.0  0.0  9.0   4.0      3.0   0.0
+vm  25.0  118.0  0.0  2.0  34.0     20.0   8.0
+vt   1.0    2.0  0.0  0.0   1.0      1.0   0.0
+NC  40.0    8.0  0.0  5.0  23.0     17.0   0.0, '1_scifi>200':       ve    vm   vt   NC  kaon  neutron  muon
+ve  39.0   2.0  0.0  9.0   2.0      1.0   0.0
+vm  25.0  80.0  0.0  2.0   0.0      0.0   0.0
+vt   1.0   2.0  0.0  0.0   0.0      0.0   0.0
+NC  40.0   7.0  0.0  5.0   9.0      0.0   0.0, '2_scifi>300':       ve    vm   vt   NC  kaon  neutron  muon
+ve  38.0   1.0  0.0  8.0   0.0      1.0   0.0
+vm  23.0  55.0  0.0  2.0   0.0      0.0   0.0
+vt   1.0   2.0  0.0  0.0   0.0      0.0   0.0
+NC  38.0   6.0  0.0  5.0   1.0      0.0   0.0, '3_us1>2':       ve    vm   vt   NC  kaon  neutron  muon
+ve  36.0   1.0  0.0  8.0   0.0      1.0   0.0
+vm  23.0  51.0  0.0  2.0   0.0      0.0   0.0
+vt   1.0   2.0  0.0  0.0   0.0      0.0   0.0
+NC  36.0   6.0  0.0  3.0   1.0      0.0   0.0, '4_veScore>0.92':       ve    vm   vt    NC  kaon  neutron  muon
+ve  21.0   5.0  0.0  19.0   0.0      1.0   0.0
+vm   3.0  67.0  0.0   6.0   0.0      0.0   0.0
+vt   1.0   2.0  0.0   0.0   0.0      0.0   0.0
+NC   9.0  12.0  0.0  24.0   1.0      0.0   0.0}
+matrices save to /pool/condor/dir_430341/tmp/tmp.T00HtBE3fw/vetoFree_matrix_baseline_muon_output_MC_neutrino_volTarget_100fb-1_274.csv
+RDataFrame run times:  144
+        data_type            subfolder  partition  n_event  ...       vetoTagged_prediction_GravNet_v4_output_path         vetoFree_prediction_GravNet_v4_output_path           vetoTagged_matrix_GravNet_v4_output_path             vetoFree_matrix_GravNet_v4_output_path
+0         MC_kaon  FTFP_BERT/K_100_150          1      100  ...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...
+1         MC_kaon  FTFP_BERT/K_100_150          2      100  ...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...
+2         MC_kaon  FTFP_BERT/K_100_150          3      100  ...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...
+3         MC_kaon  FTFP_BERT/K_100_150          4      100  ...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...
+4         MC_kaon  FTFP_BERT/K_100_150          5      100  ...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FT...
+...           ...                  ...        ...      ...  ...                                                ...                                                ...                                                ...                                                ...
+6199  MC_neutrino    volTarget_100fb-1        396      797  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+6200  MC_neutrino    volTarget_100fb-1        397      827  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+6201  MC_neutrino    volTarget_100fb-1        398      783  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+6202  MC_neutrino    volTarget_100fb-1        399      829  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+6203  MC_neutrino    volTarget_100fb-1        400      759  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+
+[6204 rows x 28 columns]

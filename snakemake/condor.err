@@ -1,13 +1,19 @@
 Building DAG of jobs...
-InputFunctionException in rule cal_matrix in file /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/snakefile, line 721:
-Error:
-  IndexError: single positional indexer is out-of-bounds
-Wildcards:
-  matrix_output=/eos/experiment/sndlhc/users/zhibin/MC_neutron/FTFP_BERT/neu_100_150/91/vetoFree_matrix_baseline_muon_output_MC_neutron_FTFP_BERT_neu_100_150_91.csv
-Traceback:
-  File "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/snakefile", line 724, in <lambda>
-  File "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/snakefile", line 100, in get_metadata_from_output
-  File "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/snakefile", line 118, in get_metadata_value
-  File "/afs/cern.ch/work/z/zhibin/miniconda3/envs/snd-pytorch/lib/python3.10/site-packages/pandas/core/indexing.py", line 1153, in __getitem__
-  File "/afs/cern.ch/work/z/zhibin/miniconda3/envs/snd-pytorch/lib/python3.10/site-packages/pandas/core/indexing.py", line 1714, in _getitem_axis
-  File "/afs/cern.ch/work/z/zhibin/miniconda3/envs/snd-pytorch/lib/python3.10/site-packages/pandas/core/indexing.py", line 1647, in _validate_integer
+Using shell: /usr/bin/bash
+Provided cores: 64
+Rules claiming more threads will be scaled down.
+Provided resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, nvidia_gpu=0
+Select jobs to execute...
+
+[Tue Sep  2 13:38:42 2025]
+rule cal_matrix:
+    input: /afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_matrix.py, /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/vetoFree_eval_baseline_muon_output_MC_neutrino_volTarget_100fb-1_274.root, /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/vetoFree_feature_MC_neutrino_volTarget_100fb-1_274.root, /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/preSelect_MC_neutrino_volTarget_100fb-1_274.root
+    output: /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/vetoFree_matrix_baseline_muon_output_MC_neutrino_volTarget_100fb-1_274.csv
+    jobid: 0
+    reason: Forced execution
+    wildcards: matrix_output=/eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/vetoFree_matrix_baseline_muon_output_MC_neutrino_volTarget_100fb-1_274.csv
+    resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, tmpdir=/pool/condor/dir_430341/tmp, runtime=3600, nvidia_gpu=0
+
+[Tue Sep  2 13:39:16 2025]
+Finished job 0.
+1 of 1 steps (100%) done

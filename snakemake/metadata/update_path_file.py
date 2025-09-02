@@ -96,7 +96,6 @@ def drop_run_without_lumi_and_add_ineff(df, lumi_file):
 
     # Flatten the list and assign back
     df['lumi_per_file'] = pd.concat(lumi_per_file_list).sort_index()
-    df['veto_ineff'] = pd.concat(ineff_per_file_list).sort_index()
     return df
 
 
@@ -187,7 +186,7 @@ def process_muon_path(df):
     df['geo_path'] = df['geo_path'].str.replace('//', '/', regex=False)
     
     
-    # duplicate file
+    # drop duplicate file
     df = df[df['digi_path'] != "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_2.5/7016245/sndLHC.Ntuple-TGeant4_-150urad_1e7pr_dig.root"]
 
 
@@ -241,7 +240,7 @@ def process_muon_path(df):
     merged_df['n_collisions_per_file'] = merged_df['n_collisions'] / merged_df['files_in_group']
 
     # Compute luminosity per file (in fb⁻¹)
-    cross_section_fb = 80e9  # 80 mb = 80 * 1e9 fb
+    cross_section_fb = 80e12  # 80 milli barn = 80 * 1e12 fb
     merged_df['lumi_per_file'] = merged_df['n_collisions_per_file'] / cross_section_fb
 
     # update geo_path since they raise error when calling SiPM Mapping function
@@ -268,9 +267,9 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
         df = drop_run_without_lumi_and_add_ineff(df, lumi_file)
     elif (data_type=='MC_kaon' or data_type=='MC_neutron'):
         neutron_rates, kaon_rates = get_int_rate()
-        if ("FTFP_BERT" in subfolder) and (data_type=='MC_neutron'):
+        if (data_type=='MC_neutron'):
             df = cal_lumi_for_neutral_bkg(neutron_rates, df)
-        elif ("FTFP_BERT" in subfolder) and (data_type=='MC_kaon'):
+        elif (data_type=='MC_kaon'):
             df = cal_lumi_for_neutral_bkg(kaon_rates, df)        
     elif (data_type=='MC_neutrino'):
         if '100fb-1' in csv_input:
@@ -284,6 +283,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     #add preSelect path
     df = add_new_path("preSelect","root", df, csv_input,  eos_root_path, seperate_veto=False)
     
+    df = add_new_path(f"preCutEff", "csv", df, csv_input, eos_root_path, seperate_veto=False)
     
     # hit path
     df = add_new_path("hit","root", df, csv_input,  eos_root_path)
@@ -291,7 +291,8 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     df = add_new_path("feature","root", df, csv_input, eos_root_path)
     # pt hit path
     df = add_new_path("pt_hit","pt", df, csv_input, eos_root_path)
-
+    
+    
 
     # 
     model_names = [list(model.keys())[0] for model in models]

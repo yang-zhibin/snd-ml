@@ -8,6 +8,7 @@ import glob
 wildcard_constraints:
     hit_path=".*hit.*.root",
     preSelect_path=".*preSelect.*.root",
+    preCutEff_path=".*preCutEff.*.csv",
     feature_path=".*feature.*.root",
     metadata_csv=".*metadata.*.csv",
     model_ckpt='.*ckpt.*',
@@ -25,34 +26,35 @@ wildcard_constraints:
 
 
 metadata_csv_list = [
-    # "MC_kaon_FTFP_BERT_metadata_subset.csv",
-    # "MC_neutron_FTFP_BERT_metadata_subset.csv",
+    "MC_kaon_FTFP_BERT_metadata_subset.csv",
+    "MC_neutron_FTFP_BERT_metadata_subset.csv",
+    #  "real_data_2024_skim_runs_metadata.csv",
 
 
-    #"MC_kaon_FTFP_BERT_metadata.csv",
-    # "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
-    
-   #"MC_muon_down_metadata.csv",
     #"MC_muon_down_2022_normalisation_metadata.csv",
+#    "MC_muon_down_metadata.csv",
+#      "MC_muon_horizontal_metadata.csv",
+#      "MC_muon_up_metadata.csv",
 
-    #  "MC_muon_horizontal_metadata.csv",
-    #  "MC_muon_up_metadata.csv",
+#     "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
+     "MC_neutrino_volTarget_100fb-1_metadata.csv",
 
-    #"MC_neutrino_volMuFilter_20fb-1_metadata.csv",
-    #"MC_neutrino_volTarget_100fb-1_metadata.csv",
-    #"MC_neutron_FTFP_BERT_metadata.csv",
-    #"MC_neutron_FTFP_BERT_metadata_test.csv",
-    # "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
-     "real_data_2022_metadata.csv",
-     "real_data_2023_metadata.csv",
-    #   "real_data_2024_metadata.csv",
-    #   "real_data_2024_skim_runs_metadata.csv",
+#     "MC_kaon_FTFP_BERT_metadata.csv",
+#     "MC_neutron_FTFP_BERT_metadata.csv",
+
+#     "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
+#     "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
+
+#      "real_data_2022_metadata.csv",
+#      "real_data_2023_metadata.csv",
+#       "real_data_2024_metadata.csv",
+    
 ]
 
 
-process_vetoTagged=True
+process_vetoTagged=False
 process_vetoFree = True
-process_model = ['baseline_muon'] #'baseline_muon', 
+process_model = ['baseline_muon'] #'baseline_muon' 'GravNet_v4', 
 
 train_mode = False
 train_model = 'GravNet_v4'
@@ -127,7 +129,7 @@ def collect_target_paths(target_name):
     def drop_nan_str(seq):
         return [x for x in seq if str(x).strip().lower() != "nan"]
     
-    if target_name == "preSelect_path":
+    if target_name.startswith("pre"):
         target_paths = drop_nan_str(METADATA[f"{target_name}"].tolist())
     else:
         target_paths = []
@@ -184,9 +186,10 @@ def collect_model_path(target_name):
 
 rule finish:
     input:
-         expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
-         expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
+        # expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
+        #expand("{preCutEff_path}", preCutEff_path=collect_target_paths("preCutEff_path")),
         # expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
@@ -195,7 +198,7 @@ rule finish:
         # expand("{model_output}", model_output=collect_model_path('model_output')),
         # expand("{eval_output}", eval_output=collect_model_path('eval_output')),
         #expand("{model_3d_output}", model_3d_output=collect_model_path('model_output'))
-        #expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
+        expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
 
 
 
@@ -244,7 +247,7 @@ rule generate_raw_metadata:
         script = '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/generate_path_file.py'
     threads:1
     resources:
-        runtime=180*60,
+        runtime=4*60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -277,8 +280,6 @@ rule update_metadata:
         source /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/envs/env_pyroot.sh
         python {input.script} -i {input.raw_metadata} -o {output.updated_metadata}
         """
-
-
 
 rule process_preSelection:
     input:
@@ -328,6 +329,7 @@ rule process_preSelection:
         echo "Cleaning up"
         rm -rf "${{tmp_dir}}"
         """
+
 
 
 rule process_hits:
@@ -388,9 +390,10 @@ rule process_features:
         digi=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "geo_path"),
         preSelect=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "preSelect_path"),
-        script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_features.py"
+        
         
     params:
+        script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_features.py",
         data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
         env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw.sh",
         
@@ -425,7 +428,7 @@ rule process_features:
 
         echo "Running feature generation script"
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
-            {input.script} \
+            {params.script} \
             -p {input.preSelect}\
             -d {input.digi} \
             -g {input.geo} \
@@ -724,11 +727,59 @@ rule evaluate:
         """
 
 
+rule cal_preSelect_eff:
+    input:
+        script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_preSelect_eff.py',
+        preSelect=lambda wildcards: get_metadata_value("preCutEff_path", wildcards.preCutEff_path, "preSelect_path"),
+        #matrix_output_path=lambda wildcards: get_metadata_from_output("preCutEff_path", wildcards.preCutEff_path, "matrix_output_path"),
+    #params:
+        
+        
+    output:
+        preCutEff_path = '{preCutEff_path}'
+    threads:1
+    resources:
+        runtime=20*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        echo "running cal preSelect cut eff"
+
+        # Avoid unbound variable error (only occurs when using Snakemake)
+        set +u 
+
+        # Set up environment
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+        export EOSSHIP=root://eosuser.cern.ch/
+        # Create a unique temporary directory
+        tmp_dir=$(mktemp -d)
+        filename=$(basename "{output.preCutEff_path}")
+        tmp_output="${{tmp_dir}}/${{filename}}"
+
+        echo "tmp_dir: $tmp_dir"
+        echo "filename: $filename"
+        echo "tmp_output: $tmp_output"
+
+        # Run evaluation script
+        python {input.script} \
+            -p {input.preSelect} \
+            -o "${{tmp_output}}"
+
+        # Copy result to final destination
+        xrdcp -f "${{tmp_output}}" "{output.preCutEff_path}" || {{ echo "xrdcp failed"; exit 1; }}
+
+        # Cleanup
+        rm -rf "${{tmp_dir}}"
+        """
+
 rule cal_matrix:
     input:
         script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_matrix.py',
         eval_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "eval_output"),
         feature_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "feature_path"),
+        preSelect_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "preSelect_path"),
     #params:
         
         

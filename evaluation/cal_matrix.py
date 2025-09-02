@@ -64,26 +64,40 @@ def split_prediction_clause(expr: str) -> Tuple[int, float, str]:
     return prediction_class, prediction_cut, other_cuts
 
 
-def cal_matrix(rdf, true_class, cuts):
+def cal_matrix(rdf, true_class):
+    # 0. None
+    # 1. scifi>200
+    # 2. scifi>300
+    # 3. US1>2
+    # 4. GNN_ve_score>0.92
+    
     pred_class = ["ve", "vm", "vt", "NC", "kaon", "neutron", "muon"]
     matrices = {}  # Store confusion matrix for each cut
-
     
-    rdf = rdf.Define("scifi_gt_300_us1_gt_2", "count_scifi>300 && count_us1>2")
-    #print(list(rdf.GetColumnNames()))
+    cut_expr = [
+        "",
+        "count_scifi>200",
+        "count_scifi>300",
+        "count_scifi>300 && count_us1>2",
+        "count_scifi>300 && count_us1>2 && Prediction_0 > 0.92",
+    ]
 
-    for cut in cuts:
+    labels = ['0_raw', '1_scifi>200', '2_scifi>300', '3_us1>2', '4_veScore>0.92']
+    
+    
+
+
+    for label, cut in zip(labels, cut_expr):
+        print(f'-------{label}--------')
         prediction_score_class, prediction_score_cut, other_cuts = split_prediction_clause(cut)
         print(f"other_cuts: {other_cuts}, prediction_score_class: {prediction_score_class}, prediction_score_cut: {prediction_score_cut}")
-        if cut is None:
+
+        if other_cuts == "":
             rdf_cut = rdf
-            label = 'no_cut'
         else:
-            if other_cuts == "":
-                rdf_cut = rdf
-            else:
-                rdf_cut = rdf.Filter(other_cuts)
-            label = cut
+            
+            rdf_cut = rdf.Filter(other_cuts)
+            print(f"{other_cuts}, count: {rdf_cut.Count().GetValue()}")
 
         confusion_matrix = pd.DataFrame(0.0, index=true_class, columns=pred_class)
 
@@ -132,7 +146,7 @@ def cal_matrix(rdf, true_class, cuts):
     #save_to_csv(matrices)
     return matrices
 
-def process(eval_path,feature_path, data_type, cuts, outpath, vetoTagged):
+def process(eval_path,feature_path, data_type, outpath, vetoTagged):
 
     if 'kaon' in data_type:
         true_class = ['kaon']
@@ -155,7 +169,7 @@ def process(eval_path,feature_path, data_type, cuts, outpath, vetoTagged):
     eval_chain.AddFriend(feature_chain, 'featureTree')
 
     rdf = ROOT.RDataFrame(eval_chain)
-    matrices = cal_matrix(rdf, true_class, cuts)
+    matrices = cal_matrix(rdf, true_class)
 
 
     save_to_csv(matrices, outpath)
@@ -248,14 +262,11 @@ def main(args):
 
     data_type = get_data_type(feature_path)
 
-    cuts = [None]
-    cuts += ["scifi_gt_300_us1_gt_2 && Prediction_0 > 0.92"]
-    print(cuts)
     if "vetoTagged" in feature_path:
         vetoTagged = True
     else:
         vetoTagged = False
-    process(eval_path, feature_path, data_type, cuts, outpath, vetoTagged)
+    process(eval_path, feature_path, data_type, outpath, vetoTagged)
 
 
 if __name__ == "__main__": 
