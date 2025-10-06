@@ -1,0 +1,2 @@
+/eos/experiment/sndlhc/MonteCarlo/testbeam2024/250GeV_11/X_neg38_Y_45_Z_315/63/sndLHC.PG_11-TGeant4_digCPP.root
+/eos/experiment/sndlhc/MonteCarlo/testbeam2024/250GeV_11/X_neg38_Y_45_Z_315/63/sndLHC.PG_11-TGeant4_digCPP.root
