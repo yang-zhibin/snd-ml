@@ -259,7 +259,6 @@ def process_muon_path(df):
     
     return merged_df
 
-
 def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input, eos_root_path, models,lumi_file):
     
     df = pd.read_csv(csv_input)
@@ -276,9 +275,15 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
             df['lumi_per_file'] =100
         elif '20fb-1' in csv_input:
             df['lumi_per_file'] =20
+        if '2024' in csv_input:
+            df['lumi_per_file'] =1.5
     elif (data_type == "MC_muon" ):
         df = process_muon_path(df)
 
+    
+    
+    df = add_new_path("newRaw","root", df, csv_input,  eos_root_path, seperate_veto=False)
+    df = add_new_path("newDigi","root", df, csv_input,  eos_root_path, seperate_veto=False)
     
     #add preSelect path
     df = add_new_path("preSelect","root", df, csv_input,  eos_root_path, seperate_veto=False)
@@ -291,7 +296,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     df = add_new_path("feature","root", df, csv_input, eos_root_path)
     # pt hit path
     df = add_new_path("pt_hit","pt", df, csv_input, eos_root_path)
-    
+
     
 
     # 

@@ -59,4 +59,26 @@ class Hit : public TObject {
     
         ClassDef(Hit, 1)
     };
-        
+
+struct ScifiMiniPoint {
+    int    pdg{-999};
+    float  energy_loss{-999.f};
+    float  x{-999.f}, y{-999.f}, z{-999.f}; // optional, useful for debugging/analysis
+    };
+    
+class VetoHit : public TObject {
+    public:
+    float hit_time{ -999.f };
+    float energy_loss{ -999.f };
+    int   veto_plane{ -1 };
+    float qdc{ -999.f };
+    std::vector<ScifiMiniPoint> scifiPoints;
+    
+    VetoHit() = default;
+    virtual ~VetoHit() {}
+    void clear() {
+        hit_time = -999.f; energy_loss = -999.f; veto_plane = -1; qdc = -999.f;
+        scifiPoints.clear();
+    }
+    ClassDef(VetoHit, 2) // bump version
+    };

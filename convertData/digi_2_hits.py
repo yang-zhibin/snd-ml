@@ -27,6 +27,7 @@ def create_output_file(path, mode):
 
     out_file = ROOT.TFile(path, mode)
     new_tree = ROOT.TTree('sndData', 'converted SND hits tree')
+    new_tree.SetDirectory(out_file)
     return out_file, new_tree
 
 
@@ -146,7 +147,10 @@ def main(args):
         n_match = preSelect_tree.GetEntries(selection)
         print(f"Entries matching selection: {n_match}")
         if n_match == 0:
-            raise RuntimeError("No entries matched the selection condition.")
+            new_tree.Write()
+            out_file.Close()
+            print("No entries matched the selection condition, save empty file")
+            return 0
 
         preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")
         elist = ROOT.gDirectory.Get(elist_name)

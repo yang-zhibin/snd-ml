@@ -7,6 +7,8 @@ import glob
 
 wildcard_constraints:
     hit_path=".*hit.*.root",
+    newDigi_path=".*newDigi.*.root",
+    newRaw_path=".*newRaw.*.root",
     preSelect_path=".*preSelect.*.root",
     preCutEff_path=".*preCutEff.*.csv",
     feature_path=".*feature.*.root",
@@ -28,16 +30,21 @@ wildcard_constraints:
 metadata_csv_list = [
     "MC_kaon_FTFP_BERT_metadata_subset.csv",
     "MC_neutron_FTFP_BERT_metadata_subset.csv",
-    #  "real_data_2024_skim_runs_metadata.csv",
+    # "real_data_2024_skim_runs_metadata_subset.csv",
 
 
-    #"MC_muon_down_2022_normalisation_metadata.csv",
+    #"real_data_2024_skim_runs_metadata.csv",
+
+
+    #"MC_muon_down_metadata_recoTrks.csv",
 #    "MC_muon_down_metadata.csv",
 #      "MC_muon_horizontal_metadata.csv",
 #      "MC_muon_up_metadata.csv",
 
 #     "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
-     "MC_neutrino_volTarget_100fb-1_metadata.csv",
+    "MC_neutrino_volTarget_100fb-1_metadata.csv",
+      "MC_neutrino_2024_vm_metadata.csv",
+      "MC_neutrino_2024_ve_metadata.csv",
 
 #     "MC_kaon_FTFP_BERT_metadata.csv",
 #     "MC_neutron_FTFP_BERT_metadata.csv",
@@ -52,9 +59,9 @@ metadata_csv_list = [
 ]
 
 
-process_vetoTagged=False
+process_vetoTagged=True
 process_vetoFree = True
-process_model = ['baseline_muon'] #'baseline_muon' 'GravNet_v4', 
+process_model = ['baseline_muon', 'GravNet_v4'] #'baseline_muon' 'GravNet_v4', 
 
 train_mode = False
 train_model = 'GravNet_v4'
@@ -108,7 +115,6 @@ def get_metadata_from_output(ref_name, ref_value, target_name):
         print("Pattern not found.")
 
 def get_metadata_value(ref_name, ref_value, target_name):
-    # print((ref_name, ref_value, target_name))
     if METADATA is None:
        return ''
     if "vetoFree" in ref_value and (ref_name not in METADATA.columns):
@@ -129,7 +135,7 @@ def collect_target_paths(target_name):
     def drop_nan_str(seq):
         return [x for x in seq if str(x).strip().lower() != "nan"]
     
-    if target_name.startswith("pre"):
+    if target_name.startswith("preSelect") or target_name.startswith("new") or target_name.startswith("preCutEff"):
         target_paths = drop_nan_str(METADATA[f"{target_name}"].tolist())
     else:
         target_paths = []
@@ -189,19 +195,18 @@ rule finish:
         #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
         # expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
-        #expand("{preCutEff_path}", preCutEff_path=collect_target_paths("preCutEff_path")),
-        # expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        #expand("{newRaw_path}", newRaw_path=collect_target_paths("newRaw_path")),
+        #expand("{newDigi_path}", newDigi_path=collect_target_paths("newDigi_path")),
+        expand("{preCutEff_path}", preCutEff_path=collect_target_paths("preCutEff_path")),
+        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
         #expand("{model_3d_ckpt}", model_3d_ckpt=collect_model_path('ckpt')),
-        # expand("{model_output}", model_output=collect_model_path('model_output')),
+        expand("{model_output}", model_output=collect_model_path('model_output')),
         # expand("{eval_output}", eval_output=collect_model_path('eval_output')),
         #expand("{model_3d_output}", model_3d_output=collect_model_path('model_output'))
-        expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
-
-
-
+        #expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
 rule train:
     input:
         #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
@@ -331,6 +336,132 @@ rule process_preSelection:
         """
 
 
+rule process_newRaw:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        raw=lambda wildcards: get_metadata_value("newRaw_path", wildcards.newRaw_path, "raw_path"),
+        geo=lambda wildcards: get_metadata_value("newRaw_path", wildcards.newRaw_path, "geo_path"),
+        
+    params:
+        env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw_MCEventBuilder.sh",
+        
+    output:
+        newRaw_path="{newRaw_path}"
+    threads:1
+    resources:
+        runtime=2*60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        # Avoid conda/python conflicts
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        set +u  # Avoid unbound variable errors
+
+        echo "Setting up SNDSW environment"
+        export ALIBUILD_WORK_DIR=/afs/cern.ch/work/z/zhibin/public/SndBuild/sw
+        source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
+        eval $(alienv load sndsw/latest-24d197c57d-release --no-refresh)
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        tmp_dir=$(mktemp -d)
+        filename=$(basename "{output.newRaw_path}")
+        tmp_output="${{tmp_dir}}/${{filename}}"
+
+        echo "processing newRaw file"
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python $SNDSW_ROOT/shipLHC/run_MCEventBuilder.py \
+            -f {input.raw} \
+            -g {input.geo} \
+            -o "${{tmp_output}}" \
+
+        echo "Transferring output to EOS"
+        xrdcp -f "${{tmp_output}}" "{output.newRaw_path}" || {{ echo "xrdcp failed"; exit 1; }}
+        echo "Cleaning up"
+        rm -rf "${{tmp_dir}}"
+        """
+
+
+
+rule process_newDigi:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        newRaw=lambda wildcards: get_metadata_value("newDigi_path", wildcards.newDigi_path, "newRaw_path"),
+        geo=lambda wildcards: get_metadata_value("newDigi_path", wildcards.newDigi_path, "geo_path"),
+        #run_digi_wrapper = "/afs/cern.ch/user/z/zhibin/work/snd-ml/check_MCEventbuilder/run_digi_wrapper.sh"
+    params:
+        env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw_MCEventBuilder.sh",
+        
+    output:
+        newDigi_path="{newDigi_path}"
+    threads:1
+    resources:
+        runtime=2*60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        # Avoid conda/python conflicts from the Snakemake env
+        export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+
+        set +u  # Avoid unbound variable errors
+
+        echo "Setting up SNDSW environment"
+        export ALIBUILD_WORK_DIR=/afs/cern.ch/work/z/zhibin/public/SndBuild/sw
+        # Use a single, consistent stack (Jan30); avoid mixing 2024 Python with 2025 libs
+        source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
+        eval "$(alienv load sndsw/latest-24d197c57d-release --no-refresh)"
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        # Work in a scratch dir and ensure cleanup
+        tmp_dir="$(mktemp -d)"
+        trap 'status=$?; echo "Cleaning up"; rm -rf "${{tmp_dir}}"; exit $status' EXIT
+        echo "tmp_dir: ${{tmp_dir}}"
+        cd "${{tmp_dir}}"
+
+        # Localize input
+        filename="$(basename "{input.newRaw}")"
+        echo "Fetching: {input.newRaw} -> ${{filename}}"
+        xrdcp -f "{input.newRaw}"  "${{filename}}"
+        ls -al
+        # Expected output name (bash subst). Keep this in sync with run_digiSND output naming.
+        tmp_output="${{filename/.root/_dig.root}}"
+        echo "Will look for output: ${{tmp_output}}"
+        echo "Geometry: {input.geo}"
+
+        echo "Processing newDigi file"
+        set +e
+        python $SNDSW_ROOT/shipLHC/run_digiSND.py \
+        -f "${{filename}}" \
+        -g {input.geo} \
+        #-d True
+
+        rc=$?
+        set -e
+        echo "[run_digiSND.py] exit code: ${{rc}}"
+        test "${{rc}}" -eq 143 || {{ echo "run_digiSND.py failed"; exit "${{rc}}";}}
+
+        # Resolve the produced file robustly:
+        if [[ -f "${{tmp_output}}" ]]; then
+        produced="${{tmp_output}}"
+        else
+        # Fallback: grab the first *_dig.root in CWD
+        produced="$(ls -1 *_dig.root 2>/dev/null | head -n1 || true)"
+        [[ -n "${{produced}}" ]] || {{ echo "ERROR: No *_dig.root produced"; ls -al; exit 1; }}
+        echo "Detected output: ${{produced}}"
+        fi
+
+        echo "Transferring output to EOS: {output.newDigi_path}"
+        xrdcp -f "${{produced}}" "{output.newDigi_path}" || {{ echo "xrdcp failed"; exit 1; }}
+
+        # Additional explicit cleanup (trap also removes tmp_dir)
+        rm -f "${{produced}}" "${{filename}}"
+
+
+        """
+
+
 
 rule process_hits:
     input:
@@ -390,10 +521,10 @@ rule process_features:
         digi=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "geo_path"),
         preSelect=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "preSelect_path"),
+        script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_features.py",
         
         
     params:
-        script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_features.py",
         data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
         env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw.sh",
         
@@ -428,7 +559,7 @@ rule process_features:
 
         echo "Running feature generation script"
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
-            {params.script} \
+            {input.script} \
             -p {input.preSelect}\
             -d {input.digi} \
             -g {input.geo} \
@@ -731,8 +862,9 @@ rule cal_preSelect_eff:
     input:
         script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_preSelect_eff.py',
         preSelect=lambda wildcards: get_metadata_value("preCutEff_path", wildcards.preCutEff_path, "preSelect_path"),
+        
         #matrix_output_path=lambda wildcards: get_metadata_from_output("preCutEff_path", wildcards.preCutEff_path, "matrix_output_path"),
-    #params:
+    params:
         
         
     output:
@@ -777,12 +909,11 @@ rule cal_preSelect_eff:
 rule cal_matrix:
     input:
         script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_matrix.py',
-        eval_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "eval_output"),
+        
         feature_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "feature_path"),
         preSelect_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "preSelect_path"),
+        model_output=lambda wildcards: get_metadata_from_output('matrix', wildcards.matrix_output, "model_output"),
     #params:
-        
-        
     output:
         matrix_output = '{matrix_output}'
     threads:1
@@ -813,7 +944,7 @@ rule cal_matrix:
         # Run evaluation script
         python {input.script} \
             -f {input.feature_path} \
-            -e {input.eval_path} \
+            -e {input.model_output} \
             -o "${{tmp_output}}"
 
         # Copy result to final destination

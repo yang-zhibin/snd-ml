@@ -188,7 +188,7 @@ def process_veto_hits_data():
     tree = ROOT.TTree("veto_hits", "Veto hit info")
 
     # === Define branches ===
-    index = array('i', [0])
+    event_index = array('i', [0])
     hit_time = array('f', [0])
     neutrino_type = array('i', [0])
     pdg = array('i', [0])
@@ -200,7 +200,9 @@ def process_veto_hits_data():
     count_veto2 = array('i', [0])
     
     
-    tree.Branch("index", index, "index/I")
+    
+    
+    tree.Branch("event_index", event_index, "event_index/I")
     tree.Branch("hit_time", hit_time, "hit_time/F")
     tree.Branch("neutrino_type", neutrino_type, "neutrino_type/I")
     tree.Branch("pdg", pdg, "pdg/I")
@@ -208,8 +210,6 @@ def process_veto_hits_data():
     tree.Branch("start_z", start_z, "start_z/F")
     tree.Branch("time_category", time_category, "time_category/I")
     tree.Branch("veto_plane", veto_plane, "veto_plane/I")
-    tree.Branch("count_veto1", count_veto1, "count_veto1/I")
-    tree.Branch("count_veto2", count_veto2, "count_veto2/I")
 
 
     # create a hist of number veto hits

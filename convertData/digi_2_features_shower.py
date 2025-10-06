@@ -57,7 +57,6 @@ def create_output_file(path, mode):
 
     out_file = ROOT.TFile(path, mode)
     new_tree = ROOT.TTree('sndData', 'converted SND hits tree')
-    new_tree.SetDirectory(out_file)
     return out_file, new_tree
 
 def process_counts(all_hits, branch_vars):
@@ -518,6 +517,64 @@ def print_hits_summary(all_hits):
         avg_qdc = sum(qdcs) / count if count > 0 else 0
         print(f"{name:<10} Station {station:<2} {orientation} - Hits: {count:3} | Avg QDC: {avg_qdc:.1f}")
     print("--------------------------\n")
+    
+    
+def process_clustering(all_hits):
+    pass
+    # cluster plane by plane for scifi
+    # plot the event display
+    #
+
+def print_ScifiPoint_fun():
+    # helper: safe writer to mc_pinit if it exists
+                def _mc_write(line):
+                    try:
+                        mc_pinit.write(line + "\n")
+                    except NameError:
+                        pass
+
+                # header lines (only printed/written if muon is present)
+                if has_muon_link:
+                    print(f"\n================ Event {eventId} ================")
+                    header1 = f"\n------ Veto hit #{n_veto_hit} ------"
+                    header2 = (
+                        f"Veto Plane: {station}, DetID: {detID}, "
+                        f"QDC: {this_qdc}, Time: {hit_time:.2f} ns, "
+                        f"StartZ (MCTrack[1]): {start_z:.2f} cm"
+                    )
+                    header3 = f"{'mc_point_i':<12} {'PDG':<8} {'Energy loss [MeV]':<20} {'Position (x, y, z) [cm]'}"
+                    sep = "-" * 70
+                    print(header1)
+                    print(header2)
+                    print(header3)
+                    print(sep)
+                    _mc_write(header1)
+                    _mc_write(header2)
+                    _mc_write(header3)
+                    _mc_write(sep)
+
+                # fill ScifiMiniPoints; conditionally print/write each row
+                for mc_point_i, _ in linksToMCPoints:
+                    scifi_point = event.ScifiPoint[mc_point_i]
+                    pdg = int(scifi_point.PdgCode())
+                    el  = float(scifi_point.GetEnergyLoss())
+                    x   = float(scifi_point.GetX())
+                    y   = float(scifi_point.GetY())
+                    z   = float(scifi_point.GetZ())
+
+                    total_energy_loss += el
+
+                    # Construct ScifiMiniPoint in-place, then fill its fields
+                    vh.scifiPoints.emplace_back()
+                    p = vh.scifiPoints.back()
+                    p.pdg = pdg
+                    p.energy_loss = el
+                    p.x, p.y, p.z = x, y, z
+
+                    if has_muon_link:
+                        row = f"{mc_point_i:<12} {pdg:<8} {el*1000:<20.4f} ({x:7.2f}, {y:7.2f}, {z:7.2f})"
+                        print(row)
+                        _mc_write(row)
 
 def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args):
     """Process all hits in the event and update hits array and averages."""
@@ -568,7 +625,11 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
     hit2MC = event.Digi_MuFilterHits2MCPoints[0]
     EvtScifiPoint = event.ScifiPoint
     n_veto_hit = 0
-    # print(f"\n================ Event {eventId} ================")
+    
+    for track in event.MCTrack:
+        print((track.GetMotherId()))
+        #break
+    
     for aHit in event.Digi_MuFilterHits:
         
         
@@ -602,6 +663,7 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             branch_vars["start_z"][0] = start_z
             
             if aHit.GetSystem() == 1:
+                #print(f"veto hit {n_veto_hit}")
                 vh = vetoHits.ConstructedAt(n_veto_hit)
                 n_veto_hit += 1
                 n_scifiPoint = event.ScifiPoint.GetEntries()
@@ -613,14 +675,18 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
                 
                 total_energy_loss = 0
                 vh.scifiPoints.clear()
-                for mc_point_i, _ in linksToMCPoints:   
-                    
+                for mc_point_i, weight in linksToMCPoints:   
+                    print(f"weight:{weight}")
                     scifi_point = event.ScifiPoint[mc_point_i]
+                    #print(dir(scifi_point))
+                    #print(scifi_point.GetSortedMCTracks())
+                    #print(scifi_point.GetTrackID())
                     pdg = int(scifi_point.PdgCode())
                     el  = float(scifi_point.GetEnergyLoss())
                     x   = float(scifi_point.GetX())
                     y   = float(scifi_point.GetY())
                     z   = float(scifi_point.GetZ())
+                    
 
                     total_energy_loss += el
 
@@ -631,7 +697,7 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
                     p.energy_loss = el
                     p.x, p.y, p.z = x, y, z
 
-
+                    #print(f"{mc_point_i:<12} {pdg:<8} {el*1000:<20.4f} ({x:7.2f}, {y:7.2f}, {z:7.2f})")
                     #print(f"{mc_point_i:<12} {pdg:<8} {el*1000:<20.4f} ({x:7.2f}, {y:7.2f}, {z:7.2f})")
                     
                 # fill veto fields (note: you probably want station+1)
@@ -639,6 +705,8 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
                 vh.veto_plane = int(station + 1)
                 vh.energy_loss = float(total_energy_loss)
                 vh.qdc = float(this_qdc)
+                
+                
   
         all_hits.append({
             "detType": detType,
@@ -678,13 +746,14 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             if trackType==13 and Chi2Ndf<5:
                 branch_vars["HT_SciFi"][0] = 1
     
-    process_counts(all_hits, branch_vars)
-    process_avgPos(all_hits, branch_vars)
-    process_centroid(all_hits, branch_vars)
-    process_hit_density(all_hits, branch_vars)
-    process_showerTagged(all_hits, branch_vars)
-    process_slope(all_hits, branch_vars)
-
+    # process_counts(all_hits, branch_vars)
+    # process_avgPos(all_hits, branch_vars)
+    # process_centroid(all_hits, branch_vars)
+    # process_hit_density(all_hits, branch_vars)
+    # process_showerTagged(all_hits, branch_vars)
+    # process_slope(all_hits, branch_vars)
+    process_clustering(all_hits)
+    
     #print_hits_summary(all_hits)
     return 
 
@@ -712,10 +781,7 @@ def main(args):
         n_match = preSelect_tree.GetEntries(selection)
         print(f"Entries matching selection: {n_match}")
         if n_match == 0:
-            new_tree.Write()
-            out_file.Close()
-            print("No entries matched the selection condition, save empty file")
-            return 0
+            raise RuntimeError("No entries matched the selection condition.")
 
         preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")
         elist = ROOT.gDirectory.Get(elist_name)
@@ -853,8 +919,8 @@ def main(args):
             branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
 
         process_hits(raw_tree,vetoHits, snd_geo, new_tree, branch_vars, branch_vars["eventId"][0],  args)
-        #if i>2:
-        #    break
+        if i>2:
+          break
         new_tree.Fill()
     # Finalize the output file
     new_tree.Write()
@@ -874,6 +940,6 @@ if __name__ == "__main__":
 
     main(args)
     
-# python digi_2_features.py -p /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/0/preSelect_MC_neutrino_volTarget_100fb-1_0.root -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/0/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/0/geofile_full.Genie-TGeant4.root -o /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/0/vetoTagged_feature_MC_neutrino_volTarget_100fb-1_0.root -t MC_neutrino
+# python digi_2_features_shower.py -p /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/1/preSelect_MC_neutrino_volTarget_100fb-1_1.root -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/geofile_full.Genie-TGeant4.root -o ./test_data/vetoTagged_shower_feature.root -t MC_neutrino
 
 # python digi_2_features.py -p /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/preSelect_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -d /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/sndLHC.Ntuple-TGeant4-160urad_magfield_2022TCL6_muons_rock_2e8pr_Trks.root -g /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/geofile_full.Ntuple-TGeant4.root -o /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/vetoTagged_feature_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -t MC_muon

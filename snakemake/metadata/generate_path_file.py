@@ -97,7 +97,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
     tree_name = "cbmsim"
     metadata = []
 
-    for subfolder in os.listdir(root_path):
+    for subfolder in tqdm(os.listdir(root_path), desc="Processing subfolders"):
         subfolder_path = os.path.join(root_path, subfolder)
         #print(subfolder_path)
         if not os.path.isdir(subfolder_path):
@@ -125,7 +125,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
                 except Exception as e:
                     print(f"Error processing ROOT file {file_path}: {e}")
             
-            elif file.endswith("digCPP.root") and fallback_digi_file is None:
+            elif (file.endswith("digCPP.root")  or file.endswith("_dig.root")) and fallback_digi_file is None:
                 
                 try:
                     fallback_digi_file = file_path
@@ -138,7 +138,8 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
                     
                 except Exception as e:
                     print(f"Error processing ROOT file {file_path}: {e}")
-
+            elif file.endswith("TGeant4.root") and file.startswith("sndLHC"):
+                raw_file = file_path
             elif file.startswith("geo"):
                 geo_file = file_path
                 
@@ -153,6 +154,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
             'n_event': n_event,
             'digi_path': digi_file,
             'geo_path': geo_file,
+            'raw_path': raw_file
         }
         metadata.append(one_file_data)
         #print('add: ', one_file_data)
@@ -161,8 +163,9 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
     return metadata
 
 def save_metadata_to_csv(metadata, csv_name):
-    column_names = ['data_type', 'subfolder', 'partition', 'n_event', 'digi_path', 'geo_path']
+    column_names = ['data_type', 'subfolder', 'partition', 'n_event', 'digi_path', 'geo_path','raw_path']
     
+    #print(metadata)
     # Sort metadata as per the specified rules
     data_type = metadata[0].get('data_type')
     if "MC" in data_type and "muon" not in data_type:
@@ -219,7 +222,7 @@ def generate_real_data_path(data_type, root_path, subfolder, csv_file):
 def generate_neutral_hadron_path(data_type, root_path, output_subfolder_name, csv_file):
 
     metadata = []
-    for subfolder in os.listdir(root_path):
+    for subfolder in tqdm(os.listdir(root_path), desc="Processing subfolders"):
         subfolder_path = os.path.join(root_path, subfolder)
         for second_subfolder in os.listdir(subfolder_path):
             second_subfolder_path = os.path.join(subfolder_path, second_subfolder)
@@ -232,7 +235,7 @@ def generate_neutral_hadron_path(data_type, root_path, output_subfolder_name, cs
 
 def generate_neutron_QGSP_path(data_type, root_path, output_subfolder_name, csv_file):
     #metadata = []
-    for subfolder in os.listdir(root_path):
+    for subfolder in tqdm(os.listdir(root_path), desc="Processing subfolders"):
 
         subfolder_path = os.path.join(root_path, subfolder)
 

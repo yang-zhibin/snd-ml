@@ -90,6 +90,11 @@ class PredGeoDataset(InMemoryDataset):
             # Print event shape details for debugging (optional)
             # print(f"Event {i}: x={x.shape}, y={y.shape}, ids={ids.shape}")
 
+        if len(all_event) == 0:
+            print(f"[INFO] No events found in {self.pt_file}, saving empty placeholder.")
+            placeholder = Data()
+            placeholder.is_empty = True
+            all_event = [placeholder]
         print(f'Processed data saved to {self.processed_paths[0]}')
         self.save(all_event, self.processed_paths[0])
 

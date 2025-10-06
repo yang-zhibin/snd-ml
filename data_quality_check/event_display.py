@@ -5,6 +5,10 @@
 
 #loopEvents(start=18,hitColour='q', save=True)
 
+#python -i $SNDSW_ROOT/shipLHC/scripts/2dEventDisplay.py -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/0/geofile_full.Genie-TGeant4.root -f /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/0/sndLHC.Genie-TGeant4_20240126_digCPP.root -p ""
+
+#python -i $SNDSW_ROOT/shipLHC/scripts/2dEventDisplay.py -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/28/geofile_full.Genie-TGeant4.root -f /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/28/sndLHC.Genie-TGeant4_dig.root -p ""
+
 def main()
     # digi, geo, feature, eval path file
     # get a list of event index

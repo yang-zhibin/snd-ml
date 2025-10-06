@@ -1,19 +1,34 @@
 Building DAG of jobs...
 Using shell: /usr/bin/bash
-Provided cores: 64
+Provided cores: 40
 Rules claiming more threads will be scaled down.
-Provided resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, nvidia_gpu=0
+Provided resources: mem_mb=4000, mem_mib=3815, disk_mb=4000, disk_mib=3815, nvidia_gpu=0
 Select jobs to execute...
 
-[Tue Sep  2 13:38:42 2025]
-rule cal_matrix:
-    input: /afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_matrix.py, /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/vetoFree_eval_baseline_muon_output_MC_neutrino_volTarget_100fb-1_274.root, /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/vetoFree_feature_MC_neutrino_volTarget_100fb-1_274.root, /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/preSelect_MC_neutrino_volTarget_100fb-1_274.root
-    output: /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/vetoFree_matrix_baseline_muon_output_MC_neutrino_volTarget_100fb-1_274.csv
+[Mon Oct  6 11:23:17 2025]
+rule prediction:
+    input: /eos/experiment/sndlhc/users/zhibin/MC_kaon/FTFP_BERT/K_90_100/50/vetoFree_pt_hit_MC_kaon_FTFP_BERT_K_90_100_50.pt.gz
+    output: /eos/experiment/sndlhc/users/zhibin/MC_kaon/FTFP_BERT/K_90_100/50/vetoFree_prediction_baseline_muon_output_MC_kaon_FTFP_BERT_K_90_100_50.root
     jobid: 0
     reason: Forced execution
-    wildcards: matrix_output=/eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/274/vetoFree_matrix_baseline_muon_output_MC_neutrino_volTarget_100fb-1_274.csv
-    resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, tmpdir=/pool/condor/dir_430341/tmp, runtime=3600, nvidia_gpu=0
+    wildcards: model_output=/eos/experiment/sndlhc/users/zhibin/MC_kaon/FTFP_BERT/K_90_100/50/vetoFree_prediction_baseline_muon_output_MC_kaon_FTFP_BERT_K_90_100_50.root
+    resources: mem_mb=4000, mem_mib=3815, disk_mb=4000, disk_mib=3815, tmpdir=/pool/condor/dir_729308/tmp, runtime=28800, nvidia_gpu=0
 
-[Tue Sep  2 13:39:16 2025]
+Processing...
+Done!
+/cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el9-gcc11-opt/lib/python3.11/site-packages/lightning_fabric/plugins/environments/slurm.py:204: The `srun` command is available on your system but is not used. HINT: If your intention is to run Lightning on SLURM, prepend your python command with `srun` like so: srun python /afs/cern.ch/work/z/zhibin/snd-ml/training/pred.py - ...
+GPU available: False, used: False
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+2025-10-06 11:25:20.596667: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1759742720.646696     282 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1759742720.661734     282 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2025-10-06 11:25:20.708024: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+/afs/cern.ch/work/z/zhibin/snd-ml/training/models/GravNet/gnn_base.py:40: UserWarning: Failed to define figures of merit, due to logger unavailable
+  warnings.warn("Failed to define figures of merit, due to logger unavailable")
+[Mon Oct  6 11:29:01 2025]
 Finished job 0.
 1 of 1 steps (100%) done

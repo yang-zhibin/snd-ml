@@ -3,6 +3,7 @@ import os
 from argparse import ArgumentParser
 import SndlhcGeo
 import array
+from tqdm import tqdm
 
 def setup_geometry(geo_file):
     """Initialize and return the geometry configurations."""
@@ -96,9 +97,14 @@ def main(args):
         new_tree.Branch(name, branch_vars[name], f"{name}/{dtype.upper()}")
         
     # Process each event
-    for i_event, event in enumerate(raw_tree):
-        if i_event % 10000 == 0:
-            print(f"processed {i_event} events")
+    scifi_count_threshold = 200
+    
+    if "muon" in args.type:
+        scifi_count_threshold = 5
+    print(f"Data type: {args.type}, scifi_count_threshold:{scifi_count_threshold}")
+    for i_event, event in tqdm(enumerate(raw_tree), total=raw_tree.GetEntries()):
+        #if i_event % 10000 == 0:
+        #    print(f"processed {i_event} events")
         
         
         branch_vars["eventIndex"][0] = i_event
@@ -146,7 +152,8 @@ def main(args):
             branch_vars["cut_G_has_consecutive_scifi_hits"][0] = 0
             
         
-            
+        
+        
         if (sum(ds_counts)) > 0 and not (
             all(us_counts[i] > 0 for i in range(len(us_counts)))
         ):
@@ -154,21 +161,20 @@ def main(args):
         else:
             branch_vars["cut_H_if_DS_hits_must_all_US_hits"][0] = 1
         
-        if (branch_vars["cut_H_if_DS_hits_must_all_US_hits"][0] ==1 and branch_vars["cut_G_has_consecutive_scifi_hits"][0] == 1 and branch_vars["scifi"][0]>5 and branch_vars["veto"][0] == 0):
+        if (branch_vars["scifi"][0]>scifi_count_threshold and branch_vars["veto"][0] == 0):
             branch_vars["preSelect_vetoFree"][0] = 1
         else:
             branch_vars["preSelect_vetoFree"][0] = 0
         
-        if (branch_vars["cut_H_if_DS_hits_must_all_US_hits"][0] ==1 and branch_vars["cut_G_has_consecutive_scifi_hits"][0] == 1 and branch_vars["scifi"][0]>5 and branch_vars["veto"][0] > 0):
+        if (branch_vars["scifi"][0]>scifi_count_threshold and branch_vars["veto"][0] > 0):
             branch_vars["preSelect_vetoTagged"][0] = 1
         else:
             branch_vars["preSelect_vetoTagged"][0] = 0
         
-        if (branch_vars["cut_H_if_DS_hits_must_all_US_hits"][0] ==1 and branch_vars["cut_G_has_consecutive_scifi_hits"][0] == 1 and branch_vars["scifi"][0]>5):
+        if (branch_vars["scifi"][0]>scifi_count_threshold):
             branch_vars["preSelect"][0] = 1
         else:
             branch_vars["preSelect"][0] = 0
-        
             
         
         new_tree.Fill()

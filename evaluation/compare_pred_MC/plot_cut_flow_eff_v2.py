@@ -50,7 +50,7 @@ def load_matrix_from_csv(df, max_file=1e6, int_lumi_real_data=1e6, process_real_
         vetoFree_matrix_path = row[f'vetoFree_matrix_{model_name}_output_path']
         vetoFree_lumi_per_file = np.nan_to_num(row['lumi_per_file'], nan=0.0)
         
-        if os.path.exists(vetoFree_matrix_path) and os.path.exists(preCutEff_path):
+        if os.path.exists(preCutEff_path):
             pc_matrix = pd.read_csv(preCutEff_path, index_col=0)
             #vf_matrix = pd.read_csv(vetoFree_matrix_path, index_col=0)
             vetoFree_lumi += vetoFree_lumi_per_file
@@ -96,8 +96,8 @@ def load_matrix_from_csv(df, max_file=1e6, int_lumi_real_data=1e6, process_real_
     #print(particle_matrix)
 
 
-    num_cols = vetoFree_matrix.select_dtypes(include="number").columns
-    vetoFree_matrix["count"] = vetoFree_matrix[num_cols].sum(axis=1)
+    #num_cols = vetoFree_matrix.select_dtypes(include="number").columns
+    #vetoFree_matrix["count"] = vetoFree_matrix[num_cols].sum(axis=1)
     
     
     
@@ -143,10 +143,10 @@ def sum_normalized_neutral_bkg_matrix(matrix_list, factor=1.0):
 
 
         if total_matrix is None:
-            total_matrix = normalized_matrix.copy()
+            #total_matrix = normalized_matrix.copy()
             total_preCut_matrix = normalized_preCut_matrix.copy()
         else:
-            total_matrix[target_columns + ["count"]] = total_matrix[target_columns + ["count"]].add(normalized_matrix[target_columns + ["count"]], fill_value=0)
+            #total_matrix[target_columns + ["count"]] = total_matrix[target_columns + ["count"]].add(normalized_matrix[target_columns + ["count"]], fill_value=0)
             total_preCut_matrix[preCut_target_columns] = total_preCut_matrix[preCut_target_columns].add(normalized_preCut_matrix[preCut_target_columns], fill_value=0)
 
     
@@ -156,9 +156,13 @@ def sum_normalized_neutral_bkg_matrix(matrix_list, factor=1.0):
     return total_matrix, total_preCut_matrix
 
 def normalize_matrix(matrix, lumi, factor):
+    if matrix is None:
+        return matrix
     if lumi == 0:
         raise ValueError("Cannot normalize matrix with lumi=0")
+    
     numeric_cols = matrix.select_dtypes(include='number').columns
+    print()
     matrix = matrix.copy()
     matrix[numeric_cols] = matrix[numeric_cols] / lumi * factor
     return matrix
@@ -166,15 +170,15 @@ def normalize_matrix(matrix, lumi, factor):
 
 def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC_neutron_metadata):
     
-    realdata_vetoFree_matrix, realdata_vetoFree_lumi, realdata_vetoTagged_matrix, realdata_vetoTagged_lumi, realdata_preCut_matrix = load_matrix_from_csv(realdata_metadata)
+    realdata_vetoFree_matrix, realdata_vetoFree_lumi, realdata_vetoTagged_matrix, realdata_vetoTagged_lumi, realdata_preCut_matrix = load_matrix_from_csv(realdata_metadata, max_file=1450)
     
     MC_neutrino_vetoFree_matrix, MC_neutrino_vetoFree_lumi, _, _, MC_neutrino_preCut_matrix = load_matrix_from_csv(MC_neutrino_metadata)
     
     MC_kaon_matrix_list= load_neutral_bkg_matrix(MC_kaon_metadata)
     MC_neutron_matrix_list = load_neutral_bkg_matrix(MC_neutron_metadata)
     
-    normalized_MC_neutrino_vetoFree_matrix = normalize_matrix(MC_neutrino_vetoFree_matrix, MC_neutrino_vetoFree_lumi, realdata_vetoFree_lumi)
-    normalized_realdata_vetoTagged_matrix = normalize_matrix(realdata_vetoTagged_matrix, realdata_vetoTagged_lumi, realdata_vetoFree_lumi)
+    #normalized_MC_neutrino_vetoFree_matrix = normalize_matrix(MC_neutrino_vetoFree_matrix, MC_neutrino_vetoFree_lumi, realdata_vetoFree_lumi)
+    #normalized_realdata_vetoTagged_matrix = normalize_matrix(realdata_vetoTagged_matrix, realdata_vetoTagged_lumi, realdata_vetoFree_lumi)
     
     normalized_MC_neutrino_preCut_matrix = normalize_matrix(MC_neutrino_preCut_matrix, MC_neutrino_vetoFree_lumi, realdata_vetoFree_lumi)
     
@@ -216,14 +220,14 @@ def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC
     
     realdata_cutFlow = pd.concat([
         realdata_preCut_matrix[['cut', 'count']],
-        realdata_vetoFree_matrix[['cut', 'count']]
+        #realdata_vetoFree_matrix[['cut', 'count']]
     ])
     realdata_cutFlow.index = realdata_cutFlow.index.str.replace('data_vetoFree', 'data')
     realdata_cutFlow =realdata_cutFlow.set_index("cut")
 
     neutrino_cutFlow = pd.concat([
         normalized_MC_neutrino_preCut_matrix[['cut', 'count']],
-        normalized_MC_neutrino_vetoFree_matrix[['cut', 'count']]
+        #normalized_MC_neutrino_vetoFree_matrix[['cut', 'count']]
     ])
     # print(neutrino_cutFlow.head())
     # print(neutrino_cutFlow.columns)
@@ -231,13 +235,13 @@ def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC
 
     kaon_cutFlow = pd.concat([
         normalized_MC_kaon_preCut_matrix[['cut', 'count']],
-        normalized_MC_kaon_vetoFree_matrix[['cut', 'count']]
+        #normalized_MC_kaon_vetoFree_matrix[['cut', 'count']]
     ])
     kaon_cutFlow =kaon_cutFlow.set_index("cut")
 
     neutron_cutFlow = pd.concat([
         normalized_MC_neutron_preCut_matrix[['cut', 'count']],
-        normalized_MC_neutron_vetoFree_matrix[['cut', 'count']]
+        #normalized_MC_neutron_vetoFree_matrix[['cut', 'count']]
     ])
     neutron_cutFlow =neutron_cutFlow.set_index("cut")
     
@@ -291,15 +295,8 @@ def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC
     cut_name_map = {
     "a_raw": "Raw file total events",
     "b_non_veto": "At least one non-veto hits",
-    "1_veto0": "Veto hits = 0",
-    "2_scifi>5": "SciFi hits > 5",
-    "3_consec_hits": "At least two consecutive hit SciFi planes",
-    "4_DS_US_consistency": "If there are DS hits, all US planes must be hit",
-    "0_raw": "Raw file (0)",
     "1_scifi>200": "SciFi hits > 200",
-    "2_scifi>300": "SciFi hits > 300",
-    "3_us1>2": "US1 plane hits > 2",
-    "4_veScore>0.92": "Ve GNN score > 0.92"
+    "3_veto0": "Veto hits = 0",
 }
     renamed_combined = combined.rename(index=cut_name_map)
     renamed_stepwise = stepwise_efficiency.rename(index=cut_name_map)
@@ -307,8 +304,8 @@ def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC
     formatted_combined = renamed_combined.applymap(lambda x: format_to_sigfigs(x, sigfigs=2))
     formatted_stepwise = renamed_stepwise.applymap(lambda x: format_to_sigfigs(x, sigfigs=2))
     
-    formatted_combined = formatted_combined.drop("Raw file (0)")
-    formatted_stepwise = formatted_stepwise.drop("Raw file (0)")
+    #formatted_combined = formatted_combined.drop("Raw file (0)")
+    #formatted_stepwise = formatted_stepwise.drop("Raw file (0)")
 
     # Define row colors: first 2 rows white, next 4 green, rest blue
     row_colors = ['white'] * 2 + ['#ccffcc'] * 4 + ['#cce5ff'] * (len(formatted_combined) - 6)
@@ -318,7 +315,7 @@ def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC
     plot_table(
         df=formatted_combined,
         title="Combined Cut Flow Table",
-        save_path="./cutFlow_table/combined_cut_flow_table.pdf",
+        save_path="./cutFlow_table/new_combined_cut_flow_table.pdf",
         int_lumi=realdata_vetoFree_lumi,
         row_colors=row_colors
     )
@@ -326,7 +323,7 @@ def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC
     plot_table(
         df=formatted_stepwise,
         title="Stepwise Efficiency Table ",
-        save_path="./cutFlow_table/stepwise_efficiency_table.pdf",
+        save_path="./cutFlow_table/new_stepwise_efficiency_table.pdf",
         int_lumi=realdata_vetoFree_lumi,
         row_colors=row_colors
     )

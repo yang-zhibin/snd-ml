@@ -87,6 +87,13 @@ class RootSaver(Callback):
 
     # ---------- Lightning hooks ----------
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
+        
+        # 0) Skip empty/placeholder batches
+        if batch is None or outputs is None:
+            return
+        if hasattr(batch, "x") and (getattr(batch, "x", None) is None or batch.x.numel() == 0):
+            return
+
         # Tolerant to dict/tensor returns
         logits = outputs["outputs"] if isinstance(outputs, dict) and "outputs" in outputs else outputs
 
@@ -140,11 +147,76 @@ class RootSaver(Callback):
         # top-k scalar columns
         for k, name in enumerate(self.rank_names[:C]):
             self.data[f"pred_class_{name}"].extend(sorted_idx[:, k].tolist())
+            
+    def _build_empty_awkward_array(self):
+        """
+        Return a 0-length Awkward Array with fields matching the sndData tree.
+
+        Notes:
+        - Do NOT use NumPy object dtype for strings: use [] (plain Python list).
+        - If ParticleType/ParticleClass are actually ints in your ROOT files,
+            change them to `empty_i64` below.
+        """
+
+        # Config
+        nc = getattr(self, "num_classes", None)
+        if isinstance(nc, (int, np.integer)) and nc > 0:
+            num_classes = int(nc)
+        else:
+            num_classes = 7  # sensible default
+        default_rank_names = [
+            "first", "second", "third", "fourth", "fifth",
+            "sixth", "seventh", "eighth", "ninth", "tenth",
+        ]
+        rank_names = list(getattr(self, "rank_names", default_rank_names))
+        max_k = min(len(rank_names), num_classes)
+
+        # Empty primitives
+        empty_i64 = np.array([], dtype=np.int64)
+        empty_f32 = np.array([], dtype=np.float32)
+
+        # Build fields (strings as plain lists to avoid object dtype)
+        fields = {
+            "PdgCode": empty_i64,
+            "RunId": empty_i64,
+            "EventId": empty_i64,
+            "ParticleType": [],       # string field -> plain Python list (NOT numpy object)
+            "ParticleClass": [],      # string field -> plain Python list (NOT numpy object)
+            "pred_sorted_indices": [],  # variable-length per entry -> empty list at top-level is fine
+        }
+
+        # Prediction_0..Prediction_{N-1}
+        for j in range(num_classes):
+            fields[f"Prediction_{j}"] = empty_f32
+
+        # pred_class_first..pred_class_{k}
+        for k in range(max_k):
+            fields[f"pred_class_{rank_names[k]}"] = []  # string field
+
+        # Build Awkward Array
+        return ak.Array(fields)
 
     def on_test_epoch_end(self, trainer, pl_module):
-        if not self.data:
-            print("No data to save.")
+        # If no data was collected, still save an empty tree
+        if not getattr(self, "data", None) or len(self.data.get("PdgCode", [])) == 0:
+            print("No predictions to save — writing empty ROOT file.")
+
+            # Build empty array using the expected schema
+            dummy_array = self._build_empty_awkward_array()
+
+            # Write empty TTree
+            if self.overwrite:
+                with uproot.recreate(self.out_path) as f:
+                    f["sndData"] = {key: dummy_array[key] for key in dummy_array.fields}
+            else:
+                with uproot.update(self.out_path) as f:
+                    f["sndData"] = {key: dummy_array[key] for key in dummy_array.fields}
+
+            print(f"Empty ROOT file written to '{self.out_path}'")
+            self.data = None
+            self.num_classes = None
             return
+
 
         # Build Awkward Array (list-like column for pred_sorted_indices will be preserved)
         ak_array = ak.Array(self.data)

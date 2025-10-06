@@ -68,20 +68,17 @@ def cal_matrix(rdf, true_class):
     # a. raw file event count
     # b. non_vetoHit > 0
     
-    # 1. veto==0
-    # 2. scifi>5
-    # 3. cut_G_has_consecutive_scifi_hits
-    # 4. cut_H_if_DS_hits_must_all_US_hits
+    # 1. scifi>200 
+    # 2. veto==0
+
     
     cut_expr = [
         "",  # a: raw
         "At_least_1_non_veto_hit",  # b
-        "At_least_1_non_veto_hit && veto==0",  # 1
-        "At_least_1_non_veto_hit && veto==0 && scifi>5",  # 2
-        "At_least_1_non_veto_hit && veto==0 && scifi>5 && cut_G_has_consecutive_scifi_hits",  # 3
-        "At_least_1_non_veto_hit && veto==0 && scifi>5 && cut_G_has_consecutive_scifi_hits && cut_H_if_DS_hits_must_all_US_hits",  # 4
+        "At_least_1_non_veto_hit && scifi>200",  # 1
+        "At_least_1_non_veto_hit && scifi>200 && veto==0",  # 2
     ]
-    labels = ['a_raw', 'b_non_veto', '1_veto0', '2_scifi>5', '3_consec_hits', '4_DS_US_consistency']
+    labels = ['a_raw', 'b_non_veto', '1_scifi>200',  '2_veto0']
 
     matrices = {}
 

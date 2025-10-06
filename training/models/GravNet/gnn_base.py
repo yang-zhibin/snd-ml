@@ -142,7 +142,9 @@ class GNNBase(LightningModule):
         return loss        
 
     def shared_val_step(self, batch, test=True):
-
+        if batch is None or not hasattr(batch, 'x') or batch.x is None or batch.x.numel() == 0:
+            # Skip cleanly during eval/test
+            return {}
         output = self(batch).squeeze(-1)
         #print(output.shape)
         #print("y",batch.y.shape)
@@ -187,6 +189,10 @@ class GNNBase(LightningModule):
         return self.shared_val_step(batch)
         
     def shared_end_step(self, step_outputs):
+        if not step_outputs:
+            # nothing to aggregate; log zeros or just return
+            self.log_dict({"val_acc": 0.0, "val_auc": 0.0}, prog_bar=False)
+            return
         # Concatenate all predictions and targets
         preds = torch.cat([output["outputs"] for output in step_outputs])
         targets = torch.cat([output["targets"] for output in step_outputs])
