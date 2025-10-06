@@ -1,0 +1,41 @@
+beam_type = ["electron","pion"]
+energy = ["150", "250","300"]
+
+rule plots:
+    input:
+        expand("/afs/cern.ch/user/z/zhibin/work/snd-ml/testbeam/preselection/plots/plot_flags/hist.{beam_type}_{energy}.done",
+               beam_type=beam_type, energy=energy)
+
+
+rule preSelection_plot:
+    input:
+        script="/afs/cern.ch/user/z/zhibin/work/snd-ml/testbeam/preselection/preSlection_plot.py"
+    output:
+        # one flag file per histogram name (wildcard)
+        touch("/afs/cern.ch/user/z/zhibin/work/snd-ml/testbeam/preselection/plots/plot_flags/hist.{beam_type}_{energy}.done")
+    params:
+        dest_dir="/afs/cern.ch/user/z/zhibin/work/snd-ml/testbeam/preselection/plots"
+    threads: 1
+    resources:
+        runtime=1*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        echo "running plot_distribution for {wildcards.beam_type}, {wildcards.energy}"
+
+        # Avoid unbound variable error (only occurs when using Snakemake)
+        set +u 
+
+        # Set up environment
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+
+        # Run evaluation script for this histogram
+        python {input.script} -b {wildcards.beam_type} -e {wildcards.energy}
+
+        # Copy result to final destination
+        mkdir -p {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}/
+        xrdcp ./plots/{wildcards.beam_type}_{wildcards.energy}/* {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}/
+        """
+
