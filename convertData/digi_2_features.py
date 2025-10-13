@@ -488,6 +488,35 @@ def process_slope(all_hits, branch_vars):
     branch_vars["avgPos_slope_y"][0] = compute_slope(avg_y_points)
     branch_vars["centroid_slope_x"][0] = compute_slope(centroid_x_points)
     branch_vars["centroid_slope_y"][0] = compute_slope(centroid_y_points)
+   
+def process_vetoHitTime(all_hits, branch_vars):
+    # Filter veto hits (detType == 1)
+    veto_hits = [h for h in all_hits if h["detType"] == 1]
+
+    # Compute earliest and latest per station
+    per_station = {}
+    for s in (1, 2, 3):
+        times = [h["hit_time"] for h in veto_hits if h["station"] == s]
+        per_station[s] = {
+            "earliest": min(times) if times else -1,  # use -1 or 0 if no hit
+            "latest":   max(times) if times else -1,
+        }
+
+    # Compute overall earliest/latest
+    all_times = [h["hit_time"] for h in veto_hits]
+    overall_earliest = min(all_times) if all_times else -1
+    overall_latest   = max(all_times) if all_times else -1
+
+    # Fill the branch variables
+    branch_vars["vetoHitTime_earlist"][0] = overall_earliest
+    branch_vars["vetoHitTime_latest"][0]  = overall_latest
+
+    for s in (1, 2, 3):
+        branch_vars[f"vetoHitTime_earlist_veto{s}"][0] = per_station[s]["earliest"]
+        branch_vars[f"vetoHitTime_latest_veto{s}"][0]  = per_station[s]["latest"]
+    
+    
+    
     
     
 
@@ -676,7 +705,7 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             if trackType==11 and Chi2Ndf < 20:
                 branch_vars["HT_SciFi"][0] = 1
             if trackType==13 and Chi2Ndf<5:
-                branch_vars["HT_SciFi"][0] = 1
+                branch_vars["HT_DS"][0] = 1
     
     process_counts(all_hits, branch_vars)
     process_avgPos(all_hits, branch_vars)
@@ -684,6 +713,7 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
     process_hit_density(all_hits, branch_vars)
     process_showerTagged(all_hits, branch_vars)
     process_slope(all_hits, branch_vars)
+    process_vetoHitTime(all_hits, branch_vars)
 
     #print_hits_summary(all_hits)
     return 
@@ -781,6 +811,10 @@ def main(args):
 
         ("avgPos_slope_x", 'd'), ("avgPos_slope_y", 'd'),
         ("centroid_slope_x", 'd'), ("centroid_slope_y", 'd'),
+        ("vetoHitTime_earlist", 'd'), ("vetoHitTime_latest", 'd'),
+        ("vetoHitTime_earlist_veto1", 'd'), ("vetoHitTime_latest_veto1", 'd'),
+        ("vetoHitTime_earlist_veto2", 'd'), ("vetoHitTime_latest_veto2", 'd'),
+        ("vetoHitTime_earlist_veto3", 'd'), ("vetoHitTime_latest_veto3", 'd'),
         
         ("start_z", 'd'),
         ("HT_SciFi", 'i'),

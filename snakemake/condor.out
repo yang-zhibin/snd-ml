@@ -1,45 +1,45 @@
 hostname:
-b9g34p4429.cern.ch
+b9g34p8058.cern.ch
 running prediction
 start testing
-pt file:  /eos/experiment/sndlhc/users/zhibin/MC_kaon/FTFP_BERT/K_90_100/50/vetoFree_pt_hit_MC_kaon_FTFP_BERT_K_90_100_50.pt.gz
+pt file:  /eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve/126/vetoTagged_pt_hit_MC_neutrino_2024_ve_126.pt.gz
 model :baseline_muon
 ckpt:/afs/cern.ch/user/z/zhibin/work/snd-ml/log/snd-ml-GravNet/baseline_muon/best.ckpt
 config:/afs/cern.ch/user/z/zhibin/work/snd-ml/training/configs/baseline_muon.yml
 reading model...
-Temporary directory for dataloader: /pool/condor/dir_729308/tmp/tmp.FSiOuuFjfQ
-Processed data saved to /pool/condor/dir_729308/tmp/tmp.FSiOuuFjfQ/processed/processed_vetoFree_pt_hit_MC_kaon_FTFP_BERT_K_90_100_50.pt.gz.pt
+Temporary directory for dataloader: /pool/condor/dir_1472668/tmp/tmp.8kHJrKRwYD
+Processed data saved to /pool/condor/dir_1472668/tmp/tmp.8kHJrKRwYD/processed/processed_vetoTagged_pt_hit_MC_neutrino_2024_ve_126.pt.gz.pt
 preparing dataloader...
 model running test dataset...
 Defining figures of merit
-Testing: |          | 0/? [00:00<?, ?it/s]Testing:   0%|          | 0/1 [00:00<?, ?it/s]Testing DataLoader 0:   0%|          | 0/1 [00:00<?, ?it/s]Testing DataLoader 0: 100%|██████████| 1/1 [03:22<00:00,  0.00it/s]Predictions saved to '/pool/condor/dir_729308/tmp/tmp.5E2VNoXRy3/vetoFree_prediction_baseline_muon_output_MC_kaon_FTFP_BERT_K_90_100_50.root'. Rows=128, Classes=7
-Testing DataLoader 0: 100%|██████████| 1/1 [03:22<00:00,  0.00it/s]
+Testing: |                                                                                                                       | 0/? [00:00<?, ?it/s]Testing:   0%|                                                                                                                   | 0/1 [00:00<?, ?it/s]Testing DataLoader 0:   0%|                                                                                                      | 0/1 [00:00<?, ?it/s]Testing DataLoader 0: 100%|██████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [04:11<00:00,  0.00it/s]Predictions saved to '/pool/condor/dir_1472668/tmp/tmp.219X2u8je8/vetoTagged_prediction_baseline_muon_output_MC_neutrino_2024_ve_126.root'. Rows=32, Classes=7
+Testing DataLoader 0: 100%|██████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [04:12<00:00,  0.00it/s]
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃        Test metric        ┃       DataLoader 0        ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
 │        current_lr         │            1.0            │
-│          val_acc          │         0.1953125         │
-│         val_acc0          │            0.5            │
+│          val_acc          │           0.75            │
+│         val_acc0          │    0.9200000166893005     │
 │         val_acc1          │            0.5            │
 │         val_acc2          │            0.5            │
-│         val_acc3          │            0.5            │
-│         val_acc4          │         0.1953125         │
+│         val_acc3          │    0.1428571492433548     │
+│         val_acc4          │            0.5            │
 │         val_acc5          │            0.5            │
 │         val_acc6          │            0.5            │
 │          val_auc          │            0.0            │
-│         val_loss          │    2.8557615280151367     │
+│         val_loss          │    0.7396017909049988     │
 └───────────────────────────┴───────────────────────────┘
-        data_type  ...                                       newDigi_path
-0         MC_kaon  ...                                                NaN
-1         MC_kaon  ...                                                NaN
-2         MC_kaon  ...                                                NaN
-3         MC_kaon  ...                                                NaN
-4         MC_kaon  ...                                                NaN
-...           ...  ...                                                ...
-9564  MC_neutrino  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
-9565  MC_neutrino  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
-9566  MC_neutrino  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
-9567  MC_neutrino  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
-9568  MC_neutrino  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+        data_type subfolder  ...           vetoTagged_matrix_GravNet_v4_output_path             vetoFree_matrix_GravNet_v4_output_path
+0     MC_neutrino   2024_vm  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+1     MC_neutrino   2024_vm  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+2     MC_neutrino   2024_vm  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+3     MC_neutrino   2024_vm  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+4     MC_neutrino   2024_vm  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+...           ...       ...  ...                                                ...                                                ...
+1861  MC_neutrino   2024_ve  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+1862  MC_neutrino   2024_ve  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+1863  MC_neutrino   2024_ve  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+1864  MC_neutrino   2024_ve  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
+1865  MC_neutrino   2024_ve  ...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...  /eos/experiment/sndlhc/users/zhibin/MC_neutrin...
 
-[9569 rows x 33 columns]
+[1866 rows x 30 columns]

@@ -5,14 +5,14 @@ Rules claiming more threads will be scaled down.
 Provided resources: mem_mb=4000, mem_mib=3815, disk_mb=4000, disk_mib=3815, nvidia_gpu=0
 Select jobs to execute...
 
-[Mon Oct  6 11:23:17 2025]
+[Sat Oct 11 19:20:23 2025]
 rule prediction:
-    input: /eos/experiment/sndlhc/users/zhibin/MC_kaon/FTFP_BERT/K_90_100/50/vetoFree_pt_hit_MC_kaon_FTFP_BERT_K_90_100_50.pt.gz
-    output: /eos/experiment/sndlhc/users/zhibin/MC_kaon/FTFP_BERT/K_90_100/50/vetoFree_prediction_baseline_muon_output_MC_kaon_FTFP_BERT_K_90_100_50.root
+    input: /eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve/126/vetoTagged_pt_hit_MC_neutrino_2024_ve_126.pt.gz
+    output: /eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve/126/vetoTagged_prediction_baseline_muon_output_MC_neutrino_2024_ve_126.root
     jobid: 0
     reason: Forced execution
-    wildcards: model_output=/eos/experiment/sndlhc/users/zhibin/MC_kaon/FTFP_BERT/K_90_100/50/vetoFree_prediction_baseline_muon_output_MC_kaon_FTFP_BERT_K_90_100_50.root
-    resources: mem_mb=4000, mem_mib=3815, disk_mb=4000, disk_mib=3815, tmpdir=/pool/condor/dir_729308/tmp, runtime=28800, nvidia_gpu=0
+    wildcards: model_output=/eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve/126/vetoTagged_prediction_baseline_muon_output_MC_neutrino_2024_ve_126.root
+    resources: mem_mb=4000, mem_mib=3815, disk_mb=4000, disk_mib=3815, tmpdir=/pool/condor/dir_1472668/tmp, runtime=28800, nvidia_gpu=0
 
 Processing...
 Done!
@@ -21,14 +21,14 @@ GPU available: False, used: False
 TPU available: False, using: 0 TPU cores
 IPU available: False, using: 0 IPUs
 HPU available: False, using: 0 HPUs
-2025-10-06 11:25:20.596667: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2025-10-11 19:22:04.042334: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-E0000 00:00:1759742720.646696     282 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-E0000 00:00:1759742720.661734     282 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-2025-10-06 11:25:20.708024: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+E0000 00:00:1760203324.081604     282 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1760203324.095872     282 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2025-10-11 19:22:04.145075: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
 To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 /afs/cern.ch/work/z/zhibin/snd-ml/training/models/GravNet/gnn_base.py:40: UserWarning: Failed to define figures of merit, due to logger unavailable
   warnings.warn("Failed to define figures of merit, due to logger unavailable")
-[Mon Oct  6 11:29:01 2025]
+[Sat Oct 11 19:26:36 2025]
 Finished job 0.
 1 of 1 steps (100%) done

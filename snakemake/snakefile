@@ -28,8 +28,8 @@ wildcard_constraints:
 
 
 metadata_csv_list = [
-    "MC_kaon_FTFP_BERT_metadata_subset.csv",
-    "MC_neutron_FTFP_BERT_metadata_subset.csv",
+#    "MC_kaon_FTFP_BERT_metadata_subset.csv",
+#     "MC_neutron_FTFP_BERT_metadata_subset.csv",
     # "real_data_2024_skim_runs_metadata_subset.csv",
 
 
@@ -42,12 +42,12 @@ metadata_csv_list = [
 #      "MC_muon_up_metadata.csv",
 
 #     "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
-    "MC_neutrino_volTarget_100fb-1_metadata.csv",
+    # "MC_neutrino_volTarget_100fb-1_metadata.csv",
       "MC_neutrino_2024_vm_metadata.csv",
       "MC_neutrino_2024_ve_metadata.csv",
 
-#     "MC_kaon_FTFP_BERT_metadata.csv",
-#     "MC_neutron_FTFP_BERT_metadata.csv",
+    # "MC_kaon_FTFP_BERT_metadata.csv",
+    # "MC_neutron_FTFP_BERT_metadata.csv",
 
 #     "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
 #     "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
@@ -60,7 +60,7 @@ metadata_csv_list = [
 
 
 process_vetoTagged=True
-process_vetoFree = True
+process_vetoFree = False
 process_model = ['baseline_muon', 'GravNet_v4'] #'baseline_muon' 'GravNet_v4', 
 
 train_mode = False
@@ -197,8 +197,8 @@ rule finish:
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
         #expand("{newRaw_path}", newRaw_path=collect_target_paths("newRaw_path")),
         #expand("{newDigi_path}", newDigi_path=collect_target_paths("newDigi_path")),
-        expand("{preCutEff_path}", preCutEff_path=collect_target_paths("preCutEff_path")),
-        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        #expand("{preCutEff_path}", preCutEff_path=collect_target_paths("preCutEff_path")),
+        expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
