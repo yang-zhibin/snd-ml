@@ -18,5 +18,5 @@ root_output*/
 htcondor_log*/
 .snakemake/
 old_log/
-.csv
+*.csv
 
