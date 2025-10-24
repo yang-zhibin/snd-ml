@@ -33,19 +33,24 @@ def drop_unwanted_files(
     Returns:
         pd.DataFrame: Cleaned DataFrame.
     """
+    
+    if 'real_data' in metadata_name:
+        return df
+        
     # --- Step 1: Drop files used in training ---
     #print("--- Step 1: Drop files used in training ---")
     def load_train_files(metadata_name, model_name):
-        if "neutrino" in metadata_name:
-            name = 'neutrino'
-        elif ("kaon" in metadata_name) or ("neutron" in metadata_name):
-            name ='neutral_bkg'
-        elif ("muon" in metadata_name):
-            name = 'muon_bkg'
             
         if model_name == "baseline_muon":
             return '/afs/cern.ch/user/z/zhibin/eos/sndData/converted/combined_train.csv'
         else:
+            if "neutrino" in metadata_name:
+                name = 'neutrino'
+            elif ("kaon" in metadata_name) or ("neutron" in metadata_name):
+                name ='neutral_bkg'
+            elif ("muon" in metadata_name):
+                name = 'muon_bkg'
+                
             return f"/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/training/{model_name}_{name}_split.csv"
 
     dropped_ids = set()
@@ -65,9 +70,9 @@ def drop_unwanted_files(
     else:
         print(f"{metadata_name}: Training metadata  not found: {path}")
         
-    if dropped_ids and (
+    if  (
             model_name != 'baseline_muon' or "neutrino" in metadata_name
-        ) and 'real_data' not in metadata_name:
+        ):
         initial_len = len(df)
         df = df[~df[train_set_column].isin(dropped_ids)].copy()
         print(f"{metadata_name}: Dropped {initial_len - len(df)} entries from training sets")
@@ -96,14 +101,16 @@ def process_metadata():
     root_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated'
     metadata_vars = load_metadata_files(mc_files, root_path)
 
-    output_dir = "./processed_metadata"
-    os.makedirs(output_dir, exist_ok=True)
+    
+    
     
     
     # options
     # metadata options
     model_name = 'baseline_muon' #'GravNet_v2' , 'baseline_muon'
-    check_missing_column_name = f'eval_{model_name}_output_path'
+    output_dir = f"./processed_metadata_{model_name}"
+    os.makedirs(output_dir, exist_ok=True)
+    check_missing_column_name = f'prediction_{model_name}_output_path'
     
     #print(metadata_vars)
     

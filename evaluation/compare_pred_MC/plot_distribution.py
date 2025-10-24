@@ -13,6 +13,7 @@ ROOT.ROOT.EnableImplicitMT()
 ROOT.gStyle.SetOptStat(0)
 
 
+
 particle_2_class = {
     've': 0,
     'vm': 1,
@@ -25,7 +26,7 @@ particle_2_class = {
 class_2_particle = {v: k for k, v in particle_2_class.items()}
 
 
-def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compare_pred_MC/processed_metadata_muon_down"):
+def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compare_pred_MC/processed_metadata_baseline_muon"):
     
     """Load all processed metadata CSVs into a dictionary."""
     metadata_dict = {}
@@ -35,39 +36,84 @@ def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compar
             metadata_dict[key] = pd.read_csv(os.path.join(directory, file))
     return metadata_dict                  
 
+
+# --- Helper function ---
+def tree_entries_and_branch(path, treename, required_branch=None):
+    if not path or not os.path.exists(path):
+        return (0, False)
+    f = ROOT.TFile.Open(path, "READ")
+    if not f or f.IsZombie():
+        return (0, False)
+    t = f.Get(treename)
+    if not t:
+        f.Close()
+        return (0, False)
+    n = int(t.GetEntries())
+    has_req = True
+    if required_branch:
+        brs = t.GetListOfBranches()
+        has_req = bool(brs and any(b.GetName() == required_branch for b in brs))
+    f.Close()
+    return (n, has_req)
+
 def read_rdf(args, metadata_df, MC_muon=False):
     feature_chain = ROOT.TChain("sndData")
-    eval_chain = ROOT.TChain("snddata")
+    prediction_chain = ROOT.TChain("sndData")
     
     int_lumi = 0
     # Defaultdict of dicts
     events_per_subfolder = defaultdict(lambda: {"vetoFree": 0, "vetoTagged": 0})
 
-    for _, row in metadata_df.iterrows():
-        # Always check vetoFree files first
-        vetoFree_feature_path = row['vetoFree_feature_path']
-        vetoFree_eval_path = row[f'vetoFree_eval_{model_name}_output_path']
-        
-        # print("vetoFree_feature_path",vetoFree_feature_path)
-        # print("vetoFree_eval_path",vetoFree_eval_path)
-
-        if os.path.exists(vetoFree_feature_path) and os.path.exists(vetoFree_eval_path):
-            feature_chain.Add(vetoFree_feature_path)
-            eval_chain.Add(vetoFree_eval_path)
-            events_per_subfolder[row['subfolder']]["vetoFree"] += row['n_event']
-
-            int_lumi += 0 if math.isnan(row['lumi_per_file']) else row['lumi_per_file']
-
-        # Optionally also add vetoTagged files
-        if vetoTagged or MC_muon:
-            vetoTagged_feature_path = row['vetoTagged_feature_path']
-            vetoTagged_eval_path = row[f'vetoTagged_eval_{model_name}_output_path']
-
-            if os.path.exists(vetoTagged_feature_path) and os.path.exists(vetoTagged_eval_path):
-                feature_chain.Add(vetoTagged_feature_path)
-                eval_chain.Add(vetoTagged_eval_path)
-                events_per_subfolder[row['subfolder']]["vetoTagged"] += row['n_event']
     
+    for _, row in metadata_df.iterrows():
+        sub = row['subfolder']
+
+        # ---- vetoFree ----
+        vf_feat = row['vetoFree_feature_path']
+        vf_pred = row[f'vetoFree_prediction_{model_name}_output_path']
+
+        n_feat, _ = tree_entries_and_branch(vf_feat, "sndData")
+        n_pred, has_branch = tree_entries_and_branch(vf_pred, "sndData", required_branch="pred_class_first")
+
+        if n_feat > 0 and n_pred > 0 and has_branch and n_feat == n_pred:
+            feature_chain.Add(vf_feat)
+            prediction_chain.Add(vf_pred)
+            events_per_subfolder[sub]["vetoFree"] += row['n_event']
+            if pd.notna(row['lumi_per_file']):
+                int_lumi += row['lumi_per_file']
+        else:
+            if n_feat == 0:
+                print(f"[Skip] features empty/missing: {vf_feat}")
+            if n_pred == 0:
+                print(f"[Skip] predictions empty/missing: {vf_pred}")
+            if n_feat != 0 and n_pred != 0 and n_feat != n_pred:
+                print(f"[Skip] entry mismatch (features={n_feat}, predictions={n_pred}):\n  {vf_feat}\n  {vf_pred}")
+            if n_pred > 0 and not has_branch:
+                print(f"[Skip] predictions missing branch 'pred_class_first': {vf_pred}")
+
+        # ---- vetoTagged (optional) ----
+        if vetoTagged or MC_muon:
+            vt_feat = row.get('vetoTagged_feature_path')
+            vt_pred = row.get(f'vetoTagged_prediction_{model_name}_output_path')
+
+            n_feat, _ = tree_entries_and_branch(vt_feat, "sndData") if vt_feat else (0, False)
+            n_pred, has_branch = tree_entries_and_branch(vt_pred, "sndData", required_branch="pred_class_first") if vt_pred else (0, False)
+
+            if n_feat > 0 and n_pred > 0 and has_branch and n_feat == n_pred:
+                feature_chain.Add(vt_feat)
+                prediction_chain.Add(vt_pred)
+                events_per_subfolder[sub]["vetoTagged"] += row['n_event']
+            else:
+                if vt_feat and n_feat == 0:
+                    print(f"[Skip] features empty/missing: {vt_feat}")
+                if vt_pred and n_pred == 0:
+                    print(f"[Skip] predictions empty/missing: {vt_pred}")
+                if vt_feat and vt_pred and n_feat != 0 and n_pred != 0 and n_feat != n_pred:
+                    print(f"[Skip] entry mismatch (features={n_feat}, predictions={n_pred}):\n  {vt_feat}\n  {vt_pred}")
+                if vt_pred and n_pred > 0 and not has_branch:
+                    print(f"[Skip] predictions missing branch 'pred_class_first': {vt_pred}")
+
+    print(f"Added {feature_chain.GetNtrees()} feature files and {prediction_chain.GetNtrees()} prediction files.")
     if (int_lumi==0):
         return None, None, 0
     # Print total events per subfolder
@@ -75,85 +121,13 @@ def read_rdf(args, metadata_df, MC_muon=False):
     for subfolder, counts in events_per_subfolder.items():
         print(f"  {subfolder}: vetoFree={counts['vetoFree']}, vetoTagged={counts['vetoTagged']}")
 
-    feature_chain.AddFriend(eval_chain, 'eval')
+    feature_chain.AddFriend(prediction_chain, 'prediction')
     rdf = ROOT.RDataFrame(feature_chain)
+    
     rdf= rdf.Define("sum_hit_density", "density_scifi1 + density_scifi2 + density_scifi3 + density_scifi4 + density_scifi5")
-    rdf = (
-        rdf.Define("start_avgPos_x",
-            "showerStartStation == 1 ? avg_scifi1_x : "
-            "showerStartStation == 2 ? avg_scifi2_x : "
-            "showerStartStation == 3 ? avg_scifi3_x : "
-            "showerStartStation == 4 ? avg_scifi4_x : "
-            "avg_scifi5_x")
-        .Define("start_avgPos_y",
-            "showerStartStation == 1 ? avg_scifi1_y : "
-            "showerStartStation == 2 ? avg_scifi2_y : "
-            "showerStartStation == 3 ? avg_scifi3_y : "
-            "showerStartStation == 4 ? avg_scifi4_y : "
-            "avg_scifi5_y")
-    )
     
-    mid_x_val = (-6.9 + -45.9) / 2.0   # -26.4
-    mid_y_val = (18.8 + 57.8) / 2.0    # 38.3
-
-    expr_start_centroid_x = r"""
-    showerStartStation == 1 ? centroid_scifi1_x :
-    showerStartStation == 2 ? centroid_scifi2_x :
-    showerStartStation == 3 ? centroid_scifi3_x :
-    showerStartStation == 4 ? centroid_scifi4_x :
-    centroid_scifi5_x
-    """
-
-    expr_start_centroid_y = r"""
-    showerStartStation == 1 ? centroid_scifi1_y :
-    showerStartStation == 2 ? centroid_scifi2_y :
-    showerStartStation == 3 ? centroid_scifi3_y :
-    showerStartStation == 4 ? centroid_scifi4_y :
-    centroid_scifi5_y
-    """
-
-    expr_start_z = r"""
-    showerStartStation == 1 ? 300 :
-    showerStartStation == 2 ? 313 :
-    showerStartStation == 3 ? 326 :
-    showerStartStation == 4 ? 339 :
-    352
-    """
-
-    
-    # Compute where the line through (start_centroid_x, start_z) 
-    # with slope centroid_slope_x intersects the plane x = mid_x
-    # Return signed slope depending on whether intercept_z is before or after start_z
-    expr_signed_slope_x = f"""
-    const double mid_x = {mid_x_val};
-    double intercept_z = fabs(centroid_slope_x) > 1e-12
-        ? (mid_x - start_centroid_x) / centroid_slope_x + start_z
-        : start_z;
-    return fabs(centroid_slope_x) < 1e-12 ? 0.0
-        : (intercept_z < start_z ? fabs(centroid_slope_x) : -fabs(centroid_slope_x));
-    
-    """
-
-    expr_signed_slope_y = f"""
-    const double mid_y = {mid_y_val};
-    double intercept_z = fabs(centroid_slope_y) > 1e-12
-        ? (mid_y - start_centroid_y) / centroid_slope_y + start_z
-        : start_z;
-    return fabs(centroid_slope_y) < 1e-12 ? 0.0
-        : (intercept_z < start_z ? fabs(centroid_slope_y) : -fabs(centroid_slope_y));
-    """
-
-    # Use them in RDataFrame
-    # rdf = (
-    #     rdf.Define("start_centroid_x", expr_start_centroid_x)
-    #     .Define("start_centroid_y", expr_start_centroid_y)
-    #     .Define("start_z",          expr_start_z)
-    #     .Define("signed_slope_x",   expr_signed_slope_x)
-    #     .Define("signed_slope_y",   expr_signed_slope_y)
-    # )
-    
-    if (args.cut):
-        rdf = rdf.Filter("count_scifi > 200")
+    #if (args.cut):
+    #    rdf = rdf.Filter("count_scifi > 200")
         
     return rdf, feature_chain, int_lumi
 
@@ -164,35 +138,35 @@ def process_hist(args):
     n_bins, x_min, x_max, axis_title, logy = hist_info[hist_name]
     
     neutrino_df = METADATA_dict['MC_neutrino']
-    muon_df = METADATA_dict['MC_muon_down']
+    muon_df = METADATA_dict['MC_muon']
     kaon_df = METADATA_dict['MC_kaon']
     neutron_df = METADATA_dict['MC_neutron']
-    real_data = METADATA_dict['real_data_2022']
+    real_data = METADATA_dict['real_data_2024']
     
     #reading real data
-    data_rdf, data_chain, data_int_lumi = read_rdf(args,real_data)
-    print(f'data_int_lumi:{data_int_lumi}')
-    pred_classes = [ "kaon", "neutron", "muon"]
+    # data_rdf, data_chain, data_int_lumi = read_rdf(args,real_data[0:20])
+    # print(f'data_int_lumi:{data_int_lumi}')
+    # pred_classes = [ "kaon", "neutron", "muon"]
     
-    data_pred_hists = {}
-    data_hist_proxies = []
-    for cls in pred_classes:
-        class_id = particle_2_class[cls]
-        rdf_pred = data_rdf.Filter(f"pred_class_first == {class_id}")
-        h_proxy_pred = rdf_pred.Histo1D(
-            (f"h_{cls}_{hist_name}", "", int(n_bins), float(x_min), float(x_max)),
-            hist_name
-        )
+    # data_pred_hists = {}
+    # data_hist_proxies = []
+    # for cls in pred_classes:
+    #     class_id = particle_2_class[cls]
+    #     rdf_pred = data_rdf.Filter(f"pred_class_first == {class_id}")
+    #     h_proxy_pred = rdf_pred.Histo1D(
+    #         (f"h_{cls}_{hist_name}", "", int(n_bins), float(x_min), float(x_max)),
+    #         hist_name
+    #     )
         
-        h_pred = h_proxy_pred.GetValue()
-        data_hist_proxies.append(h_proxy_pred)
-        h_pred.SetDirectory(0)
-        h_pred.GetXaxis().SetTitle(axis_title)
-        h_pred.GetYaxis().SetTitle("Events")
-        data_pred_hists[cls] = h_pred
+    #     h_pred = h_proxy_pred.GetValue()
+    #     data_hist_proxies.append(h_proxy_pred)
+    #     h_pred.SetDirectory(0)
+    #     h_pred.GetXaxis().SetTitle(axis_title)
+    #     h_pred.GetYaxis().SetTitle("Events")
+    #     data_pred_hists[cls] = h_pred
         
     ##reading MC
-    normalise_lumi = data_int_lumi
+    normalise_lumi = 1 #data_int_lumi
     
     ## reading neutrino
     neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(args, neutrino_df[:10])
@@ -395,36 +369,21 @@ def process_hist(args):
 
     
     plot_MC_pred_VS_data_pred(data_pred_hists, muon_pred_hists, kaon_pred_hists, neutron_pred_hists, hist_name, data_int_lumi, logy)
-    # plot_data_pred_bkg(data_pred_hists, hist_name, data_int_lumi, logy)
-    # plot_MC(MC_neutrino_true_hists, muon_true_hists, kaon_true_hists,neutron_true_hists, hist_name, data_int_lumi, logy)
-    # plot_MC_VS_MC_pred(data_pred_hists,
-    #                    MC_neutrino_true_hists, MC_neutrino_pred_hists, 
-    #                    muon_true_hists, muon_pred_hists, 
-    #                    kaon_true_hists, kaon_pred_hists, 
-    #                    neutron_true_hists, neutron_pred_hists, 
-    #                    hist_name, data_int_lumi, logy)
+    plot_data_pred_bkg(data_pred_hists, hist_name, data_int_lumi, logy)
+    plot_MC(MC_neutrino_true_hists, muon_true_hists, kaon_true_hists,neutron_true_hists, hist_name, data_int_lumi, logy)
+    plot_MC_VS_MC_pred(data_pred_hists,
+                       MC_neutrino_true_hists, MC_neutrino_pred_hists, 
+                       muon_true_hists, muon_pred_hists, 
+                       kaon_true_hists, kaon_pred_hists, 
+                       neutron_true_hists, neutron_pred_hists, 
+                       hist_name, data_int_lumi, logy)
     
-    # plot_2d_hist(data_pred_hists,
-    #                    MC_neutrino_true_hists, MC_neutrino_pred_hists, 
-    #                    muon_true_hists, muon_pred_hists, 
-    #                    kaon_true_hists, kaon_pred_hists, 
-    #                    neutron_true_hists, neutron_pred_hists, 
-    #                    hist_name, data_int_lumi)
-    
-    # plot_muon_down(muon_true_hists, hist_name, data_int_lumi, logy)
-    
-def plot_muon_down(muon_true_hists, hist_name, int_lumi, logy):
-    outdir = f"./plots/{hist_name}"
-    os.makedirs(outdir, exist_ok=True)
-    mu_true  = _sum_th1_dict(muon_true_hists,        "mu_true")
-    _draw_totals_overlay(
-        {"muon": mu_true},
-        title=f"MC Muon — {hist_name}",
-        out_pdf=os.path.join(outdir, f"MC_muon_down_{hist_name}.pdf"),
-        int_lumi=int_lumi,
-        logy=logy)
-    
-    
+    plot_2d_hist(data_pred_hists,
+                       MC_neutrino_true_hists, MC_neutrino_pred_hists, 
+                       muon_true_hists, muon_pred_hists, 
+                       kaon_true_hists, kaon_pred_hists, 
+                       neutron_true_hists, neutron_pred_hists, 
+                       hist_name, data_int_lumi)
 
 def plot_MC_VS_MC_pred(data_pred_hists,
                        MC_neutrino_true_hists, MC_neutrino_pred_hists,

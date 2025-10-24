@@ -3,8 +3,11 @@ import os
 from argparse import ArgumentParser
 import SndlhcGeo
 import array
+import collections
 from collections import defaultdict
 import math
+from tqdm import tqdm
+import numpy as np
 
 
 # ROOT.gInterpreter.Declare(r"""
@@ -57,6 +60,7 @@ def create_output_file(path, mode):
 
     out_file = ROOT.TFile(path, mode)
     new_tree = ROOT.TTree('sndData', 'converted SND hits tree')
+    new_tree.SetDirectory(out_file)
     return out_file, new_tree
 
 def process_counts(all_hits, branch_vars):
@@ -410,22 +414,23 @@ def process_showerTagged(all_hits, branch_vars, window_cm=3.3, threshold=36):
         branch_vars["showerStart_avg_y"][0] = branch_vars[f"avg_scifi{showerStartStation}_y"][0]
         
         
-    hitStartStation = -1
-    for station in range(1, 6):
-        if station in scifi_hits:
-            total_hits = len(scifi_hits[station]["x"]) + len(scifi_hits[station]["y"])
-            if total_hits >= 2:
-                hitStartStation = station
-                break
+    # hitStartStation = -1
+    # for station in range(1, 6):
+    #     if station in scifi_hits:
+    #         total_hits = len(scifi_hits[station]["x"]) + len(scifi_hits[station]["y"])
+    #         if total_hits >= 1:
+    #             hitStartStation = station
+    #             break
     
-    branch_vars["hitStartStation"][0] = hitStartStation
-    avgHitZ = sum(scifi_hits[hitStartStation]['z'])/len(scifi_hits[hitStartStation]['z'])
-    branch_vars["hitStart_z"][0] = avgHitZ
+    # branch_vars["hitStartStation"][0] = hitStartStation
+
+    # avgHitZ = sum(scifi_hits[hitStartStation]['z'])/len(scifi_hits[hitStartStation]['z']) if scifi_hits[hitStartStation]['z'] else float("-999")
+    # branch_vars["hitStart_z"][0] = avgHitZ
     
-    branch_vars["hitStart_centroid_x"][0] = branch_vars[f"centroid_scifi{hitStartStation}_x"][0]
-    branch_vars["hitStart_centroid_y"][0] = branch_vars[f"centroid_scifi{hitStartStation}_y"][0]
-    branch_vars["hitStart_avg_x"][0] = branch_vars[f"avg_scifi{hitStartStation}_x"][0]
-    branch_vars["hitStart_avg_y"][0] = branch_vars[f"avg_scifi{hitStartStation}_y"][0]
+    # branch_vars["hitStart_centroid_x"][0] = branch_vars[f"centroid_scifi{hitStartStation}_x"][0]
+    # branch_vars["hitStart_centroid_y"][0] = branch_vars[f"centroid_scifi{hitStartStation}_y"][0]
+    # branch_vars["hitStart_avg_x"][0] = branch_vars[f"avg_scifi{hitStartStation}_x"][0]
+    # branch_vars["hitStart_avg_y"][0] = branch_vars[f"avg_scifi{hitStartStation}_y"][0]
     
     
 
@@ -487,6 +492,35 @@ def process_slope(all_hits, branch_vars):
     branch_vars["avgPos_slope_y"][0] = compute_slope(avg_y_points)
     branch_vars["centroid_slope_x"][0] = compute_slope(centroid_x_points)
     branch_vars["centroid_slope_y"][0] = compute_slope(centroid_y_points)
+   
+def process_vetoHitTime(all_hits, branch_vars):
+    # Filter veto hits (detType == 1)
+    veto_hits = [h for h in all_hits if h["detType"] == 1]
+
+    # Compute earliest and latest per station
+    per_station = {}
+    for s in (1, 2, 3):
+        times = [h["hit_time"] for h in veto_hits if h["station"] == s]
+        per_station[s] = {
+            "earliest": min(times) if times else -1,  # use -1 or 0 if no hit
+            "latest":   max(times) if times else -1,
+        }
+
+    # Compute overall earliest/latest
+    all_times = [h["hit_time"] for h in veto_hits]
+    overall_earliest = min(all_times) if all_times else -1
+    overall_latest   = max(all_times) if all_times else -1
+
+    # Fill the branch variables
+    branch_vars["vetoHitTime_earlist"][0] = overall_earliest
+    branch_vars["vetoHitTime_latest"][0]  = overall_latest
+
+    for s in (1, 2, 3):
+        branch_vars[f"vetoHitTime_earlist_veto{s}"][0] = per_station[s]["earliest"]
+        branch_vars[f"vetoHitTime_latest_veto{s}"][0]  = per_station[s]["latest"]
+    
+    
+    
     
     
 
@@ -517,64 +551,6 @@ def print_hits_summary(all_hits):
         avg_qdc = sum(qdcs) / count if count > 0 else 0
         print(f"{name:<10} Station {station:<2} {orientation} - Hits: {count:3} | Avg QDC: {avg_qdc:.1f}")
     print("--------------------------\n")
-    
-    
-def process_clustering(all_hits):
-    pass
-    # cluster plane by plane for scifi
-    # plot the event display
-    #
-
-def print_ScifiPoint_fun():
-    # helper: safe writer to mc_pinit if it exists
-                def _mc_write(line):
-                    try:
-                        mc_pinit.write(line + "\n")
-                    except NameError:
-                        pass
-
-                # header lines (only printed/written if muon is present)
-                if has_muon_link:
-                    print(f"\n================ Event {eventId} ================")
-                    header1 = f"\n------ Veto hit #{n_veto_hit} ------"
-                    header2 = (
-                        f"Veto Plane: {station}, DetID: {detID}, "
-                        f"QDC: {this_qdc}, Time: {hit_time:.2f} ns, "
-                        f"StartZ (MCTrack[1]): {start_z:.2f} cm"
-                    )
-                    header3 = f"{'mc_point_i':<12} {'PDG':<8} {'Energy loss [MeV]':<20} {'Position (x, y, z) [cm]'}"
-                    sep = "-" * 70
-                    print(header1)
-                    print(header2)
-                    print(header3)
-                    print(sep)
-                    _mc_write(header1)
-                    _mc_write(header2)
-                    _mc_write(header3)
-                    _mc_write(sep)
-
-                # fill ScifiMiniPoints; conditionally print/write each row
-                for mc_point_i, _ in linksToMCPoints:
-                    scifi_point = event.ScifiPoint[mc_point_i]
-                    pdg = int(scifi_point.PdgCode())
-                    el  = float(scifi_point.GetEnergyLoss())
-                    x   = float(scifi_point.GetX())
-                    y   = float(scifi_point.GetY())
-                    z   = float(scifi_point.GetZ())
-
-                    total_energy_loss += el
-
-                    # Construct ScifiMiniPoint in-place, then fill its fields
-                    vh.scifiPoints.emplace_back()
-                    p = vh.scifiPoints.back()
-                    p.pdg = pdg
-                    p.energy_loss = el
-                    p.x, p.y, p.z = x, y, z
-
-                    if has_muon_link:
-                        row = f"{mc_point_i:<12} {pdg:<8} {el*1000:<20.4f} ({x:7.2f}, {y:7.2f}, {z:7.2f})"
-                        print(row)
-                        _mc_write(row)
 
 def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args):
     """Process all hits in the event and update hits array and averages."""
@@ -621,15 +597,12 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
         })
 
     # MuFilter hits
+
     
     hit2MC = event.Digi_MuFilterHits2MCPoints[0]
     EvtScifiPoint = event.ScifiPoint
     n_veto_hit = 0
-    
-    for track in event.MCTrack:
-        print((track.GetMotherId()))
-        #break
-    
+    # print(f"\n================ Event {eventId} ================")
     for aHit in event.Digi_MuFilterHits:
         
         
@@ -663,7 +636,6 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             branch_vars["start_z"][0] = start_z
             
             if aHit.GetSystem() == 1:
-                #print(f"veto hit {n_veto_hit}")
                 vh = vetoHits.ConstructedAt(n_veto_hit)
                 n_veto_hit += 1
                 n_scifiPoint = event.ScifiPoint.GetEntries()
@@ -675,18 +647,16 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
                 
                 total_energy_loss = 0
                 vh.scifiPoints.clear()
-                for mc_point_i, weight in linksToMCPoints:   
-                    print(f"weight:{weight}")
+                for mc_point_i, _ in linksToMCPoints:   
+                    if mc_point_i >= n_scifiPoint: #to prevent segmentation fault
+                        continue
+                    
                     scifi_point = event.ScifiPoint[mc_point_i]
-                    #print(dir(scifi_point))
-                    #print(scifi_point.GetSortedMCTracks())
-                    #print(scifi_point.GetTrackID())
                     pdg = int(scifi_point.PdgCode())
                     el  = float(scifi_point.GetEnergyLoss())
                     x   = float(scifi_point.GetX())
                     y   = float(scifi_point.GetY())
                     z   = float(scifi_point.GetZ())
-                    
 
                     total_energy_loss += el
 
@@ -697,7 +667,7 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
                     p.energy_loss = el
                     p.x, p.y, p.z = x, y, z
 
-                    #print(f"{mc_point_i:<12} {pdg:<8} {el*1000:<20.4f} ({x:7.2f}, {y:7.2f}, {z:7.2f})")
+
                     #print(f"{mc_point_i:<12} {pdg:<8} {el*1000:<20.4f} ({x:7.2f}, {y:7.2f}, {z:7.2f})")
                     
                 # fill veto fields (note: you probably want station+1)
@@ -705,9 +675,7 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
                 vh.veto_plane = int(station + 1)
                 vh.energy_loss = float(total_energy_loss)
                 vh.qdc = float(this_qdc)
-                
-                
-  
+        
         all_hits.append({
             "detType": detType,
             "station": station+1,
@@ -718,45 +686,74 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             "qdc":this_qdc,
             "hit_time": hit_time
         })
+
     
-    #for checking muon normalisation:
+            
+            
+        
+    process_counts(all_hits, branch_vars)
+    process_avgPos(all_hits, branch_vars)
+    process_centroid(all_hits, branch_vars)
+    process_hit_density(all_hits, branch_vars)
+    process_showerTagged(all_hits, branch_vars)
+    process_slope(all_hits, branch_vars)
+    process_vetoHitTime(all_hits, branch_vars)
 
-    if args.digi_path == "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/sndLHC.Ntuple-TGeant4-160urad_magfield_2022TCL6_muons_rock_2e8pr_Trks.root":
-        # creat branch "passingMuon"
-        track_type_map = {
-            1: "ST SciFi",
-            11: "HT SciFi",
-            3: "ST DS",
-            13: "HT DS"
-        }
-        for i_track, muon_track in enumerate(event.Reco_MuonTracks):
-            # if i_track == 0:
-            #     print(dir(muon_track))  # Inspect available methods
-
-            trackType = muon_track.getTrackType()
-            Chi2Ndf = muon_track.getChi2Ndf()
-
-            # Get human-readable label or fallback
-            # track_label = track_type_map.get(trackType, f"Unknown ({trackType})")
-            # print(f"{i_track}: Type = {track_label}, χ²/NDF = {Chi2Ndf:.2f}")
-
-            #ds χ2/ndf < 5. #scifi χ2/ndf < 20.
-            if trackType==11 and Chi2Ndf < 20:
-                branch_vars["HT_SciFi"][0] = 1
-            if trackType==13 and Chi2Ndf<5:
-                branch_vars["HT_SciFi"][0] = 1
-    
-    # process_counts(all_hits, branch_vars)
-    # process_avgPos(all_hits, branch_vars)
-    # process_centroid(all_hits, branch_vars)
-    # process_hit_density(all_hits, branch_vars)
-    # process_showerTagged(all_hits, branch_vars)
-    # process_slope(all_hits, branch_vars)
-    process_clustering(all_hits)
-    
     #print_hits_summary(all_hits)
     return 
 
+def get_veto_pos(event, snd_geo):
+    MuFilter = snd_geo.modules['MuFilter']
+    A, B = ROOT.TVector3(), ROOT.TVector3()
+
+    veto_hits = []
+    n_veto_hit = 0
+    for aHit in event.Digi_MuFilterHits:
+        if not aHit.isValid():
+            continue
+        detID = aHit.GetDetectorID()
+        detType = aHit.GetSystem()
+        station = (detID // 1000) % 10
+
+        MuFilter.GetPosition(detID, A, B)
+        if detType == 1:  # veto hits
+            x = 0.5 * (A.x() + B.x())
+            y = 0.5 * (A.y() + B.y())
+            z = 0.5 * (A.z() + B.z())
+            signal = aHit.GetSignal() if hasattr(aHit, 'GetSignal') else 0
+            veto_hits.append({
+                "x": x,
+                "y": y,
+                "z": z,
+                "station": station,
+                "signal": signal,
+                "detID": detID
+            })
+            n_veto_hit += 1
+            
+    #print(veto_hits)
+    return(veto_hits)
+
+def fill_track_fields(branch_vars, tagLR, angle_xz, angle_yz,slope_xz, slope_yz, chi2ndf, x0, y0, z0, vetoDy, converged_flag):
+    # tagLR is like ("HT","DS") or ("ST","Scifi")
+    tag = f"{tagLR[0]}_{tagLR[1]}"
+    branch_vars[f"{tag}_angle_xz"][0] = angle_xz
+    branch_vars[f"{tag}_angle_yz"][0] = angle_yz
+    branch_vars[f"{tag}_slope_xz"][0] = slope_xz
+    branch_vars[f"{tag}_slope_yz"][0] = slope_yz
+    branch_vars[f"{tag}_Chi2Ndf"][0]  = chi2ndf
+    branch_vars[f"{tag}_startX"][0]   = x0
+    branch_vars[f"{tag}_startY"][0]   = y0
+    branch_vars[f"{tag}_startZ"][0]   = z0
+    branch_vars[f"{tag}_vetoDy"][0]   = vetoDy
+    branch_vars[f"{tag}_flag"][0] = converged_flag
+    
+def safe_set(branch_vars, name, value, dtype):
+    try:
+        branch_vars[name][0] = value
+    except Exception:
+        # Recreate the array if it was overwritten or invalid
+        branch_vars[name] = array.array(dtype, [value])
 
 def main(args):
     print("start processing digi to features")
@@ -781,7 +778,10 @@ def main(args):
         n_match = preSelect_tree.GetEntries(selection)
         print(f"Entries matching selection: {n_match}")
         if n_match == 0:
-            raise RuntimeError("No entries matched the selection condition.")
+            new_tree.Write()
+            out_file.Close()
+            print("No entries matched the selection condition, save empty file")
+            return 0
 
         preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")
         elist = ROOT.gDirectory.Get(elist_name)
@@ -798,59 +798,72 @@ def main(args):
         ("px", 'f'), ("py", 'f'), ("pz", 'f'),  # Floats
         ("x", 'f'), ("y", 'f'), ("z", 'f'),    # Floats
         
-        ("count_veto1", 'i'), ("count_veto2", 'i'), ("count_veto3", 'i'),  ("count_veto", 'i'), 
-        ("count_scifi1", 'i'), ("count_scifi2", 'i'), ("count_scifi3", 'i'),("count_scifi4", 'i'), ("count_scifi5", 'i'), ("count_scifi", 'i'),
-        ("count_us1", 'i'), ("count_us2", 'i'), ("count_us3", 'i'),("count_us4", 'i'), ("count_us5", 'i'), ("count_us", 'i'),
-        ("count_ds1", 'i'), ("count_ds2", 'i'), ("count_ds3", 'i'), ("count_ds4", 'i'),("count_ds", 'i'),
+        # ("count_veto1", 'i'), ("count_veto2", 'i'), ("count_veto3", 'i'),  ("count_veto", 'i'), 
+        # ("count_scifi1", 'i'), ("count_scifi2", 'i'), ("count_scifi3", 'i'),("count_scifi4", 'i'), ("count_scifi5", 'i'), ("count_scifi", 'i'),
+        # ("count_us1", 'i'), ("count_us2", 'i'), ("count_us3", 'i'),("count_us4", 'i'), ("count_us5", 'i'), ("count_us", 'i'),
+        # ("count_ds1", 'i'), ("count_ds2", 'i'), ("count_ds3", 'i'), ("count_ds4", 'i'),("count_ds", 'i'),
         
-        ("avg_veto1_y", 'd'), ("avg_veto2_y", 'd'), ("avg_veto3_x", 'd'), ("avg_veto_x", 'd'), ("avg_veto_y", 'd'),
-        ("avg_scifi1_x", 'd'), ("avg_scifi1_y", 'd'),
-        ("avg_scifi2_x", 'd'), ("avg_scifi2_y", 'd'),
-        ("avg_scifi3_x", 'd'), ("avg_scifi3_y", 'd'),
-        ("avg_scifi4_x", 'd'), ("avg_scifi4_y", 'd'),
-        ("avg_scifi5_x", 'd'), ("avg_scifi5_y", 'd'), ("avg_scifi_y", 'd'), ("avg_scifi_x", 'd'),
-        ("avg_us1_y", 'd'), ("avg_us2_y", 'd'), ("avg_us3_y", 'd'), ("avg_us4_y", 'd'), ("avg_us5_y", 'd'), ("avg_us_y", 'd'),
-        ("avg_ds1_x", 'd'), ("avg_ds1_y", 'd'),
-        ("avg_ds2_x", 'd'), ("avg_ds2_y", 'd'),
-        ("avg_ds3_x", 'd'), ("avg_ds3_y", 'd'),
-        ("avg_ds4_x", 'd'), ("avg_ds4_y", 'd'), ("avg_ds_x", 'd'), ("avg_ds_y", 'd'),
+        # ("avg_veto1_y", 'd'), ("avg_veto2_y", 'd'), ("avg_veto3_x", 'd'), ("avg_veto_x", 'd'), ("avg_veto_y", 'd'),
+        # ("avg_scifi1_x", 'd'), ("avg_scifi1_y", 'd'),
+        # ("avg_scifi2_x", 'd'), ("avg_scifi2_y", 'd'),
+        # ("avg_scifi3_x", 'd'), ("avg_scifi3_y", 'd'),
+        # ("avg_scifi4_x", 'd'), ("avg_scifi4_y", 'd'),
+        # ("avg_scifi5_x", 'd'), ("avg_scifi5_y", 'd'), ("avg_scifi_y", 'd'), ("avg_scifi_x", 'd'),
+        # ("avg_us1_y", 'd'), ("avg_us2_y", 'd'), ("avg_us3_y", 'd'), ("avg_us4_y", 'd'), ("avg_us5_y", 'd'), ("avg_us_y", 'd'),
+        # ("avg_ds1_x", 'd'), ("avg_ds1_y", 'd'),
+        # ("avg_ds2_x", 'd'), ("avg_ds2_y", 'd'),
+        # ("avg_ds3_x", 'd'), ("avg_ds3_y", 'd'),
+        # ("avg_ds4_x", 'd'), ("avg_ds4_y", 'd'), ("avg_ds_x", 'd'), ("avg_ds_y", 'd'),
         
-        ("centroid_veto1_y", 'd'), ("centroid_veto2_y", 'd'), ("centroid_veto3_x", 'd'), ("centroid_veto_y", 'd'), ("centroid_veto_x", 'd'), 
-        ("centroid_scifi1_x", 'd'), ("centroid_scifi1_y", 'd'),
-        ("centroid_scifi2_x", 'd'), ("centroid_scifi2_y", 'd'),
-        ("centroid_scifi3_x", 'd'), ("centroid_scifi3_y", 'd'),
-        ("centroid_scifi4_x", 'd'), ("centroid_scifi4_y", 'd'),
-        ("centroid_scifi5_x", 'd'), ("centroid_scifi5_y", 'd'), ("centroid_scifi_x", 'd'), ("centroid_scifi_y", 'd'),
-        ("centroid_us1_y", 'd'), ("centroid_us2_y", 'd'),("centroid_us3_y", 'd'), ("centroid_us4_y", 'd'), ("centroid_us5_y", 'd'), ("centroid_us_y", 'd'),
-        ("centroid_ds1_x", 'd'), ("centroid_ds1_y", 'd'),
-        ("centroid_ds2_x", 'd'), ("centroid_ds2_y", 'd'),
-        ("centroid_ds3_x", 'd'), ("centroid_ds3_y", 'd'),
-        ("centroid_ds4_x", 'd'), ("centroid_ds4_y", 'd'), ("centroid_ds_x", 'd'), ("centroid_ds_y", 'd'),
+        # ("centroid_veto1_y", 'd'), ("centroid_veto2_y", 'd'), ("centroid_veto3_x", 'd'), ("centroid_veto_y", 'd'), ("centroid_veto_x", 'd'), 
+        # ("centroid_scifi1_x", 'd'), ("centroid_scifi1_y", 'd'),
+        # ("centroid_scifi2_x", 'd'), ("centroid_scifi2_y", 'd'),
+        # ("centroid_scifi3_x", 'd'), ("centroid_scifi3_y", 'd'),
+        # ("centroid_scifi4_x", 'd'), ("centroid_scifi4_y", 'd'),
+        # ("centroid_scifi5_x", 'd'), ("centroid_scifi5_y", 'd'), ("centroid_scifi_x", 'd'), ("centroid_scifi_y", 'd'),
+        # ("centroid_us1_y", 'd'), ("centroid_us2_y", 'd'),("centroid_us3_y", 'd'), ("centroid_us4_y", 'd'), ("centroid_us5_y", 'd'), ("centroid_us_y", 'd'),
+        # ("centroid_ds1_x", 'd'), ("centroid_ds1_y", 'd'),
+        # ("centroid_ds2_x", 'd'), ("centroid_ds2_y", 'd'),
+        # ("centroid_ds3_x", 'd'), ("centroid_ds3_y", 'd'),
+        # ("centroid_ds4_x", 'd'), ("centroid_ds4_y", 'd'), ("centroid_ds_x", 'd'), ("centroid_ds_y", 'd'),
 
-        # Hit density sums per plane
-        ("density_veto1", 'd'), ("density_veto2", 'd'), ("density_veto3", 'd'), ("density_veto", 'd'),
-        ("density_scifi1", 'd'), ("density_scifi2", 'd'), ("density_scifi3", 'd'), ("density_scifi4", 'd'), ("density_scifi5", 'd'), ("density_scifi", 'd'),
-        ("density_us1", 'd'), ("density_us2", 'd'), ("density_us3", 'd'), ("density_us4", 'd'), ("density_us5", 'd'), ("density_us", 'd'),
-        ("density_ds1", 'd'), ("density_ds2", 'd'), ("density_ds3", 'd'), ("density_ds4", 'd'), ("density_ds", 'd'),
-        ("density_total", 'd'),
+        # # Hit density sums per plane
+        # ("density_veto1", 'd'), ("density_veto2", 'd'), ("density_veto3", 'd'), ("density_veto", 'd'),
+        # ("density_scifi1", 'd'), ("density_scifi2", 'd'), ("density_scifi3", 'd'), ("density_scifi4", 'd'), ("density_scifi5", 'd'), ("density_scifi", 'd'),
+        # ("density_us1", 'd'), ("density_us2", 'd'), ("density_us3", 'd'), ("density_us4", 'd'), ("density_us5", 'd'), ("density_us", 'd'),
+        # ("density_ds1", 'd'), ("density_ds2", 'd'), ("density_ds3", 'd'), ("density_ds4", 'd'), ("density_ds", 'd'),
+        # ("density_total", 'd'),
 
-        ("showerTagged", 'i'),
-        ("showerStartStation", 'i'),
-        ("showerStart_z", 'd'),
-        ("showerStart_centroid_x", 'd'), ("showerStart_centroid_y", 'd'),
-        ("showerStart_avg_x", 'd'), ("showerStart_avg_y", 'd'),
+        # ("showerTagged", 'i'),
+        # ("showerStartStation", 'i'),
+        # ("showerStart_z", 'd'),
+        # ("showerStart_centroid_x", 'd'), ("showerStart_centroid_y", 'd'),
+        # ("showerStart_avg_x", 'd'), ("showerStart_avg_y", 'd'),
         
-        ("hitStartStation",'i'),
-        ("hitStart_z", 'd'),
-        ("hitStart_centroid_x", 'd'), ("hitStart_centroid_y", 'd'),
-        ("hitStart_avg_x", 'd'), ("hitStart_avg_y", 'd'),
+        # ("hitStartStation",'i'),
+        # ("hitStart_z", 'd'),
+        # ("hitStart_centroid_x", 'd'), ("hitStart_centroid_y", 'd'),
+        # ("hitStart_avg_x", 'd'), ("hitStart_avg_y", 'd'),
 
-        ("avgPos_slope_x", 'd'), ("avgPos_slope_y", 'd'),
-        ("centroid_slope_x", 'd'), ("centroid_slope_y", 'd'),
+        # ("avgPos_slope_x", 'd'), ("avgPos_slope_y", 'd'),
+        # ("centroid_slope_x", 'd'), ("centroid_slope_y", 'd'),
+        # ("vetoHitTime_earlist", 'd'), ("vetoHitTime_latest", 'd'),
+        # ("vetoHitTime_earlist_veto1", 'd'), ("vetoHitTime_latest_veto1", 'd'),
+        # ("vetoHitTime_earlist_veto2", 'd'), ("vetoHitTime_latest_veto2", 'd'),
+        # ("vetoHitTime_earlist_veto3", 'd'), ("vetoHitTime_latest_veto3", 'd'),
         
         ("start_z", 'd'),
-        ("HT_SciFi", 'i'),
-        ("HT_DS", 'i'),
+        ("fluka_weight", 'd'),
+        
+        ("HT_track", 'i'),
+        ("ST_track", 'i'),
+        
+        ("HT_DS_angle_xz", 'd'), ("HT_DS_angle_yz", 'd'), ("HT_DS_slope_xz", 'd'), ("HT_DS_slope_yz", 'd'), ("HT_DS_Chi2Ndf", 'd'), ("HT_DS_startX", 'd'),  ("HT_DS_startY", 'd'),  ("HT_DS_startZ", 'd'),  ("HT_DS_vetoDy", 'd'),  ("HT_DS_flag", 'i'),
+        ("HT_Scifi_angle_xz", 'd'), ("HT_Scifi_angle_yz", 'd'), ("HT_Scifi_slope_xz", 'd'), ("HT_Scifi_slope_yz", 'd'),("HT_Scifi_Chi2Ndf", 'd'), ("HT_Scifi_startX", 'd'),  ("HT_Scifi_startY", 'd'),  ("HT_Scifi_startZ", 'd'),  ("HT_Scifi_vetoDy", 'd'),  ("HT_Scifi_flag", 'i'),
+        ("HT_DS_to_Scifi_x", 'd'), ("HT_DS_to_Scifi_y", 'd'),
+        ("ST_DS_angle_xz", 'd'), ("ST_DS_angle_yz", 'd'), ("ST_DS_slope_xz", 'd'), ("ST_DS_slope_yz", 'd'), ("ST_DS_Chi2Ndf", 'd'), ("ST_DS_startX", 'd'),  ("ST_DS_startY", 'd'),  ("ST_DS_startZ", 'd'),  ("ST_DS_vetoDy", 'd'),  ("ST_DS_flag", 'i'),
+        ("ST_Scifi_angle_xz", 'd'), ("ST_Scifi_angle_yz", 'd'), ("ST_Scifi_slope_xz", 'd'), ("ST_Scifi_slope_yz", 'd'),  ("ST_Scifi_Chi2Ndf", 'd'), ("ST_Scifi_startX", 'd'),  ("ST_Scifi_startY", 'd'),  ("ST_Scifi_startZ", 'd'),  ("ST_Scifi_vetoDy", 'd'),  ("ST_Scifi_flag", 'i'),
+        ("ST_DS_to_Scifi_x", 'd'),("ST_DS_to_Scifi_y", 'd'),
     ]
 
     # Dictionary to hold branch variables
@@ -869,17 +882,27 @@ def main(args):
 
     # Branch on the vector; ROOT will serialize the container each entry
     new_tree.Branch("vetoHits", vetoHits)
+   
+    total_tracks_per_event = []
+    track_type_map = {
+        1:  ("ST", "Scifi"),   # ST SciFi
+        11: ("HT", "Scifi"),   # HT SciFi
+        3:  ("ST", "DS"),      # ST DS
+        13: ("HT", "DS"),      # HT DS
+    }
+    collected = {
+        ("HT","DS"):     None,
+        ("HT","Scifi"):  None,
+        ("ST","DS"):     None,
+        ("ST","Scifi"):  None,
+    }
     # Process each event
-    
-    for i in range(elist.GetN()):
+    for i in tqdm(range(raw_tree.GetEntries()), desc="Processing events", unit="event"):
         vetoHits.Clear()
-        if i % 10000 == 0:
-            print(f"processed {i} events")
-        # Reset all branch variables before filling them
-        for key in branch_vars:
-            branch_vars[key][0] = -999
+        for key_name, dtype in branches:
+            safe_set(branch_vars, key_name, -999, dtype)
 
-        entry_number = elist.GetEntry(i)
+        entry_number = i
         raw_tree.GetEntry(entry_number)
         preSelect_tree.GetEntry(entry_number)
         
@@ -912,16 +935,115 @@ def main(args):
             branch_vars["pz"][0] = raw_tree.MCTrack[0].GetPz()
             
             
-            
+        
         elif('real' in  args.type):
             branch_vars["isMC"][0] = 0
             branch_vars["pdgCode"][0] = 0
             branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
+        #process_hits(raw_tree,vetoHits, snd_geo, new_tree, branch_vars, branch_vars["eventId"][0],  args)
+        
+        
+        n_tracks = len(raw_tree.Reco_MuonTracks)
+        total_tracks_per_event.append(n_tracks)
+        
+        
+        # creat branch "passingMuon"
+        
+        ## Good DS track 
+        # 1 converged fit (1 track for 1 tracking method)
+        # 2 slopes in both projections below 80 mrad ('getSlopeXZ', 'getSlopeYZ')
+        # 3 χ2/ndf < 5 (getChi2Ndf)
+        # 4 extrapolated DS track at the Veto planes is within 3 cm of a fired Veto bar
+        # 
+        
+        ## Good Scifi track
+        # 1 converged fit (1 track for 1 tracking method) ('getTrackType()')
+        # 2 χ2/ndf < 20
+        
+        #Good tracks
+        # If SciFi track’s and DS track’s projections on the reference plane are within 3 cm distance ('extrapolateToPlaneAtZ')
+        
+        veto_hits = get_veto_pos(raw_tree, snd_geo)
+        
+        track_counts = {name: 0 for name in track_type_map.values()}
+        
+        #if raw_tree.Reco_MuonTracks.GetEntries() <4:
+            #print(raw_tree.Reco_MuonTracks.GetEntries())
+            #continue
+        for mctrack in raw_tree.MCTrack :
+            #primary muon
+            if mctrack.GetMotherId()==-1:
+                branch_vars['fluka_weight'][0] = mctrack.GetWeight()
+        
+        for i_track, muon_track in enumerate(raw_tree.Reco_MuonTracks):
+            ttype = muon_track.getTrackType()
+            #print(dir(muon_track))
+            converged_flag = muon_track.getTrackFlag()
+            if ttype not in track_type_map:
+                continue
 
-        process_hits(raw_tree,vetoHits, snd_geo, new_tree, branch_vars, branch_vars["eventId"][0],  args)
-        if i>2:
-          break
+            slope_xz = muon_track.getSlopeXZ()
+            slope_yz = muon_track.getSlopeYZ()
+            angle_xz = muon_track.getAngleXZ() * 1e3  # mrad
+            angle_yz = muon_track.getAngleYZ() * 1e3  # mrad
+            start_pos = muon_track.getStart()
+            x0, y0, z0 = start_pos.x(), start_pos.y(), start_pos.z()
+            chi2ndf = muon_track.getChi2Ndf()
+
+            # compute dy to each veto plane at its z; choose BEST (max |dy|)
+            max_abs_dy = np.nan
+            if veto_hits:
+                dy_list = []
+                for vetoHit in veto_hits:
+                    veto_z = vetoHit['z']
+                    veto_y = vetoHit['y']
+                    extrapolated_y = y0 + slope_yz * (veto_z - z0)
+                    dy = veto_y - extrapolated_y
+                    dy_list.append(dy)
+                if dy_list:
+                    max_abs_dy = min(dy_list, key=lambda v: abs(v))
+                
+            tagLR = track_type_map[ttype]  # ("HT","DS") etc.
+            fill_track_fields(branch_vars, tagLR, angle_xz, angle_yz,slope_xz, slope_yz, chi2ndf, x0, y0, z0, max_abs_dy, converged_flag)
+
+            # keep a copy for DS↔Scifi comparison later
+            collected[tagLR] = dict(
+                angle_xz=angle_xz, angle_yz=angle_yz,
+                slope_xz=slope_xz, slope_yz=slope_yz,
+                x0=x0, y0=y0, z0=z0
+            )
+                        
+        z_ref = 490.0  # make sure units match your geometry (cm if your inputs are cm)
+
+        for tier in ("HT", "ST"):
+            ds = collected[(tier, "DS")]
+            sc = collected[(tier, "Scifi")]
+            if ds is not None and sc is not None:
+                # extrapolate x(z), y(z) = x0 + slope_xz*(z - z0), y0 + slope_yz*(z - z0)
+                x_ds = ds["x0"] + ds["slope_xz"] * (z_ref - ds["z0"])
+                y_ds = ds["y0"] + ds["slope_yz"] * (z_ref - ds["z0"])
+
+                x_sc = sc["x0"] + sc["slope_xz"] * (z_ref - sc["z0"])
+                y_sc = sc["y0"] + sc["slope_yz"] * (z_ref - sc["z0"])
+
+                dx = abs(x_ds - x_sc)  # use abs for distance; drop abs for signed delta
+                dy = abs(y_ds - y_sc)
+
+                branch_vars[f"{tier}_DS_to_Scifi_x"][0] = dx
+                branch_vars[f"{tier}_DS_to_Scifi_y"][0] = dy
+                
+                
+        # if i>20000:
+        #    break
+        
         new_tree.Fill()
+    
+    # summarize how many events have N tracks
+    hist = collections.Counter(total_tracks_per_event)
+
+    print("\n=== Number of events vs. total tracks ===")
+    for n_tracks, n_events in sorted(hist.items()):
+        print(f"{n_tracks} tracks → {n_events} events")
     # Finalize the output file
     new_tree.Write()
     out_file.Close()
@@ -939,7 +1061,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
-    
-# python digi_2_features_shower.py -p /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/1/preSelect_MC_neutrino_volTarget_100fb-1_1.root -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/geofile_full.Genie-TGeant4.root -o ./test_data/vetoTagged_shower_feature.root -t MC_neutrino
 
-# python digi_2_features.py -p /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/preSelect_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -d /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/sndLHC.Ntuple-TGeant4-160urad_magfield_2022TCL6_muons_rock_2e8pr_Trks.root -g /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/geofile_full.Ntuple-TGeant4.root -o /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/vetoTagged_feature_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -t MC_muon
+# python digi_2_features_muonDown.py -p /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/preSelect_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -d /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/sndLHC.Ntuple-TGeant4-160urad_magfield_2022TCL6_muons_rock_2e8pr_Trks.root -g /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/geofile_full.Ntuple-TGeant4.root -o /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/vetoTagged_feature_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -t MC_muon

@@ -2,33 +2,29 @@ Building DAG of jobs...
 Using shell: /usr/bin/bash
 Provided cores: 40
 Rules claiming more threads will be scaled down.
-Provided resources: mem_mb=4000, mem_mib=3815, disk_mb=4000, disk_mib=3815, nvidia_gpu=0
+Provided resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, nvidia_gpu=0
 Select jobs to execute...
 
-[Sat Oct 11 19:20:23 2025]
-rule prediction:
-    input: /eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve/126/vetoTagged_pt_hit_MC_neutrino_2024_ve_126.pt.gz
-    output: /eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve/126/vetoTagged_prediction_baseline_muon_output_MC_neutrino_2024_ve_126.root
+[Wed Oct 22 18:44:08 2025]
+rule process_features:
+    input: /eos/experiment/sndlhc/convertedData/physics/2024/run_243/run_008724/sndsw_raw-0229.root, /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root, /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_features.py
+    output: /eos/experiment/sndlhc/users/zhibin/real_data/run_243/run_008724/vetoFree_feature_real_data_run_243_run_008724_sndsw_raw-0229.root
     jobid: 0
     reason: Forced execution
-    wildcards: model_output=/eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve/126/vetoTagged_prediction_baseline_muon_output_MC_neutrino_2024_ve_126.root
-    resources: mem_mb=4000, mem_mib=3815, disk_mb=4000, disk_mib=3815, tmpdir=/pool/condor/dir_1472668/tmp, runtime=28800, nvidia_gpu=0
+    wildcards: feature_path=/eos/experiment/sndlhc/users/zhibin/real_data/run_243/run_008724/vetoFree_feature_real_data_run_243_run_008724_sndsw_raw-0229.root
+    resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, tmpdir=/pool/condor/dir_515054/tmp, runtime=3600, nvidia_gpu=0
 
-Processing...
-Done!
-/cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el9-gcc11-opt/lib/python3.11/site-packages/lightning_fabric/plugins/environments/slurm.py:204: The `srun` command is available on your system but is not used. HINT: If your intention is to run Lightning on SLURM, prepend your python command with `srun` like so: srun python /afs/cern.ch/work/z/zhibin/snd-ml/training/pred.py - ...
-GPU available: False, used: False
-TPU available: False, using: 0 TPU cores
-IPU available: False, using: 0 IPUs
-HPU available: False, using: 0 HPUs
-2025-10-11 19:22:04.042334: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-E0000 00:00:1760203324.081604     282 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-E0000 00:00:1760203324.095872     282 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-2025-10-11 19:22:04.145075: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-/afs/cern.ch/work/z/zhibin/snd-ml/training/models/GravNet/gnn_base.py:40: UserWarning: Failed to define figures of merit, due to logger unavailable
-  warnings.warn("Failed to define figures of merit, due to logger unavailable")
-[Sat Oct 11 19:26:36 2025]
+WARNING: not updating modulefiles
+Use alienv list to list loaded modules.
+Loading sndsw/latest-master-release
+  Loading requirement: BASE/1.0
+Info in <TGeoManager::CloseGeometry>: Geometry loaded from file...
+Info in <TGeoManager::SetTopVolume>: Top volume is cave. Master volume is cave
+Info in <TGeoNavigator::BuildCache>: --- Maximum geometry depth set to 100
+Info in <TGeoManager::Voxelize>: Voxelizing...
+Info in <TGeoManager::CountLevels>: max level = 7, max placements = 2829
+Info in <TGeoManager::CloseGeometry>: 342610 nodes/ 95 volume UID's in FAIR geometry
+Info in <TGeoManager::CloseGeometry>: ----------------modeler ready----------------
+[Wed Oct 22 18:44:23 2025]
 Finished job 0.
 1 of 1 steps (100%) done

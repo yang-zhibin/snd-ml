@@ -76,7 +76,7 @@ def read_rdf(args, metadata_df, MC_muon=False):
         print(f"  {subfolder}: vetoFree={counts['vetoFree']}, vetoTagged={counts['vetoTagged']}")
 
     feature_chain.AddFriend(eval_chain, 'eval')
-    rdf = ROOT.RDataFrame(feature_chain)
+    
     rdf= rdf.Define("sum_hit_density", "density_scifi1 + density_scifi2 + density_scifi3 + density_scifi4 + density_scifi5")
     rdf = (
         rdf.Define("start_avgPos_x",
@@ -152,8 +152,7 @@ def read_rdf(args, metadata_df, MC_muon=False):
     #     .Define("signed_slope_y",   expr_signed_slope_y)
     # )
     
-    if (args.cut):
-        rdf = rdf.Filter("count_scifi > 200")
+    rdf = rdf.Filter("(HT_SciFi_Chi2Ndf > 0 && HT_SciFi_Chi2Ndf < 5) && (HT_DS_Chi2Ndf > 0 && HT_DS_Chi2Ndf < 20)")
         
     return rdf, feature_chain, int_lumi
 

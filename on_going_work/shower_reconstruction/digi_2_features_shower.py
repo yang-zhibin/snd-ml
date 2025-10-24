@@ -5,6 +5,24 @@ import SndlhcGeo
 import array
 from collections import defaultdict
 import math
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib.lines import Line2D
+import numpy as np
+import re
+import matplotlib.colors as mcolors
+from matplotlib.lines import Line2D
+
+pdg_to_name = {
+    12: 've', -12: 've',
+    14: 'vm', -14: 'vm',
+    16: 'vt', -16: 'vt',
+    112: 'NC', -112: 'NC', 114: 'NC', -114: 'NC', 116: 'NC', -116: 'NC',
+    130: 'kaon', 310: 'kaon',
+    2112: 'neutron',
+    13: 'muon', -13: 'muon' ,
+    0: 'data'
+}
 
 
 # ROOT.gInterpreter.Declare(r"""
@@ -57,7 +75,6 @@ def create_output_file(path, mode):
 
     out_file = ROOT.TFile(path, mode)
     new_tree = ROOT.TTree('sndData', 'converted SND hits tree')
-    new_tree.SetDirectory(out_file)
     return out_file, new_tree
 
 def process_counts(all_hits, branch_vars):
@@ -488,35 +505,6 @@ def process_slope(all_hits, branch_vars):
     branch_vars["avgPos_slope_y"][0] = compute_slope(avg_y_points)
     branch_vars["centroid_slope_x"][0] = compute_slope(centroid_x_points)
     branch_vars["centroid_slope_y"][0] = compute_slope(centroid_y_points)
-   
-def process_vetoHitTime(all_hits, branch_vars):
-    # Filter veto hits (detType == 1)
-    veto_hits = [h for h in all_hits if h["detType"] == 1]
-
-    # Compute earliest and latest per station
-    per_station = {}
-    for s in (1, 2, 3):
-        times = [h["hit_time"] for h in veto_hits if h["station"] == s]
-        per_station[s] = {
-            "earliest": min(times) if times else -1,  # use -1 or 0 if no hit
-            "latest":   max(times) if times else -1,
-        }
-
-    # Compute overall earliest/latest
-    all_times = [h["hit_time"] for h in veto_hits]
-    overall_earliest = min(all_times) if all_times else -1
-    overall_latest   = max(all_times) if all_times else -1
-
-    # Fill the branch variables
-    branch_vars["vetoHitTime_earlist"][0] = overall_earliest
-    branch_vars["vetoHitTime_latest"][0]  = overall_latest
-
-    for s in (1, 2, 3):
-        branch_vars[f"vetoHitTime_earlist_veto{s}"][0] = per_station[s]["earliest"]
-        branch_vars[f"vetoHitTime_latest_veto{s}"][0]  = per_station[s]["latest"]
-    
-    
-    
     
     
 
@@ -547,19 +535,349 @@ def print_hits_summary(all_hits):
         avg_qdc = sum(qdcs) / count if count > 0 else 0
         print(f"{name:<10} Station {station:<2} {orientation} - Hits: {count:3} | Avg QDC: {avg_qdc:.1f}")
     print("--------------------------\n")
+    
 
-def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args):
+def shower_id_legend_handles():
+    """Legend entries matching the fixed mapping above."""
+    items = [
+        ("EM shower (11)",          shower_color(11)),
+        ("Muon (13)",               shower_color(13)),
+        ("Tau shower (15)",         shower_color(15)),
+        ("NC shower (112/114/116)", shower_color(112)),
+        ("Hadronic shower (0)",     shower_color(0)),
+        ("Combine (-1)",            shower_color(-1)),
+        ("Unassigned/invalid (-2)", shower_color(-2)),
+    ]
+    return [Line2D([0],[0], marker='o', linestyle='',
+                   markersize=8, markerfacecolor=c, markeredgecolor='none')
+            for _, c in items], [t for t, _ in items]
+    
+def shower_color(sid: int):
+    """
+    Fixed discrete colors for showerId:
+        11  -> blue   (EM shower)
+        13  -> red    (muon)
+        15  -> orange (Tau shower)
+        112/114/116 -> green (NC shower)
+        0   -> purple (Hadronic shower)
+        -1  -> grey   (combine)
+        -2  -> black  (unassigned or invalid)
+    """
+    sid = int(sid)
+    if sid in (112, 114, 116):   # NC-like
+        return mcolors.to_rgba("tab:green")
+    if sid == 11:
+        return mcolors.to_rgba("tab:blue")
+    if sid == 13:
+        return mcolors.to_rgba("tab:red")
+    if sid == 15:
+        return mcolors.to_rgba("tab:orange")
+    if sid == 0:
+        return mcolors.to_rgba("tab:purple")
+    if sid == -1:
+        return mcolors.to_rgba("tab:gray")
+    if sid == -2:
+        return mcolors.to_rgba("black")
+    # fallback
+    return mcolors.to_rgba("tab:gray")
+
+    
+
+def plot_clustering(all_hits, det_layout, branch_vars, args):
+    group_color = {
+        "wall":      "tab:gray",
+        "mat":       "tab:blue",
+        "veto_bar":  "tab:red",
+        "us_bar":    "tab:orange",
+        "ds_bar":    "tab:purple",
+        "block":     "tab:green",
+    }
+
+    # ---- helpers -------------------------------------------------------------
+
+    def setup_ax(ax, title, xlabel, ylabel):
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_aspect("equal")
+        ax.set_facecolor("white")
+        ax.tick_params(direction="in")
+        ax.grid(False)
+
+    def add_rect(ax, z, c, half_w, half_h, color, fill=False, lw=0.6, alpha=0.8):
+        ax.add_patch(Rectangle(
+            (z - half_w, c - half_h),
+            2 * half_w, 2 * half_h,
+            fill=fill,
+            linewidth=lw,
+            edgecolor=color,
+            facecolor=color if fill else "none",
+            alpha=alpha,
+        ))
+
+    # Discrete color for shower IDs. We assign fixed colors to the IDs you listed
+    # (positives and negatives are distinguished but share the same color family with different alpha).
+
+
+    # ---- figure layout (left = QDC, right = ShowerID) -----------------------
+
+    fig, axes = plt.subplots(2, 2, figsize=(30, 16), facecolor="white")
+    (ax_xz_qdc, ax_xz_shw), (ax_yz_qdc, ax_yz_shw) = axes
+
+    setup_ax(ax_xz_qdc, "XZ View (QDC)", "Z [cm]", "X [cm]")
+    setup_ax(ax_yz_qdc, "YZ View (QDC)", "Z [cm]", "Y [cm]")
+    setup_ax(ax_xz_shw, "XZ View (Shower ID)", "Z [cm]", "X [cm]")
+    setup_ax(ax_yz_shw, "YZ View (Shower ID)", "Z [cm]", "Y [cm]")
+
+    # ---- draw detector layout on all four axes ------------------------------
+
+    for group, items in det_layout.items():
+        if group == 'mat':
+            continue
+        color = group_color.get(group, "k")
+        for it in items:
+            x, y, z = it["x"], it["y"], it["z"]
+            dx, dy, dz = float(it["dx"]), float(it["dy"]), float(it["dz"])
+            ver, hor   = int(it["ver"]), int(it["hor"])
+            fill = group in {"wall", "block"}
+
+            if ver == 1:
+                add_rect(ax_xz_qdc, z, x, dz, dx, color, fill=fill, alpha=0.4 if fill else 0.8)
+                add_rect(ax_xz_shw, z, x, dz, dx, color, fill=fill, alpha=0.4 if fill else 0.8)
+            if hor == 1:
+                add_rect(ax_yz_qdc, z, y, dz, dy, color, fill=fill, alpha=0.4 if fill else 0.8)
+                add_rect(ax_yz_shw, z, y, dz, dy, color, fill=fill, alpha=0.4 if fill else 0.8)
+
+    # ---- bar dimensions per orientation (veto/us/ds) ------------------------
+
+    dim_lookup = {}
+    for group in ["veto_bar", "us_bar", "ds_bar"]:
+        dim_lookup[group] = {"ver": None, "hor": None}
+        for it in det_layout.get(group, []):
+            if it["ver"] == 1 and dim_lookup[group]["ver"] is None:
+                dim_lookup[group]["ver"] = (it["dx"], it["dy"], it["dz"])
+            if it["hor"] == 1 and dim_lookup[group]["hor"] is None:
+                dim_lookup[group]["hor"] = (it["dx"], it["dy"], it["dz"])
+
+    # ---- QDC colormaps & scales (SciFi vs bars) -----------------------------
+
+    scifi_qdcs = [h["qdc"] for h in all_hits if h["detType"] == 0 and h["qdc"] > 0]
+    bar_qdcs   = [h["qdc"] for h in all_hits if h["detType"] in [1,2,3] and h["qdc"] > 0]
+    sci_min, sci_max = (min(scifi_qdcs), max(scifi_qdcs)) if scifi_qdcs else (0, 1)
+    bar_min, bar_max = (min(bar_qdcs),   max(bar_qdcs))   if bar_qdcs   else (0, 1)
+    cmap_scifi = plt.cm.viridis   # SciFi continuous
+    cmap_bar   = plt.cm.viridis  # Bars continuous, as requested
+
+    # ---- draw hits ----------------------------------------------------------
+
+    for hit in all_hits:
+        det_type = hit["detType"]   # 0=scifi, 1=veto, 2=us, 3=ds
+        x, y, z  = hit["x"], hit["y"], hit["z"]
+        qdc      = hit["qdc"]
+        sid      = hit["hit_shower_id"]
+        is_vert  = hit["isVertical"]
+
+        # QDC colors (left figure)
+        if det_type == 0:
+            cval = (qdc - sci_min) / (sci_max - sci_min + 1e-9)
+            c_qdc = cmap_scifi(np.clip(cval, 0, 1))
+            ax_xz_qdc.scatter(z, x, s=10, c=[c_qdc], marker="o", edgecolors="none")
+            ax_yz_qdc.scatter(z, y, s=10, c=[c_qdc], marker="o", edgecolors="none")
+        else:
+            cval = (qdc - bar_min) / (bar_max - bar_min + 1e-9)
+            c_qdc = cmap_bar(np.clip(cval, 0, 1))
+            group = {1: "veto_bar", 2: "us_bar", 3: "ds_bar"}[det_type]
+            orient = "ver" if is_vert else "hor"
+            dx, dy, dz = dim_lookup.get(group, {}).get(orient, (0.5, 0.5, 0.5))
+            if is_vert:
+                add_rect(ax_xz_qdc, z, x, dz, dx, c_qdc, fill=True, alpha=0.9)
+            else:
+                add_rect(ax_yz_qdc, z, y, dz, dy, c_qdc, fill=True, alpha=0.9)
+
+        # Shower-ID colors (right figure)
+        c_shw = shower_color(sid)
+        if det_type == 0:
+            ax_xz_shw.scatter(z, x, s=10, c=[c_shw], marker="o", edgecolors="none")
+            ax_yz_shw.scatter(z, y, s=10, c=[c_shw], marker="o", edgecolors="none")
+        else:
+            group = {1: "veto_bar", 2: "us_bar", 3: "ds_bar"}[det_type]
+            orient = "ver" if is_vert else "hor"
+            dx, dy, dz = dim_lookup.get(group, {}).get(orient, (0.5, 0.5, 0.5))
+            if is_vert:
+                add_rect(ax_xz_shw, z, x, dz, dx, c_shw, fill=True, alpha=0.9)
+            else:
+                add_rect(ax_yz_shw, z, y, dz, dy, c_shw, fill=True, alpha=0.9)
+
+    # ---- colorbars for QDC-only (left column) -------------------------------
+
+    sm_scifi = plt.cm.ScalarMappable(cmap=cmap_scifi, norm=plt.Normalize(vmin=sci_min, vmax=sci_max))
+    sm_bar   = plt.cm.ScalarMappable(cmap=cmap_bar,   norm=plt.Normalize(vmin=bar_min,  vmax=bar_max))
+    #fig.colorbar(sm_scifi, ax=[ax_xz_qdc, ax_yz_qdc], fraction=0.015, pad=0.01, label="SciFi QDC")
+    #fig.colorbar(sm_bar,   ax=[ax_xz_qdc, ax_yz_qdc], fraction=0.015, pad=0.06, label="Veto/US/DS QDC")
+    handles, labels = shower_id_legend_handles()
+    ax_yz_shw.legend(
+        handles, labels,
+        title="Shower ID colors",
+        loc="center left",            # anchor to the left edge of bbox_to_anchor
+        bbox_to_anchor=(1.02, 0.5),   # x offset = 1.02 moves it outside the axes
+        frameon=False,
+        fontsize=10,
+        title_fontsize=11,
+    )
+
+    # ---- annotation text ----------------------------------------------------
+
+    run_id = branch_vars.get("runId", [None])[0]
+    evt_id = branch_vars.get("eventId", [None])[0]
+    pdg    = branch_vars.get("pdgCode", [None])[0]  # if available in your tree
+    pname = pdg_to_name.get(pdg)
+    header = f"type: {getattr(args, 'type', 'NA')}   run: {run_id}   evtId: {evt_id}   pdgCode: {pdg}, particle: {pname}"
+    # Put a single header across the top
+    fig.suptitle(header, y=0.985, fontsize=20)
+    plt.tight_layout(rect=[0, 0, 0.96, 0.97])
+
+    # ---- finalize & save (vector) ------------------------------------------
+    
+    os.makedirs("./eventDisplay", exist_ok=True)
+    output_path = f"./eventDisplay/{getattr(args,'type','evt')}_run-{run_id}_evtId-{evt_id}_{pname}.pdf"
+    plt.savefig(output_path, format="pdf")
+    
+    plt.close()
+    print(f"Saved event display to {output_path}")
+
+
+def build_mother_to_daughters(event):
+    """Return dict: mother_index -> [daughter_indices] for event.MCTrack."""
+    m2d = {}
+    n = event.MCTrack.GetEntries()
+    for i in range(n):
+        mid = event.MCTrack[i].GetMotherId()
+        m2d.setdefault(mid, []).append(i)
+    return m2d
+
+def _categorize_seed_shower_id(track, event_level_pdg):
+    """
+    Decide the showerId for a *seed* track (motherId==0).
+    Rules:
+      - e/μ/τ -> ±11 / ±13 / ±15
+      - νe/νμ/ντ -> ±112/±114/±116 if event is NC-like; else keep ±12/±14/±16
+      - hadronic/other -> 0
+    """
+    pdg = int(track.GetPdgCode()) if hasattr(track, "GetPdgCode") else 0
+    apdg = abs(pdg)
+
+    # Heuristic: event-level NC flags often look like 112/114/116
+    # If event pdgCode matches those (or starts with '11' and length 3), use 100+flavor for neutrinos.
+    is_nc_event = str(event_level_pdg) in {"112", "114", "116"} or str(event_level_pdg).startswith("11") and len(str(event_level_pdg)) == 3
+
+    if apdg in (11, 13, 15):
+        return int(math.copysign(apdg, pdg))  # ±11/±13/±15
+    if apdg in (12, 14, 16):
+        return int(math.copysign(100 + apdg, pdg)) if is_nc_event else int(math.copysign(apdg, pdg))
+    return 0  # hadronic/other
+
+def _assign_shower_ids(event, m2d, event_level_pdg):
+    """
+    Build dict: trackId -> showerId, seeding on tracks with motherId==0
+    and propagating showerId to all descendants.
+    """
+    n = event.MCTrack.GetEntries()
+    shower = {}
+
+    # Seeds = immediate daughters of the primary (MCTrack[0] usually has mother=-1).
+    seed_ids = [i for i in range(n) if event.MCTrack[i].GetMotherId() == 0]
+
+    # Determine showerId for each seed and flood-fill to its descendants
+    for sid in seed_ids:
+        seed_track = event.MCTrack[sid]
+        shower_id = _categorize_seed_shower_id(seed_track, event_level_pdg)
+
+        # DFS
+        stack = [sid]
+        while stack:
+            t = stack.pop()
+            if t in shower:
+                continue
+            shower[t] = shower_id
+            stack.extend(m2d.get(t, []))
+
+    # Any leftover tracks (not reachable from seeds) -> hadron(0) by default
+    for i in range(n):
+        if i not in shower:
+            shower[i] = 0
+
+    return shower
+
+def _fmt_track_line(tr, idx, shower_id):
+    """Nice one-line summary with start pos + momentum."""
+    pdg = tr.GetPdgCode() if hasattr(tr, "GetPdgCode") else None
+    x = tr.GetStartX() if hasattr(tr, "GetStartX") else float("nan")
+    y = tr.GetStartY() if hasattr(tr, "GetStartY") else float("nan")
+    z = tr.GetStartZ() if hasattr(tr, "GetStartZ") else float("nan")
+    mother_id = tr.GetMotherId()
+    # momentum
+    vec = None
+    if hasattr(tr, "GetMomentum"):
+        try:
+            vec = tr.GetMomentum()
+        except Exception:
+            vec = None
+    if not isinstance(vec, ROOT.TVector3):
+        px = tr.GetPx() if hasattr(tr, "GetPx") else 0.0
+        py = tr.GetPy() if hasattr(tr, "GetPy") else 0.0
+        pz = tr.GetPz() if hasattr(tr, "GetPz") else 0.0
+        vec = ROOT.TVector3(px, py, pz)
+
+    return f"Track {idx:>3}  PDG={pdg:>4}, mother_id={mother_id:>4}  showerId={shower_id:>4}  start=({x:.3g},{y:.3g},{z:.3g})  p=({vec.X():.3g},{vec.Y():.3g},{vec.Z():.3g}) |p|={vec.Mag():.3g}"
+
+def print_track_tree(event, m2d, track_idx, shower_map, indent=0):
+    """Recursive pretty-printer including showerId, start pos, momentum."""
+    tr = event.MCTrack[track_idx]
+    pad = " " * indent
+    line = _fmt_track_line(tr, track_idx, shower_map.get(track_idx, 0))
+    print(pad + line)
+    for d in m2d.get(track_idx, []):
+        print_track_tree(event, m2d, d, shower_map, indent + 4)
+
+
+def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, det_layout, args):
     """Process all hits in the event and update hits array and averages."""
     MC = args.type
     Scifi = snd_geo.modules['Scifi']
     MuFilter = snd_geo.modules['MuFilter']
     A, B = ROOT.TVector3(), ROOT.TVector3()
     
-    #read plane positions, vertical->top_x->A.x, horizontal->right_y->A.y
+    eventId = branch_vars["eventId"][0]
+    pdgCode = branch_vars["pdgCode"][0]
     
+    #read plane positions, vertical->top_x->A.x, horizontal->right_y->A.y
+
+
+    # pdgCode, ve:12/-12, vm:14/-14, vt:16/-16, NC:112/-112/114/-114/116/-116
+    # need a dictionary: trackId -> showerId (e:11/-11, muon:13/-13, tau:15/-15, NC:12/-12/13/-13/15/-15, hadron: 0)
+    # 1.ind all the track which motherId=0
+    # 2. assign showerId to these track
+    # 3. assign the same showerId to the sub-track of these track
+    
+    # --- Build hierarchy and shower mapping ---
+    m2d = build_mother_to_daughters(event)
+
+    # Print the full tree starting from primaries (mother == -1)
+    for root_idx in m2d.get(-1, []):
+        # build shower map once (outside the loop is fine too)
+        pass
+
+    shower_map = _assign_shower_ids(event, m2d, pdgCode)
+
+    # Now actually print the tree(s)
+    primary_tracks = m2d.get(-1, [])
+    # for idx in primary_tracks:
+    #     print_track_tree(event, m2d, idx, shower_map, indent=0)
+    
+    #print(shower_map)
+
     # Temporary storage for all hits with positions
     all_hits = []
-
     # SciFi hits
     for aHit in event.Digi_ScifiHits:
         if not aHit.isValid():
@@ -581,6 +899,33 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             this_qdc = max_QDC
         hit_time = aHit.GetTime()
         
+        if ('MC' in  args.type):
+            hit2MC = event.Digi_ScifiHits2MCPoints[0]
+            linksToMCPoints = hit2MC.wList(detID)
+            n_scifiPoint = event.ScifiPoint.GetEntries()
+            shower_id_list = []
+            for mc_point_i, weight in linksToMCPoints:  
+                if mc_point_i >= n_scifiPoint: #to prevent segmentation fault
+                    continue 
+                scifi_point = event.ScifiPoint[mc_point_i]
+                track_id = scifi_point.GetTrackID()
+                shower_id = shower_map.get(track_id)
+                if shower_id is None:
+                    continue
+                shower_id_list.append(shower_id)
+            
+            unique_ids = set(shower_id_list)
+            if len(unique_ids) == 1:
+                hit_shower_id = next(iter(unique_ids))   
+            elif len(unique_ids) > 1:   
+                hit_shower_id = -1  
+            else:
+                hit_shower_id = -2
+                
+            
+            
+            # break
+        
         all_hits.append({
             "detType": 0,
             "station": station,
@@ -589,14 +934,16 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             "y":A.y(),
             "z":A.z(),
             "qdc":this_qdc,
-            "hit_time": hit_time
+            "hit_time": hit_time,
+            "hit_shower_id": hit_shower_id
+            
         })
 
     # MuFilter hits
     
-    
+
     n_veto_hit = 0
-    # print(f"\n================ Event {eventId} ================")
+    
     for aHit in event.Digi_MuFilterHits:
         
         
@@ -631,35 +978,53 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             branch_vars["start_z"][0] = start_z
             
             if aHit.GetSystem() == 1:
+                #print(f"veto hit {n_veto_hit}")
                 vh = vetoHits.ConstructedAt(n_veto_hit)
                 n_veto_hit += 1
+                n_scifiPoint = event.ScifiPoint.GetEntries()
+                # print(f"\n------ Veto hit #{n_veto_hit} ------")
+                # print(f"Veto Plane: {station}, DetID: {detID}, QDC: {this_qdc}, Time: {hit_time:.2f} ns, StartZ (MCTrack[1]): {start_z:.2f} cm")
+                
+                # print(f"{'mc_point_i':<12} {'PDG':<8} {'Energy loss [MeV]':<20} {'Position (x, y, z) [cm]'}")
+                # print("-" * 70)
                 
                 total_energy_loss = 0
-                vh.mcPoints.clear()
-                for mc_point_i, mc_point_weight in linksToMCPoints:   
-                    mc_point = event.MuFilterPoint[mc_point_i]
-                    pdg = int(mc_point.PdgCode())
-                    el  = float(mc_point.GetEnergyLoss())
-                    x   = float(mc_point.GetX())
-                    y   = float(mc_point.GetY())
-                    z   = float(mc_point.GetZ())
+                vh.scifiPoints.clear()
+                for mc_point_i, weight in linksToMCPoints:   
+                    # if mc_point_i >= n_scifiPoint: #to prevent segmentation fault
+                    #     continue
+                    #print(f"weight:{weight}")
+                    scifi_point = event.ScifiPoint[mc_point_i]
+                    #print(dir(scifi_point))
+                    #print(scifi_point.GetSortedMCTracks())
+                    #print(scifi_point.GetTrackID())
+                    pdg = int(scifi_point.PdgCode())
+                    el  = float(scifi_point.GetEnergyLoss())
+                    x   = float(scifi_point.GetX())
+                    y   = float(scifi_point.GetY())
+                    z   = float(scifi_point.GetZ())
+                    
 
                     total_energy_loss += el
 
                     # Construct ScifiMiniPoint in-place, then fill its fields
-                    vh.mcPoints.emplace_back()
-                    p = vh.mcPoints.back()
+                    vh.scifiPoints.emplace_back()
+                    p = vh.scifiPoints.back()
                     p.pdg = pdg
                     p.energy_loss = el
                     p.x, p.y, p.z = x, y, z
-                    p.weight = mc_point_weight
+
+                    #print(f"{mc_point_i:<12} {pdg:<8} {el*1000:<20.4f} ({x:7.2f}, {y:7.2f}, {z:7.2f})")
+                    #print(f"{mc_point_i:<12} {pdg:<8} {el*1000:<20.4f} ({x:7.2f}, {y:7.2f}, {z:7.2f})")
                     
                 # fill veto fields (note: you probably want station+1)
                 vh.hit_time   = hit_time
                 vh.veto_plane = int(station + 1)
                 vh.energy_loss = float(total_energy_loss)
                 vh.qdc = float(this_qdc)
-        
+                
+                
+  
         all_hits.append({
             "detType": detType,
             "station": station+1,
@@ -668,28 +1033,257 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             "y":A.y(),
             "z":A.z(),
             "qdc":this_qdc,
-            "hit_time": hit_time
+            "hit_time": hit_time,
+            "hit_shower_id": -2
         })
-            
     
-    process_counts(all_hits, branch_vars)
-    process_avgPos(all_hits, branch_vars)
-    process_centroid(all_hits, branch_vars)
-    process_hit_density(all_hits, branch_vars)
-    process_showerTagged(all_hits, branch_vars)
-    process_slope(all_hits, branch_vars)
-    process_vetoHitTime(all_hits, branch_vars)
-
+    
+    # process_counts(all_hits, branch_vars)
+    # process_avgPos(all_hits, branch_vars)
+    # process_centroid(all_hits, branch_vars)
+    # process_hit_density(all_hits, branch_vars)
+    # process_showerTagged(all_hits, branch_vars)
+    # process_slope(all_hits, branch_vars)
+    plot_clustering(all_hits, det_layout, branch_vars, args)
+    
     #print_hits_summary(all_hits)
     return 
 
 
+def plot_detector(det_layout):
+    # for group, vols in det_layout.items():
+    #     print(f"\n=== {group.upper()} (n={len(vols)}) ===")
+    #     for v in vols:  
+    #         print(f"{v['name']:25s} @ ({v['x']:.2f}, {v['y']:.2f}, {v['z']:.2f}) "
+    #             f"dx={v['dx']:.2f}, dy={v['dy']:.2f}, dz={v['dz']:.2f} "
+    #             f"ver={v['ver']}, hor={v['hor']}")
+    # --- color map per group ---
+    group_color = {
+        "wall":      "tab:gray",
+        "mat":       "tab:blue",
+        "veto_bar":  "tab:red",
+        "us_bar":    "tab:orange",
+        "ds_bar":    "tab:purple",
+        "block":     "tab:green",
+    }
+
+    fig, (ax_xz, ax_yz) = plt.subplots(2, 1, figsize=(15, 12), facecolor="white")
+
+    # --- XZ view ---
+    ax_xz.set_title("XZ View")
+    ax_xz.set_xlabel("Z [cm]")
+    ax_xz.set_ylabel("X [cm]")
+    ax_xz.set_aspect("equal")
+    ax_xz.set_facecolor("white")
+    ax_xz.tick_params(direction="in")
+    ax_xz.spines[:].set_visible(True)
+    ax_xz.grid(False)
+
+    # --- YZ view ---
+    ax_yz.set_title("YZ View")
+    ax_yz.set_xlabel("Z [cm]")
+    ax_yz.set_ylabel("Y [cm]")
+    ax_yz.set_aspect("equal")
+    ax_yz.set_facecolor("white")
+    ax_yz.tick_params(direction="in")
+    ax_yz.spines[:].set_visible(True)
+    ax_yz.grid(False)
+
+    def add_rect(ax, z, c, half_w, half_h, color, fill=False, lw=0.6, alpha=0.9):
+        ax.add_patch(Rectangle(
+            (z - half_w, c - half_h),
+            2 * half_w, 2 * half_h,
+            fill=fill,
+            linewidth=lw,
+            edgecolor=color,
+            facecolor=color if fill else "none",
+            alpha=alpha,
+        ))
+
+    # --- draw volumes ---
+    for group, items in det_layout.items():
+        color = group_color.get(group, "k")
+        for it in items:
+            x, y, z = it["x"], it["y"], it["z"]
+            dx, dy, dz = float(it["dx"]), float(it["dy"]), float(it["dz"])
+            ver, hor = int(it["ver"]), int(it["hor"])
+
+            # determine if we fill the box (only for wall and block)
+            fill = group in {"wall", "block"}
+
+            if ver == 1:
+                add_rect(ax_xz, z, x, dz, dx, color, fill=fill,  alpha=0.6 if fill else 0.8)
+            if hor == 1:
+                add_rect(ax_yz, z, y, dz, dy, color, fill=fill,  alpha=0.6 if fill else 0.8)
+
+    # autoscale axes to data
+    for ax in (ax_xz, ax_yz):
+        ax.relim()
+        ax.autoscale_view()
+
+    os.makedirs("./plots", exist_ok=True)
+    output_path = "./plots/detector_layout.pdf"
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
+    print(f"Saved detector layout to {output_path}")
+def get_detector_layout(geo_file):
+    """
+    Extract detector component geometry from an SND@LHC/FairRoot geofile.
+
+    Returns
+    -------
+    dict[str, list[dict]]:
+        Keys: wall, mat, veto_bar, us_bar, ds_bar, block
+        Each entry has: name, x, y, z, dx, dy, dz, ver, hor, path
+    """
+
+    # ---- Regex patterns for relevant subdetectors ----
+    WALL_RE      = re.compile(r"^volWallborder(_\d+)?$", re.IGNORECASE)
+    MAT_RE       = re.compile(r"^(Hor|Vert)?MatVolume(_\d+)?$", re.IGNORECASE)
+    VETO_BAR_RE  = re.compile(r"^volVetoBar(_ver)?(_\d+)?$", re.IGNORECASE)
+    US_BAR_RE    = re.compile(r"^volMuUpstreamBar(_(hor|ver))?(_\d+)?$", re.IGNORECASE)
+    DS_BAR_RE    = re.compile(r"^volMuDownstreamBar(_(hor|ver))?(_\d+)?$", re.IGNORECASE)
+    BLOCK_RE     = re.compile(r"^volFeBlock(_\d+)?$", re.IGNORECASE)
+
+    # ---- Ancestor name hints ----
+    IS_TARGET   = lambda path: any(n.startswith("volTarget") for n in path)
+    IS_VETO     = lambda path: any(n.startswith("volVeto") for n in path)
+    IS_VETO_PL  = lambda name: name.startswith("volVetoPlane")
+    IS_MUFILT   = lambda path: any(n.startswith("volMuFilter") for n in path)
+    IS_US_DET   = lambda name: name.startswith("volMuUpstreamDet")
+    IS_DS_DET   = lambda name: name.startswith("volMuDownstreamDet")
+
+    def get_global_xyz(mat):
+        t = mat.GetTranslation()
+        return float(t[0]), float(t[1]), float(t[2])
+
+    # ---- open geometry ----
+    f = ROOT.TFile.Open(geo_file)
+    if not f or f.IsZombie():
+        raise RuntimeError(f"Could not open geometry file: {geo_file}")
+    geom = f.Get("FAIRGeom")
+    if not geom:
+        raise RuntimeError("TGeoManager 'FAIRGeom' not found in file")
+    top = geom.GetTopNode()
+    if not top:
+        raise RuntimeError("No top node in geometry")
+
+    out = defaultdict(list)
+
+    # ---- DFS traversal ----
+    stack = [(top, ROOT.TGeoHMatrix(), [top.GetVolume().GetName()])]
+    while stack:
+        node, M, path = stack.pop()
+        vol = node.GetVolume()
+        if not vol:
+            continue
+
+        for i in range(node.GetNdaughters()):
+            ch = node.GetDaughter(i)
+            ch_vol = ch.GetVolume()
+            if not ch_vol:
+                continue
+            ch_name = ch_vol.GetName()
+
+            # compose global transform
+            M_child = ROOT.TGeoHMatrix(M)
+            M_child.Multiply(ch.GetMatrix())
+            path_child = path + [ch_name]
+            x, y, z = get_global_xyz(M_child)
+
+            # get bounding box dimensions
+            shp = ch_vol.GetShape()
+            dx = getattr(shp, "GetDX", lambda: 0)()
+            dy = getattr(shp, "GetDY", lambda: 0)()
+            dz = getattr(shp, "GetDZ", lambda: 0)()
+
+            # --- Orientation logic ---
+            ver, hor = 0, 0
+
+            if WALL_RE.match(ch_name):
+                ver, hor = 1, 1
+            elif US_BAR_RE.match(ch_name):
+                ver, hor = 0, 1
+            elif VETO_BAR_RE.match(ch_name):
+                if "ver" in ch_name.lower():
+                    ver, hor = 1, 0
+                else:
+                    ver, hor = 0, 1
+            elif BLOCK_RE.match(ch_name):
+                ver, hor = 1, 1
+            else:
+                if "ver" in ch_name.lower() or any("ver" in p.lower() for p in path_child):
+                    ver, hor = 1, 0
+                elif "hor" in ch_name.lower() or any("hor" in p.lower() for p in path_child):
+                    ver, hor = 0, 1
+
+            # ---- Classification ----
+            # 1) Wallborder under Target
+            if WALL_RE.match(ch_name) and IS_TARGET(path_child):
+                out["wall"].append(dict(
+                    name=ch_name, x=x, y=y, z=z,
+                    dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                ))
+
+            # 2) SciFi material layers under Target
+            if MAT_RE.match(ch_name) and IS_TARGET(path_child):
+                out["mat"].append(dict(
+                    name=ch_name, x=x, y=y, z=z,
+                    dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                ))
+
+            # 3) Veto bars
+            if VETO_BAR_RE.match(ch_name) and IS_VETO(path_child):
+                if any(IS_VETO_PL(n) for n in path_child):
+                    out["veto_bar"].append(dict(
+                        name=ch_name, x=x, y=y, z=z,
+                        dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                    ))
+
+            # 4) MuFilter upstream bars
+            if US_BAR_RE.match(ch_name) and IS_MUFILT(path_child):
+                if any(IS_US_DET(n) for n in path_child):
+                    out["us_bar"].append(dict(
+                        name=ch_name, x=x, y=y, z=z,
+                        dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                    ))
+
+            # 5) MuFilter downstream bars
+            if DS_BAR_RE.match(ch_name) and IS_MUFILT(path_child):
+                if any(IS_DS_DET(n) for n in path_child):
+                    out["ds_bar"].append(dict(
+                        name=ch_name, x=x, y=y, z=z,
+                        dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                    ))
+
+            # 6) MuFilter Fe blocks
+            if BLOCK_RE.match(ch_name) and IS_MUFILT(path_child):
+                out["block"].append(dict(
+                    name=ch_name, x=x, y=y, z=z,
+                    dx=dx, dy=dy, dz=dz, ver=1, hor=1, path=tuple(path_child)
+                ))
+
+            # continue recursion
+            stack.append((ch, M_child, path_child))
+
+    return dict(out)
+
 def main(args):
     print("start processing digi to features")
+    
+    print("getting geo layout")
+    det_layout = get_detector_layout(args.geo_path)    
+    #plot_detector(det_layout)
+
+
+    print("setting snd geo interface")
     snd_geo = setup_geometry(args.geo_path )
     raw_data, raw_tree = open_root_file(args.digi_path)
     preSelect_data, preSelect_tree = open_root_file(args.preSelect_path, tree_name='sndData')
     
+
+
     out_file, new_tree = create_output_file(args.out_path, args.mode)
     
     elist_name = "elist"
@@ -707,10 +1301,7 @@ def main(args):
         n_match = preSelect_tree.GetEntries(selection)
         print(f"Entries matching selection: {n_match}")
         if n_match == 0:
-            new_tree.Write()
-            out_file.Close()
-            print("No entries matched the selection condition, save empty file")
-            return 0
+            raise RuntimeError("No entries matched the selection condition.")
 
         preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")
         elist = ROOT.gDirectory.Get(elist_name)
@@ -776,12 +1367,10 @@ def main(args):
 
         ("avgPos_slope_x", 'd'), ("avgPos_slope_y", 'd'),
         ("centroid_slope_x", 'd'), ("centroid_slope_y", 'd'),
-        ("vetoHitTime_earlist", 'd'), ("vetoHitTime_latest", 'd'),
-        ("vetoHitTime_earlist_veto1", 'd'), ("vetoHitTime_latest_veto1", 'd'),
-        ("vetoHitTime_earlist_veto2", 'd'), ("vetoHitTime_latest_veto2", 'd'),
-        ("vetoHitTime_earlist_veto3", 'd'), ("vetoHitTime_latest_veto3", 'd'),
         
         ("start_z", 'd'),
+        ("HT_SciFi", 'i'),
+        ("HT_DS", 'i'),
     ]
 
     # Dictionary to hold branch variables
@@ -802,7 +1391,7 @@ def main(args):
     new_tree.Branch("vetoHits", vetoHits)
     # Process each event
     
-    for i in range(elist.GetN()):
+    for i in range(raw_tree.GetEntries()):
         vetoHits.Clear()
         if i % 10000 == 0:
             print(f"processed {i} events")
@@ -810,7 +1399,7 @@ def main(args):
         for key in branch_vars:
             branch_vars[key][0] = -999
 
-        entry_number = elist.GetEntry(i)
+        entry_number = i
         raw_tree.GetEntry(entry_number)
         preSelect_tree.GetEntry(entry_number)
         
@@ -843,14 +1432,15 @@ def main(args):
             branch_vars["pz"][0] = raw_tree.MCTrack[0].GetPz()
             
             
-        
+            
         elif('real' in  args.type):
             branch_vars["isMC"][0] = 0
             branch_vars["pdgCode"][0] = 0
             branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
-        process_hits(raw_tree,vetoHits, snd_geo, new_tree, branch_vars, branch_vars["eventId"][0],  args)
-        #if i>2:
-        #    break
+
+        process_hits(raw_tree,vetoHits, snd_geo, new_tree, branch_vars,  det_layout, args)
+        # if i>2:
+        #   break
         new_tree.Fill()
     # Finalize the output file
     new_tree.Write()
@@ -870,6 +1460,4 @@ if __name__ == "__main__":
 
     main(args)
     
-# python digi_2_features.py -p /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/0/preSelect_MC_neutrino_volTarget_100fb-1_0.root -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/0/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/0/geofile_full.Genie-TGeant4.root -o /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/0/vetoTagged_feature_MC_neutrino_volTarget_100fb-1_0.root -t MC_neutrino
-
-# python digi_2_features.py -p /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/preSelect_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -d /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/sndLHC.Ntuple-TGeant4-160urad_magfield_2022TCL6_muons_rock_2e8pr_Trks.root -g /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/geofile_full.Ntuple-TGeant4.root -o /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/vetoTagged_feature_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -t MC_muon
+# python digi_2_features_shower.py -p /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/1/preSelect_MC_neutrino_volTarget_100fb-1_1.root -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/geofile_full.Genie-TGeant4.root -o ./test_data/vetoTagged_shower_feature.root -t MC_neutrino

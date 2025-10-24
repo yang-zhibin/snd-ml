@@ -28,21 +28,21 @@ wildcard_constraints:
 
 
 metadata_csv_list = [
-#    "MC_kaon_FTFP_BERT_metadata_subset.csv",
-#     "MC_neutron_FTFP_BERT_metadata_subset.csv",
+   "MC_kaon_FTFP_BERT_metadata_subset.csv",
+    "MC_neutron_FTFP_BERT_metadata_subset.csv",
     # "real_data_2024_skim_runs_metadata_subset.csv",
 
 
     #"real_data_2024_skim_runs_metadata.csv",
 
 
-    #"MC_muon_down_metadata_recoTrks.csv",
+#     # "MC_muon_down_metadata_recoTrks.csv",
 #    "MC_muon_down_metadata.csv",
 #      "MC_muon_horizontal_metadata.csv",
 #      "MC_muon_up_metadata.csv",
 
 #     "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
-    # "MC_neutrino_volTarget_100fb-1_metadata.csv",
+    "MC_neutrino_volTarget_100fb-1_metadata.csv",
       "MC_neutrino_2024_vm_metadata.csv",
       "MC_neutrino_2024_ve_metadata.csv",
 
@@ -59,8 +59,8 @@ metadata_csv_list = [
 ]
 
 
-process_vetoTagged=True
-process_vetoFree = False
+process_vetoTagged=False
+process_vetoFree = True
 process_model = ['baseline_muon', 'GravNet_v4'] #'baseline_muon' 'GravNet_v4', 
 
 train_mode = False
@@ -203,7 +203,7 @@ rule finish:
         #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
         #expand("{model_3d_ckpt}", model_3d_ckpt=collect_model_path('ckpt')),
-        expand("{model_output}", model_output=collect_model_path('model_output')),
+        #expand("{model_output}", model_output=collect_model_path('model_output')),
         # expand("{eval_output}", eval_output=collect_model_path('eval_output')),
         #expand("{model_3d_output}", model_3d_output=collect_model_path('model_output'))
         #expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
@@ -520,11 +520,12 @@ rule process_features:
         #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         digi=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "geo_path"),
-        preSelect=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "preSelect_path"),
+        
         script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_features.py",
         
         
     params:
+        preSelect=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "preSelect_path"),
         data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
         env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw.sh",
         
@@ -560,7 +561,7 @@ rule process_features:
         echo "Running feature generation script"
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
             {input.script} \
-            -p {input.preSelect}\
+            -p {params.preSelect}\
             -d {input.digi} \
             -g {input.geo} \
             -o "${{tmp_output}}" \
@@ -981,11 +982,11 @@ rule plots:
             hist_name=HIST_NAMES,
             cut=CUT_STATES,
         ),
-        expand(
-            "/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_2d_plots/plot_flags/{cut}/hist.{hist_name}.done",
-            hist_name=HIST_2d_NAMES,
-            cut=CUT_STATES,
-        )
+        # expand(
+        #     "/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_2d_plots/plot_flags/{cut}/hist.{hist_name}.done",
+        #     hist_name=HIST_2d_NAMES,
+        #     cut=CUT_STATES,
+        # )
 
 rule plot_distribution:
     input:

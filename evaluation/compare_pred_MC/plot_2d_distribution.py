@@ -34,10 +34,9 @@ def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compar
             key = file.replace(".csv", "")
             metadata_dict[key] = pd.read_csv(os.path.join(directory, file))
     return metadata_dict
-
 def read_rdf(args, metadata_df, MC_muon=False):
     feature_chain = ROOT.TChain("sndData")
-    eval_chain = ROOT.TChain("snddata")
+    prediciton_chain = ROOT.TChain("snddata")
     
     int_lumi = 0
     # Defaultdict of dicts
@@ -46,14 +45,14 @@ def read_rdf(args, metadata_df, MC_muon=False):
     for _, row in metadata_df.iterrows():
         # Always check vetoFree files first
         vetoFree_feature_path = row['vetoFree_feature_path']
-        vetoFree_eval_path = row[f'vetoFree_eval_{model_name}_output_path']
+        vetoFree_prediciton_path = row[f'vetoFree_prediction_{model_name}_output_path']
         
         # print("vetoFree_feature_path",vetoFree_feature_path)
-        # print("vetoFree_eval_path",vetoFree_eval_path)
+        # print("vetoFree_prediciton_path",vetoFree_prediciton_path)
 
-        if os.path.exists(vetoFree_feature_path) and os.path.exists(vetoFree_eval_path):
+        if os.path.exists(vetoFree_feature_path) and os.path.exists(vetoFree_prediciton_path):
             feature_chain.Add(vetoFree_feature_path)
-            eval_chain.Add(vetoFree_eval_path)
+            prediciton_chain.Add(vetoFree_prediciton_path)
             events_per_subfolder[row['subfolder']]["vetoFree"] += row['n_event']
 
             int_lumi += 0 if math.isnan(row['lumi_per_file']) else row['lumi_per_file']
@@ -61,11 +60,11 @@ def read_rdf(args, metadata_df, MC_muon=False):
         # Optionally also add vetoTagged files
         if vetoTagged or MC_muon:
             vetoTagged_feature_path = row['vetoTagged_feature_path']
-            vetoTagged_eval_path = row[f'vetoTagged_eval_{model_name}_output_path']
+            vetoTagged_prediciton_path = row[f'vetoTagged_prediction_{model_name}_output_path']
 
-            if os.path.exists(vetoTagged_feature_path) and os.path.exists(vetoTagged_eval_path):
+            if os.path.exists(vetoTagged_feature_path) and os.path.exists(vetoTagged_prediciton_path):
                 feature_chain.Add(vetoTagged_feature_path)
-                eval_chain.Add(vetoTagged_eval_path)
+                prediciton_chain.Add(vetoTagged_prediciton_path)
                 events_per_subfolder[row['subfolder']]["vetoTagged"] += row['n_event']
     
     if (int_lumi==0):
@@ -75,117 +74,13 @@ def read_rdf(args, metadata_df, MC_muon=False):
     for subfolder, counts in events_per_subfolder.items():
         print(f"  {subfolder}: vetoFree={counts['vetoFree']}, vetoTagged={counts['vetoTagged']}")
 
-    feature_chain.AddFriend(eval_chain, 'eval')
+    feature_chain.AddFriend(prediciton_chain, 'prediciton')
     rdf = ROOT.RDataFrame(feature_chain)
-    rdf= rdf.Define("sum_hit_density", "density_scifi1 + density_scifi2 + density_scifi3 + density_scifi4 + density_scifi5")
-    rdf = (
-        rdf.Define("start_avgPos_x",
-            "showerStartStation == 1 ? avg_scifi1_x : "
-            "showerStartStation == 2 ? avg_scifi2_x : "
-            "showerStartStation == 3 ? avg_scifi3_x : "
-            "showerStartStation == 4 ? avg_scifi4_x : "
-            "avg_scifi5_x")
-        .Define("start_avgPos_y",
-            "showerStartStation == 1 ? avg_scifi1_y : "
-            "showerStartStation == 2 ? avg_scifi2_y : "
-            "showerStartStation == 3 ? avg_scifi3_y : "
-            "showerStartStation == 4 ? avg_scifi4_y : "
-            "avg_scifi5_y")
-    )
     
     
-    mid_x_val = (-6.9 + -45.9) / 2.0   # -26.4
-    mid_y_val = (18.8 + 57.8) / 2.0    # 38.3
-
-    expr_start_centroid_x = r"""
-    showerStartStation == 1 ? centroid_scifi1_x :
-    showerStartStation == 2 ? centroid_scifi2_x :
-    showerStartStation == 3 ? centroid_scifi3_x :
-    showerStartStation == 4 ? centroid_scifi4_x :
-    centroid_scifi5_x
-    """
-
-    expr_start_centroid_y = r"""
-    showerStartStation == 1 ? centroid_scifi1_y :
-    showerStartStation == 2 ? centroid_scifi2_y :
-    showerStartStation == 3 ? centroid_scifi3_y :
-    showerStartStation == 4 ? centroid_scifi4_y :
-    centroid_scifi5_y
-    """
-
-    expr_start_z = r"""
-    showerStartStation == 1 ? 300 :
-    showerStartStation == 2 ? 313 :
-    showerStartStation == 3 ? 326 :
-    showerStartStation == 4 ? 339 :
-    352
-    """
-
-    
-    # Compute where the line through (start_centroid_x, start_z) 
-    # with slope centroid_slope_x intersects the plane x = mid_x
-    # Return signed slope depending on whether intercept_z is before or after start_z
-    expr_signed_slope_x = f"""
-    const double mid_x = {mid_x_val};
-    double intercept_z = fabs(centroid_slope_x) > 1e-12
-        ? (mid_x - start_centroid_x) / centroid_slope_x + start_z
-        : start_z;
-    return fabs(centroid_slope_x) < 1e-12 ? 0.0
-        : (intercept_z < start_z ? fabs(centroid_slope_x) : -fabs(centroid_slope_x));
-    
-    """
-
-    expr_signed_slope_y = f"""
-    const double mid_y = {mid_y_val};
-    double intercept_z = fabs(centroid_slope_y) > 1e-12
-        ? (mid_y - start_centroid_y) / centroid_slope_y + start_z
-        : start_z;
-    return fabs(centroid_slope_y) < 1e-12 ? 0.0
-        : (intercept_z < start_z ? fabs(centroid_slope_y) : -fabs(centroid_slope_y));
-    """
-
-    # Use them in RDataFrame
-    rdf = (
-        rdf.Define("start_centroid_x", expr_start_centroid_x)
-        .Define("start_centroid_y", expr_start_centroid_y)
-        .Define("start_z",          expr_start_z)
-        .Define("signed_slope_x",   expr_signed_slope_x)
-        .Define("signed_slope_y",   expr_signed_slope_y)
-    )
-    
+    #if (args.cut):
+    #    rdf = rdf.Filter("count_scifi > 200")
         
-    rdf = (
-        rdf
-        # --- SciFi centroids (5 planes) ---
-        .Define("centroid_scifi_x",
-                "(centroid_scifi1_x + centroid_scifi2_x + centroid_scifi3_x + centroid_scifi4_x + centroid_scifi5_x)/5.0")
-        .Define("centroid_scifi_y",
-                "(centroid_scifi1_y + centroid_scifi2_y + centroid_scifi3_y + centroid_scifi4_y + centroid_scifi5_y)/5.0")
-
-        # --- DS centroids (4 planes) ---
-        .Define("centroid_ds_x",
-                "(centroid_ds1_x + centroid_ds2_x + centroid_ds3_x + centroid_ds4_x)/4.0")
-        .Define("centroid_ds_y",
-                "(centroid_ds1_y + centroid_ds2_y + centroid_ds3_y + centroid_ds4_y)/4.0")
-
-        # --- SciFi averages (5 planes) ---
-        .Define("avg_scifi_x",
-                "(avg_scifi1_x + avg_scifi2_x + avg_scifi3_x + avg_scifi4_x + avg_scifi5_x)/5.0")
-        .Define("avg_scifi_y",
-                "(avg_scifi1_y + avg_scifi2_y + avg_scifi3_y + avg_scifi4_y + avg_scifi5_y)/5.0")
-
-        # --- DS averages (4 planes) ---
-        .Define("avg_ds_x",
-                "(avg_ds1_x + avg_ds2_x + avg_ds3_x + avg_ds4_x)/4.0")
-        .Define("avg_ds_y",
-                "(avg_ds1_y + avg_ds2_y + avg_ds3_y + avg_ds4_y)/4.0")
-        )
-
-    
-    
-    if (args.cut):
-        rdf = rdf.Filter("count_scifi > 200")
-
     return rdf, feature_chain, int_lumi
 
     
