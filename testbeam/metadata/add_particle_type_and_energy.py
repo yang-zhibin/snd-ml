@@ -88,7 +88,53 @@ def get_beam_energy(run, particle_subfolder):
             return "180GeV"
     return "no energy"
 
+
+def get_feature_path(digi_path):
+    """
+    Construit le chemin de sortie du fichier feature à partir du digi_path.
+    Exemple :
+      /eos/experiment/sndlhc/.../sndsw_raw-0000.root
+      → /eos/user/s/sfrankha/.../feature_sndsw_raw-0000.root
+    """
+    # Trouver la sous-partie à partir de 'sndlhc/'
+    split_key = "sndlhc/"
+    if split_key not in digi_path:
+        raise ValueError(f"'{split_key}' not found in path: {digi_path}")
+
+    relative_path = digi_path.split(split_key, 1)[1] 
     
+    folder, filename = os.path.split(relative_path)
+    
+    feature_filename = f"feature_{filename}"
+    
+    feature_path = os.path.join("/eos/user/s/sfrankha", "sndlhc", folder, feature_filename)
+    
+    return feature_path
+
+
+def get_hit_path(digi_path):
+    """
+    Construit le chemin de sortie du fichier feature à partir du digi_path.
+    Exemple :
+      /eos/experiment/sndlhc/.../sndsw_raw-0000.root
+      → /eos/user/s/sfrankha/.../feature_sndsw_raw-0000.root
+    """
+    # Trouver la sous-partie à partir de 'sndlhc/'
+    split_key = "sndlhc/"
+    if split_key not in digi_path:
+        raise ValueError(f"'{split_key}' not found in path: {digi_path}")
+
+    relative_path = digi_path.split(split_key, 1)[1] 
+    
+    folder, filename = os.path.split(relative_path)
+
+    hit_filename = f"hit_{filename}"
+
+    hit_path = os.path.join("/eos/user/s/sfrankha", "sndlhc", folder, hit_filename)
+
+    return hit_path
+
+
 def get_real_particle_type_and_energy(df, particle_subfolder):
     if (particle_subfolder == "testbeam_June2023_H8" or particle_subfolder == "testbeam_24"):
         df["beam_energy"] = df["partition"].apply(lambda x: get_beam_energy(x, particle_subfolder))
@@ -120,6 +166,9 @@ def main(args):
     print(data_type, particle_subfolder)
     
     df = pd.read_csv(csv_file)
+    
+    df["feature_path"] = df["digi_path"].apply(get_feature_path)
+    df["hit_path"] = df["digi_path"].apply(get_hit_path)
     
     if data_type == "MC_data":
         df = get_MC_particle_type_and_energy(df, particle_subfolder)

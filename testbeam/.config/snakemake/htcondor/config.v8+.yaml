@@ -1,0 +1,9 @@
+jobscript: "grid-jobscript.sh"
+cluster: "grid-submit.py"
+cluster-status: "grid-status.py"
+max-jobs-per-second: 50
+max-status-checks-per-second: 50
+restart-times: 1
+local-cores: 10
+jobs: 100
+verbose: false
