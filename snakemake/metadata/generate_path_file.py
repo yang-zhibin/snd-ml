@@ -204,8 +204,24 @@ def get_geo_file(partition):
             return geo_file
     return None
 
+def process_MC_NC(root_path, subfolder,data_type):
+
+    NC_ve_root = f'{root_path}/nu12/volume_volTarget/'
+    NC_vm_root = f'{root_path}/nu14/volume_volTarget/'
+    
+    NC_ve_metadata = process_MC_subfolders(NC_ve_root, subfolder,data_type)
+    NC_vm_metadata = process_MC_subfolders(NC_vm_root, subfolder,data_type)
+    
+    NC_metadata = NC_ve_metadata + NC_vm_metadata
+    
+    return NC_metadata
+    
 def generate_neutrino_path(data_type, root_path, subfolder,csv_file):
-    metadata = process_MC_subfolders(root_path, subfolder,data_type)
+    
+    if "2024_NC" in subfolder:
+        metadata = process_MC_NC(root_path, subfolder,data_type)
+    else:
+        metadata = process_MC_subfolders(root_path, subfolder,data_type)
     save_metadata_to_csv(metadata, csv_file)
 
 def generate_real_data_path(data_type, root_path, subfolder, csv_file):

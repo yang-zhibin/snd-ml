@@ -25,6 +25,34 @@ def create_output_file(path, mode):
     new_tree = ROOT.TTree('sndData', 'converted cbmsim tree')
     return out_file, new_tree
 
+def process_vetoHitTime(all_hits, branch_vars):
+    # Filter veto hits (detType == 1)
+    veto_hits = [h for h in all_hits if h["detType"] == 1]
+
+    # Compute earliest and latest per station
+    per_station = {}
+    for s in (1, 2, 3):
+        times = [h["hit_time"] for h in veto_hits if h["station"] == s]
+        per_station[s] = {
+            "earliest": min(times) if times else -1,  # use -1 if no hit
+            "latest":   max(times) if times else -1,
+        }
+
+    # Compute overall earliest/latest
+    all_times = [h["hit_time"] for h in veto_hits]
+    overall_earliest = min(all_times) if all_times else -1
+    overall_latest   = max(all_times) if all_times else -1
+
+    # Fill the branch variables
+    branch_vars["vetoHitTime_earlist"][0] = overall_earliest
+    branch_vars["vetoHitTime_latest"][0]  = overall_latest
+
+    for s in (1, 2, 3):
+        branch_vars[f"vetoHitTime_earlist_veto{s}"][0] = per_station[s]["earliest"]
+        branch_vars[f"vetoHitTime_latest_veto{s}"][0]  = per_station[s]["latest"]
+    
+    
+
 def process_hits(event, snd_geo, branch_vars):
     """Process all hits in the event and update hits array and averages."""
     # Scifi = snd_geo.modules['Scifi']
@@ -37,6 +65,7 @@ def process_hits(event, snd_geo, branch_vars):
     ds_counts = [0] * 4  # ds1 to ds4
     us_counts = [0] * 5  # us1 to us5
 
+    nVetoPlanes = snd_geo.snd_geo.MuFilter.NVetoPlanes
 
     # Process SciFi hits
     for aHit in event.Digi_ScifiHits:
@@ -49,12 +78,25 @@ def process_hits(event, snd_geo, branch_vars):
 
 
     # Process MuFilter hits
+    all_hits = []
     for aHit in event.Digi_MuFilterHits:
         if not aHit.isValid():
             continue
         detID = aHit.GetDetectorID()
         detType = aHit.GetSystem()
         station = (detID // 1000) % 10
+        
+        if nVetoPlanes==2 and detType==1:
+            station = station+1
+        
+        hit_time = aHit.GetTime()
+        
+        all_hits.append({
+            "detType": detType,
+            "station": station+1,
+            "isVertical": aHit.isVertical(),
+            "hit_time": hit_time
+        })
 
         if detType == 1:
             veto_counts[station] += 1
@@ -64,6 +106,7 @@ def process_hits(event, snd_geo, branch_vars):
         elif detType == 2 and 0 <= station <= 4:
             us_counts[station ] += 1
 
+    process_vetoHitTime(all_hits, branch_vars)
     
     return veto_counts, scifi_counts, us_counts, ds_counts
 
@@ -76,16 +119,24 @@ def main(args):
     out_file, new_tree = create_output_file(args.out_path, args.mode)
 
     branches = [
-        ("runId", 'i'), ("eventId", 'i'), ("isMC", 'i'), ("eventIndex", 'i'),("pdgCode", 'i'),
+        ("runId", 'i'), ("eventId", 'i'), ("isMC", 'i'), ("eventIndex", 'i'),("pdgCode", 'i'), ("energy", 'd'),
         ("At_least_1_non_veto_hit", 'i'),
-        ("veto", 'i'), 
-        ("scifi", 'i'),
+        
+        ("count_veto1", 'i'), ("count_veto2", 'i'), ("count_veto3", 'i'),  ("count_veto", 'i'), 
+        ("count_scifi1", 'i'), ("count_scifi2", 'i'), ("count_scifi3", 'i'),("count_scifi4", 'i'), ("count_scifi5", 'i'), ("count_scifi", 'i'),
+        ("count_us1", 'i'), ("count_us2", 'i'), ("count_us3", 'i'),("count_us4", 'i'), ("count_us5", 'i'), ("count_us", 'i'),
+        ("count_ds1", 'i'), ("count_ds2", 'i'), ("count_ds3", 'i'), ("count_ds4", 'i'),("count_ds", 'i'),
+        
         ("cut_H_if_DS_hits_must_all_US_hits",'i'),
         ("cut_G_has_consecutive_scifi_hits",'i'),
         ("preSelect", 'i'),
         ("preSelect_vetoFree", 'i'),
         ("preSelect_vetoTagged", 'i'),
-        #energy, 
+        
+        ("vetoHitTime_earlist", 'd'), ("vetoHitTime_latest", 'd'),
+        ("vetoHitTime_earlist_veto1", 'd'), ("vetoHitTime_latest_veto1", 'd'),
+        ("vetoHitTime_earlist_veto2", 'd'), ("vetoHitTime_latest_veto2", 'd'),
+        ("vetoHitTime_earlist_veto3", 'd'), ("vetoHitTime_latest_veto3", 'd'),
     ]
 
     # Dictionary to hold branch variables
@@ -122,6 +173,9 @@ def main(args):
             
             event_pdg0 = raw_tree.MCTrack[0].GetPdgCode()
             event_pdg1 = raw_tree.MCTrack[1].GetPdgCode()
+            
+            branch_vars["energy"][0] = raw_tree.MCTrack[0].GetEnergy()
+            
 
             neutrino_pdgCode = [12, -12, 14, -14, 16, -16]
             if (event_pdg0 == event_pdg1) and (event_pdg0 in neutrino_pdgCode):
@@ -137,8 +191,27 @@ def main(args):
         
         veto_counts, scifi_counts, us_counts, ds_counts = process_hits(event, snd_geo, branch_vars)
         
-        branch_vars["scifi"][0] = sum(scifi_counts)
-        branch_vars["veto"][0] = sum(veto_counts)
+        # Fill Veto counts
+        for i in range(3):
+            branch_vars[f"count_veto{i+1}"][0] = veto_counts[i]
+        branch_vars["count_veto"][0] = sum(veto_counts)
+
+        # Fill SciFi counts
+        for i in range(5):
+            branch_vars[f"count_scifi{i+1}"][0] = scifi_counts[i]
+        branch_vars["count_scifi"][0] = sum(scifi_counts)
+
+        # Fill Upstream (US) counts
+        for i in range(5):
+            branch_vars[f"count_us{i+1}"][0] = us_counts[i]
+        branch_vars["count_us"][0] = sum(us_counts)
+
+        # Fill Downstream (DS) counts
+        for i in range(4):
+            branch_vars[f"count_ds{i+1}"][0] = ds_counts[i]
+        branch_vars["count_ds"][0] = sum(ds_counts)
+
+
         
         if ((sum(scifi_counts)+sum(us_counts)+sum(ds_counts)) > 0):
             branch_vars["At_least_1_non_veto_hit"][0] = 1
@@ -161,17 +234,17 @@ def main(args):
         else:
             branch_vars["cut_H_if_DS_hits_must_all_US_hits"][0] = 1
         
-        if (branch_vars["scifi"][0]>scifi_count_threshold and branch_vars["veto"][0] == 0):
+        if (branch_vars["count_scifi"][0]>scifi_count_threshold and branch_vars["count_veto"][0] == 0):
             branch_vars["preSelect_vetoFree"][0] = 1
         else:
             branch_vars["preSelect_vetoFree"][0] = 0
         
-        if (branch_vars["scifi"][0]>scifi_count_threshold and branch_vars["veto"][0] > 0):
+        if (branch_vars["count_scifi"][0]>scifi_count_threshold and branch_vars["count_veto"][0] > 0):
             branch_vars["preSelect_vetoTagged"][0] = 1
         else:
             branch_vars["preSelect_vetoTagged"][0] = 0
         
-        if (branch_vars["scifi"][0]>scifi_count_threshold):
+        if (branch_vars["count_scifi"][0]>scifi_count_threshold):
             branch_vars["preSelect"][0] = 1
         else:
             branch_vars["preSelect"][0] = 0

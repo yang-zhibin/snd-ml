@@ -187,8 +187,21 @@ def process_muon_path(df):
     
     
     # drop duplicate file
+
     df = df[df['digi_path'] != "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_2.5/7016245/sndLHC.Ntuple-TGeant4_-150urad_1e7pr_dig.root"]
 
+
+    # Drop undocumented files
+    undocumented_files = [
+        "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_horizontal/2025/sndLHC.Ntuple-TGeant4_horizontal_xsing_bump60_TCL6at1p6mm_50e6pp_FlukaEcut10_digCPP.root",
+        "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_horizontal/2025/sndLHC.Ntuple-TGeant4_horizontal_xsing_TCL6at1p6mm_50e6pp_FlukaEcut10_digCPP.root",
+        "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_up/2024/scoring_at449m/sndLHC.Ntuple-TGeant4+160urad_TCL6at1.585mm_50e6pp_fixedW_digCPP.root",
+        "/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_up/2024/scoring_at449m/sndLHC.Ntuple-TGeant4+160urad_TCL6at1.585mm_50e6pp_FlukaEcut10_digCPP.root",
+        '/eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/2025/scoring_at449m/sndLHC.Ntuple-TGeant4-160urad_100e6pp_FlukaEcut10_digCPP.root',
+    ]
+
+    df = df[~df['digi_path'].isin(undocumented_files)]
+    
 
     # Drop geo_path if it exists
     if 'geo_path' in df.columns:
@@ -276,7 +289,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
         elif '20fb-1' in csv_input:
             df['lumi_per_file'] =20
         if '2024' in csv_input:
-            df['lumi_per_file'] =1.5
+            df['lumi_per_file'] =15
     elif (data_type == "MC_muon" ):
         df = process_muon_path(df)
 

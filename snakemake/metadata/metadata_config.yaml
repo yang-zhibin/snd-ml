@@ -15,7 +15,6 @@ MC_neutrino:
     root_path: "/eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget"
   - subfolder: "2024_vm"
     root_path: "/eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu14/volume_volTarget"
-
 MC_kaon:
   - subfolder: "FTFP_BERT"
     root_path: "/eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/"

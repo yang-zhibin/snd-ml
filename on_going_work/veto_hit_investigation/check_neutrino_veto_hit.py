@@ -137,12 +137,10 @@ def process_pass_muon_hits_data():
             linksToMCPoints = hit2MC.wList(detID)
 
             for mc_point_i, _ in linksToMCPoints:
-                if mc_point_i >= digi_chain.ScifiPoint.GetEntries():
-                    continue
-                scifi_point = digi_chain.ScifiPoint[mc_point_i]
+                MC_point = digi_chain.MuFilterPoint[mc_point_i]
 
-                pdg[0] = scifi_point.PdgCode()
-                energy_loss[0] = scifi_point.GetEnergyLoss()
+                pdg[0] = MC_point.PdgCode()
+                energy_loss[0] = MC_point.GetEnergyLoss()
                 start_z[0] = (
                     digi_chain.MCTrack[1].GetStartZ()
                     if digi_chain.MCTrack.GetEntries() > 1
@@ -232,12 +230,10 @@ def process_veto_hits_data():
             linksToMCPoints = hit2MC.wList(detID)
 
             for mc_point_i, _ in linksToMCPoints:
-                if mc_point_i >= digi_chain.ScifiPoint.GetEntries():
-                    continue
-                scifi_point = digi_chain.ScifiPoint[mc_point_i]
+                MC_point = digi_chain.MuFilterPoint[mc_point_i]
 
-                pdg[0] = scifi_point.PdgCode()
-                energy_loss[0] = scifi_point.GetEnergyLoss()
+                pdg[0] = MC_point.PdgCode()
+                energy_loss[0] = MC_point.GetEnergyLoss()
                 start_z[0] = (
                     digi_chain.MCTrack[1].GetStartZ()
                     if digi_chain.MCTrack.GetEntries() > 1
@@ -247,7 +243,7 @@ def process_veto_hits_data():
                 tree.Fill()
 
         h_n_veto_hits.Fill(n_veto_hit)
-        if i > 100000:
+        if i > 2000:
             break
         
     total_events = h_n_veto_hits.GetEntries()
@@ -738,27 +734,27 @@ def plot_veto_hist():
     pass_muon_df = ROOT.RDataFrame(tree_name, pass_muon_file_name)
     
     # particle distribution (pdg)
-    #plot_pdg(df)
+    plot_pdg(df)
     
 
     # veto hit time for each particles 
     plot_hit_time(pass_muon_df)
     
     # energy loss for each particles 
-    #plot_energy_loss(df, pass_muon_df)
+    plot_energy_loss(df, pass_muon_df)
     
     # stack hist of Start Z for each particles ((e, neutron, pi, proton, gamma))
-    #plot_start_z(df)
+    plot_start_z(df)
     
 
     # veto hit time vs energy loss
-    #plot_time_vs_energy_loss(df)
+    plot_time_vs_energy_loss(df)
     
     # veto hit time vs stack hist of Start Z
-    #plot_time_vs_start_z(df)
+    plot_time_vs_start_z(df)
     
     # energy loss vs stack hist of Start Z
-    #plot_e_loss_vs_start_z(df)
+    plot_e_loss_vs_start_z(df)
     
     # plot veto_hit_time distribution
     # plot veto_hit_pdg distribution
@@ -773,8 +769,8 @@ def plot_veto_hist():
 
 if __name__ == "__main__":
     
-    #process_veto_hits_data()
-    #process_pass_muon_hits_data()
+    process_veto_hits_data()
+    process_pass_muon_hits_data()
     plot_veto_hist()
     
     

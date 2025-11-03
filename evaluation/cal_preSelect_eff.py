@@ -75,10 +75,40 @@ def cal_matrix(rdf, true_class):
     cut_expr = [
         "",  # a: raw
         "At_least_1_non_veto_hit",  # b
-        "At_least_1_non_veto_hit && scifi>200",  # 1
-        "At_least_1_non_veto_hit && scifi>200 && veto==0",  # 2
+        "At_least_1_non_veto_hit && count_scifi>200",  # 1
+        
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto == 0 || vetoHitTime_earlist >1 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >1 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >1 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >1 )", 
+        
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto == 0 || vetoHitTime_earlist >2 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >2 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >2 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >2 )", 
+        
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto == 0 || vetoHitTime_earlist >3 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >3 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >3 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >3 )", 
+        
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto == 0 || vetoHitTime_earlist >4 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >4 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >4 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >4 )", 
+        
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto == 0 || vetoHitTime_earlist > 5 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >5 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >5 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >5 )", 
     ]
-    labels = ['a_raw', 'b_non_veto', '1_scifi>200',  '2_veto0']
+    labels = ['a_raw', 'b_non_veto', '1_scifi>200', 
+              "veto_1ns", "veto1_1ns", 'veto2_1ns',  'veto3_1ns',  
+              "veto_2ns", "veto1_2ns", 'veto2_2ns',  'veto3_2ns',  
+              "veto_3ns", "veto1_3ns", 'veto2_3ns',  'veto3_3ns',  
+              "veto_4ns", "veto1_4ns", 'veto2_4ns',  'veto3_4ns',  
+              "veto_5ns", "veto1_5ns", 'veto2_5ns',  'veto3_5ns',  
+              ]
 
     matrices = {}
 
@@ -123,7 +153,12 @@ def get_data_type(feature_path):
     elif 'MC_muon' in feature_path:
         data_type = 'MC_muon'
     elif 'MC_neutrino' in feature_path:
-        data_type = 'MC_neutrino'
+        if '2024_ve' in feature_path:
+            data_type = 'MC_neutrino_2024_ve'
+        elif '2024_vm' in feature_path:
+            data_type = 'MC_neutrino_2024_vm'
+        else:
+            data_type = 'MC_neutrino'
     elif 'real_data' in feature_path:
             data_type = 'data'
     else:
@@ -139,7 +174,12 @@ def process(preSelect_path, outpath, data_type):
     elif 'neutron' in data_type:
         true_class = ['neutron']
     elif 'neutrino' in data_type:
-        true_class = ["ve", "vm", "vt", "NC"]
+        if '2024_ve' in data_type:
+            true_class = ["ve", "NC"]
+        elif '2024_vm' in data_type:
+            true_class = ["vm", "NC"]
+        else:
+            true_class = ["ve", "vm", "vt", "NC"]
     elif 'muon' in data_type:
         true_class = ['muon']
     elif "data" in data_type:
