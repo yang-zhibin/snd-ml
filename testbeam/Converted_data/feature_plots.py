@@ -62,42 +62,110 @@ def hist_setup(name, bins=100, m=0, M=3000, color=ROOT.kBlue):
     return hist
 
 
-def make_plot_from_hist(real_hist, MC_hist, save_name, title="Number of hits per event", x_title="Number of hits", y_title="Event count"):
-    if real_hist.Integral() > 0:
-        real_hist.Scale(1.0 / real_hist.Integral())
-    if MC_hist.Integral() > 0:
-        MC_hist.Scale(1.0 / MC_hist.Integral())
+# def make_plot_from_hist(real_hist, MC_hist, save_name, title="Number of hits per event", x_title="Number of hits", y_title="Event count"):
+#     if real_hist.Integral() > 0:
+#         real_hist.Scale(1.0 / real_hist.Integral())
+#     if MC_hist.Integral() > 0:
+#         MC_hist.Scale(1.0 / MC_hist.Integral())
 
-    c = ROOT.TCanvas("c","c", 800, 600)
+#     c = ROOT.TCanvas("c","c", 800, 600)
 
-     # Ajustement du Y max
-    max_val = max(real_hist.GetMaximum(), MC_hist.GetMaximum())
-    real_hist.SetMaximum(1.2 * max_val)
-    real_hist.SetMinimum(0)
+#      # Ajustement du Y max
+#     max_val = max(real_hist.GetMaximum(), MC_hist.GetMaximum())
+#     real_hist.SetMaximum(1.2 * max_val)
+#     real_hist.SetMinimum(0)
 
-    # Titres des axes
-    real_hist.SetTitle(title)
-    real_hist.GetXaxis().SetTitle(x_title)
-    real_hist.GetYaxis().SetTitle(y_title)
-    real_hist.GetXaxis().SetTitleSize(0.045)
-    real_hist.GetYaxis().SetTitleSize(0.045)
-    real_hist.GetXaxis().CenterTitle(True)
-    real_hist.GetYaxis().CenterTitle(True)
+#     # Titres des axes
+#     real_hist.SetTitle(title)
+#     real_hist.GetXaxis().SetTitle(x_title)
+#     real_hist.GetYaxis().SetTitle(y_title)
+#     real_hist.GetXaxis().SetTitleSize(0.045)
+#     real_hist.GetYaxis().SetTitleSize(0.045)
+#     real_hist.GetXaxis().CenterTitle(True)
+#     real_hist.GetYaxis().CenterTitle(True)
     
-    # Draw both histograms on the same canvas
-    real_hist.Draw("HIST")
-    MC_hist.Draw("HIST SAME")
+#     # Draw both histograms on the same canvas
+#     real_hist.Draw("HIST")
+#     MC_hist.Draw("HIST SAME")
 
-    # Add legend
-    legend = ROOT.TLegend(0.7, 0.7, 0.9, 0.9)
-    legend.AddEntry(real_hist, "Real data", "l")
-    legend.AddEntry(MC_hist, "MC data", "l")
-    legend.Draw()
+#     # Add legend
+#     legend = ROOT.TLegend(0.7, 0.7, 0.9, 0.9)
+#     legend.AddEntry(real_hist, "Real data", "l")
+#     legend.AddEntry(MC_hist, "MC data", "l")
+#     legend.Draw()
     
-    c.SaveAs(f"./tmp/plots/{save_name}.pdf")
+#     c.SaveAs(f"./tmp/plots/{save_name}.pdf")
+    
+    
+def make_plots_from_histos(histos, energy, beam_type, year, output_dir="./tmp/plots"):
+    """
+    Compare les histogrammes real/MC pour chaque feature et crée un plot par feature.
+
+    Args:
+        histos (dict): Dictionnaire { feature_name: {"MC": TH1F, "real": TH1F} }.
+        energy (str): énergie du faisceau.
+        beam_type (str): type de faisceau.
+        year (str): année des données.
+        output_dir (str): dossier de sauvegarde des PDF.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    for feature, hpair in histos.items():
+        real_hist = hpair["real"]
+        MC_hist = hpair["MC"]
+
+        # Normalisation si possible
+        if real_hist.Integral() > 0:
+            real_hist.Scale(1.0 / real_hist.Integral())
+        if MC_hist.Integral() > 0:
+            MC_hist.Scale(1.0 / MC_hist.Integral())
+
+        c = ROOT.TCanvas(f"c_{feature}", f"Canvas for {feature}", 800, 600)
+
+        # Ajustement des bornes Y
+        max_val = max(real_hist.GetMaximum(), MC_hist.GetMaximum())
+        real_hist.SetMaximum(1.2 * max_val)
+        real_hist.SetMinimum(0)
+
+        # Titres
+        real_hist.GetXaxis().SetTitle(feature)
+        real_hist.GetYaxis().SetTitle("Normalized event count")
+        real_hist.GetXaxis().SetTitleSize(0.045)
+        real_hist.GetYaxis().SetTitleSize(0.045)
+        real_hist.GetXaxis().CenterTitle(True)
+        real_hist.GetYaxis().CenterTitle(True)
+
+        # Dessin
+        real_hist.Draw("HIST")
+        MC_hist.Draw("HIST SAME")
+
+        # Légende
+        legend = ROOT.TLegend(0.7, 0.7, 0.9, 0.9)
+        legend.AddEntry(real_hist, "Real data", "l")
+        legend.AddEntry(MC_hist, "MC data", "l")
+        legend.Draw()
+
+        save_name = f"{output_dir}/comparison_{feature}_{energy}_{beam_type}_{year}.pdf"
+        c.SaveAs(save_name)
+
+        # Libère le canvas
+        c.Close()
+
+    
+    
+def create_histograms(hist_info):
+    histos = {}
+    for feature, (xmin, xmax, title) in hist_info.items():
+        mc_hist = hist_setup(f"{title}_MC", 100, xmin, xmax, ROOT.kBlue)
+
+        real_hist = hist_setup(title, 100, xmin, xmax, ROOT.kRed)
+
+        histos[feature] = {"MC": mc_hist, "real": real_hist}
+
+    return histos
 
 
-def get_features(feature_path, hits, hits_station_1, hits_station_2, hits_station_3, hits_station_4):
+def get_features(feature_path, histos, data_type="MC"):
     raw_data, raw_tree = open_root_file(feature_path, tree_name='sndData')
     
     if raw_data is None or raw_tree is None:
@@ -109,23 +177,35 @@ def get_features(feature_path, hits, hits_station_1, hits_station_2, hits_statio
         # if count>100:
         #     break
         # count+=1
-        # --- SciFi hits ---
-        stations = {
-            1: {"total": event.count_scifi1},
-            2: {"total": event.count_scifi2},
-            3: {"total": event.count_scifi3},
-            4: {"total": event.count_scifi4},
-        }
-        total_hits = event.count_scifi
-
-        hits.Fill(total_hits)
         
-        hits_station_1.Fill(stations[1]["total"])
-        hits_station_2.Fill(stations[2]["total"])
-        hits_station_3.Fill(stations[3]["total"])
-        hits_station_4.Fill(stations[4]["total"])
+        for feature, hpair in histos.items():
+            if not hasattr(event, feature):
+                # Si la variable n'existe pas dans cet event, on ignore
+                continue
+            value = getattr(event, feature)
+            try:
+                hpair[data_type].Fill(value)
+            except TypeError:
+                # Si la variable n'est pas un float/int, on ignore
+                continue
+        # # --- SciFi hits ---
+        # stations = {
+        #     1: {"total": event.count_scifi1},
+        #     2: {"total": event.count_scifi2},
+        #     3: {"total": event.count_scifi3},
+        #     4: {"total": event.count_scifi4},
+        # }
+        # total_hits = event.count_scifi
+
+        # hits.Fill(total_hits)
+        
+        # hits_station_1.Fill(stations[1]["total"])
+        # hits_station_2.Fill(stations[2]["total"])
+        # hits_station_3.Fill(stations[3]["total"])
+        # hits_station_4.Fill(stations[4]["total"])
         
     raw_data.Close()
+
 
 def main():
     parser = argparse.ArgumentParser(description="Test script with plot generation.")
@@ -145,14 +225,14 @@ def main():
     
     
     if year == "2023":
-        real_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/real_data_testbeam_June2023_H8_updated_metadata.csv"
+        real_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/real_data_testbeam_June2023_H8_metadata.csv"
         real_name = os.path.basename(real_file)
-        MC_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/MC_data_testbeam2023_updated_metadata.csv"
+        MC_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/MC_data_testbeam2023_metadata.csv"
         MC_name = os.path.basename(MC_file)
     elif year == "2024":
-        real_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/real_data_testbeam_24_updated_metadata.csv"
+        real_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/real_data_testbeam_24_metadata.csv"
         real_name = os.path.basename(real_file)
-        MC_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/MC_data_testbeam2024_updated_metadata.csv"
+        MC_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/MC_data_testbeam2024_metadata.csv"
         MC_name = os.path.basename(MC_file)
     else:
         print('Unrecognized year')
@@ -182,25 +262,51 @@ def main():
     # print(f'Number of MC files for {year} {energy} {beam_type}: {len(MC_group)}')
     
     # return
-
-    real_hits = hist_setup(f'{year} Real data SciFi hits for {energy} {beam_type}', 100, 0, 3000, ROOT.kRed)
-    MC_hits = hist_setup(f'{year} MC data SciFi hits for {energy} {beam_type}', 100, 0, 3000, ROOT.kBlue)
-
-    real_hit_station_1 = hist_setup(f'{year} Real data hit in station 1 for {energy} {beam_type}', 100, 0, 1000, ROOT.kRed)
-    MC_hit_station_1 = hist_setup(f'{year} MC data hit in station 1 for {energy} {beam_type}', 100, 0, 1000, ROOT.kBlue)
-
-    real_hit_station_2 = hist_setup(f'{year} Real data hit in station 2 for {energy} {beam_type}', 100, 0, 1000, ROOT.kRed)
-    MC_hit_station_2 = hist_setup(f'{year} MC data hit in station 2 for {energy} {beam_type}', 100, 0, 1000, ROOT.kBlue)    
-
-    real_hit_station_3 = hist_setup(f'{year} Real data hit in station 3 for {energy} {beam_type}', 100, 0, 1000, ROOT.kRed)
-    MC_hit_station_3 = hist_setup(f'{year} MC data hit in station 3 for {energy} {beam_type}', 100, 0, 1000, ROOT.kBlue)
-
-    real_hit_station_4 = hist_setup(f'{year} Real data hit in station 4 for {energy} {beam_type}', 100, 0, 1000, ROOT.kRed)
-    MC_hit_station_4 = hist_setup(f'{year} MC data hit in station 4 for {energy} {beam_type}', 100, 0, 1000, ROOT.kBlue)
-
+    
+    hist_info = {
+        "px": (0, 2, f"{year} px distribution for {energy} {beam_type}"),
+        "py": (0, 2, f"{year} py distribution for {energy} {beam_type}"),
+        "pz": (180, 182, f"{year} pz distribution for {energy} {beam_type}"),
+        "x": (-45, -31, f"{year} x distribution for {energy} {beam_type}"),
+        "y": (37, 51, f"{year} y distribution for {energy} {beam_type}"),
+        "z": (300, 450, f"{year} z distribution for {energy} {beam_type}"),
+        'count_scifi1':  (0, 1000, f"{year} SciFi hits in station 1 for {energy} {beam_type}"),
+        'count_scifi2':  (0, 1000, f"{year} SciFi hits in station 2 for {energy} {beam_type}"),
+        'count_scifi3':  (0, 1000, f"{year} SciFi hits in station 3 for {energy} {beam_type}"),
+        'count_scifi4':  (0, 1000, f"{year} SciFi hits in station 4 for {energy} {beam_type}"),
+        'count_scifi':  (0, 3000, f"{year} SciFi hits for {energy} {beam_type}"),
+        'avg_scifi1_x': (-45, -31, f"{year} average x in station 1 for {energy} {beam_type}"),
+        'avg_scifi1_y': (37, 51, f"{year} average y in station 1 for {energy} {beam_type}"),
+        'avg_scifi2_x': (-45, -31, f"{year} average x in station 2 for {energy} {beam_type}"),
+        'avg_scifi2_y': (37, 51, f"{year} average y in station 2 for {energy} {beam_type}"),
+        'avg_scifi3_x': (-45, -31, f"{year} average x in station 3 for {energy} {beam_type}"),
+        'avg_scifi3_y': (37, 51, f"{year} average y in station 3 for {energy} {beam_type}"),
+        'avg_scifi4_x': (-45, -31, f"{year} average x in station 4 for {energy} {beam_type}"),
+        'avg_scifi4_y': (37, 51, f"{year} average y in station 4 for {energy} {beam_type}"),
+        'centroid_scifi1_x': (-100, 0, f"{year} centroid x in station 1 for {energy} {beam_type}"),
+        'centroid_scifi1_y': (0, 200, f"{year} centroid y in station 1 for {energy} {beam_type}"),
+        'centroid_scifi2_x': (-100, 0, f"{year} centroid x in station 2 for {energy} {beam_type}"),
+        'centroid_scifi2_y': (0, 200, f"{year} centroid y in station 2 for {energy} {beam_type}"),
+        'centroid_scifi3_x': (-100, 0, f"{year} centroid x in station 3 for {energy} {beam_type}"),
+        'centroid_scifi3_y': (0, 200, f"{year} centroid y in station 3 for {energy} {beam_type}"),
+        'centroid_scifi4_x': (-100, 0, f"{year} centroid x in station 4 for {energy} {beam_type}"),
+        'centroid_scifi4_y': (0, 200, f"{year} centroid y in station 4 for {energy} {beam_type}"),
+        'density_scifi1': (0, 2000, f"{year} hit density in station 1 for {energy} {beam_type}"),
+        'density_scifi2': (0, 2000, f"{year} hit density in station 2 for {energy} {beam_type}"),
+        'density_scifi3': (0, 2000, f"{year} hit density in station 3 for {energy} {beam_type}"),
+        'density_scifi4': (0, 2000, f"{year} hit density in station 4 for {energy} {beam_type}"),
+        'showerTagged': (0, 3, f"{year} hit density in station 1 for {energy} {beam_type}"),
+        'showerStartStation': (-1, 5, f"{year} hit density in station 1 for {energy} {beam_type}"),
+        "avgPos_slope_x": (-100, 100, f"{year} average x position of the slope for {energy} {beam_type}"),
+        "avgPos_slope_y": (-100, 100, f"{year} average y position of the slope for {energy} {beam_type}"),
+        "centroid_slope_y": (-100, 100, f"{year} x centroid of the slope for {energy} {beam_type}"),
+        "centroid_slope_x": (-100, 100, f"{year} y centroid of the slope for {energy} {beam_type}"),
+    }
+    
+    histos = create_histograms(hist_info)
 
     for file in MC_group['feature_path']:
-        get_features(file, MC_hits, MC_hit_station_1, MC_hit_station_2, MC_hit_station_3, MC_hit_station_4)
+        get_features(file, histos, data_type="MC")
 
     print(f'MC data done, now real for {year} {energy} {beam_type}')
     
@@ -208,22 +314,14 @@ def main():
     # count = 0
     for file in real_group['feature_path']:
         # count += 1
-        get_features(file, real_hits, real_hit_station_1, real_hit_station_2, real_hit_station_3, real_hit_station_4)
+        get_features(file, histos, data_type="real")
         # if count >= 5:
         #     break
 
     print(f'real data done, now plotting for {year} {energy} {beam_type}')
 
 
-    make_plot_from_hist(real_hits, MC_hits, title=f"{year} SciFi hits for {energy} {beam_type}", x_title="Number of hits", y_title="Normalized event count", save_name=f"comparison_hits_{energy}_{beam_type}_{year}")
-
-    make_plot_from_hist(real_hit_station_1, MC_hit_station_1, title=f"{year} SciFi hits in station 1 for {energy} {beam_type}", x_title="Number of hits in station 1", y_title="Normalized event count", save_name=f"comparison_hits_station_1_{energy}_{beam_type}_{year}")
-    
-    make_plot_from_hist(real_hit_station_2, MC_hit_station_2, title=f"{year} SciFi hits in station 2 for {energy} {beam_type}", x_title="Number of hits in station 2", y_title="Normalized event count", save_name=f"comparison_hits_station_2_{energy}_{beam_type}_{year}")
-    
-    make_plot_from_hist(real_hit_station_3, MC_hit_station_3, title=f"{year} SciFi hits in station 3 for {energy} {beam_type}", x_title="Number of hits in station 3", y_title="Normalized event count", save_name=f"comparison_hits_station_3_{energy}_{beam_type}_{year}")
-    
-    make_plot_from_hist(real_hit_station_4, MC_hit_station_4, title=f"{year} SciFi hits in station 4 for {energy} {beam_type}", x_title="Number of hits in station 4", y_title="Normalized event count", save_name=f"comparison_hits_station_4_{energy}_{beam_type}_{year}")
+    make_plots_from_histos(histos, energy, beam_type, year)
 
 
 if __name__ == "__main__":

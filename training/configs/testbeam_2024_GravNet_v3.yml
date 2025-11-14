@@ -1,0 +1,93 @@
+
+model_name: &model_name testbeam_2024_GravNet
+split_name: train_2024_split_v1
+logger:
+  project: 'snd-ml-testbeam'
+  entity: "sacha-frankhauser-epfl"
+  name: train_2024_split_v1_testbeam_2024_GravNet
+  version: 3
+  save_dir: '/afs/cern.ch/work/s/sfrankha/snd-ml/training/log/'
+
+ModelCheckpoint:
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+  save_last: True
+
+batch_size: 
+  train: 128
+  val: 1
+  test: 1
+
+max_epochs: 1000
+#val_check_interval: 5000
+check_val_every_n_epoch: 1
+
+
+metadata_dir: /afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/training
+
+processed_pt_root: /eos/user/s/sfrankha/processed_pt_root
+
+#resume_from_checkpoint: None
+
+factor: 0.93
+patience: 5
+lr: 0.003
+
+nb_classes: 2
+use_weights: False
+weight_type: "weight"
+class_weights: [1.0, 1.0]
+
+use_event_feature: False
+global_feature_channels: 6
+event_feature_cols: ['RecoMuon.px', 'RecoMuon.py', 'RecoMuon.pz', 'RecoMuon.x', 'RecoMuon.y', 'RecoMuon.z']
+
+
+hit_feature_cols: ['detType','orientation','x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'qdc']
+use_veto_hits: False
+
+
+spatial_channels: 9
+final_dropout: 0.1 # The dropout of the final layer
+feature_dropout: 0.0 # This is the dropout within the GNN convolutions
+spatial_dropout: 0.0
+
+
+
+
+
+# MLP params
+
+#n_glabal_feature: 6
+layernorm: False # True
+batchnorm: True
+aggregation: mean_sum
+hidden_activation: ReLU # SiLU
+output_activation: 
+
+# Layer Structure
+
+n_grav_heads: 5 # 5
+hidden: 64
+n_graph_iters: 5 # 5
+nb_encoder_layer: 3
+nb_decoder_layer: 3
+nb_feature_layer: 3
+nb_spatial_layer: 3
+concat_all_layers: False # True
+layer_shape: pyramid # flat
+
+# GravNet-specific parameters
+knn: # 16
+rand_k: 
+aggs: [add, max, mean]
+
+r: 1.
+max_knn: 16
+
+emb_dims: 16
+grav_weight: 3.0
+norm_hidden: True
+norm_embedding: False
+self_loop: True

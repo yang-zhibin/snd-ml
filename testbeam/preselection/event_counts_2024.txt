@@ -1,0 +1,7 @@
+beam_energy,beam_type,n_events_real,n_events_MC
+100GeV,e-,8574023,23880
+150GeV,e-,2897971,91539
+200GeV,e-,5753732,24806
+250GeV,e-,4239290,22416
+300GeV,e-,3695326,85858
+50GeV,e-,654184,24240

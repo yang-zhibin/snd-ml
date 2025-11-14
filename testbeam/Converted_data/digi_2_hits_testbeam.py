@@ -79,7 +79,6 @@ def main(args):
     raw_data, raw_tree = open_root_file(args.digi_path)
 
     beam_type = args.pdg
-
         
     out_file, new_tree = create_output_file(args.out_path, args.mode)
     
@@ -88,48 +87,17 @@ def main(args):
 
     ids = ROOT.Id()
     hits = ROOT.TClonesArray("Hit")
-
     
     new_tree.Branch("Id", ids)
     new_tree.Branch("Hits", hits)
-
-
-    # if "vetoFree" in args.out_path:
-    #     selection = "preSelect_vetoFree==1"
-    # elif "vetoTagged" in args.out_path:
-    #     selection = "preSelect_vetoTagged==1"
-    # else:
-    #     selection = ""
-
-    # if selection:
-    #     print(f"Applying selection: {selection}")
-    #     n_match = preSelect_tree.GetEntries(selection)
-    #     print(f"Entries matching selection: {n_match}")
-    #     if n_match == 0:
-    #         raise RuntimeError("No entries matched the selection condition.")
-
-    #     preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")
-    #     elist = ROOT.gDirectory.Get(elist_name)
-
-    #     if not elist or not isinstance(elist, ROOT.TEntryList):
-    #         raise RuntimeError("Failed to create or retrieve TEntryList")
-        
-    #     preSelect_tree.SetEntryList(elist)
-    # else:
-    #     raise ValueError("No selection condition determined from output file name.")
-
     
     for i in range(raw_tree.GetEntries()):
         entry_number = i
         raw_tree.GetEntry(entry_number)
         
-        
         hits.Clear()
         ids.clear()
         ids.runId = raw_tree.EventHeader.GetRunId()
-        
-        
-
         
         if ('MC' in  args.type):
             ids.isMC = 1
@@ -137,15 +105,9 @@ def main(args):
                 ids.eventId = raw_tree.EventHeader.GetEventNumber()
             except Exception:
                 ids.eventId = raw_tree.EventHeader.GetMCEntryNumber()
-                
-            event_pdg0 = raw_tree.MCTrack[0].GetPdgCode()
-            event_pdg1 = raw_tree.MCTrack[1].GetPdgCode()
 
-            neutrino_pdgCode = [12, -12, 14, -14, 16, -16]
-            if (event_pdg0 == event_pdg1) and (event_pdg0 in neutrino_pdgCode):
-                ids.pdgCode = event_pdg0 - 100 if event_pdg0 < 0 else event_pdg0 + 100
-            else:
-                ids.pdgCode = event_pdg0
+            event_pdg0 = raw_tree.MCTrack[0].GetPdgCode()
+            ids.pdgCode = event_pdg0
                 
         elif('real' in  args.type):
             if beam_type != 'no type':
@@ -165,7 +127,6 @@ def main(args):
                 ids.pdgCode = 0
             ids.isMC = 0
             ids.eventId = raw_tree.EventHeader.GetEventNumber()
-        
         
         process_hits(raw_tree, snd_geo, hits)
         new_tree.Fill()
@@ -190,3 +151,5 @@ if __name__ == "__main__":
 
     main(args)
    # print('testing law, digi to hits')
+   
+# python digi_2_hits_testbeam.py -d /eos/experiment/sndlhc/MonteCarlo/testbeam2024/250GeV_211/X_neg37.93_Y_41.74_Z_315/sndLHC.PG_211-TGeant4_digCPP.root -g  /eos/experiment/sndlhc/MonteCarlo/testbeam2024/250GeV_211/X_neg37.93_Y_41.74_Z_315/geofile_full.PG_211-TGeant4.root -o /eos/user/s/sfrankha/sndlhc/MonteCarlo/testbeam2024/250GeV_211/X_neg37.93_Y_41.74_Z_315/hit_sndLHC.PG_211-TGeant4_digCPP.root -t MC_data -pdg pi+

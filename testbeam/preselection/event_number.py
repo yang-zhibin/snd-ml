@@ -21,10 +21,20 @@ ROOT.gStyle.SetOptStat(0)
 
 
 def open_root_file(file_path, tree_name='cbmsim', mode='read'):
+    if not os.path.exists(file_path) or os.path.getsize(file_path) < 1000:
+        print(f"⚠️  Skipping corrupted or missing file: {file_path}")
+        return None, None
     file = ROOT.TFile(file_path, mode)
+    if not file or file.IsZombie():
+        print(f"[Warning] Could not open ROOT file: {file_path}")
+        return None, None
+
     tree = file.Get(tree_name)
     if not tree or not isinstance(tree, ROOT.TTree):
-        raise RuntimeError(f"TTree '{tree_name}' not found in {file_path}")
+        print(f"[Warning] TTree '{tree_name}' not found in {file_path}")
+        file.Close()
+        return file, None
+
     return file, tree
 
 
@@ -101,26 +111,26 @@ def make_hist_from_file(root_file, hist, color, zombie_files, tree_missing_files
     
 
 def main(args):
-    # if args.year == "2023":
-    #     real_file = "../snakemake/metadata/updated/real_data_testbeam_June2023_H8_updated_metadata.csv"
-    #     real_name = os.path.basename(real_file)
-    #     MC_file = "../snakemake/metadata/updated/MC_data_testbeam2023_updated_metadata.csv"
-    #     MC_name = os.path.basename(MC_file)
-    # elif args.year == "2024":
-    real_file = "../snakemake/metadata/updated/real_data_testbeam_24_updated_metadata.csv"
-    real_name = os.path.basename(real_file)
-    MC_file = "../snakemake/metadata/updated/MC_data_testbeam2024_updated_metadata.csv"
-    MC_name = os.path.basename(MC_file)
-    # else:
-    #     print('Unrecognized year')
-    #     return 0
+    if args.year == "2023":
+        real_file = "../metadata/updated/real_data_testbeam_June2023_H8_metadata.csv"
+        real_name = os.path.basename(real_file)
+        MC_file = "../metadata/updated/MC_data_testbeam2023_metadata.csv"
+        MC_name = os.path.basename(MC_file)
+    elif args.year == "2024":
+        real_file = "../metadata/updated/real_data_testbeam_24_metadata.csv"
+        real_name = os.path.basename(real_file)
+        MC_file = "../metadata/updated/MC_data_testbeam2024_metadata.csv"
+        MC_name = os.path.basename(MC_file)
+    else:
+        print('Unrecognized year')
+        return 0
     
-    zombie_files = []
-    tree_missing_files = []
-    n_events_MC = []
-    n_events_real = []
-    positive_files_MC = []
-    positive_files_real = []
+    # zombie_files = []
+    # tree_missing_files = []
+    # n_events_MC = []
+    # n_events_real = []
+    # positive_files_MC = []
+    # positive_files_real = []
     
     file_exists = os.path.isfile(real_file)
     if (not file_exists):
@@ -142,30 +152,71 @@ def main(args):
     MC_groups   = MC_df.groupby(["beam_energy", "beam_type"])
     
     # comparison = []
-    
-    for (energy, btype), group in real_groups:
-        if not ((energy == '150GeV') and (btype == 'e-')):
-            print(f'Skipping {energy} beam of {btype}')
-            continue 
+    results = []
+    for (energy, btype), group_real in real_groups:
+        # if not ((energy == '150GeV') and (btype == 'e-')):
+        #     print(f'Skipping {energy} beam of {btype}')
+        #     continue
         if (energy, btype) not in MC_groups.groups:
             print(f'No equivalent for {energy} beam of {btype} in MC data, skipping.')
             continue
         
-        hist_real = ROOT.TH1F(f'Real data {energy} {btype}', f'Real data {energy} {btype}', 100, 0, 3000)
-        hist_MC = ROOT.TH1F(f'MC data {energy} {btype}', f'MC data {energy} {btype}', 100, 0, 3000)
+        group_MC = MC_groups.get_group((energy, btype))
+
+        n_events_real = 0
+        n_events_MC   = 0
+
+        # --- Comptage des events pour les fichiers réels ---
+        print(f"\n🔹 Counting REAL data for {energy} {btype} ...")
+        for file_path in tqdm(group_real["digi_path"], desc=f"Real {energy} {btype}"):
+            f, tree = open_root_file(file_path)
+            if tree:
+                n_events_real += tree.GetEntries()
+            if f:
+                f.Close()
+
+        # --- Comptage des events pour les fichiers MC ---
+        print(f"🔹 Counting MC data for {energy} {btype} ...")
+        for file_path in tqdm(group_MC["digi_path"], desc=f"MC {energy} {btype}"):
+            f, tree = open_root_file(file_path)
+            if tree:
+                n_events_MC += tree.GetEntries()
+            if f:
+                f.Close()
+
+        # Enregistrement du résultat
+        results.append({
+            "beam_energy": energy,
+            "beam_type": btype,
+            "n_events_real": n_events_real,
+            "n_events_MC": n_events_MC
+        })
+
+        print(f"✅ {energy} {btype} → Real: {n_events_real} | MC: {n_events_MC}")
+
+    # --- Sauvegarde dans un fichier texte ---
+    output_file = f"event_counts_{args.year}.txt"
+    with open(output_file, "w") as fout:
+        fout.write("beam_energy,beam_type,n_events_real,n_events_MC\n")
+        for r in results:
+            fout.write(f"{r['beam_energy']},{r['beam_type']},{r['n_events_real']},{r['n_events_MC']}\n")
+
+    print(f"\n📄 Résultats enregistrés dans {output_file}")
+        # hist_real = ROOT.TH1F(f'Real data {energy} {btype}', f'Real data {energy} {btype}', 100, 0, 3000)
+        # hist_MC = ROOT.TH1F(f'MC data {energy} {btype}', f'MC data {energy} {btype}', 100, 0, 3000)
         # real_hits = []
         # MC_hits = []
         
         # for file in MC_groups.get_group((energy, btype))['digi_path']:
         #     hist_MC = make_hist_from_file(file, hist_MC, ROOT.kBlue, zombie_files, tree_missing_files, n_events_MC, positive_files_MC)
         
-        hist_real = make_hist_from_file(group['digi_path'].values[6], hist_real, ROOT.kRed, zombie_files, tree_missing_files, n_events_real, positive_files_real)            
+        # hist_real = make_hist_from_file(group['digi_path'].values[6], hist_real, ROOT.kRed, zombie_files, tree_missing_files, n_events_real, positive_files_real)            
         
-        print(f'real data done, now MC for {energy} {btype}')
+        # print(f'real data done, now MC for {energy} {btype}')
         
-        hist_MC = make_hist_from_file(MC_groups.get_group((energy, btype))['digi_path'].values[0], hist_MC, ROOT.kBlue, zombie_files, tree_missing_files, n_events_MC, positive_files_MC)
+        # hist_MC = make_hist_from_file(MC_groups.get_group((energy, btype))['digi_path'].values[0], hist_MC, ROOT.kBlue, zombie_files, tree_missing_files, n_events_MC, positive_files_MC)
 
-        print(f'MC data done, now plotting for {energy} {btype}')
+        # print(f'MC data done, now plotting for {energy} {btype}')
         
         # if zombie_files:
         #     with open(f"zombie_files_{energy}_{btype}.txt", "w") as fout:
@@ -190,29 +241,29 @@ def main(args):
 
         
         # Normalisation (aire = 1)
-        if hist_real.Integral() > 0:
-            hist_real.Scale(1.0 / hist_real.Integral())
-        if hist_MC.Integral() > 0:
-            hist_MC.Scale(1.0 / hist_MC.Integral())
+        # if hist_real.Integral() > 0:
+        #     hist_real.Scale(1.0 / hist_real.Integral())
+        # if hist_MC.Integral() > 0:
+        #     hist_MC.Scale(1.0 / hist_MC.Integral())
 
-        c = ROOT.TCanvas(f"SciFi hits for {energy} {btype}", f"SciFi hits for {energy} {btype}", 800, 600)
+        # c = ROOT.TCanvas(f"SciFi hits for {energy} {btype}", f"SciFi hits for {energy} {btype}", 800, 600)
 
-        # Dessiner les deux histos sur le même canevas
-        hist_real.Draw("HIST")
-        hist_MC.Draw("HIST SAME")
-        # hist_MC.Draw("HIST")
+        # # Dessiner les deux histos sur le même canevas
+        # hist_real.Draw("HIST")
+        # hist_MC.Draw("HIST SAME")
+        # # hist_MC.Draw("HIST")
 
-        # Ajouter une légende
-        legend = ROOT.TLegend(0.7, 0.7, 0.9, 0.9)
-        legend.AddEntry(hist_real, "Real Data", "l")
-        legend.AddEntry(hist_MC, "MC Data", "l")
-        legend.Draw()
+        # # Ajouter une légende
+        # legend = ROOT.TLegend(0.7, 0.7, 0.9, 0.9)
+        # legend.AddEntry(hist_real, "Real Data", "l")
+        # legend.AddEntry(hist_MC, "MC Data", "l")
+        # legend.Draw()
 
-        c.SaveAs(f"comparison_hits_{energy}_{btype}_2024_test.png")
-        # c.SaveAs(f"MC_hits_{energy}_{btype}_2024_test.png")
+        # c.SaveAs(f"comparison_hits_{energy}_{btype}_2024_test.png")
+        # # c.SaveAs(f"MC_hits_{energy}_{btype}_2024_test.png")
 
         
-        print(f'number of events in MC for {energy} {btype}: {sum(n_events_MC)}')
+        # print(f'number of events in MC for {energy} {btype}: {sum(n_events_MC)}')
 
         
     # df_comp = pd.DataFrame(comparison)
@@ -225,7 +276,7 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-f", "--forceRerun",dest="force_rerun",action="store_true",help="Force rerun")
-    # parser.add_argument("-y", "--year", dest="year", help="year", required=True)
+    parser.add_argument("-y", "--year", dest="year", help="year", required=True)
     args = parser.parse_args()
     main(args)
     

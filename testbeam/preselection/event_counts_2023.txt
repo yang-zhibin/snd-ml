@@ -1,0 +1,4 @@
+beam_energy,beam_type,n_events_real,n_events_MC
+100GeV,pi+,82433419,20000
+180GeV,pi+,145385062,20000
+300GeV,pi-,294093331,20000

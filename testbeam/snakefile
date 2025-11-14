@@ -25,19 +25,23 @@ wildcard_constraints:
 
 
 metadata_csv_list = [
-    "MC_data_testbeam2023_updated_metadata.csv",
-    "MC_data_testbeam2024_updated_metadata.csv",
-    "real_data_testbeam_June2023_H8_updated_metadata.csv",
-    "real_data_testbeam_24_updated_metadata.csv",
+    "MC_data_testbeam2023_metadata.csv",
+    "MC_data_testbeam2024_metadata.csv",
+    "real_data_testbeam_June2023_H8_metadata.csv",
+    "real_data_testbeam_24_metadata.csv",
 ]
 
-train_mode = False
-train_model = 'GravNet_v4'
-
+train_mode = True
+train_split = 'train_2024_split_v1'
+train_model = 'testbeam_2024_GravNet_v3'
+# train_split = 'train_2024_split_v1_horizontal'
+# train_model = 'testbeam_2024_GravNet_v1_horizontal'
+# train_split = 'train_2024_split_v1_vertical'
+# train_model = 'testbeam_2024_GravNet_v1_vertical'
 
 def load_metadata():
     if train_mode:
-        metadata_prefix = f"/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/training/{train_model}"
+        metadata_prefix = f"/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/training/{train_split}"
         metadata_files = glob.glob(f"{metadata_prefix}*.csv")
         if not metadata_files:
             print(f"Warning: No CSV files found with prefix {metadata_prefix}")
@@ -46,7 +50,7 @@ def load_metadata():
         return df
 
     else:
-        metadata_rootpath = "/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/metadata/updated/"
+        metadata_rootpath = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/"
         metadata_files = [os.path.join(metadata_rootpath, file_name) for file_name in metadata_csv_list]
         metadata_files = [file for file in metadata_files if os.path.isfile(file)]
         if not metadata_files:  
@@ -58,7 +62,7 @@ def load_metadata():
             df = pd.concat((pd.read_csv(file) for file in metadata_files), ignore_index=True)
             return df
 METADATA = load_metadata()
-#print(METADATA)
+# print(METADATA)
 
 
 def get_metadata_from_output(ref_name, ref_value, target_name):
@@ -145,26 +149,82 @@ def collect_model_path(target_name):
 
 rule finish:
     input:
-        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
-        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        # expand("/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
+        #  expand("/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
-        expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        # expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         # expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
-        #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
+        # expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
         #expand("{model_3d_ckpt}", model_3d_ckpt=collect_model_path('ckpt')),
-        #expand("{model_output}", model_output=collect_model_path('model_output')),
+        # expand("{model_output}", model_output=collect_model_path('model_output')),
         #expand("{eval_output}", eval_output=collect_model_path('eval_output')),
         #expand("{model_3d_output}", model_3d_output=collect_model_path('model_output'))
         #expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
 
 
+
+rule train:
+    input:
+        expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
+        script = '/afs/cern.ch/work/s/sfrankha/snd-ml/training/train_testbeam.py',
+        model_config = f'/afs/cern.ch/work/s/sfrankha/snd-ml/training/configs/{train_model}.yml',
+        
+    #output:
+    #    trained_model = "{model_ckpt}"
+    
+    threads:2
+    resources:
+        runtime=23*60*60,
+        mem_mb=8000,
+        disk_mb=8000,
+        nvidia_gpu=1
+    shell:
+        r"""
+        echo "training model"
+        #avoid unbound variable error (only occur when using snakemake)
+        set +u 
+        source /afs/.cern.ch/user/s/sfrankha/env_conda.sh
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        export CUDA_VISIBLE_DEVICES=0
+        #nvidia-smi
+
+        
+        python {input.script} -c {input.model_config} 
+
+        """
+
+
+rule generate_raw_metadata:
+    input:
+        script = '/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/generate_path_file_testbeam.py'
+    output:
+        raw_metadata = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/raw/{metadata_csv}"
+    params:
+        script = '/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/generate_path_file_testbeam.py'
+    threads:1
+    resources:
+        runtime=180*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        """
+        echo "Generating raw metadata"
+        #avoid unbound variable error (only occur when using snakemake)
+        set +u 
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+        python {params.script} -o {output.raw_metadata} -f
+        """
+        
+        
 rule update_metadata:
     input:
-        raw_metadata = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}",
-        script = '/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/update_path_file.py',
+        raw_metadata = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/raw/{metadata_csv}",
+        script = '/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/update_metadata.py',
     output:
-        updated_metadata = "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}"
+        updated_metadata = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/{metadata_csv}"
     threads:1
     resources:
         runtime=45*60,
@@ -176,7 +236,7 @@ rule update_metadata:
         echo "Updating metadata"
         #avoid unbound variable error (only occur when using snakemake)
         set +u 
-        source /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/envs/env_pyroot.sh
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
         python {input.script} -i {input.raw_metadata} -o {output.updated_metadata}
         """
 
@@ -188,6 +248,10 @@ rule update_metadata:
 beam_type = ["pi-"]
 energy = ["300GeV"]
 year = ['2023']
+
+# beam_type = ["pi+"]
+# energy = ["100GeV","180GeV"]
+# year = ['2023']
 
 rule plots:
     input:
@@ -241,7 +305,7 @@ rule preSelection_plot:
         
 rule feature_plot:
     input:
-        script="/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/feature_plots.py"
+        script="/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/Converted_data/feature_plots.py"
     output:
         # one flag file per histogram name (wildcard)
         touch("/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/feature_plots/plot_flags/hist.{beam_type}_{energy}_{year}.done")
@@ -274,7 +338,7 @@ rule feature_plot:
         python {input.script} -b {wildcards.beam_type} -e {wildcards.energy} -y {wildcards.year}
 
         # Copy result to final destination
-        # rm -r {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
+        rm -r {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
         mkdir -p {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
         xrdcp ./tmp/plots/* {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
         rm -r ./tmp/plots/
@@ -283,23 +347,23 @@ rule feature_plot:
 
 rule process_hits:
     input:
-        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        expand("/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         digi=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "geo_path"),
         # preSelect=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "preSelect_path"),
         
         
     params:
-        script = "/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/digi_2_hits_testbeam.py",
+        script = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/Converted_data/digi_2_hits_testbeam.py",
         data_type=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "data_type"),
         pdg=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "beam_type"),
-        env_file = "/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/env/env_sndsw.sh",
+        env_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/env/env_sndsw.sh",
         
     output:
         hit_path="{hit_path}"
     threads:1
     resources:
-        runtime=60*60,
+        runtime=8*60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -340,21 +404,21 @@ rule process_hits:
 
 rule process_features:
     input:
-        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        expand("/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         digi=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "geo_path"),
-        script = "/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/digi_2_features_testbeam.py"
+        script = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/Converted_data/digi_2_features_testbeam.py"
         
     params:
         data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
         pdg=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "beam_type"),
-        env_file = "/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/env/env_sndsw.sh",
+        env_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/env/env_sndsw.sh",
         
     output:
         feature_path="{feature_path}"
     threads:1
     resources:
-        runtime=60*60,
+        runtime=8*60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -393,5 +457,58 @@ rule process_features:
         xrdcp -f "${{tmp_output}}" "{output.feature_path}" || {{ echo "xrdcp failed"; exit 1; }}
 
         echo "Cleaning up"
+        rm -rf "${{tmp_dir}}"
+        """
+        
+        
+rule process_pt_hit:
+    input:
+        script = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/Converted_data/root_2_pt_testbeam.py",
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+
+        #feature_path=lambda wildcards: get_metadata_value("pt_hit_path", wildcards.pt_hit_path, "feature_path"),
+        hit_path=lambda wildcards: get_metadata_value("pt_hit_path", wildcards.pt_hit_path, "hit_path"),
+        
+        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
+
+    #params:
+        
+        #data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
+        #env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw.sh"
+        #pt_prefix = "{pt_prefix}"
+    output:
+        pt_hit_path="{pt_hit_path}"
+    threads:1
+    resources:
+        runtime=120*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        echo "processing root to pt"
+
+        # Avoid unbound variable error (only occurs when using Snakemake)
+        set +u 
+
+        # Set up LCG environment
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+
+        export EOSSHIP=root://eosuser.cern.ch/
+        # Create a unique temporary directory
+        tmp_dir=$(mktemp -d)
+        filename=$(basename "{output.pt_hit_path}")
+        tmp_output="${{tmp_dir}}/${{filename}}"
+
+        # Run the processing script
+        python {input.script} \
+            -hit {input.hit_path} \
+            -o "${{tmp_output}}"
+
+        # Copy result to final output path
+        xrdcp -f "${{tmp_output}}" "{output.pt_hit_path}" || {{ echo "xrdcp failed"; exit 1; }}
+
+        # Cleanup
         rm -rf "${{tmp_dir}}"
         """

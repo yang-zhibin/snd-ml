@@ -300,7 +300,7 @@ def extract_info(file_name):
 
 def main(args):
     
-    config_path = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/snakemake/metadata/metadata_testbeam_config.yaml"
+    config_path = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/metadata_testbeam_config.yaml"
     with open(config_path, "r") as file:
         config = yaml.safe_load(file)
     

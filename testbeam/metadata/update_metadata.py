@@ -1,6 +1,6 @@
 import os
 import csv
-import ROOT
+# import ROOT
 import pandas as pd
 import glob
 import yaml
@@ -112,6 +112,27 @@ def get_feature_path(digi_path):
     return feature_path
 
 
+def get_new_path(digi_path, pre_fix, file_type):
+    
+    # Trouver la sous-partie à partir de 'sndlhc/'
+    split_key = "sndlhc/"
+    if split_key not in digi_path:
+        raise ValueError(f"'{split_key}' not found in path: {digi_path}")
+
+    relative_path = digi_path.split(split_key, 1)[1] 
+    
+    folder, filename = os.path.split(relative_path)
+    
+    #replace the file type with file_type
+    name, _ = os.path.splitext(filename)
+    
+    # Créer le nouveau nom de fichier avec le préfixe et la nouvelle extension
+    new_filename = f"{pre_fix}_{name}{file_type}"
+    
+    new_path = os.path.join("/eos/user/s/sfrankha", "sndlhc", folder, new_filename)
+    
+    return new_path
+
 def get_hit_path(digi_path):
     """
     Construit le chemin de sortie du fichier feature à partir du digi_path.
@@ -133,6 +154,22 @@ def get_hit_path(digi_path):
     hit_path = os.path.join("/eos/user/s/sfrankha", "sndlhc", folder, hit_filename)
 
     return hit_path
+
+
+def get_pt_path(digi_path):
+    split_key = "sndlhc/"
+    if split_key not in digi_path:
+        raise ValueError(f"'{split_key}' not found in path: {digi_path}")
+
+    relative_path = digi_path.split(split_key, 1)[1] 
+    
+    folder, filename = os.path.split(relative_path)
+
+    pt_hit_filename = f"pt_hit_{filename}"
+
+    pt_hit_path = os.path.join("/eos/user/s/sfrankha", "sndlhc", folder, pt_hit_filename)
+
+    return pt_hit_path
 
 
 def get_real_particle_type_and_energy(df, particle_subfolder):
@@ -167,8 +204,15 @@ def main(args):
     
     df = pd.read_csv(csv_file)
     
-    df["feature_path"] = df["digi_path"].apply(get_feature_path)
-    df["hit_path"] = df["digi_path"].apply(get_hit_path)
+    # drop rows with n_event == 0 (if column exists)
+    if "n_event" in df.columns:
+        df = df[df["n_event"] != 0].reset_index(drop=True)
+    else:
+        print("Warning: 'n_event' column not found; no rows dropped.")
+    
+    df["feature_path"] = df["digi_path"].apply(get_new_path, pre_fix="feature", file_type=".root")
+    df["hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="hit", file_type=".root")
+    df["pt_hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="pt_hit", file_type=".pt.gz")
     
     if data_type == "MC_data":
         df = get_MC_particle_type_and_energy(df, particle_subfolder)
