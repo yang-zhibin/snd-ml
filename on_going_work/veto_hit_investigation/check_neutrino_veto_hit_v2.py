@@ -10,6 +10,7 @@ from collections import Counter
 import numpy as np
 from scipy.stats import binned_statistic
 from array import array
+from collections import defaultdict
 
 pdg_db = ROOT.TDatabasePDG.Instance()
 
@@ -64,100 +65,6 @@ def setup_geometry(geo_file):
     return snd_geo
 
 
-
-
-def process_pass_muon_hits_data():
-    mc_files = [
-        # "MC_kaon_FTFP_BERT_metadata.csv",
-        # "MC_neutron_FTFP_BERT_metadata.csv",
-         "MC_muon_down_metadata.csv",
-         "MC_muon_horizontal_metadata.csv",
-         "MC_muon_up_metadata.csv",
-        #"MC_neutrino_volTarget_100fb-1_metadata.csv",
-        # "real_data_2024_metadata.csv",
-    ]
-
-    root_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated'
-
-    metadata_vars = load_metadata_files(mc_files, root_path)
-    MC_muon_horizontal = metadata_vars["MC_muon_horizontal"]
-    MC_muon_down = metadata_vars["MC_muon_down"]
-    MC_muon_up = metadata_vars["MC_muon_up"]
-    MC_muon = pd.concat([MC_muon_horizontal, MC_muon_down, MC_muon_up], ignore_index=True)
-
-    
-    MC_muon = drop_missing_files(MC_muon, "digi_path", "MC_muon")
-    digi_chain = read_chain(MC_muon, "MC neutrino")
-    
-    
-    # === Prepare output ===
-    output_dir = "check_veto_hits_plots"
-    os.makedirs(output_dir, exist_ok=True)
-    out_file_name =  "pass_muon_veto_hits.root"
-    out_file = ROOT.TFile(os.path.join(output_dir,out_file_name), "RECREATE")
-    tree = ROOT.TTree("veto_hits", "Veto hit info")
-
-    # === Define branches ===
-    hit_time = array('f', [0])
-    pdg = array('i', [0])
-    energy_loss = array('f', [0])
-    start_z = array('f', [0])
-    time_category = array('i', [0])  # 0: early (≤25ns), 1: late (>25ns)
-    veto1 = array('i', [0])
-    veto2 = array('i', [0])
-
-    tree.Branch("hit_time", hit_time, "hit_time/F")
-    tree.Branch("pdg", pdg, "pdg/I")
-    tree.Branch("energy_loss", energy_loss, "energy_loss/F")
-    tree.Branch("start_z", start_z, "start_z/F")
-    tree.Branch("time_category", time_category, "time_category/I")
-    tree.Branch("veto1", veto1, "veto1/I")
-    tree.Branch("veto2", veto2, "veto2/I")
-
-
-    # create a hist of number veto hits
-    
-    # === Process events ===
-    count= 0
-    n_entries = digi_chain.GetEntries()
-    for i in tqdm(range(n_entries), desc="Processing events"):
-        digi_chain.GetEntry(i)
-        hit2MC = digi_chain.Digi_MuFilterHits2MCPoints[0]
-
-        n_veto_hit = 0
-        for aHit in digi_chain.Digi_MuFilterHits:
-            if not aHit.isValid() or aHit.GetSystem() != 1:  # Only Veto
-                continue
-            detID = aHit.GetDetectorID()
-            station = (detID // 1000) % 10
-            n_veto_hit += 1
-            hit_time[0] = aHit.GetTime()
-            time_category[0] = 0 if hit_time[0] <= 25 else 1
-            detID = aHit.GetDetectorID()
-            linksToMCPoints = hit2MC.wList(detID)
-
-            for mc_point_i, _ in linksToMCPoints:
-                MC_point = digi_chain.MuFilterPoint[mc_point_i]
-
-                pdg[0] = MC_point.PdgCode()
-                energy_loss[0] = MC_point.GetEnergyLoss()
-                start_z[0] = (
-                    digi_chain.MCTrack[1].GetStartZ()
-                    if digi_chain.MCTrack.GetEntries() > 1
-                    else -9999
-                )
-                count+=1
-                tree.Fill()
-
-        if count > (2000*1000):
-            break
-
-    tree.Write()
-    out_file.Close()
-    print(f"Saved output to {os.path.join(output_dir, out_file_name)}")
-    
-
-
 def process_veto_hits_data():
     mc_files = [
         # "MC_kaon_FTFP_BERT_metadata.csv",
@@ -185,72 +92,133 @@ def process_veto_hits_data():
     out_file = ROOT.TFile(os.path.join(output_dir,out_file_name), "RECREATE")
     tree = ROOT.TTree("veto_hits", "Veto hit info")
 
+    # === Define arrays ===
+    event_index       = array('i', [0])
+    hit_time          = array('f', [0])
+    neutrino_type     = array('i', [0])
+    pdg               = array('i', [0])
+    energy_loss       = array('f', [0])  # <-- was missing in your snippet
+    start_z           = array('f', [0])
+    veto_plane        = array('i', [0])  # 1 = veto1, 2 = veto2
+    only_proton_flag  = array('i', [0])
+
     # === Define branches ===
-    event_index = array('i', [0])
-    hit_time = array('f', [0])
-    neutrino_type = array('i', [0])
-    pdg = array('i', [0])
-    energy_loss = array('f', [0])
-    start_z = array('f', [0])
-    time_category = array('i', [0])  # 0: early (≤25ns), 1: late (>25ns)
-    veto_plane = array('i', [0]) #veto1, veto2
-    count_veto1 = array('i', [0])
-    count_veto2 = array('i', [0])
-    MC_track_momentum = array('f', [0])
-    only_proton_flag = array('i', [0])
-    
-    
-    
-    
     tree.Branch("event_index", event_index, "event_index/I")
     tree.Branch("hit_time", hit_time, "hit_time/F")
     tree.Branch("neutrino_type", neutrino_type, "neutrino_type/I")
     tree.Branch("pdg", pdg, "pdg/I")
     tree.Branch("energy_loss", energy_loss, "energy_loss/F")
-    tree.Branch("MC_track_momentum", MC_track_momentum, "MC_track_momentum/F")
     tree.Branch("start_z", start_z, "start_z/F")
-    tree.Branch("time_category", time_category, "time_category/I")
     tree.Branch("veto_plane", veto_plane, "veto_plane/I")
     tree.Branch("only_proton_flag", only_proton_flag, "only_proton_flag/I")
+
+    
+    particles = ["mu", "e", "neutron", "pi", "proton", "others"]
+    mcpoint_count = {p: array('i', [0]) for p in particles}
+    mcpoint_eloss = {p: array('f', [0]) for p in particles}
+    for p in particles:
+        tree.Branch(f"MC_point_{p}_count", mcpoint_count[p], f"MC_point_{p}_count/I")
+        tree.Branch(f"MC_point_{p}_total_ELoss", mcpoint_eloss[p], f"MC_point_{p}_total_ELoss/F")
 
 
     # create a hist of number veto hits
     h_n_veto_hits = ROOT.TH1I("h_n_veto_hits", "Number of Veto Hits per Event;N Veto Hits;Entries", 20, 0, 20)
-    
+
     # === Process events ===
     n_entries = digi_chain.GetEntries()
     for i in tqdm(range(n_entries), desc="Processing events"):
         digi_chain.GetEntry(i)
         hit2MC = digi_chain.Digi_MuFilterHits2MCPoints[0]
 
+        event_index[0] = i
+        event_pdg0 = digi_chain.MCTrack[0].GetPdgCode()
+        event_pdg1 = digi_chain.MCTrack[1].GetPdgCode()
+
+        neutrino_pdgCode = [12, -12, 14, -14, 16, -16]
+        if (event_pdg0 == event_pdg1) and (event_pdg0 in neutrino_pdgCode):
+            neutrino_type[0] = event_pdg0 - 100 if event_pdg0 < 0 else event_pdg0 + 100
+        else:
+            neutrino_type[0] = event_pdg0
+
+        # cache MC start z if available
+        start_z[0] = (
+            digi_chain.MCTrack[1].GetStartZ()
+            if hasattr(digi_chain, "MCTrack") and digi_chain.MCTrack.GetEntries() > 1
+            else -999.0
+        )
+
         n_veto_hit = 0
+
         for aHit in digi_chain.Digi_MuFilterHits:
             if not aHit.isValid() or aHit.GetSystem() != 1:  # Only Veto
                 continue
+
             n_veto_hit += 1
-            hit_time[0] = aHit.GetTime()
-            time_category[0] = 0 if hit_time[0] <= 25 else 1
+
+            # Reset per-hit scalars
+            hit_time[0] = float(aHit.GetTime())
+            time_category[0] = 0 if hit_time[0] <= 25.0 else 1
+            energy_loss[0] = 0.0
+            only_proton_flag[0] = 0
+
+            # Decode plane if possible; else -1
+            try:
+                veto_plane[0] = int(aHit.GetPlane())
+            except Exception:
+                veto_plane[0] = -1
+
             detID = aHit.GetDetectorID()
             linksToMCPoints = hit2MC.wList(detID)
 
+            # Per-hit accumulation structures
+            per_hit_count = {p: 0 for p in particles}
+            per_hit_eloss = {p: 0.0 for p in particles}
+
+            # Track e-loss per PDG to select a "dominant" PDG for this hit
+            pdg_energy = defaultdict(float)
+
+            # Loop over contributing MC points
             for mc_point_i, weight in linksToMCPoints:
                 MC_point = digi_chain.MuFilterPoint[mc_point_i]
 
-                pdg[0] = MC_point.PdgCode()
-                energy_loss[0] = MC_point.GetEnergyLoss()
-                start_z[0] = (
-                    digi_chain.MCTrack[1].GetStartZ()
-                    if digi_chain.MCTrack.GetEntries() > 1
-                    else -9999
-                )
-                #print(f"idx={mc_point_i} | w={weight:.3f} | trkID={trackId} | PDG={pdg[0]} | dE={energy_loss[0]:.4g} | startZ={start_z[0]:.2f} | pos=({MC_point.GetX():.2f},{MC_point.GetY():.2f},{MC_point.GetZ():.2f}) | detID={MC_point.GetDetectorID()}")
+                pdg_code = int(MC_point.PdgCode())
+                particle_type = get_particle_type(pdg_code)
 
-                MC_track_momentum[0] = (MC_point.GetPx()**2 + MC_point.GetPy()**2 + MC_point.GetPz()**2)**0.5
+                eloss = float(MC_point.GetEnergyLoss())
+                # Optional momentum (computed but not stored; keep if you need later)
+                # MC_track_momentum = (MC_point.GetPx()**2 + MC_point.GetPy()**2 + MC_point.GetPz()**2) ** 0.5
 
-                tree.Fill()
+                # Weighted contributions (if weight encodes fraction); many setups use raw link weights ~[0,1]
+                w_eloss = eloss * float(weight)
+
+                # Accumulate totals
+                energy_loss[0] += w_eloss
+                per_hit_count[particle_type] += 1
+                per_hit_eloss[particle_type] += w_eloss
+                pdg_energy[pdg_code] += w_eloss
+
+            # only_proton_flag: true iff there is at least one contributor and all are protons
+            total_contrib = sum(per_hit_count[p] for p in particles)
+            non_proton_contrib = total_contrib - per_hit_count["proton"]
+            if total_contrib > 0 and non_proton_contrib == 0:
+                only_proton_flag[0] = 1
+
+            # Dominant PDG by summed e-loss (fallback -9999 if none)
+            if pdg_energy:
+                pdg[0] = max(pdg_energy.items(), key=lambda kv: kv[1])[0]
+            else:
+                pdg[0] = -9999
+
+            # Push per-particle summaries into the branch arrays
+            for p in particles:
+                mcpoint_count[p][0] = int(per_hit_count[p])
+                mcpoint_eloss[p][0] = float(per_hit_eloss[p])
+
+            # Fill one TTree row per veto hit
+            tree.Fill()
+
+        # Fill per-event histogram once
         h_n_veto_hits.Fill(n_veto_hit)
-        if i > 100000:
-            break
         
     total_events = h_n_veto_hits.GetEntries()
     nonzero_events = sum(h_n_veto_hits.GetBinContent(i) for i in range(2, h_n_veto_hits.GetNbinsX() + 1))  # bin 2+ → n > 0

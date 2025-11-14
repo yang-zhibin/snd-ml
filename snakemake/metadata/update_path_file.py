@@ -286,6 +286,10 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     elif (data_type=='MC_neutrino'):
         if '100fb-1' in csv_input:
             df['lumi_per_file'] =100
+            
+            #corrupted file
+            df = df[df['digi_path'] != "/eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/3/sndLHC.Genie-TGeant4_20240126_digCPP.root"]
+
         elif '20fb-1' in csv_input:
             df['lumi_per_file'] =20
         if '2024' in csv_input:

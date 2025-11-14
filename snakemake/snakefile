@@ -39,12 +39,18 @@ metadata_csv_list = [
 #     # "MC_muon_down_metadata_recoTrks.csv",
 #    "MC_muon_down_metadata.csv",
 #      "MC_muon_horizontal_metadata.csv",
-    #  "MC_muon_up_metadata.csv",
+     "MC_muon_up_metadata.csv",
 
 #     "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
     # "MC_neutrino_volTarget_100fb-1_metadata.csv",
-      "MC_neutrino_2024_vm_metadata.csv",
-       "MC_neutrino_2024_ve_metadata.csv",
+    #"MC_neutrino_volTarget_100fb-1_up_metadata.csv",
+    
+    #   "MC_neutrino_2024_vm_metadata.csv",
+    #    "MC_neutrino_2024_ve_metadata.csv",
+        # "MC_neutrino_2024_vm_v2_metadata.csv",
+    #  "MC_neutrino_2024_ve_v2_metadata.csv",
+    #     "MC_neutrino_2025_vm_metadata.csv",
+    #    "MC_neutrino_2025_ve_metadata.csv",
 
 
     # "MC_kaon_FTFP_BERT_metadata.csv",
@@ -60,9 +66,9 @@ metadata_csv_list = [
 ]
 
 
-process_vetoTagged=False
+process_vetoTagged=True
 process_vetoFree = True
-process_model = ['baseline_muon', 'GravNet_v4'] #'baseline_muon' 'GravNet_v4', 
+process_model = ['GravNet_v4'] #'baseline_muon' 'GravNet_v4', 
 
 train_mode = False
 train_model = 'GravNet_v4'

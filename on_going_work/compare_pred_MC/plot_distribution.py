@@ -26,7 +26,7 @@ particle_2_class = {
 class_2_particle = {v: k for k, v in particle_2_class.items()}
 
 
-def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compare_pred_MC/processed_metadata_baseline_muon"):
+def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/on_going_work/compare_pred_MC/processed_metadata_GravNet_v2"):
     
     """Load all processed metadata CSVs into a dictionary."""
     metadata_dict = {}
@@ -144,29 +144,29 @@ def process_hist(args):
     real_data = METADATA_dict['real_data_2024']
     
     #reading real data
-    # data_rdf, data_chain, data_int_lumi = read_rdf(args,real_data[0:20])
-    # print(f'data_int_lumi:{data_int_lumi}')
-    # pred_classes = [ "kaon", "neutron", "muon"]
+    data_rdf, data_chain, data_int_lumi = read_rdf(args,real_data[0:20])
+    print(f'data_int_lumi:{data_int_lumi}')
+    pred_classes = [ "kaon", "neutron", "muon"]
     
-    # data_pred_hists = {}
-    # data_hist_proxies = []
-    # for cls in pred_classes:
-    #     class_id = particle_2_class[cls]
-    #     rdf_pred = data_rdf.Filter(f"pred_class_first == {class_id}")
-    #     h_proxy_pred = rdf_pred.Histo1D(
-    #         (f"h_{cls}_{hist_name}", "", int(n_bins), float(x_min), float(x_max)),
-    #         hist_name
-    #     )
+    data_pred_hists = {}
+    data_hist_proxies = []
+    for cls in pred_classes:
+        class_id = particle_2_class[cls]
+        rdf_pred = data_rdf.Filter(f"pred_class_first == {class_id}")
+        h_proxy_pred = rdf_pred.Histo1D(
+            (f"h_{cls}_{hist_name}", "", int(n_bins), float(x_min), float(x_max)),
+            hist_name
+        )
         
-    #     h_pred = h_proxy_pred.GetValue()
-    #     data_hist_proxies.append(h_proxy_pred)
-    #     h_pred.SetDirectory(0)
-    #     h_pred.GetXaxis().SetTitle(axis_title)
-    #     h_pred.GetYaxis().SetTitle("Events")
-    #     data_pred_hists[cls] = h_pred
+        h_pred = h_proxy_pred.GetValue()
+        data_hist_proxies.append(h_proxy_pred)
+        h_pred.SetDirectory(0)
+        h_pred.GetXaxis().SetTitle(axis_title)
+        h_pred.GetYaxis().SetTitle("Events")
+        data_pred_hists[cls] = h_pred
         
     ##reading MC
-    normalise_lumi = 1 #data_int_lumi
+    normalise_lumi = data_int_lumi
     
     ## reading neutrino
     neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(args, neutrino_df[:10])
@@ -934,7 +934,7 @@ def plot_MC_pred_VS_data_pred(data_pred_hists, muon_pred_hists, kaon_pred_hists,
 
 METADATA_dict = read_metadata()
 vetoTagged = False
-model_name = 'baseline_muon'
+model_name = 'GravNet_v4' #'baseline_muon'
 
 #control_region_columns = ['count_scifi', 'sum_hit_density', 'centroid_slope_x', 'centroid_slope_y']
 

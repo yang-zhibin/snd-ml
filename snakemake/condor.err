@@ -5,15 +5,15 @@ Rules claiming more threads will be scaled down.
 Provided resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, nvidia_gpu=0
 Select jobs to execute...
 
-[Mon Nov  3 15:18:59 2025]
+[Mon Nov  3 19:08:06 2025]
 rule cal_preSelect_eff:
-    input: /afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_preSelect_eff.py, /eos/experiment/sndlhc/users/zhibin/real_data/run_243/run_008724/preSelect_real_data_run_243_run_008724_sndsw_raw-0235.root
-    output: /eos/experiment/sndlhc/users/zhibin/real_data/run_243/run_008724/preCutEff_real_data_run_243_run_008724_sndsw_raw-0235.csv
+    input: /afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_preSelect_eff.py, /eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve_v2/416/preSelect_MC_neutrino_2024_ve_v2_416.root
+    output: /eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve_v2/416/preCutEff_MC_neutrino_2024_ve_v2_416.csv
     jobid: 0
     reason: Forced execution
-    wildcards: preCutEff_path=/eos/experiment/sndlhc/users/zhibin/real_data/run_243/run_008724/preCutEff_real_data_run_243_run_008724_sndsw_raw-0235.csv
-    resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, tmpdir=/pool/condor/dir_3300123/tmp, runtime=1200, nvidia_gpu=0
+    wildcards: preCutEff_path=/eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve_v2/416/preCutEff_MC_neutrino_2024_ve_v2_416.csv
+    resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, tmpdir=/pool/condor/dir_3111869/tmp, runtime=1200, nvidia_gpu=0
 
-[Mon Nov  3 15:20:42 2025]
+[Mon Nov  3 19:12:17 2025]
 Finished job 0.
 1 of 1 steps (100%) done

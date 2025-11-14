@@ -1,56 +1,102 @@
 hostname:
-b9p19p3821.cern.ch
+b9p19p7512.cern.ch
 running cal preSelect cut eff
-tmp_dir: /pool/condor/dir_3300123/tmp/tmp.iVY84MiTjf
-filename: preCutEff_real_data_run_243_run_008724_sndsw_raw-0235.csv
-tmp_output: /pool/condor/dir_3300123/tmp/tmp.iVY84MiTjf/preCutEff_real_data_run_243_run_008724_sndsw_raw-0235.csv
-/eos/experiment/sndlhc/users/zhibin/real_data/run_243/run_008724/preSelect_real_data_run_243_run_008724_sndsw_raw-0235.root
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-t_class='data', pdg_list=[0], pdg_clause='(pdgCode==0)'
-{'a_raw':           count
-data  1000000.0, 'b_non_veto':          count
-data  857118.0, '1_scifi>200':        count
-data  4848.0, 'veto_1ns':       count
-data  197.0, 'veto1_1ns':       count
-data  669.0, 'veto2_1ns':       count
-data  398.0, 'veto3_1ns':        count
-data  3416.0, 'veto_2ns':       count
-data    6.0, 'veto1_2ns':       count
-data   48.0, 'veto2_2ns':       count
-data   32.0, 'veto3_2ns':       count
-data   40.0, 'veto_3ns':       count
-data    6.0, 'veto1_3ns':       count
-data   31.0, 'veto2_3ns':       count
-data   18.0, 'veto3_3ns':       count
-data    8.0, 'veto_4ns':       count
-data    6.0, 'veto1_4ns':       count
-data   15.0, 'veto2_4ns':       count
-data   11.0, 'veto3_4ns':       count
-data    8.0, 'veto_5ns':       count
-data    6.0, 'veto1_5ns':       count
-data   15.0, 'veto2_5ns':       count
-data   11.0, 'veto3_5ns':       count
-data    8.0}
-matrices save to /pool/condor/dir_3300123/tmp/tmp.iVY84MiTjf/preCutEff_real_data_run_243_run_008724_sndsw_raw-0235.csv
-RDataFrame run times:  23
+tmp_dir: /pool/condor/dir_3111869/tmp/tmp.drx6GcXrgj
+filename: preCutEff_MC_neutrino_2024_ve_v2_416.csv
+tmp_output: /pool/condor/dir_3111869/tmp/tmp.drx6GcXrgj/preCutEff_MC_neutrino_2024_ve_v2_416.csv
+/eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_ve_v2/416/preSelect_MC_neutrino_2024_ve_v2_416.root
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+t_class='ve', pdg_list=[12, -12], pdg_clause='(pdgCode==12 || pdgCode==-12)'
+t_class='NC', pdg_list=[112, -112, 114, -114, 116, -116], pdg_clause='(pdgCode==112 || pdgCode==-112 || pdgCode==114 || pdgCode==-114 || pdgCode==116 || pdgCode==-116)'
+{'a_raw':     count
+ve    0.0
+NC   16.0, 'b_non_veto':     count
+ve    0.0
+NC   16.0, '1_scifi>200':     count
+ve    0.0
+NC   14.0, 'veto_1ns':     count
+ve    0.0
+NC   14.0, 'veto1_1ns':     count
+ve    0.0
+NC   14.0, 'veto2_1ns':     count
+ve    0.0
+NC   14.0, 'veto3_1ns':     count
+ve    0.0
+NC   14.0, 'veto_2ns':     count
+ve    0.0
+NC   12.0, 'veto1_2ns':     count
+ve    0.0
+NC   13.0, 'veto2_2ns':     count
+ve    0.0
+NC   14.0, 'veto3_2ns':     count
+ve    0.0
+NC   13.0, 'veto_3ns':     count
+ve    0.0
+NC   11.0, 'veto1_3ns':     count
+ve    0.0
+NC   13.0, 'veto2_3ns':     count
+ve    0.0
+NC   14.0, 'veto3_3ns':     count
+ve    0.0
+NC   12.0, 'veto_4ns':     count
+ve    0.0
+NC   11.0, 'veto1_4ns':     count
+ve    0.0
+NC   13.0, 'veto2_4ns':     count
+ve    0.0
+NC   12.0, 'veto3_4ns':     count
+ve    0.0
+NC   11.0, 'veto_5ns':     count
+ve    0.0
+NC   11.0, 'veto1_5ns':     count
+ve    0.0
+NC   12.0, 'veto2_5ns':     count
+ve    0.0
+NC   12.0, 'veto3_5ns':     count
+ve    0.0
+NC   11.0}
+matrices save to /pool/condor/dir_3111869/tmp/tmp.drx6GcXrgj/preCutEff_MC_neutrino_2024_ve_v2_416.csv
+RDataFrame run times:  46
