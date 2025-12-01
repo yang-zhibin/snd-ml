@@ -14,7 +14,22 @@ import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from matplotlib.backends.backend_pdf import PdfPages
 from tqdm import tqdm
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from collections import Counter
 
+import matplotlib
+print(matplotlib.__version__)
+
+pdg_to_name = {
+    12: 've', -12: 've',
+    14: 'vm', -14: 'vm',
+    16: 'vt', -16: 'vt',
+    112: 'NC', -112: 'NC', 114: 'NC', -114: 'NC', 116: 'NC', -116: 'NC',
+    130: 'kaon', 310: 'kaon',
+    2112: 'neutron',
+    13: 'muon', -13: 'muon' ,
+    0: 'data'
+}
 
 def setup_geometry(geo_file):
     """Initialize and return the geometry configurations."""
@@ -321,7 +336,7 @@ def shower_color(sid: int):
 
     
 
-def plot_clustering(all_hits, det_layout, event_dict, args):
+def plot_event(event, all_hits, det_layout, event_dict, args, shower_map, pdf):
     group_color = {
         "wall":      "tab:gray",
         "mat":       "tab:blue",
@@ -352,22 +367,98 @@ def plot_clustering(all_hits, det_layout, event_dict, args):
             facecolor=color if fill else "none",
             alpha=alpha,
         ))
+        
+    def add_box3d(ax, x, y, z, dx, dy, dz, color, fill=False, alpha=0.15, lw=0.04):
+        """
+        Draw a cuboid centered at (x,y,z) with half-dimensions (dx,dy,dz).
+        """
+        # 8 corners
+        corners = np.array([
+            [x-dx, y-dy, z-dz],
+            [x+dx, y-dy, z-dz],
+            [x+dx, y+dy, z-dz],
+            [x-dx, y+dy, z-dz],
+            [x-dx, y-dy, z+dz],
+            [x+dx, y-dy, z+dz],
+            [x+dx, y+dy, z+dz],
+            [x-dx, y+dy, z+dz],
+        ])
+
+        # 6 faces (each is a list of 4 corner indices)
+        faces = [
+            [corners[i] for i in [0,1,2,3]],  # bottom
+            [corners[i] for i in [4,5,6,7]],  # top
+            [corners[i] for i in [0,1,5,4]],  # side
+            [corners[i] for i in [1,2,6,5]],
+            [corners[i] for i in [2,3,7,6]],
+            [corners[i] for i in [3,0,4,7]],
+        ]
+        rgba = mcolors.to_rgba(color, alpha if fill else 0.0)
+        poly = Poly3DCollection(
+            faces,
+            linewidths=lw,
+            edgecolors=color,
+            alpha=alpha,
+            facecolors=[rgba],
+        )
+        ax.add_collection3d(poly)
+        
+    def set_axes_equal(ax):
+        xlim = ax.get_xlim3d()
+        ylim = ax.get_ylim3d()
+        zlim = ax.get_zlim3d()
+
+        ranges = [abs(xlim[1]-xlim[0]),
+                abs(ylim[1]-ylim[0]),
+                abs(zlim[1]-zlim[0])]
+        max_range = max(ranges)
+
+        Xb = (xlim[0] + xlim[1]) / 2
+        Yb = (ylim[0] + ylim[1]) / 2
+        Zb = (zlim[0] + zlim[1]) / 2
+
+        ax.set_xlim3d([Xb - max_range/2, Xb + max_range/2])
+        ax.set_ylim3d([Yb - max_range/2, Yb + max_range/2])
+        ax.set_zlim3d([Zb - max_range/2, Zb + max_range/2])
 
     # Discrete color for shower IDs. We assign fixed colors to the IDs you listed
     # (positives and negatives are distinguished but share the same color family with different alpha).
 
 
     # ---- figure layout (left = QDC, right = ShowerID) -----------------------
+    
+    fig = plt.figure(figsize=(100, 30), facecolor="white")
+    gs = fig.add_gridspec(
+        4, 4,
+        width_ratios=[1, 1, 1.8, 1.8],
+        height_ratios=[1, 1, 1, 1],
+        wspace=0.10, hspace=0.02
+    )
 
-    fig, axes = plt.subplots(2, 2, figsize=(30, 16), facecolor="white")
-    (ax_xz_qdc, ax_xz_shw), (ax_yz_qdc, ax_yz_shw) = axes
+    ax_xz_qdc = fig.add_subplot(gs[0, 0])
+    ax_xz_shw = fig.add_subplot(gs[0, 1])
+    ax_yz_qdc = fig.add_subplot(gs[1, 0])
+    ax_yz_shw = fig.add_subplot(gs[1, 1])
+
+    ax_3d_a = fig.add_subplot(gs[:, 2], projection="3d")
+    ax_3d_b = fig.add_subplot(gs[:, 3], projection="3d")
 
     setup_ax(ax_xz_qdc, "XZ View (QDC)", "Z [cm]", "X [cm]")
     setup_ax(ax_yz_qdc, "YZ View (QDC)", "Z [cm]", "Y [cm]")
     setup_ax(ax_xz_shw, "XZ View (Shower ID)", "Z [cm]", "X [cm]")
     setup_ax(ax_yz_shw, "YZ View (Shower ID)", "Z [cm]", "Y [cm]")
 
-    # ---- draw detector layout on all four axes ------------------------------
+    for ax3, title in [(ax_3d_a, "3D Layout (view A)"), (ax_3d_b, "3D Layout (view B)")]:
+        ax3.set_title(title)
+        ax3.set_xlabel("X [cm]")
+        ax3.set_ylabel("Y [cm]")
+        ax3.set_zlabel("Z [cm]")
+        ax3.set_facecolor("white")
+        ax3.grid(False)
+    
+    #ax_3d.view_init(elev=18, azim=-65)  # tweak to taste
+
+    # ---- draw detector layout on all four 2D axes + 3D ----------------------
 
     for group, items in det_layout.items():
         if group == 'mat':
@@ -379,12 +470,19 @@ def plot_clustering(all_hits, det_layout, event_dict, args):
             ver, hor   = int(it["ver"]), int(it["hor"])
             fill = group in {"wall", "block"}
 
+            # 2D projections as before
             if ver == 1:
                 add_rect(ax_xz_qdc, z, x, dz, dx, color, fill=fill, alpha=0.4 if fill else 0.8)
                 add_rect(ax_xz_shw, z, x, dz, dx, color, fill=fill, alpha=0.4 if fill else 0.8)
             if hor == 1:
                 add_rect(ax_yz_qdc, z, y, dz, dy, color, fill=fill, alpha=0.4 if fill else 0.8)
                 add_rect(ax_yz_shw, z, y, dz, dy, color, fill=fill, alpha=0.4 if fill else 0.8)
+
+
+            add_box3d(ax_3d_a, x, y, z, dx, dy, dz, color=color, fill=fill,
+                      alpha=0.12 if fill else 0.04, lw=0.01)
+            add_box3d(ax_3d_b, x, y, z, dx, dy, dz, color=color, fill=fill,
+                      alpha=0.12 if fill else 0.04, lw=0.01)
 
     # ---- bar dimensions per orientation (veto/us/ds) ------------------------
 
@@ -435,8 +533,8 @@ def plot_clustering(all_hits, det_layout, event_dict, args):
         # Shower-ID colors (right figure)
         c_shw = shower_color(sid)
         if det_type == 0:
-            ax_xz_shw.scatter(z, x, s=10, c=[c_shw], marker="o", edgecolors="none")
-            ax_yz_shw.scatter(z, y, s=10, c=[c_shw], marker="o", edgecolors="none")
+            ax_xz_shw.scatter(z, x, s=10, c=[c_shw], marker="o", edgecolors="none", alpha=0.7)
+            ax_yz_shw.scatter(z, y, s=10, c=[c_shw], marker="o", edgecolors="none", alpha=0.7)
         else:
             group = {1: "veto_bar", 2: "us_bar", 3: "ds_bar"}[det_type]
             orient = "ver" if is_vert else "hor"
@@ -450,39 +548,108 @@ def plot_clustering(all_hits, det_layout, event_dict, args):
 
     sm_scifi = plt.cm.ScalarMappable(cmap=cmap_scifi, norm=plt.Normalize(vmin=sci_min, vmax=sci_max))
     sm_bar   = plt.cm.ScalarMappable(cmap=cmap_bar,   norm=plt.Normalize(vmin=bar_min,  vmax=bar_max))
-    #fig.colorbar(sm_scifi, ax=[ax_xz_qdc, ax_yz_qdc], fraction=0.015, pad=0.01, label="SciFi QDC")
-    #fig.colorbar(sm_bar,   ax=[ax_xz_qdc, ax_yz_qdc], fraction=0.015, pad=0.06, label="Veto/US/DS QDC")
+    
+    cax_scifi = fig.add_axes([0.05, 0.89, 0.10, 0.01])   # [x0, y0, width, height]
+    fig.colorbar(
+        sm_scifi,
+        cax=cax_scifi,
+        orientation="horizontal",
+        label="SciFi QDC"
+    )
+
+    # --- Bar QDC colorbar (above SciFi) ---
+    cax_bar = fig.add_axes([0.05, 0.92, 0.10, 0.01])
+    fig.colorbar(
+        sm_bar,
+        cax=cax_bar,
+        orientation="horizontal",
+        label="Veto / US / DS QDC"
+    )
+    
     handles, labels = shower_id_legend_handles()
-    ax_yz_shw.legend(
-        handles, labels,
-        title="Shower ID colors",
-        loc="center left",            # anchor to the left edge of bbox_to_anchor
-        bbox_to_anchor=(1.02, 0.5),   # x offset = 1.02 moves it outside the axes
+    
+    
+    leg = fig.legend(
+        handles,
+        labels,
+        title="Shower ID Colors",
+        loc="upper right",
+        bbox_to_anchor=(0.3, 0.92),     # (x0, y0) in figure coords
         frameon=False,
+        ncol=3,
         fontsize=10,
         title_fontsize=11,
     )
+    
+    # ---- plot tracks in both 3D views --------------------------------------
+
+    if 'MC' in args.type:
+        summary = plot_MCTrack(ax_3d_a, event, shower_map)
+        ax_3d_a.text2D(
+            0.02, 0.98, summary,
+            transform=ax_3d_a.transAxes,
+            ha="left", va="top",
+            fontsize=40,
+            bbox=dict(facecolor="white", alpha=0.7, edgecolor="none")
+        )
+        plot_MCTrack(ax_3d_b, event, shower_map)
+
+    
+    # ---- synchronize 3D axis range with 2D plots -------------------------------
+
+    # Z-limits come from any Z-axis (XZ or YZ)
+    zmin = min(ax_xz_qdc.get_xlim()[0], ax_yz_qdc.get_xlim()[0])
+    zmax = max(ax_xz_qdc.get_xlim()[1], ax_yz_qdc.get_xlim()[1])
+
+    # X-limits come from XZ panels (x coordinate on vertical axis)
+    xmin = min(ax_xz_qdc.get_ylim()[0], ax_xz_shw.get_ylim()[0])
+    xmax = max(ax_xz_qdc.get_ylim()[1], ax_xz_shw.get_ylim()[1])
+
+    # Y-limits come from YZ panels (y coordinate)
+    ymin = min(ax_yz_qdc.get_ylim()[0], ax_yz_shw.get_ylim()[0])
+    ymax = max(ax_yz_qdc.get_ylim()[1], ax_yz_shw.get_ylim()[1])
+    
+    ax_xz_qdc.set_zorder(10)
+    ax_xz_shw.set_zorder(10)
+    ax_yz_qdc.set_zorder(10)
+    ax_yz_shw.set_zorder(10)
+    for ax3 in (ax_3d_a, ax_3d_b):
+        ax3.set_xlim([xmin, xmax])
+        ax3.set_ylim([ymin, ymax])
+        ax3.set_zlim([zmin, zmax])
+        ax3.set_box_aspect((3.75, 1, 1))
+        
+        pos = ax3.get_position()
+        ax3.set_position([pos.x0 - 0.01, pos.y0, pos.width + 0.02, pos.height])
+    
+
+    ax_3d_a.view_init(elev=0, azim=-90,vertical_axis="y")
+    ax_3d_b.view_init(elev=90, azim=-90,vertical_axis="y")
+
+
+    
+    
 
     # ---- annotation text ----------------------------------------------------
 
-    run_id = event_dict.get("runId", [None])[0]
-    evt_id = event_dict.get("eventId", [None])[0]
-    pdg    = event_dict.get("pdgCode", [None])[0]  # if available in your tree
+    run_id = event_dict.get("runId", [None])
+    evt_id = event_dict.get("eventId", [None])
+    pdg    = event_dict.get("pdgCode", [None]) 
+    energy    = event_dict.get("energy", [None])
+    n_scifi    = event_dict.get("n_scifi", [None])
+    n_veto_hit = event_dict.get("n_veto_hit", [None])
     pname = pdg_to_name.get(pdg)
-    header = f"type: {getattr(args, 'type', 'NA')}   run: {run_id}   evtId: {evt_id}   pdgCode: {pdg}, particle: {pname}"
+    header = f"type: {getattr(args, 'type', 'NA')}   run: {run_id}   evtId: {evt_id}   pdgCode:{pdg}, particle:{pname}, energy:{energy:.2f}GeV, \n n_scifi:{n_scifi}, n_veto: {n_veto_hit}"
     # Put a single header across the top
-    fig.suptitle(header, y=0.985, fontsize=20)
-    plt.tight_layout(rect=[0, 0, 0.96, 0.97])
+    fig.suptitle(header, y=0.985, fontsize=50)
+    #plt.tight_layout(rect=[0.03, 0, 1, 0.97])
+    fig.subplots_adjust(left=0.02)
 
     # ---- finalize & save (vector) ------------------------------------------
-    
-    os.makedirs("./eventDisplay", exist_ok=True)
-    output_path = f"./eventDisplay/{getattr(args,'type','evt')}_run-{run_id}_evtId-{evt_id}_{pname}.pdf"
-    plt.savefig(output_path, format="pdf")
+    fig.canvas.draw()
+    pdf.savefig(fig)
     
     plt.close()
-    print(f"Saved event display to {output_path}")
-
 
 def build_mother_to_daughters(event):
     """Return dict: mother_index -> [daughter_indices] for event.MCTrack."""
@@ -492,7 +659,7 @@ def build_mother_to_daughters(event):
         mid = event.MCTrack[i].GetMotherId()
         m2d.setdefault(mid, []).append(i)
         
-    print(m2d)
+    #print(m2d)
     return m2d
 
 def _categorize_seed_shower_id(track, event_level_pdg):
@@ -527,7 +694,7 @@ def _assign_shower_ids(event, m2d, event_level_pdg):
     # Seeds = immediate daughters of the primary (MCTrack[0] usually has mother=-1).
     seed_ids = [i for i in range(n) if event.MCTrack[i].GetMotherId() == 0]
 
-    print('seed:',seed_ids)
+    #print('seed:',seed_ids)
     # Determine showerId for each seed and flood-fill to its descendants
     for sid in seed_ids:
         seed_track = event.MCTrack[sid]
@@ -580,7 +747,76 @@ def print_track_tree(event, m2d, track_idx, shower_map, indent=0):
     for d in m2d.get(track_idx, []):
         print_track_tree(event, m2d, d, shower_map, indent + 4)
 
+def plot_MCTrack(ax_3d, event, shower_map, lw=0.2, alpha=0.5):
+    
+    
+    #print(shower_map)
+    n = event.MCTrack.GetEntries()
+    for i in range(n):
+        
+        trk = event.MCTrack[i]
+        x = trk.GetStartX()
+        y = trk.GetStartY()
+        z = trk.GetStartZ()
+        
+        mother_id = trk.GetMotherId()
+        if mother_id == -1:
+            continue
+        mom_trk = event.MCTrack[mother_id]
+        
+        xm = mom_trk.GetStartX()
+        ym = mom_trk.GetStartY()
+        zm = mom_trk.GetStartZ()
+        
+        sid = shower_map[i]
+        c = shower_color(sid)
+        
+        ax_3d.plot([xm, x], [ym, y], [zm, z],
+                       color=c, lw=lw, alpha=alpha)
+    
+    track_list = []
+    for aHit in event.Digi_MuFilterHits:
+        if not aHit.isValid() or aHit.GetSystem() != 1:  # Only Veto
+                continue
+        hit2MC = event.Digi_MuFilterHits2MCPoints[0]
+        detID = aHit.GetDetectorID()
+        linksToMCPoints = hit2MC.wList(detID)
+        
+        for mc_point_i, weight in linksToMCPoints: 
+            mc_point = event.MuFilterPoint[mc_point_i]
+            track_id = mc_point.GetTrackID()
+            track_list.append(track_id)
+            trk = event.MCTrack[track_id]
+            
+            # MCPoint position (where energy deposited)
+            xp = mc_point.GetX()
+            yp = mc_point.GetY()
+            zp = mc_point.GetZ()
 
+            # Daughter start position
+            x  = trk.GetStartX()
+            y  = trk.GetStartY()
+            z  = trk.GetStartZ()
+            mom_trk = event.MCTrack[mother_id]
+
+            # Mother start position
+            xm = mom_trk.GetStartX()
+            ym = mom_trk.GetStartY()
+            zm = mom_trk.GetStartZ()
+            
+            c='green'
+            ax_3d.scatter([xp], [yp], [zp], color=c, s=8, alpha=alpha)
+            ax_3d.plot([xm, x], [ym, y], [zm, z],
+                        color=c, lw=lw, alpha=alpha)
+
+
+    summary = summarize_track_hits(track_list)
+    return summary
+
+def summarize_track_hits(track_list):
+    ctr = Counter(track_list)
+    summary = "\n".join([f"MC Track {tid}: {nhits} MC points in Veto System" for tid, nhits in ctr.items()])
+    return summary
     
 def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
     """Process all hits in the event and update hits array and averages."""
@@ -602,18 +838,23 @@ def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
     # 3. assign the same showerId to the sub-track of these track
     
     # --- Build hierarchy and shower mapping ---
-    m2d = build_mother_to_daughters(event)
-
-
-    shower_map = _assign_shower_ids(event, m2d, pdgCode)
+    if "MC" in args.type:
+        m2d = build_mother_to_daughters(event)
+        shower_map = _assign_shower_ids(event, m2d, pdgCode)
+    else:
+        shower_map = []
+        
+    #print(det_layout)
 
     # Now actually print the tree(s)
-    primary_tracks = m2d.get(-1, [])
-    for idx in primary_tracks:
-        print_track_tree(event, m2d, idx, shower_map, indent=0)
+    # primary_tracks = m2d.get(-1, [])
+    # for idx in primary_tracks:
+    #     print_track_tree(event, m2d, idx, shower_map, indent=0)
     
-    print(dir(event.MCTrack[0]))
+    # print(dir(event.MCTrack[0]))
     #print(shower_map)
+    
+    # plot_MCTrack(event,event_dict,det_layout, pdf)
 
     # Temporary storage for all hits with positions
     all_hits = []
@@ -647,6 +888,7 @@ def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
                 track_id = scifi_point.GetTrackID()
                 shower_id = shower_map.get(track_id)
                 if shower_id is None:
+                    #print("shower_id is none, track id:", track_id)
                     continue
                 shower_id_list.append(shower_id)
             
@@ -657,7 +899,10 @@ def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
                 hit_shower_id = -1  
             else:
                 hit_shower_id = -2
-                
+        else:
+            hit_shower_id = -2
+            
+            
             
             
             # break
@@ -688,6 +933,9 @@ def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
         detID = aHit.GetDetectorID()
         detType = aHit.GetSystem()
         station = (detID // 1000) % 10
+        if aHit.GetSystem() == 1:
+            n_veto_hit+=1
+
 
         MuFilter.GetPosition(detID, A, B)
 
@@ -712,7 +960,9 @@ def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
                 else -999
                 )
             event_dict["start_z"] = start_z
-                
+        else:
+            hit_shower_id = -2
+            
                 
   
         all_hits.append({
@@ -727,12 +977,13 @@ def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
             "hit_shower_id": -2
         })
     
-    #plot_clustering(all_hits, det_layout, event_dict, args)
+    event_dict["n_veto_hit"] = n_veto_hit
+    
+    plot_event(event,all_hits, det_layout, event_dict, args, shower_map, pdf)
     
     return 
 
 def main(args):
-    print(f"start plotting events")
     snd_geo = setup_geometry(args.geo_path )
     print("getting geo layout")
     if args.beam == "TI18":
@@ -752,15 +1003,24 @@ def main(args):
     event_dict = {}
     
     
-    base = os.path.basename(args.digi_path)          # e.g. "run00123.root"
+    base = os.path.basename(args.digi_path)          
     base = os.path.splitext(base)[0]   
-    out_pdf = f'./plot_event_display/{base}.pdf' 
-    os.makedirs('./plot_event_display', exist_ok=True)
-    with PdfPages("multipage_plots.pdf") as pdf:
+    out_pdf = f'{args.out_dir}/{args.type}_{base}.pdf' 
+    os.makedirs(args.out_dir, exist_ok=True)
+    print(f"event display will be save to {out_pdf}")
+    print(f"start plotting events")
+    
+    with PdfPages(out_pdf) as pdf:
+        plotted_event = 0
         for i_event, event in tqdm(enumerate(raw_tree), total=raw_tree.GetEntries()):
             #if i_event % 10000 == 0:
             #    print(f"processed {i_event} events")
             
+            n_scifi = event.Digi_ScifiHits.GetEntries()
+            event_dict["n_scifi"] = n_scifi
+            if n_scifi<=scifi_count_threshold:
+                #print(f'skip event with {n_scifi} scifi hits (scifi hit threshold:{scifi_count_threshold}) ')
+                continue
             
             event_dict["eventIndex"] = i_event
             event_dict["runId"] = event.EventHeader.GetRunId()
@@ -786,33 +1046,45 @@ def main(args):
                     event_dict["pdgCode"] = event_pdg0 - 100 if event_pdg0 < 0 else event_pdg0 + 100
                 else:
                     event_dict["pdgCode"] = event_pdg0
+                    
+                #print(dir(raw_tree.MCTrack[0]))
+                event_dict["energy"] = raw_tree.MCTrack[0].GetEnergy()
 
 
             elif('real' in  args.type):
                 event_dict["isMC"] = 0
                 event_dict["pdgCode"] = 0
                 event_dict["eventId"] = event.EventHeader.GetEventNumber()
-            print(f'-------{event_dict["pdgCode"]}---------')
+                event_dict["energy"] = -999
+            #print(f'-------{event_dict["pdgCode"]}---------')
             process_hits(raw_tree, snd_geo, event_dict, det_layout, args, pdf)
+            plotted_event+=1
             
-            if i_event>2:
+            if plotted_event>=args.n_event:
                 break
         
-
     print("finished")
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-d", "--digiPath", dest="digi_path", help="digitized data file path", required=True)
     parser.add_argument("-g", "--geoPath", dest="geo_path", help="geo path", required=True)
-    parser.add_argument("-o", "--outPath", dest="out_path", help="output path", required=True)
+    parser.add_argument("-o", "--outDir", dest="out_dir", help="output directory ", default="./plot_event_display")
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
     parser.add_argument("-b", "--beam", dest='beam', help='testbeam or TI18', default="TI18")
-    parser.add_argument("-s", "--n_scifi", dest='n_scifi', help='scifi count threshold', default=1)
+    parser.add_argument("-n", "--nEvent", dest='n_event', help='max number of events', default=20)
+    
+    parser.add_argument("-s", "--n_scifi", dest='n_scifi', help='scifi count threshold', default=200)
 
     args = parser.parse_args()
 
     main(args)
     
-#    python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/geofile_full.Genie-TGeant4.root -o ./test_data/vetoTagged_shower_feature.root -t MC_neutrino
+    
+    
+# python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/geofile_full.Genie-TGeant4.root -t MC_neutrino
+# python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/1/sndLHC.Genie-TGeant4_dig.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/1/geofile_full.Genie-TGeant4.root -t MC_neutrino
+# python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/K_5_10/Ntuples/1/sndLHC.PG_130-TGeant4_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/K_5_10/Ntuples/1/geofile_full.PG_130-TGeant4.root -t MC_kaon
+# python event_display.py -d ./test_data/filtered_data_2024_run8285.root -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -t real_data 
+
