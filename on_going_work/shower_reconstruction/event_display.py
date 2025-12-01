@@ -505,7 +505,6 @@ def plot_event(event, all_hits, det_layout, event_dict, args, shower_map, pdf):
     cmap_bar   = plt.cm.viridis  # Bars continuous, as requested
 
     # ---- draw hits ----------------------------------------------------------
-
     for hit in all_hits:
         det_type = hit["detType"]   # 0=scifi, 1=veto, 2=us, 3=ds
         x, y, z  = hit["x"], hit["y"], hit["z"]
@@ -517,8 +516,10 @@ def plot_event(event, all_hits, det_layout, event_dict, args, shower_map, pdf):
         if det_type == 0:
             cval = (qdc - sci_min) / (sci_max - sci_min + 1e-9)
             c_qdc = cmap_scifi(np.clip(cval, 0, 1))
-            ax_xz_qdc.scatter(z, x, s=10, c=[c_qdc], marker="o", edgecolors="none")
-            ax_yz_qdc.scatter(z, y, s=10, c=[c_qdc], marker="o", edgecolors="none")
+            if is_vert:
+                ax_xz_qdc.scatter(z, x, s=10, c=[c_qdc], marker="o", edgecolors="none")
+            else:
+                ax_yz_qdc.scatter(z, y, s=10, c=[c_qdc], marker="o", edgecolors="none")
         else:
             cval = (qdc - bar_min) / (bar_max - bar_min + 1e-9)
             c_qdc = cmap_bar(np.clip(cval, 0, 1))
@@ -533,8 +534,10 @@ def plot_event(event, all_hits, det_layout, event_dict, args, shower_map, pdf):
         # Shower-ID colors (right figure)
         c_shw = shower_color(sid)
         if det_type == 0:
-            ax_xz_shw.scatter(z, x, s=10, c=[c_shw], marker="o", edgecolors="none", alpha=0.7)
-            ax_yz_shw.scatter(z, y, s=10, c=[c_shw], marker="o", edgecolors="none", alpha=0.7)
+            if is_vert:
+                ax_xz_shw.scatter(z, x, s=10, c=[c_shw], marker="o", edgecolors="none", alpha=0.7)
+            else:
+                ax_yz_shw.scatter(z, y, s=10, c=[c_shw], marker="o", edgecolors="none", alpha=0.7)
         else:
             group = {1: "veto_bar", 2: "us_bar", 3: "ds_bar"}[det_type]
             orient = "ver" if is_vert else "hor"
@@ -817,6 +820,30 @@ def summarize_track_hits(track_list):
     ctr = Counter(track_list)
     summary = "\n".join([f"MC Track {tid}: {nhits} MC points in Veto System" for tid, nhits in ctr.items()])
     return summary
+
+def print_hits_table(all_hits):
+    if not all_hits:
+        print("No hits to display.")
+        return
+
+    # Extract keys in the order they appear in the dict
+    keys = list(all_hits[0].keys())
+
+    # Compute column widths
+    col_widths = {
+        key: max(len(key), *(len(str(hit[key])) for hit in all_hits))
+        for key in keys
+    }
+
+    # Build header
+    header = "  ".join(f"{key:{col_widths[key]}}" for key in keys)
+    print(header)
+    print("-" * len(header))
+
+    # Print each hit as a row
+    for hit in all_hits:
+        row = "  ".join(f"{str(hit[key]):{col_widths[key]}}" for key in keys)
+        print(row)
     
 def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
     """Process all hits in the event and update hits array and averages."""
@@ -979,6 +1006,7 @@ def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
     
     event_dict["n_veto_hit"] = n_veto_hit
     
+    #print_hits_table(all_hits)
     plot_event(event,all_hits, det_layout, event_dict, args, shower_map, pdf)
     
     return 
@@ -1075,7 +1103,7 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--beam", dest='beam', help='testbeam or TI18', default="TI18")
     parser.add_argument("-n", "--nEvent", dest='n_event', help='max number of events', default=20)
     
-    parser.add_argument("-s", "--n_scifi", dest='n_scifi', help='scifi count threshold', default=200)
+    parser.add_argument("-s", "--n_scifi", dest='n_scifi', help='scifi count threshold', default=1)
 
     args = parser.parse_args()
 
@@ -1087,4 +1115,5 @@ if __name__ == "__main__":
 # python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/1/sndLHC.Genie-TGeant4_dig.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/1/geofile_full.Genie-TGeant4.root -t MC_neutrino
 # python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/K_5_10/Ntuples/1/sndLHC.PG_130-TGeant4_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/K_5_10/Ntuples/1/geofile_full.PG_130-TGeant4.root -t MC_kaon
 # python event_display.py -d ./test_data/filtered_data_2024_run8285.root -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -t real_data 
+# python event_display.py -d ./test_data/filtered_data_2024_run8285_n=10.root -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -t real_data 
 
