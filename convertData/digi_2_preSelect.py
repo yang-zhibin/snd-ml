@@ -5,6 +5,7 @@ import SndlhcGeo
 import array
 from tqdm import tqdm
 
+
 def setup_geometry(geo_file):
     """Initialize and return the geometry configurations."""
     snd_geo = SndlhcGeo.GeoInterface(geo_file)
@@ -111,6 +112,11 @@ def process_hits(event, snd_geo, branch_vars):
     return veto_counts, scifi_counts, us_counts, ds_counts
 
 
+import SndlhcMuonReco
+import SndlhcTracking
+
+
+
 def main(args):
     print("start processing digi to preSelection")
     snd_geo = setup_geometry(args.geo_path )
@@ -146,9 +152,53 @@ def main(args):
     for name, dtype in branches:
         branch_vars[name] = array.array(dtype, [-999])  # Initialize the array
         new_tree.Branch(name, branch_vars[name], f"{name}/{dtype.upper()}")
+    
+    # --- FairRoot infrastructure ---
+    
+    run = ROOT.FairRunAna()
+    #avoiding some error messages
+    xrdb = ROOT.FairRuntimeDb.instance()
+    xrdb.getContainer("FairBaseParSet").setStatic()
+    xrdb.getContainer("FairGeoParSet").setStatic()
+
+    source = ROOT.FairFileSource(args.digi_path)
+    run.SetSource(source)
+
+    sink  = ROOT.FairRootFileSink(f"{os.path.dirname(args.out_path)}/dummy.root")
+    run.SetSink(sink)
+    OT = sink.GetOutTree()
+
+    # --- Hough tracking tasks ---
+    HT_Sf    = SndlhcMuonReco.MuonReco()
+    HT_DS    = SndlhcMuonReco.MuonReco()
+
+    parameter_file = os.environ['SNDSW_ROOT']+"/python/TrackingParams.xml"
+    for ht in [HT_Sf, HT_DS]:
+        ht.SetParFile(parameter_file)
+        ht.SetHoughSpaceFormat("linearSlopeIntercept")
+        ht.ForceGenfitTrackFormat()
+        run.AddTask(ht)
+
+    HT_Sf.SetTrackingCase("passing_mu_Sf")
+    HT_DS.SetTrackingCase("passing_mu_DS")
+
+    # --- Simple straight-line tracking ---
+    trackTask = SndlhcTracking.Tracking()
+    trackTask.SetName('simpleTracking')
+    run.AddTask(trackTask)
+
+    # --- Initialise tasks ---
+    run.Init()
+
+    # Access task outputs
+    ioman = ROOT.FairRootManager.Instance()
+    OT    = sink.GetOutTree()       
+        
         
     # Process each event
     scifi_count_threshold = 200
+    
+    print('------debug')
     
     if "muon" in args.type:
         scifi_count_threshold = 5
@@ -157,6 +207,63 @@ def main(args):
         #if i_event % 10000 == 0:
         #    print(f"processed {i_event} events")
         
+        OT.Reco_MuonTracks = ROOT.TObjArray(10)
+        # --- Load the event for FairTasks ---
+        source.GetInTree().GetEvent(i_event)
+
+        # ----------------------
+        # 1) HOUGH RECONSTRUCTION
+        # ----------------------
+        # Clear previous tracks
+        for ht in [HT_Sf, HT_DS]:
+            ht.kalman_tracks.Delete()
+
+        # Example: run only SciFi-based Hough tracking
+        HT_Sf.Exec(0)
+        HT_DS.Exec(0)
+        
+
+        # Collect Hough tracks
+        hough_tracks = []
+        for ht in [HT_Sf, HT_DS]:
+            for trk in ht.kalman_tracks:
+                hough_tracks.append(trk)
+
+
+        # ----------------------
+        # 2) SIMPLE TRACKING
+        # ----------------------
+        trackTask.fittedTracks.Delete()
+
+        # Available modes:
+        #   "Scifi"
+        #   "DS"
+        #   "ScifiDS"
+        trackTask.ExecuteTask("ScifiDS")
+
+        simple_tracks = []
+        for trk in trackTask.fittedTracks:
+            print(trk)
+            simple_tracks.append(trk)
+
+
+        # ----------------------
+        # 3) Now use your tracks
+        # ----------------------
+        # hough_tracks : list of genfit::Track from Hough reco
+        # simple_tracks : list of genfit::Track from simple reco
+
+        print(f"Event {i_event}: Hough={len(hough_tracks)}, Simple={len(simple_tracks)}")
+
+        # Example: extract fitted state
+        for trk in hough_tracks:
+            print(trk.__repr__())
+            print(dir(trk))
+            state = trk.getFittedState()
+            mom   = state.getMom()
+            pos   = state.getPos()
+            mom.Print()
+            pos.Print()
         
         branch_vars["eventIndex"][0] = i_event
         branch_vars["runId"][0] = event.EventHeader.GetRunId()
@@ -250,7 +357,10 @@ def main(args):
             branch_vars["preSelect"][0] = 0
             
         
+        
         new_tree.Fill()
+        if i_event>30:
+            break
 
     # Finalize the output file
     new_tree.Write()

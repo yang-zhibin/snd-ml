@@ -55,7 +55,11 @@ def process_preCut_csv(df, max_lumi: float = 1e8,
         except Exception as e:
             tqdm.write(f"❌ Error reading {csv_path}: {e}")
             continue
-
+        
+        # check if table has "veto2_and_veto3_1ns" in column "cut"
+        if "cut" not in table.columns or "veto2_and_veto3_1ns" not in table["cut"].values:
+            tqdm.write(f"⚠️ Skipping {csv_path}: required cut not found.")
+            continue
         # Separate numeric and non-numeric columns
         numeric_cols = table.select_dtypes(include="number").columns
         non_numeric_cols = [c for c in table.columns if c not in numeric_cols]
@@ -79,8 +83,7 @@ def process_preCut_csv(df, max_lumi: float = 1e8,
         total_table = pd.DataFrame()
 
     return total_table, total_lumi
-import os
-import pandas as pd
+
 
 def process_neutralHadron_preCut_csv(df: pd.DataFrame,
                                      outdir: str,
@@ -281,11 +284,11 @@ def make_summary_table(particle_tables: dict, subtype_col: str = "Unnamed: 0") -
     # Nice order of cuts
     order = [
         "a_raw", "b_non_veto", "1_scifi>200",
-        "veto_1ns", "veto1_1ns", "veto2_1ns", "veto3_1ns",
-        "veto_2ns", "veto1_2ns", "veto2_2ns", "veto3_2ns",
-        "veto_3ns", "veto1_3ns", "veto2_3ns", "veto3_3ns",
-        "veto_4ns", "veto1_4ns", "veto2_4ns", "veto3_4ns",
-        "veto_5ns", "veto1_5ns", "veto2_5ns", "veto3_5ns",
+        "veto_1ns", "veto1_1ns", "veto2_1ns", "veto3_1ns", "veto2_and_veto3_1ns",
+        "veto_2ns", "veto1_2ns", "veto2_2ns", "veto3_2ns", "veto2_and_veto3_2ns",
+        "veto_3ns", "veto1_3ns", "veto2_3ns", "veto3_3ns", "veto2_and_veto3_3ns",
+        "veto_4ns", "veto1_4ns", "veto2_4ns", "veto3_4ns", "veto2_and_veto3_4ns",
+        "veto_5ns", "veto1_5ns", "veto2_5ns", "veto3_5ns", "veto2_and_veto3_5ns",
     ]
     pivot = pivot.reindex([c for c in order if c in pivot.index], axis=0)
 
@@ -322,11 +325,11 @@ def compute_and_save_tables(
     cols_2024 = ["data", "kaon", "neutron", "vm_2024", "ve_2024", "NC_2024", "vt_2024"]
 
     cuts_template = [
-        ("1ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_1ns", "veto2_1ns", "veto3_1ns", "veto_1ns"]),
-        ("2ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_2ns", "veto2_2ns", "veto3_2ns", "veto_2ns"]),
-        ("3ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_3ns", "veto2_3ns", "veto3_3ns", "veto_3ns"]),
-        ("4ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_4ns", "veto2_4ns", "veto3_4ns", "veto_4ns"]),
-        ("5ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_5ns", "veto2_5ns", "veto3_5ns", "veto_5ns"]),
+        ("1ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_1ns", "veto2_1ns", "veto3_1ns", "veto_1ns", "veto2_and_veto3_1ns"]),
+        ("2ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_2ns", "veto2_2ns", "veto3_2ns", "veto_2ns", "veto2_and_veto3_2ns"]),
+        ("3ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_3ns", "veto2_3ns", "veto3_3ns", "veto_3ns", "veto2_and_veto3_3ns"]),
+        ("4ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_4ns", "veto2_4ns", "veto3_4ns", "veto_4ns", "veto2_and_veto3_4ns"]),
+        ("5ns", ["a_raw", "b_non_veto", "1_scifi>200", "veto1_5ns", "veto2_5ns", "veto3_5ns", "veto_5ns", "veto2_and_veto3_5ns"]),
     ]
 
     def save_table_as_image(df_table: pd.DataFrame, title: str, path_png: str):
@@ -499,15 +502,15 @@ def compute_and_save_eff_and_yield_tables(
 
     cuts_template = [
         ("1ns", ["a_raw", "b_non_veto", "1_scifi>200",
-                 "veto1_1ns", "veto2_1ns", "veto3_1ns", "veto_1ns"]),
+                 "veto1_1ns", "veto2_1ns", "veto3_1ns", "veto_1ns", "veto2_and_veto3_1ns"]),
         ("2ns", ["a_raw", "b_non_veto", "1_scifi>200",
-                 "veto1_2ns", "veto2_2ns", "veto3_2ns", "veto_2ns"]),
+                 "veto1_2ns", "veto2_2ns", "veto3_2ns", "veto_2ns", "veto2_and_veto3_2ns"]),
         ("3ns", ["a_raw", "b_non_veto", "1_scifi>200",
-                 "veto1_3ns", "veto2_3ns", "veto3_3ns", "veto_3ns"]),
+                 "veto1_3ns", "veto2_3ns", "veto3_3ns", "veto_3ns", "veto2_and_veto3_3ns"]),
         ("4ns", ["a_raw", "b_non_veto", "1_scifi>200",
-                 "veto1_4ns", "veto2_4ns", "veto3_4ns", "veto_4ns"]),
+                 "veto1_4ns", "veto2_4ns", "veto3_4ns", "veto_4ns", "veto2_and_veto3_4ns"]),
         ("5ns", ["a_raw", "b_non_veto", "1_scifi>200",
-                 "veto1_5ns", "veto2_5ns", "veto3_5ns", "veto_5ns"]),
+                 "veto1_5ns", "veto2_5ns", "veto3_5ns", "veto_5ns", "veto2_and_veto3_5ns"]),
     ]
 
     # ---------- Rendering ----------

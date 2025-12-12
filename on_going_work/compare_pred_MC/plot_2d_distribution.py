@@ -25,7 +25,7 @@ particle_2_class = {
 class_2_particle = {v: k for k, v in particle_2_class.items()}
 
 
-def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compare_pred_MC/processed_metadata"):
+def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/on_going_work/compare_pred_MC/processed_metadata_GravNet_v2"):
     
     """Load all processed metadata CSVs into a dictionary."""
     metadata_dict = {}
@@ -33,40 +33,87 @@ def read_metadata(directory="/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/compar
         if file.endswith(".csv"):
             key = file.replace(".csv", "")
             metadata_dict[key] = pd.read_csv(os.path.join(directory, file))
-    return metadata_dict
+    return metadata_dict     
+
+# --- Helper function ---
+def tree_entries_and_branch(path, treename, required_branch=None):
+    if not path or not os.path.exists(path):
+        return (0, False)
+    f = ROOT.TFile.Open(path, "READ")
+    if not f or f.IsZombie():
+        return (0, False)
+    t = f.Get(treename)
+    if not t:
+        f.Close()
+        return (0, False)
+    n = int(t.GetEntries())
+    has_req = True
+    if required_branch:
+        brs = t.GetListOfBranches()
+        has_req = bool(brs and any(b.GetName() == required_branch for b in brs))
+    f.Close()
+    return (n, has_req)
+
 def read_rdf(args, metadata_df, MC_muon=False):
     feature_chain = ROOT.TChain("sndData")
-    prediciton_chain = ROOT.TChain("snddata")
+    prediction_chain = ROOT.TChain("sndData")
     
     int_lumi = 0
     # Defaultdict of dicts
     events_per_subfolder = defaultdict(lambda: {"vetoFree": 0, "vetoTagged": 0})
 
-    for _, row in metadata_df.iterrows():
-        # Always check vetoFree files first
-        vetoFree_feature_path = row['vetoFree_feature_path']
-        vetoFree_prediciton_path = row[f'vetoFree_prediction_{model_name}_output_path']
-        
-        # print("vetoFree_feature_path",vetoFree_feature_path)
-        # print("vetoFree_prediciton_path",vetoFree_prediciton_path)
-
-        if os.path.exists(vetoFree_feature_path) and os.path.exists(vetoFree_prediciton_path):
-            feature_chain.Add(vetoFree_feature_path)
-            prediciton_chain.Add(vetoFree_prediciton_path)
-            events_per_subfolder[row['subfolder']]["vetoFree"] += row['n_event']
-
-            int_lumi += 0 if math.isnan(row['lumi_per_file']) else row['lumi_per_file']
-
-        # Optionally also add vetoTagged files
-        if vetoTagged or MC_muon:
-            vetoTagged_feature_path = row['vetoTagged_feature_path']
-            vetoTagged_prediciton_path = row[f'vetoTagged_prediction_{model_name}_output_path']
-
-            if os.path.exists(vetoTagged_feature_path) and os.path.exists(vetoTagged_prediciton_path):
-                feature_chain.Add(vetoTagged_feature_path)
-                prediciton_chain.Add(vetoTagged_prediciton_path)
-                events_per_subfolder[row['subfolder']]["vetoTagged"] += row['n_event']
     
+    for _, row in metadata_df.iterrows():
+        sub = row['subfolder']
+
+        # ---- vetoFree ----
+        vf_feat = row['vetoFree_feature_path']
+        vf_pred = row[f'vetoFree_prediction_{model_name}_output_path']
+
+        n_feat, _ = tree_entries_and_branch(vf_feat, "sndData")
+        n_pred, has_branch = tree_entries_and_branch(vf_pred, "sndData", required_branch="pred_class_first")
+
+        if n_feat > 0 and n_pred > 0 and has_branch and n_feat == n_pred:
+            feature_chain.Add(vf_feat)
+            prediction_chain.Add(vf_pred)
+            events_per_subfolder[sub]["vetoFree"] += row['n_event']
+            if pd.notna(row['lumi_per_file']):
+                int_lumi += row['lumi_per_file']
+        else:
+            if n_feat == 0:
+                print(f"[Skip] features empty/missing: {vf_feat}")
+                if pd.notna(row['lumi_per_file']):
+                    int_lumi += row['lumi_per_file']
+            if n_pred == 0:
+                print(f"[Skip] predictions empty/missing: {vf_pred}")
+            if n_feat != 0 and n_pred != 0 and n_feat != n_pred:
+                print(f"[Skip] entry mismatch (features={n_feat}, predictions={n_pred}):\n  {vf_feat}\n  {vf_pred}")
+            if n_pred > 0 and not has_branch:
+                print(f"[Skip] predictions missing branch 'pred_class_first': {vf_pred}")
+            
+        # ---- vetoTagged (optional) ----
+        if vetoTagged or MC_muon:
+            vt_feat = row.get('vetoTagged_feature_path')
+            vt_pred = row.get(f'vetoTagged_prediction_{model_name}_output_path')
+
+            n_feat, _ = tree_entries_and_branch(vt_feat, "sndData") if vt_feat else (0, False)
+            n_pred, has_branch = tree_entries_and_branch(vt_pred, "sndData", required_branch="pred_class_first") if vt_pred else (0, False)
+
+            if n_feat > 0 and n_pred > 0 and has_branch and n_feat == n_pred:
+                feature_chain.Add(vt_feat)
+                prediction_chain.Add(vt_pred)
+                events_per_subfolder[sub]["vetoTagged"] += row['n_event']
+            else:
+                if vt_feat and n_feat == 0:
+                    print(f"[Skip] features empty/missing: {vt_feat}")
+                if vt_pred and n_pred == 0:
+                    print(f"[Skip] predictions empty/missing: {vt_pred}")
+                if vt_feat and vt_pred and n_feat != 0 and n_pred != 0 and n_feat != n_pred:
+                    print(f"[Skip] entry mismatch (features={n_feat}, predictions={n_pred}):\n  {vt_feat}\n  {vt_pred}")
+                if vt_pred and n_pred > 0 and not has_branch:
+                    print(f"[Skip] predictions missing branch 'pred_class_first': {vt_pred}")
+
+    print(f"Added {feature_chain.GetNtrees()} feature files and {prediction_chain.GetNtrees()} prediction files.")
     if (int_lumi==0):
         return None, None, 0
     # Print total events per subfolder
@@ -74,9 +121,10 @@ def read_rdf(args, metadata_df, MC_muon=False):
     for subfolder, counts in events_per_subfolder.items():
         print(f"  {subfolder}: vetoFree={counts['vetoFree']}, vetoTagged={counts['vetoTagged']}")
 
-    feature_chain.AddFriend(prediciton_chain, 'prediciton')
+    feature_chain.AddFriend(prediction_chain, 'prediction')
     rdf = ROOT.RDataFrame(feature_chain)
     
+    rdf= rdf.Define("sum_hit_density", "density_scifi1 + density_scifi2 + density_scifi3 + density_scifi4 + density_scifi5")
     
     #if (args.cut):
     #    rdf = rdf.Filter("count_scifi > 200")
@@ -87,6 +135,9 @@ def read_rdf(args, metadata_df, MC_muon=False):
 def process_hist(args):
     hist_name = args.hist_name
     nbins_x, x_min, x_max, nbins_y, y_min, y_max, axis_title, logz, bin_width_x, bin_width_y = hist_info[hist_name]
+    nbins_x = int((x_max - x_min) / bin_width_x)
+    nbins_y = int((y_max - y_min) / bin_width_y)
+    
     
     neutrino_df = METADATA_dict['MC_neutrino']
     muon_df = METADATA_dict['MC_muon']
@@ -95,7 +146,7 @@ def process_hist(args):
     real_data = METADATA_dict['real_data_2024']
     
     #reading real data
-    data_rdf, data_chain, data_int_lumi = read_rdf(args, real_data)
+    data_rdf, data_chain, data_int_lumi = read_rdf(args, real_data[:])
     print(f'data_int_lumi:{data_int_lumi}')
     pred_classes = [ "kaon", "neutron", "muon"]
     
@@ -124,7 +175,7 @@ def process_hist(args):
     normalise_lumi = data_int_lumi
     
     ## reading neutrino
-    neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(args, neutrino_df)
+    neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(args, neutrino_df[:])
     
     scale_factor = normalise_lumi/ neutrino_int_lumi  if neutrino_int_lumi else 1.0
     
@@ -172,21 +223,25 @@ def process_hist(args):
 
     muon_true_hists = {}
     muon_pred_hists = {}
+    muon_pred_bkg_hists = {}
     muon_hist_proxies = []
 
     mu_class_id = particle_2_class['muon']
+    kaon_class_id = particle_2_class['kaon']
+    neutron_class_id = particle_2_class['neutron']
 
     for beam_type in beam_types:
         sub_df = muon_df[muon_df['subfolder'] == beam_type]
 
         # build RDF and lumi for this slice
-        rdf, _, int_lumi = read_rdf(args, sub_df, MC_muon=True)
+        rdf, _, int_lumi = read_rdf(args, sub_df[:], MC_muon=True)
         if not int_lumi:
             continue
 
         # filters for true/pred
-        rdf_true = rdf.Filter(f"ParticleClass == {mu_class_id}")
-        rdf_pred = rdf.Filter(f"pred_class_first == {mu_class_id}")
+        rdf_true = rdf.Filter(f"ParticleClass == {mu_class_id} && count_scifi > 200")
+        rdf_pred = rdf.Filter(f"pred_class_first == {mu_class_id} && count_scifi > 200")
+        rdf_pred_bkg = rdf.Filter(f"(pred_class_first == {mu_class_id} || pred_class_first == {kaon_class_id} || pred_class_first == {neutron_class_id}) && (count_scifi > 200)")
 
         # histogram proxies (keep them alive!)
         h_proxy_true = rdf_true.Histo2D(
@@ -201,12 +256,19 @@ def process_hist(args):
              int(nbins_y), float(y_min), float(y_max)),
             f"{hist_name}_x", f"{hist_name}_y"
         )
-        muon_hist_proxies.extend([h_proxy_true, h_proxy_pred])
+        h_proxy_pred_bkg = rdf_pred_bkg.Histo2D(
+            (f"h_muon_pred_bkg_{beam_type}_{hist_name}", "", 
+             int(nbins_x), float(x_min), float(x_max),
+             int(nbins_y), float(y_min), float(y_max)),
+            f"{hist_name}_x", f"{hist_name}_y"
+        )
+        muon_hist_proxies.extend([h_proxy_true, h_proxy_pred, h_proxy_pred_bkg])
 
         # materialize
         h_true = h_proxy_true.GetValue().Clone()
         h_pred = h_proxy_pred.GetValue().Clone()
-        for h in (h_true, h_pred):
+        h_pred_bkg = h_proxy_pred_bkg.GetValue().Clone()
+        for h in (h_true, h_pred, h_pred_bkg):
             h.SetDirectory(0)
             h.GetXaxis().SetTitle(f"{axis_title} X")
             h.GetYaxis().SetTitle(f"{axis_title} Y")
@@ -217,9 +279,11 @@ def process_hist(args):
             scale = float(normalise_lumi) / float(int_lumi) * 1e-8
             h_true.Scale(scale)
             h_pred.Scale(scale)
+            h_pred_bkg.Scale(scale)
         
         muon_true_hists[beam_type] = h_true
         muon_pred_hists[beam_type] = h_pred
+        muon_pred_bkg_hists[beam_type] = h_pred_bkg
         
     # --- reading kaon ---
     if 'energy_range' not in kaon_df.columns:
@@ -229,21 +293,23 @@ def process_hist(args):
 
     kaon_true_hists = {}
     kaon_pred_hists = {}
+    kaon_pred_bkg_hists = {}
     kaon_hist_proxies = []
 
-    kaon_class_id = particle_2_class['kaon']
 
     for erange in ranges:
         sub_df = kaon_df[kaon_df['energy_range'] == erange]
 
         # build RDF and lumi for this slice
-        rdf, _, int_lumi = read_rdf(args, sub_df)
+        rdf, _, int_lumi = read_rdf(args, sub_df[:])
         if not int_lumi:
             continue
 
         # filters for true/pred
         rdf_true = rdf.Filter(f"ParticleClass == {kaon_class_id}")
         rdf_pred = rdf.Filter(f"pred_class_first == {kaon_class_id}")
+        rdf_pred_bkg = rdf.Filter(f"pred_class_first == {mu_class_id} || pred_class_first == {kaon_class_id} || pred_class_first == {neutron_class_id}")
+
 
         # histogram proxies (keep them alive!)
         h_proxy_true = rdf_true.Histo2D(
@@ -258,12 +324,19 @@ def process_hist(args):
              int(nbins_y), float(y_min), float(y_max)),
             f"{hist_name}_x", f"{hist_name}_y"
         )
-        kaon_hist_proxies.extend([h_proxy_true, h_proxy_pred])
+        h_proxy_pred_bkg = rdf_pred_bkg.Histo2D(
+            (f"h_kaon_pred_bkg_{erange}_{hist_name}", "", 
+             int(nbins_x), float(x_min), float(x_max),
+             int(nbins_y), float(y_min), float(y_max)),
+            f"{hist_name}_x", f"{hist_name}_y"
+        )
+        kaon_hist_proxies.extend([h_proxy_true, h_proxy_pred,h_proxy_pred_bkg])
 
         # materialize
         h_true = h_proxy_true.GetValue().Clone()
         h_pred = h_proxy_pred.GetValue().Clone()
-        for h in (h_true, h_pred):
+        h_pred_bkg = h_proxy_pred_bkg.GetValue().Clone()
+        for h in (h_true, h_pred,h_pred_bkg):
             h.SetDirectory(0)
             h.GetXaxis().SetTitle(f"{axis_title} X")
             h.GetYaxis().SetTitle(f"{axis_title} Y")
@@ -274,9 +347,11 @@ def process_hist(args):
             scale = float(normalise_lumi) / float(int_lumi)
             h_true.Scale(scale)
             h_pred.Scale(scale)
+            h_pred_bkg.Scale(scale)
 
         kaon_true_hists[erange] = h_true
         kaon_pred_hists[erange] = h_pred
+        kaon_pred_bkg_hists[erange] = h_pred_bkg
         
     # --- reading neutron ---
     if 'energy_range' not in neutron_df.columns:
@@ -286,22 +361,24 @@ def process_hist(args):
 
     neutron_true_hists = {}
     neutron_pred_hists = {}
+    neutron_pred_bkg_hists = {}
     neutron_hist_proxies = []
 
-    neutron_class_id = particle_2_class['neutron']
 
     for erange in ranges:
         sub_df = neutron_df[neutron_df['energy_range'] == erange]
 
         # build RDF and lumi for this slice
         
-        rdf, _, int_lumi = read_rdf(args, sub_df)
+        rdf, _, int_lumi = read_rdf(args, sub_df[:])
         if not int_lumi:
             continue
 
         # filters for true/pred
         rdf_true = rdf.Filter(f"ParticleClass == {neutron_class_id}")
         rdf_pred = rdf.Filter(f"pred_class_first == {neutron_class_id}")
+        rdf_pred_bkg = rdf.Filter(f"pred_class_first == {mu_class_id} || pred_class_first == {kaon_class_id} || pred_class_first == {neutron_class_id}")
+
 
         # histogram proxies (keep them alive!)
         h_proxy_true = rdf_true.Histo2D(
@@ -317,12 +394,20 @@ def process_hist(args):
             f"{hist_name}_x", f"{hist_name}_y"
         )
         
-        neutron_hist_proxies.extend([h_proxy_true, h_proxy_pred])
+        h_proxy_pred_bkg = rdf_pred_bkg.Histo2D(
+            (f"h_neutron_pred_bkg_{erange}_{hist_name}", "", 
+             int(nbins_x), float(x_min), float(x_max),
+             int(nbins_y), float(y_min), float(y_max)),
+            f"{hist_name}_x", f"{hist_name}_y"
+        )
+        
+        neutron_hist_proxies.extend([h_proxy_true, h_proxy_pred, h_proxy_pred_bkg])
 
         # materialize
         h_true = h_proxy_true.GetValue().Clone()
         h_pred = h_proxy_pred.GetValue().Clone()
-        for h in (h_true, h_pred):
+        h_pred_bkg = h_proxy_pred_bkg.GetValue().Clone()
+        for h in (h_true, h_pred, h_pred_bkg):
             h.SetDirectory(0)
             h.GetXaxis().SetTitle(f"{axis_title} X")
             h.GetYaxis().SetTitle(f"{axis_title} Y")
@@ -333,16 +418,20 @@ def process_hist(args):
             scale = float(normalise_lumi) / float(int_lumi)
             h_true.Scale(scale)
             h_pred.Scale(scale)
+            h_pred_bkg.Scale(scale)
         
         neutron_true_hists[erange] = h_true
         neutron_pred_hists[erange] = h_pred
+        neutron_pred_bkg_hists[erange] = h_pred_bkg
 
     plot_2d_hist(data_pred_hists,
                 MC_neutrino_true_hists, MC_neutrino_pred_hists, 
-                muon_true_hists, muon_pred_hists, 
-                kaon_true_hists, kaon_pred_hists, 
-                neutron_true_hists, neutron_pred_hists, 
+                muon_true_hists, muon_pred_hists, muon_pred_bkg_hists,
+                kaon_true_hists, kaon_pred_hists, kaon_pred_bkg_hists,
+                neutron_true_hists, neutron_pred_hists, neutron_pred_bkg_hists,
                 hist_name, data_int_lumi)
+    
+
 
     
 
@@ -366,9 +455,6 @@ def plot_2d(hist2d,
     ROOT.gStyle.SetOptStat("emr")
     
     nbins_x, x_min, x_max, nbins_y, y_min, y_max, axis_title, logz, bin_width_x, bin_width_y = hist_info[hist_name]
-    nbins_x = int((x_max - x_min) / bin_width_x)
-    nbins_y = int((y_max - y_min) / bin_width_y)
-    
     
     # Canvas setup
     canvas = ROOT.TCanvas(hist_name, "", 800, 600)
@@ -398,7 +484,7 @@ def plot_2d(hist2d,
     label = ROOT.TLatex()
     label.SetNDC()
     label.SetTextFont(42)
-    label.SetTextSize(0.05)
+    label.SetTextSize(0.03)
     label.DrawLatex(0.12, 0.92, top_left_label)
     
      # Draw top right title
@@ -424,9 +510,9 @@ def plot_2d(hist2d,
 
 def plot_2d_hist(data_pred_hists,
                 MC_neutrino_true_hists, MC_neutrino_pred_hists, 
-                muon_true_hists, muon_pred_hists, 
-                kaon_true_hists, kaon_pred_hists, 
-                neutron_true_hists, neutron_pred_hists, 
+                muon_true_hists, muon_pred_hists, muon_pred_bkg_hists,
+                kaon_true_hists, kaon_pred_hists, kaon_pred_bkg_hists,
+                neutron_true_hists, neutron_pred_hists, neutron_pred_bkg_hists,
                 hist_name, data_int_lumi):
     
     outdir = f"./2d_plots/{hist_name}"
@@ -454,6 +540,16 @@ def plot_2d_hist(data_pred_hists,
     neutron_true_sum  = _sum_th2_dict(neutron_true_hists, "neutron_true")
     neutron_pred_sum  = _sum_th2_dict(neutron_pred_hists, "neutron_pred")
     
+        
+    MC_bkg = {}
+    MC_bkg["muon_pred_sum"]     = _sum_th2_dict(muon_pred_bkg_hists,    "muon_pred_bkg")
+    MC_bkg["kaon_pred_sum"]     = _sum_th2_dict(kaon_pred_bkg_hists,    "kaon_pred_bkg")
+    MC_bkg["neutron_pred_sum"]  = _sum_th2_dict(neutron_pred_bkg_hists, "neutron_pred_bkg")
+    
+    sum_MC_bkg = _sum_th2_dict(MC_bkg, "MC_bkg")
+    sum_data_bkg = _sum_th2_dict(data_pred_hists, "data_bkg")
+
+    
     data_muon = data_pred_hists["muon"]
     data_kaon = data_pred_hists["kaon"]
     data_neutron = data_pred_hists["neutron"]
@@ -472,51 +568,55 @@ def plot_2d_hist(data_pred_hists,
         created.append(path)
 
     # --- MC neutrino totals + components ---
-    _p(neutrino_true, f"{hist_name}_MC_neutrino_true_2d.pdf",       "Neutrino [MC, true]")
-    _p(neutrino_pred, f"{hist_name}_MC_neutrino_pred_2d.pdf",       "Neutrino [MC, GNN select]")
-    _p(ve_true,       f"{hist_name}_MC_ve_true_2d.pdf",             "Ve [MC, true]")
-    _p(vm_true,       f"{hist_name}_MC_vm_true_2d.pdf",             "Vm [MC, true]")
-    _p(vt_true,       f"{hist_name}_MC_vt_true_2d.pdf",             "Vt [MC, true]")
-    _p(NC_true,       f"{hist_name}_MC_NC_true_2d.pdf",             "NC [MC, true]")
-    _p(ve_pred,       f"{hist_name}_MC_ve_pred_2d.pdf",             "Ve [MC, GNN select]")
-    _p(vm_pred,       f"{hist_name}_MC_vm_pred_2d.pdf",             "Vm [MC, GNN select]")
-    _p(vt_pred,       f"{hist_name}_MC_vt_pred_2d.pdf",             "Vt [MC, GNN select]")
-    _p(NC_pred,       f"{hist_name}_MC_NC_pred_2d.pdf",             "NC [MC, GNN select]")
+    _p(neutrino_true, f"{hist_name}_MC_neutrino_true_2d.pdf",       "Neutrino [MC]")
+    _p(neutrino_pred, f"{hist_name}_MC_neutrino_pred_2d.pdf",       "Neutrino [MC, GNN selected]")
+    _p(ve_true,       f"{hist_name}_MC_ve_true_2d.pdf",             "Ve [MC]")
+    _p(vm_true,       f"{hist_name}_MC_vm_true_2d.pdf",             "Vm [MC]")
+    _p(vt_true,       f"{hist_name}_MC_vt_true_2d.pdf",             "Vt [MC]")
+    _p(NC_true,       f"{hist_name}_MC_NC_true_2d.pdf",             "NC [MC]")
+    _p(ve_pred,       f"{hist_name}_MC_ve_pred_2d.pdf",             "Ve [MC, GNN selected]")
+    _p(vm_pred,       f"{hist_name}_MC_vm_pred_2d.pdf",             "Vm [MC, GNN selected]")
+    _p(vt_pred,       f"{hist_name}_MC_vt_pred_2d.pdf",             "Vt [MC, GNN selected]")
+    _p(NC_pred,       f"{hist_name}_MC_NC_pred_2d.pdf",             "NC [MC, GNN selected]")
 
     # --- MC particles (muon/kaon/neutron) totals ---
-    _p(muon_true_sum,    f"{hist_name}_MC_muon_true_2d.pdf",        "Muon [MC, true]")
-    _p(muon_pred_sum,    f"{hist_name}_MC_muon_pred_2d.pdf",        "Muon [MC, GNN select]")
-    _p(kaon_true_sum,    f"{hist_name}_MC_kaon_true_2d.pdf",        "Kaon [MC, true]")
-    _p(kaon_pred_sum,    f"{hist_name}_MC_kaon_pred_2d.pdf",        "Kaon [MC, GNN select]")
-    _p(neutron_true_sum, f"{hist_name}_MC_neutron_true_2d.pdf",     "Neutron [MC, true]")
-    _p(neutron_pred_sum, f"{hist_name}_MC_neutron_pred_2d.pdf",     "Neutron [MC, GNN select]")
+    _p(muon_true_sum,    f"{hist_name}_MC_muon_true_2d.pdf",        "Muon [MC]")
+    _p(muon_pred_sum,    f"{hist_name}_MC_muon_pred_2d.pdf",        "Muon [MC, GNN selected]")
+    _p(kaon_true_sum,    f"{hist_name}_MC_kaon_true_2d.pdf",        "Kaon [MC]")
+    _p(kaon_pred_sum,    f"{hist_name}_MC_kaon_pred_2d.pdf",        "Kaon [MC, GNN selected]")
+    _p(neutron_true_sum, f"{hist_name}_MC_neutron_true_2d.pdf",     "Neutron [MC]")
+    _p(neutron_pred_sum, f"{hist_name}_MC_neutron_pred_2d.pdf",     "Neutron [MC, GNN selected]")
 
     # --- Data categories (predicted) ---
-    _p(data_muon,    f"{hist_name}_Data_muon_2d.pdf",               "Muon-like [Data]")
-    _p(data_kaon,    f"{hist_name}_Data_kaon_2d.pdf",               "Kaon-like [Data]")
-    _p(data_neutron, f"{hist_name}_Data_neutron_2d.pdf",            "Neutron-like [Data]")
+    _p(data_muon,    f"{hist_name}_Data_muon_2d.pdf",               "Muon-like [Data, GNN selected]")
+    _p(data_kaon,    f"{hist_name}_Data_kaon_2d.pdf",               "Kaon-like [Data, GNN selected]")
+    _p(data_neutron, f"{hist_name}_Data_neutron_2d.pdf",            "Neutron-like [Data, GNN selected]")
+    
+    # --- Sum of bkg ---
+    _p(sum_MC_bkg,    f"{hist_name}_sum_MC_bkg_2d.pdf",               "Kaon/Neutron/Muon [MC, GNN selected]")
+    _p(sum_data_bkg,  f"{hist_name}_sum_Data_bkg_2d.pdf",             "Kaon/Neutron/Muon [Data, GNN selected]")
 
     return 0
 
 METADATA_dict = read_metadata()
 vetoTagged = False
-model_name = 'baseline_muon'
+model_name = 'GravNet_v4'
 
 
 #nbins_x, x_min, x_max, nbins_y, y_min, y_max, axis_title, logz, bin_width_x, bin_width_y
 hist_info = {
     "start_avgPos": (90, -70, 20, 80, 0, 80, 'Start AvgPos', False, 0.5, 0.5),
-    "avg_scifi": (90, -70, 20, 80, 0, 80, 'SciFi AvgPos', False, 0.5, 0.5),
-    "avg_scifi1": (90, -70, 20, 80, 0, 80, 'SciFi 1 AvgPos', False, 0.5, 0.5),
-    "avg_scifi2": (90, -70, 20, 80, 0, 80, 'SciFi 2 AvgPos', False, 0.5, 0.5),
-    "avg_scifi3": (90, -70, 20, 80, 0, 80, 'SciFi 3 AvgPos', False, 0.5, 0.5),
-    "avg_scifi4": (90, -70, 20, 80, 0, 80, 'SciFi 4 AvgPos', False, 0.5, 0.5),
-    "avg_scifi5": (90, -70, 20, 80, 0, 80, 'SciFi 5 AvgPos', False, 0.5, 0.5),
+    "avg_scifi": (90, -70, 20, 80, 0, 80, 'SciFi AvgPos', True, 0.25, 0.25),
+    "avg_scifi1": (90, -70, 20, 80, 0, 80, 'SciFi 1 AvgPos', True, 0.25, 0.25,),
+    "avg_scifi2": (90, -70, 20, 80, 0, 80, 'SciFi 2 AvgPos', True, 0.25, 0.25,),
+    "avg_scifi3": (90, -70, 20, 80, 0, 80, 'SciFi 3 AvgPos', True, 0.25, 0.25,),
+    "avg_scifi4": (90, -70, 20, 80, 0, 80, 'SciFi 4 AvgPos', True, 0.25, 0.25,),
+    "avg_scifi5": (90, -70, 20, 80, 0, 80, 'SciFi 5 AvgPos', True, 0.25, 0.25,),
     
-    "avg_ds": (90, -70, 20, 80, 0, 80, 'DS  AvgPos', False, 1.5, 1.5),
-    "avg_ds1": (90, -70, 20, 80, 0, 80, 'DS 1 AvgPos', False, 1.5, 1.5),
-    "avg_ds2": (90, -70, 20, 80, 0, 80, 'DS 2 AvgPos', False, 1.5, 1.5),
-    "avg_ds3": (90, -70, 20, 80, 0, 80, 'DS 3 AvgPos', False, 1.5, 1.5),
+    "avg_ds": (90, -70, 20, 80, 0, 80, 'DS  AvgPos', True, 1, 1),
+    "avg_ds1": (90, -70, 20, 80, 0, 80, 'DS 1 AvgPos', True, 1, 1),
+    "avg_ds2": (90, -70, 20, 80, 0, 80, 'DS 2 AvgPos', True, 1, 1),
+    "avg_ds3": (90, -70, 20, 80, 0, 80, 'DS 3 AvgPos', True, 1, 1),
     
     "start_centroid": (90, -70, 20, 80, 0, 80, 'Start Centroid', False, 0.5, 0.5),
     "centroid_scifi": (90, -70, 20, 80, 0, 80, 'SciFi Centroid', False, 0.5, 0.5),

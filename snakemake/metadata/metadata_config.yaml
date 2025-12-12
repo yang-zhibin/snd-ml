@@ -1,4 +1,6 @@
 real_data:
+  - subfolder: "2025"
+    root_path: "/eos/experiment/sndlhc/convertedData/physics/2025/"
   - subfolder: "2024"
     root_path: "/eos/experiment/sndlhc/convertedData/physics/2024/"
   - subfolder: "2023"

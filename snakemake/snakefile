@@ -29,28 +29,31 @@ wildcard_constraints:
 
 metadata_csv_list = [
 #    "MC_kaon_FTFP_BERT_metadata_subset.csv",
-#     "MC_neutron_FTFP_BERT_metadata_subset.csv",
+     #"MC_neutron_FTFP_BERT_metadata_subset.csv"
     # "real_data_2024_skim_runs_metadata_subset.csv",
 
 
-    # "real_data_2024_skim_runs_metadata.csv",
+    #"real_data_2024_skim_runs_metadata.csv",
 
 
 #     # "MC_muon_down_metadata_recoTrks.csv",
 #    "MC_muon_down_metadata.csv",
 #      "MC_muon_horizontal_metadata.csv",
-     "MC_muon_up_metadata.csv",
+    # "MC_muon_up_metadata.csv",
 
 #     "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
-    # "MC_neutrino_volTarget_100fb-1_metadata.csv",
-    #"MC_neutrino_volTarget_100fb-1_up_metadata.csv",
+    #"MC_neutrino_volTarget_100fb-1_metadata.csv",
+    # "MC_neutrino_volTarget_100fb-1_up_metadata.csv",
     
     #   "MC_neutrino_2024_vm_metadata.csv",
-    #    "MC_neutrino_2024_ve_metadata.csv",
+    #     "MC_neutrino_2024_ve_metadata.csv",
         # "MC_neutrino_2024_vm_v2_metadata.csv",
     #  "MC_neutrino_2024_ve_v2_metadata.csv",
     #     "MC_neutrino_2025_vm_metadata.csv",
-    #    "MC_neutrino_2025_ve_metadata.csv",
+        "MC_neutrino_2025_ve_metadata.csv",
+    #    "MC_neutrino_2025_ve_metadata_test.csv",
+       
+    
 
 
     # "MC_kaon_FTFP_BERT_metadata.csv",
@@ -62,21 +65,23 @@ metadata_csv_list = [
 #      "real_data_2022_metadata.csv",
 #      "real_data_2023_metadata.csv",
 #       "real_data_2024_metadata.csv",
+        # "real_data_2025_metadata.csv",
     
 ]
 
 
 process_vetoTagged=True
 process_vetoFree = True
-process_model = ['GravNet_v4'] #'baseline_muon' 'GravNet_v4', 
+process_model = ['GravNet_v4'] #'baseline_muon' 'GravNet_v4', 'GravNet_v2'
 
 train_mode = False
+train_split = "Split_v2"
 train_model = 'GravNet_v4'
 
 
 def load_metadata():
     if train_mode:
-        metadata_prefix = f"/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/training/{train_model}"
+        metadata_prefix = f"/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/training/{train_split}"
         metadata_files = glob.glob(f"{metadata_prefix}*.csv")
         if not metadata_files:
             print(f"Warning: No CSV files found with prefix {metadata_prefix}")
@@ -201,11 +206,11 @@ def collect_model_path(target_name):
 rule finish:
     input:
         #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
-        expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
-        #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
+        # expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
         #expand("{newRaw_path}", newRaw_path=collect_target_paths("newRaw_path")),
-        #expand("{newDigi_path}", newDigi_path=collect_target_paths("newDigi_path")),
-        #expand("{preCutEff_path}", preCutEff_path=collect_target_paths("preCutEff_path")),
+        # expand("{newDigi_path}", newDigi_path=collect_target_paths("newDigi_path")),
+        # expand("{preCutEff_path}", preCutEff_path=collect_target_paths("preCutEff_path")),
         #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
@@ -214,15 +219,16 @@ rule finish:
         #expand("{model_output}", model_output=collect_model_path('model_output')),
         # expand("{eval_output}", eval_output=collect_model_path('eval_output')),
         #expand("{model_3d_output}", model_3d_output=collect_model_path('model_output'))
-        #expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
+        #  expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
+
 rule train:
     input:
-        #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
+        expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         script = '/afs/cern.ch/work/z/zhibin/snd-ml/training/train.py',
         model_config = f'/afs/cern.ch/work/z/zhibin/snd-ml/training/configs/{train_model}.yml',
         #config = 
         #expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
-    #output:
+    # output:
     #    trained_model = "{model_ckpt}"
     
     threads:2
@@ -918,11 +924,12 @@ rule cal_preSelect_eff:
 rule cal_matrix:
     input:
         script = '/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/cal_matrix.py',
-        
         feature_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "feature_path"),
-        preSelect_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "preSelect_path"),
+        
+        
+        # preSelect_path=lambda wildcards: get_metadata_from_output("matrix", wildcards.matrix_output, "preSelect_path"),
+        
         model_output=lambda wildcards: get_metadata_from_output('matrix', wildcards.matrix_output, "model_output"),
-    #params:
     output:
         matrix_output = '{matrix_output}'
     threads:1
@@ -964,53 +971,134 @@ rule cal_matrix:
         """
 
 
+# HIST_NAMES = [
+#     "signed_slope_x", "signed_slope_y", "sum_hit_density", "count_scifi",
+#     "count_us1", "start_centroid_x", "start_centroid_y", "centroid_slope_y",
+#     "centroid_slope_x", "start_avgPos_x", "start_avgPos_y", "avgPos_slope_x",
+#     "avgPos_slope_y",
+# ]
+
 HIST_NAMES = [
-    "signed_slope_x", "signed_slope_y", "sum_hit_density", "count_scifi",
-    "count_us1", "start_centroid_x", "start_centroid_y", "centroid_slope_y",
-    "centroid_slope_x", "start_avgPos_x", "start_avgPos_y", "avgPos_slope_x",
-    "avgPos_slope_y",
+    "sum_hit_density", 
+    "density_1st_scifi",
+    "density_scifi1",
+    "density_scifi2",
+    "density_scifi3",
+    "density_scifi4",
+    "density_scifi5",
+
+    "count_scifi",
+    "count_scifi1",
+    "count_scifi2",
+    "count_scifi3",
+    "count_scifi4",
+    "count_scifi5",
+    "count_us",
+    "count_us1", 
+    "count_us2", 
+    "count_us3", 
+    "count_us4", 
+    "count_us5", 
+    "count_ds", 
+    "count_ds1", 
+    "count_ds2", 
+    "count_ds3", 
+    "count_ds4", 
+
+    "avg_scifi_y",
+    "avg_scifi1_y",
+    "avg_scifi2_y",
+    "avg_scifi3_y",
+    "avg_scifi4_y",
+    "avg_scifi5_y",
+
+    "avg_scifi_x",
+    "avg_scifi1_x",
+    "avg_scifi2_x",
+    "avg_scifi3_x",
+    "avg_scifi4_x",
+    "avg_scifi5_x",
+
+    "avg_ds_y", 
+    "avg_ds1_y",
+    "avg_ds2_y",
+    "avg_ds3_y",
+    "avg_ds4_y",
+
+    "avg_ds_x", 
+    "avg_ds1_x",
+    "avg_ds2_x",
+    "avg_ds3_x",
+    "avg_ds4_x",
+
+    "avg_us_y", 
+    "avg_us1_y",
+    "avg_us2_y",
+    "avg_us3_y",
+    "avg_us4_y",
+    "avg_us5_y",
 ]
 HIST_2d_NAMES = [
-    "start_avgPos",
     "avg_scifi", "avg_scifi1", "avg_scifi2", "avg_scifi3", "avg_scifi4", "avg_scifi5",
-    "avg_ds", "avg_ds1", "avg_ds2", "avg_ds3",
-    "start_centroid",
-    "centroid_scifi", "centroid_scifi1", "centroid_scifi2", "centroid_scifi3", "centroid_scifi4", "centroid_scifi5",
-    "centroid_ds", "centroid_ds1", "centroid_ds2", "centroid_ds3",
-    "centroid_slope", "avgPos_slope", "signed_slope",
+     "avg_ds", "avg_ds1", "avg_ds2", "avg_ds3",
 ]
 
-CUT_STATES = ["cut", "nocut"]
+CUT_STATES = [
+    "nocut",
 
+    "scifi_x_lt_-15",
+    "scifi_x_between_-44_-15",
+
+    "scifi_x_between_-44_-15__scifi_y_between_18_52",
+
+    "scifi_x_between_-44_-15__scifi_y_between_18_52__ds_x_between_-48_-14",
+
+    "scifi_x_between_-44_-15__scifi_y_between_18_52__ds_x_between_-48_-14__ds_y_between_15_55",
+
+    "fiducial_cut"
+
+]
+
+VETO_HIST_NAMES = ["vetoHitTime_earlist", "vetoHitTime_lastest",
+                    "vetoHitTime_earlist_veto1", "vetoHitTime_earlist_veto2", "vetoHitTime_earlist_veto3"
+                    "vetoHitTime_lastest_veto1", "vetoHitTime_lastest_veto2", "vetoHitTime_lastest_veto3"
+]
+VETO_CUT_STATES = ['withVetoHit']
 # Build all hist flags for both cut states
 rule plots:
     input:
+        # expand(
+        #     "/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_2d_plots/plot_flags/{cut}/hist.{hist_name}.done",
+        #     hist_name=HIST_2d_NAMES,
+        #     cut=CUT_STATES,
+        # ),
         expand(
-            "/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_plots/plot_flags/{cut}/hist.{hist_name}.done",
+            "/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_plots/plot_flags/{cut}/hist.{hist_name}.done",
             hist_name=HIST_NAMES,
             cut=CUT_STATES,
         ),
         # expand(
-        #     "/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_2d_plots/plot_flags/{cut}/hist.{hist_name}.done",
-        #     hist_name=HIST_2d_NAMES,
-        #     cut=CUT_STATES,
-        # )
+        #     "/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/veto_hit_investigation/htcondor_plots/plot_flags/{cut}/hist.{hist_name}.done",
+        #     hist_name=VETO_HIST_NAMES,
+        #     cut=VETO_CUT_STATES,
+        # ),
+
 
 rule plot_distribution:
     input:
-        script="/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/plot_distribution.py"
+        script="/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/plot_distribution.py"
     output:
         # one flag file per histogram name *and* cut state
-        flag=touch("/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_plots/plot_flags/{cut}/hist.{hist_name}.done")
+        flag=touch("/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_plots/plot_flags/{cut}/hist.{hist_name}.done")
     params:
         # separate destinations for cut/nocut
-        dest_dir=lambda wc: f"/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_plots/{wc.cut}",
+        dest_dir=lambda wc: f"/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_plots/{wc.cut}",
         # if your script expects a boolean value for -c instead of a bare flag, use the next line instead:
         # cut_arg=lambda wc: ("-c True" if wc.cut == "cut" else "-c False")
-    threads: 1
+    threads: 2
     resources:
-        runtime=12*60*60,
-        mem_mb=8000,
+        runtime=30*60*60,
+        mem_mb=1200,
         disk_mb=4000,
         nvidia_gpu=0
     shell:
@@ -1021,27 +1109,57 @@ rule plot_distribution:
 
         source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
 
-        # Build cut flag: presence of -c means "apply cut"
-        CUT_FLAG=""
-        if [[ "{wildcards.cut}" == "cut" ]]; then
-            CUT_FLAG="-c"
-        fi
+        python {input.script} -n {wildcards.hist_name} -c {wildcards.cut}
 
-        python {input.script} -n {wildcards.hist_name} $CUT_FLAG
-
+        rm -rf {params.dest_dir}/{wildcards.hist_name}
         mkdir -p {params.dest_dir}/{wildcards.hist_name}
         xrdcp ./plots/{wildcards.hist_name}/* {params.dest_dir}/{wildcards.hist_name}/
+        rm -r ./plots/{wildcards.hist_name}
+        """
+
+
+rule plot_veto_distribution:
+    input:
+        script="/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/veto_hit_investigation/plot_vetotime_distribution.py"
+    output:
+        # one flag file per histogram name *and* cut state
+        flag=touch("/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/veto_hit_investigation/htcondor_plots/plot_flags/{cut}/hist.{hist_name}.done")
+    params:
+        # separate destinations for cut/nocut
+        dest_dir=lambda wc: f"/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/veto_hit_investigation/htcondor_plots/{wc.cut}",
+        # if your script expects a boolean value for -c instead of a bare flag, use the next line instead:
+        # cut_arg=lambda wc: ("-c True" if wc.cut == "cut" else "-c False")
+    threads: 4
+    resources:
+        runtime=18*60*60,
+        mem_mb=1200,
+        disk_mb=4000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        echo "running plot_distribution for {wildcards.hist_name} ({wildcards.cut})"
+
+        set +u
+
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+
+        python {input.script} -n {wildcards.hist_name} -c {wildcards.cut}
+
+        rm -rf {params.dest_dir}/{wildcards.hist_name}
+        mkdir -p {params.dest_dir}/{wildcards.hist_name}
+        xrdcp ./plots/{wildcards.hist_name}/* {params.dest_dir}/{wildcards.hist_name}/
+        rm -r ./plots/{wildcards.hist_name}
         """
 
 rule plot_2d_distribution:
     input:
-        script="/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/plot_2d_distribution.py"
+        script="/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/plot_2d_distribution.py"
     output:
         # one flag file per histogram name *and* cut state
-        flag=touch("/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_2d_plots/plot_flags/{cut}/hist.{hist_name}.done")
+        flag=touch("/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_2d_plots/plot_flags/{cut}/hist.{hist_name}.done")
     params:
         # separate destinations for cut/nocut
-        dest_dir=lambda wc: f"/afs/cern.ch/user/z/zhibin/work/snd-ml/evaluation/compare_pred_MC/htcondor_2d_plots/{wc.cut}",
+        dest_dir=lambda wc: f"/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_2d_plots/{wc.cut}",
         # if your script expects a boolean value for -c instead of a bare flag, use the next line instead:
         # cut_arg=lambda wc: ("-c True" if wc.cut == "cut" else "-c False")
     threads: 1
@@ -1058,14 +1176,11 @@ rule plot_2d_distribution:
 
         source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
 
-        # Build cut flag: presence of -c means "apply cut"
-        CUT_FLAG=""
-        if [[ "{wildcards.cut}" == "cut" ]]; then
-            CUT_FLAG="-c"
-        fi
 
-        python {input.script} -n {wildcards.hist_name} $CUT_FLAG
+        python {input.script} -n {wildcards.hist_name} - {wildcards.cut}
 
+        rm -rf {params.dest_dir}/{wildcards.hist_name}
         mkdir -p {params.dest_dir}/{wildcards.hist_name}
         xrdcp ./2d_plots/{wildcards.hist_name}/* {params.dest_dir}/{wildcards.hist_name}/
+        rm -r ./2d_plots/{wildcards.hist_name}
         """

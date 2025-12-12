@@ -81,33 +81,43 @@ def cal_matrix(rdf, true_class):
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >1 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >1 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >1 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >1 ) && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >1 )", 
+        
         
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto == 0 || vetoHitTime_earlist >2 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >2 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >2 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >2 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >2 ) && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >2 )", 
+        
         
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto == 0 || vetoHitTime_earlist >3 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >3 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >3 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >3 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >3 ) && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >3 )", 
+        
         
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto == 0 || vetoHitTime_earlist >4 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >4 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >4 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >4 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >4 ) && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >4 )", 
+        
         
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto == 0 || vetoHitTime_earlist > 5 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto1 == 0 || vetoHitTime_earlist_veto1 >5 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >5 )", 
         "At_least_1_non_veto_hit && count_scifi>200 && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >5 )", 
+        "At_least_1_non_veto_hit && count_scifi>200 && (count_veto2 == 0 || vetoHitTime_earlist_veto2 >5 ) && (count_veto3 == 0 || vetoHitTime_earlist_veto3 >5 )", 
+        
     ]
     labels = ['a_raw', 'b_non_veto', '1_scifi>200', 
-              "veto_1ns", "veto1_1ns", 'veto2_1ns',  'veto3_1ns',  
-              "veto_2ns", "veto1_2ns", 'veto2_2ns',  'veto3_2ns',  
-              "veto_3ns", "veto1_3ns", 'veto2_3ns',  'veto3_3ns',  
-              "veto_4ns", "veto1_4ns", 'veto2_4ns',  'veto3_4ns',  
-              "veto_5ns", "veto1_5ns", 'veto2_5ns',  'veto3_5ns',  
+              "veto_1ns", "veto1_1ns", 'veto2_1ns',  'veto3_1ns',  'veto2_and_veto3_1ns',
+              "veto_2ns", "veto1_2ns", 'veto2_2ns',  'veto3_2ns',  'veto2_and_veto3_2ns',
+              "veto_3ns", "veto1_3ns", 'veto2_3ns',  'veto3_3ns',  'veto2_and_veto3_3ns',
+              "veto_4ns", "veto1_4ns", 'veto2_4ns',  'veto3_4ns',  'veto2_and_veto3_4ns',
+              "veto_5ns", "veto1_5ns", 'veto2_5ns',  'veto3_5ns',  'veto2_and_veto3_5ns',
               ]
 
     matrices = {}
@@ -214,6 +224,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(args)
 
-
-#python cal_matrix.py -f {params.feature_path} -e {params.eval_path} -o "${{tmp_output}}"
-#python cal_matrix.py -f /eos/experiment/sndlhc/users/zhibin/real_data/run_241/run_008285/vetoTagged_feature_real_data_run_241_run_008285_sndsw_raw-0000.root -e /eos/experiment/sndlhc/users/zhibin/real_data/run_241/run_008285/vetoTagged_eval_GravNet_v2_output_real_data_run_241_run_008285_sndsw_raw-0000.root -o /eos/experiment/sndlhc/users/zhibin/real_data/run_241/run_008285/vetoTagged_matrix_baseline_muon_output_real_data_run_241_run_008285_sndsw_raw-0000.csv

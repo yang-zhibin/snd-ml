@@ -84,32 +84,49 @@ def cal_matrix(rdf, true_class):
 
     labels = ['0_raw', '1_scifi>200', '2_scifi>300', '3_us1>2', '4_veScore>0.92']
     
+    n_total = rdf.Count().GetValue()
+    if n_total == 0:
+        print('rdf entry is 0, return empty matrices')
+        for label, cut in zip(labels, cut_expr):
+            confusion_matrix = pd.DataFrame(0.0, index=true_class, columns=pred_class)
+            for t_class in true_class:
+                for p_class in pred_class:
+                    confusion_matrix.at[t_class, p_class] = 0
+            matrices[label] = confusion_matrix
+       
+        print(matrices)
+        return matrices
     
 
 
     for label, cut in zip(labels, cut_expr):
-        print(f'-------{label}--------')
+        #print(f'-------{label}--------')
         prediction_score_class, prediction_score_cut, other_cuts = split_prediction_clause(cut)
-        print(f"other_cuts: {other_cuts}, prediction_score_class: {prediction_score_class}, prediction_score_cut: {prediction_score_cut}")
+        #print(f"other_cuts: {other_cuts}, prediction_score_class: {prediction_score_class}, prediction_score_cut: {prediction_score_cut}")
 
         if other_cuts == "":
             rdf_cut = rdf
         else:
             
             rdf_cut = rdf.Filter(other_cuts)
-            print(f"{other_cuts}, count: {rdf_cut.Count().GetValue()}")
+            #print(f"{other_cuts}, count: {rdf_cut.Count().GetValue()}")
 
         confusion_matrix = pd.DataFrame(0.0, index=true_class, columns=pred_class)
 
         for t_class in true_class:
             rdf_class = rdf_cut
-            print(f"t_class: {t_class}")
+            
+            #print(f"t_class: {t_class}")
             if t_class == "data_vetoTagged":
                 t_class_ParticleType = 'real_data'
+                t_class_number = -1
             elif t_class == "data_vetoFree":
                 t_class_ParticleType = 'real_data'
+                t_class_number = -1
             else:
                 t_class_ParticleType = t_class
+                t_class_number = particle_2_class[t_class]
+                
 
             for p_class in pred_class:
                 
@@ -117,21 +134,21 @@ def cal_matrix(rdf, true_class):
                 
                 if p_class_number == prediction_score_class:
                     filter_expr = (
-                        f'(ParticleType == "{t_class_ParticleType}" && '
+                        f'(ParticleClass == {t_class_number} && '
                         f'pred_class_first == {p_class_number} && '
                         f'(Prediction_{prediction_score_class} > {prediction_score_cut}))'
                     )
                 else:
                     filter_expr = (
-                        f'(ParticleType == "{t_class_ParticleType}" && '
+                        f'(ParticleClass == {t_class_number} && '
                         f'pred_class_first == {p_class_number}) || '
-                        f'(ParticleType == "{t_class_ParticleType}" && '
+                        f'(ParticleClass == {t_class_number} && '
                         f'pred_class_second == {p_class_number} && '
                         f'pred_class_first == {prediction_score_class} && '
                         f'Prediction_{prediction_score_class} <= {prediction_score_cut})'
                     )
                     
-                print(f"filter_expr : {filter_expr}")
+                #print(f"filter_expr : {filter_expr}")
                 if not isinstance(filter_expr, str):
                     raise ValueError(f"Invalid filter expression: {filter_expr}")
                 if (t_class == "data_vetoFree" and (p_class=='ve' or p_class=='vm' or p_class=='vt' or p_class=='NC')):
@@ -160,7 +177,7 @@ def process(eval_path,feature_path, data_type, outpath, vetoTagged):
         true_class = ["data_vetoFree"]
     elif "data_vetoTagged" in data_type:
         true_class = ["data_vetoTagged"]
-    eval_chain = ROOT.TChain("snddata")
+    eval_chain = ROOT.TChain("sndData")
     feature_chain = ROOT.TChain("sndData")
     
     feature_chain.Add(feature_path)

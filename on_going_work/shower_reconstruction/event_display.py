@@ -1101,7 +1101,7 @@ if __name__ == "__main__":
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
     parser.add_argument("-b", "--beam", dest='beam', help='testbeam or TI18', default="TI18")
-    parser.add_argument("-n", "--nEvent", dest='n_event', help='max number of events', default=20)
+    parser.add_argument("-n", "--nEvent", dest='n_event', help='max number of events', default=50)
     
     parser.add_argument("-s", "--n_scifi", dest='n_scifi', help='scifi count threshold', default=1)
 

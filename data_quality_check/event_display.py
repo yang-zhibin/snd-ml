@@ -9,6 +9,8 @@
 
 #python -i $SNDSW_ROOT/shipLHC/scripts/2dEventDisplay.py -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/28/geofile_full.Genie-TGeant4.root -f /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/28/sndLHC.Genie-TGeant4_dig.root -p ""
 
+
+# python -i $SNDSW_ROOT/shipLHC/scripts/2dEventDisplay.py -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -f /eos/experiment/sndlhc/convertedData/physics/2024/run_241/run_008285/sndsw_raw-0000.root -p ""
 def main()
     # digi, geo, feature, eval path file
     # get a list of event index

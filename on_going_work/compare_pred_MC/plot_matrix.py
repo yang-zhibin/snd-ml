@@ -19,7 +19,7 @@ target_columns = ['ve', 'vm', 'vt', 'NC', 'kaon', 'neutron', 'muon']
 
 
 
-def read_metadata(directory="./processed_metadata"):
+def read_metadata(directory="./processed_metadata_GravNet_v2"):
     
     """Load all processed metadata CSVs into a dictionary."""
     metadata_dict = {}
@@ -329,9 +329,11 @@ def load_matrix_from_csv(df, max_file=1e6, int_lumi_real_data=1e5, process_real_
         vetoFree_matrix_path = row[f'vetoFree_matrix_{model_name}_output_path']
         vetoFree_lumi_per_file = np.nan_to_num(row['lumi_per_file'], nan=0.0)
         
-        if os.path.exists(vetoFree_matrix_path):
+        if os.path.exists(vetoFree_matrix_path) and os.path.getsize(vetoFree_matrix_path) > 0:
             vf_matrix = pd.read_csv(vetoFree_matrix_path, index_col=0)
             vetoFree_lumi += vetoFree_lumi_per_file
+            count+=1
+            
             
             
         
@@ -363,10 +365,11 @@ def load_matrix_from_csv(df, max_file=1e6, int_lumi_real_data=1e5, process_real_
             else:
                 vetoTagged_matrix[target_columns] = vetoTagged_matrix[target_columns].add(vt_matrix[target_columns], fill_value=0)
         
-        count+=1
+        
         if count > max_file:
             break
     #print(particle_matrix)
+    #print(vetoTagged_matrix)
     return vetoFree_matrix, vetoFree_lumi, vetoTagged_matrix, vetoTagged_lumi
 
 def load_neutral_bkg_matrix(df):
@@ -406,6 +409,7 @@ def sum_normalized_neutral_bkg_matrix(matrix_list, factor=1.0):
     return total_matrix
 
 def normalize_matrix(matrix, lumi, factor):
+    #print(matrix, lumi, factor)
     if lumi == 0:
         raise ValueError("Cannot normalize matrix with lumi=0")
     numeric_cols = matrix.select_dtypes(include='number').columns
@@ -414,19 +418,31 @@ def normalize_matrix(matrix, lumi, factor):
     return matrix
 
 
-def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC_neutron_metadata):
+def process_matrix(realdata_metadata, MC_neutrino_metadata,MC_muon_metadata,  MC_kaon_metadata, MC_neutron_metadata):
     
+    print('reading real data')
     realdata_vetoFree_matrix, realdata_vetoFree_lumi, realdata_vetoTagged_matrix, realdata_vetoTagged_lumi = load_matrix_from_csv(realdata_metadata)
     
+    print('reading neutrino')
     MC_neutrino_vetoFree_matrix, MC_neutrino_vetoFree_lumi, _, _ = load_matrix_from_csv(MC_neutrino_metadata)
     
+    print('reading muon')
+    muon_vetoFree_matrix, muon_vetoFree_lumi, muon_vetoTagged_matrix, muon_vetoTagged_lumi = load_matrix_from_csv(MC_muon_metadata)
+    
+    print('reading kaon')
     MC_kaon_matrix_list= load_neutral_bkg_matrix(MC_kaon_metadata)
+    print('reading neutron')
     MC_neutron_matrix_list = load_neutral_bkg_matrix(MC_neutron_metadata)
     
     normalized_MC_neutrino_vetoFree_matrix = normalize_matrix(MC_neutrino_vetoFree_matrix, MC_neutrino_vetoFree_lumi, realdata_vetoFree_lumi)
-    normalized_realdata_vetoTagged_matrix = normalize_matrix(realdata_vetoTagged_matrix, realdata_vetoTagged_lumi, realdata_vetoFree_lumi)
     
+    #normalized_realdata_vetoTagged_matrix = normalize_matrix(realdata_vetoTagged_matrix, realdata_vetoTagged_lumi, realdata_vetoFree_lumi)
+    #print(muon_vetoTagged_matrix)
+    muon_combine_matrix = muon_vetoFree_matrix.copy()
+    muon_combine_matrix[target_columns] =  muon_vetoFree_matrix[target_columns].add(muon_vetoTagged_matrix[target_columns], fill_value=0)
+    muon_combine_lumi = muon_vetoFree_lumi+muon_vetoTagged_lumi
     
+    normalise_muon_matrix = normalize_matrix(muon_combine_matrix, muon_combine_lumi, realdata_vetoFree_lumi)
     
     normalized_MC_kaon_vetoFree_matrix = sum_normalized_neutral_bkg_matrix(MC_kaon_matrix_list, realdata_vetoFree_lumi)
     
@@ -442,7 +458,8 @@ def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC
     all_matrix = pd.concat([
         normalized_MC_neutrino_vetoFree_matrix,
         realdata_vetoFree_matrix,
-        normalized_realdata_vetoTagged_matrix,
+        normalise_muon_matrix,
+    #    normalized_realdata_vetoTagged_matrix,
         normalized_MC_kaon_vetoFree_matrix,
         normalized_MC_neutron_vetoFree_matrix
     ], ignore_index=False)
@@ -453,7 +470,7 @@ def process_matrix(realdata_metadata, MC_neutrino_metadata, MC_kaon_metadata, MC
 
 
 METADATA_dict = read_metadata()
-model_name = 'baseline_muon'
+model_name = 'GravNet_v4'
 
 def main():
 
@@ -467,22 +484,11 @@ def main():
     
     
     
-    process_matrix(real_data, neutrino_df, kaon_df, neutron_df)
+    process_matrix(real_data, neutrino_df,muon_df, kaon_df, neutron_df)
     
     
     
 
-
-def read_metadata(directory="./processed_metadata"):
-    
-    """Load all processed metadata CSVs into a dictionary."""
-    metadata_dict = {}
-    for file in os.listdir(directory):
-        if file.endswith(".csv"):
-            key = file.replace(".csv", "")
-            metadata_dict[key] = pd.read_csv(os.path.join(directory, file))
-    return metadata_dict
-    
 
 
 if __name__ == "__main__": 

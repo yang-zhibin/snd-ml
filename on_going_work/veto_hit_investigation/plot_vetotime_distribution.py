@@ -59,173 +59,41 @@ def tree_entries_and_branch(path, treename, required_branch=None):
     return (n, has_req)
 
 def read_rdf(args, metadata_df, MC_muon=False):
-    feature_chain = ROOT.TChain("sndData")
-    prediction_chain = ROOT.TChain("sndData")
+    preSelect_chain = ROOT.TChain("sndData")
     
     int_lumi = 0
     # Defaultdict of dicts
-    events_per_subfolder = defaultdict(lambda: {"vetoFree": 0, "vetoTagged": 0})
-
     
     for _, row in metadata_df.iterrows():
         sub = row['subfolder']
 
-        # ---- vetoFree ----
-        vf_feat = row['vetoFree_feature_path']
-        vf_pred = row[f'vetoFree_prediction_{model_name}_output_path']
 
-        n_feat, _ = tree_entries_and_branch(vf_feat, "sndData")
-        n_pred, has_branch = tree_entries_and_branch(vf_pred, "sndData", required_branch="pred_class_first")
+        preSelect_path = row['preSelect_path']
+   
 
-        if n_feat > 0 and n_pred > 0 and has_branch and n_feat == n_pred:
-            feature_chain.Add(vf_feat)
-            prediction_chain.Add(vf_pred)
-            events_per_subfolder[sub]["vetoFree"] += row['n_event']
+        n_preSelect, _ = tree_entries_and_branch(preSelect_path, "sndData")
+        
+        if n_preSelect > 0:
+            preSelect_chain.Add(preSelect_path)
+            
             if pd.notna(row['lumi_per_file']):
                 int_lumi += row['lumi_per_file']
         else:
-            if n_feat == 0:
-                print(f"[Skip] features empty/missing: {vf_feat}")
+            if n_preSelect == 0:
+                print(f"[Skip] features empty/missing: {preSelect_path}")
                 if pd.notna(row['lumi_per_file']):
                     int_lumi += row['lumi_per_file']
-            if n_pred == 0:
-                print(f"[Skip] predictions empty/missing: {vf_pred}")
-            if n_feat != 0 and n_pred != 0 and n_feat != n_pred:
-                print(f"[Skip] entry mismatch (features={n_feat}, predictions={n_pred}):\n  {vf_feat}\n  {vf_pred}")
-            if n_pred > 0 and not has_branch:
-                print(f"[Skip] predictions missing branch 'pred_class_first': {vf_pred}")
             
-        # ---- vetoTagged (optional) ----
-        if vetoTagged or MC_muon:
-            vt_feat = row.get('vetoTagged_feature_path')
-            vt_pred = row.get(f'vetoTagged_prediction_{model_name}_output_path')
-
-            n_feat, _ = tree_entries_and_branch(vt_feat, "sndData") if vt_feat else (0, False)
-            n_pred, has_branch = tree_entries_and_branch(vt_pred, "sndData", required_branch="pred_class_first") if vt_pred else (0, False)
-
-            if n_feat > 0 and n_pred > 0 and has_branch and n_feat == n_pred:
-                feature_chain.Add(vt_feat)
-                prediction_chain.Add(vt_pred)
-                events_per_subfolder[sub]["vetoTagged"] += row['n_event']
-            else:
-                if vt_feat and n_feat == 0:
-                    print(f"[Skip] features empty/missing: {vt_feat}")
-                if vt_pred and n_pred == 0:
-                    print(f"[Skip] predictions empty/missing: {vt_pred}")
-                if vt_feat and vt_pred and n_feat != 0 and n_pred != 0 and n_feat != n_pred:
-                    print(f"[Skip] entry mismatch (features={n_feat}, predictions={n_pred}):\n  {vt_feat}\n  {vt_pred}")
-                if vt_pred and n_pred > 0 and not has_branch:
-                    print(f"[Skip] predictions missing branch 'pred_class_first': {vt_pred}")
-
-    print(f"Added {feature_chain.GetNtrees()} feature files and {prediction_chain.GetNtrees()} prediction files.")
+    print(f"Added {preSelect_chain.GetNtrees()} preSelect files")
     if (int_lumi==0):
         return None, None, 0
     # Print total events per subfolder
-    print("\nEvents read per subfolder:")
-    for subfolder, counts in events_per_subfolder.items():
-        print(f"  {subfolder}: vetoFree={counts['vetoFree']}, vetoTagged={counts['vetoTagged']}")
-
-    feature_chain.AddFriend(prediction_chain, 'prediction')
-    rdf = ROOT.RDataFrame(feature_chain)
+   
+    rdf = ROOT.RDataFrame(preSelect_chain)
+    if args.cut =='withVetoHit':
+        rdf = rdf.Filter("count_veto>0")
     
-    if args.hist_name == "sum_hit_density":
-        rdf= rdf.Define("sum_hit_density", "density_scifi1 + density_scifi2 + density_scifi3 + density_scifi4 + density_scifi5")
-    
-    if args.hist_name == "density_1st_scifi":
-        rdf = rdf.Define(
-            "density_1st_scifi",
-            "std::max({density_scifi1, density_scifi2, density_scifi3, density_scifi4, density_scifi5})"
-        )
-    
-    ## avg_scifi_x < -15 and avg_scifi_x >-44 avg_scifi_y [18,52]
-    ## avg_scifi_x < -15 and avg_scifi_x >-44 avg_scifi_y [18,52]. avg_ds_x [-14, -48]
-    ## avg_scifi_x < -15 and avg_scifi_x >-44 avg_scifi_y [18,52]. avg_ds_x [-14, -48], avg_ds_y [15, 55]
-    
-    ##avg_scifi_x [-40.9989, -15.5431] avg_scifi_y [21.9541, 48.6972], avg_ds_x[-8.8967, -46.055] avg_ds_y[17.605, 57.585]
-    
-    # Scifi Horizontal Positions: [21.954140625, 48.697239583333335]
-    # Scifi Vertical Positions: [-40.99885416666667, -15.543125000000003]
-    # DS Horizontal Positions: [17.605, 57.585]
-    # DS Vertical Positions: [-46.055, -8.896666666666661]
-    
-    if args.cut == 'nocut':
-        # no selection
-        pass
-
-    # ---------------- 1D CUTS ----------------
-    elif args.cut == 'scifi_x_lt_-15':
-        # avg_scifi_x < -15
-        rdf = rdf.Filter("avg_scifi_x < -15")
-
-    elif args.cut == 'scifi_x_between_-44_-15':
-        # -44 < avg_scifi_x < -15
-        rdf = rdf.Filter("avg_scifi_x > -44 && avg_scifi_x < -15")
-
-
-    # ---------------- 2D CUTS ----------------
-    elif args.cut == 'scifi_x_between_-44_-15__scifi_y_between_18_52':
-        # -44 < avg_scifi_x < -15
-        # 18 <= avg_scifi_y <= 52
-        rdf = rdf.Filter(
-            "avg_scifi_x > -44 && avg_scifi_x < -15 && "
-            "avg_scifi_y >= 18 && avg_scifi_y <= 52"
-        )
-
-
-    # ---------------- 3D CUTS ----------------
-    elif args.cut == (
-        'scifi_x_between_-44_-15__'
-        'scifi_y_between_18_52__'
-        'ds_x_between_-48_-14'
-    ):
-        # -44 < avg_scifi_x < -15
-        # 18 <= avg_scifi_y <= 52
-        # -48 <= avg_ds_x <= -14
-        rdf = rdf.Filter(
-            "avg_scifi_x > -44 && avg_scifi_x < -15 && "
-            "avg_scifi_y >= 18 && avg_scifi_y <= 52 && "
-            "avg_ds_x >= -48 && avg_ds_x <= -14"
-        )
-
-
-    # ---------------- 4D CUTS ----------------
-    elif args.cut == (
-        'scifi_x_between_-44_-15__'
-        'scifi_y_between_18_52__'
-        'ds_x_between_-48_-14__'
-        'ds_y_between_15_55'
-    ):
-        # -44 < avg_scifi_x < -15
-        # 18 <= avg_scifi_y <= 52
-        # -48 <= avg_ds_x <= -14
-        # 15 <= avg_ds_y <= 55
-        rdf = rdf.Filter(
-            "avg_scifi_x > -44 && avg_scifi_x < -15 && "
-            "avg_scifi_y >= 18 && avg_scifi_y <= 52 && "
-            "avg_ds_x >= -48 && avg_ds_x <= -14 && "
-            "avg_ds_y >= 15 && avg_ds_y <= 55"
-        )
-
-
-    # --------------- 4D TIGHT CUT ---------------
-    elif args.cut == (
-        'fiducial_cut'
-    ):
-        # avg_scifi_x  in [-40.9989, -15.5431]
-        # avg_scifi_y  in [21.9541, 48.6972]
-        # avg_ds_x     in [-46.055, -8.8967]
-        # avg_ds_y     in [17.605, 57.585]
-        rdf = rdf.Filter(
-            "avg_scifi_x >= -40.9989 && avg_scifi_x <= -15.5431 && "
-            "avg_scifi_y >= 21.9541            && avg_scifi_y <= 48.6972  && "
-            "avg_ds_x   >= -46.055             && avg_ds_x   <= -8.8967   && "
-            "avg_ds_y   >= 17.605              && avg_ds_y   <= 57.585"
-        )
-
-    else:
-        raise ValueError(f'Unknown cut: {args.cut}')
-    
-    return rdf, feature_chain, int_lumi
+    return rdf, preSelect_chain, int_lumi
 
     
     
@@ -240,11 +108,11 @@ def process_hist(args):
     real_data = METADATA_dict['real_data_2024']
     
     #reading real data
-    data_rdf, data_chain, data_int_lumi = read_rdf(args,real_data[:])
+    data_rdf, data_chain, data_int_lumi = read_rdf(args,real_data[:10])
     print(f'data_int_lumi:{data_int_lumi}')
     pred_classes = [ "kaon", "neutron", "muon"]
     
-    data_pred_hists = {}
+
     data_hist_proxies = []
     data_hist = data_rdf.Histo1D(
             (f"h_{hist_name}", "", int(n_bins), float(x_min), float(x_max)),
@@ -253,42 +121,22 @@ def process_hist(args):
     data_hist.SetDirectory(0)
     data_hist.GetXaxis().SetTitle(axis_title)
     data_hist.GetYaxis().SetTitle("Events")
-    for cls in pred_classes:
-        class_id = particle_2_class[cls]
-        rdf_pred = data_rdf.Filter(f"pred_class_first == {class_id}")
-        h_proxy_pred = rdf_pred.Histo1D(
-            (f"h_{cls}_{hist_name}", "", int(n_bins), float(x_min), float(x_max)),
-            hist_name
-        )
-        
-        h_pred = h_proxy_pred.GetValue()
-        data_hist_proxies.append(h_proxy_pred)
-        h_pred.SetDirectory(0)
-        h_pred.GetXaxis().SetTitle(axis_title)
-        h_pred.GetYaxis().SetTitle("Events")
-        data_pred_hists[cls] = h_pred
-        
+    
     ##reading MC
     normalise_lumi = data_int_lumi
     
     ## reading neutrino
-    neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(args, neutrino_df[:])
+    neutrino_rdf, neutrino_chain, neutrino_int_lumi = read_rdf(args, neutrino_df[:10])
     
     scale_factor = normalise_lumi/ neutrino_int_lumi  if neutrino_int_lumi else 1.0
     
     neutrino_classes = ["ve", "vm", "vt", "NC"]
     MC_neutrino_true_hists = {}
-    MC_neutrino_pred_hists = {}
     neutrino_hist_proxies = []
     for cls in neutrino_classes:
         class_id = particle_2_class[cls]
         rdf_true = neutrino_rdf.Filter(f"ParticleClass == {class_id}")
-        rdf_pred = neutrino_rdf.Filter(f"pred_class_first == {class_id}")
         h_proxy_true = rdf_true.Histo1D(
-            (f"h_{cls}_{hist_name}", "", int(n_bins), float(x_min), float(x_max)),
-            hist_name
-        )
-        h_proxy_pred = rdf_pred.Histo1D(
             (f"h_{cls}_{hist_name}", "", int(n_bins), float(x_min), float(x_max)),
             hist_name
         )
@@ -301,20 +149,10 @@ def process_hist(args):
         h_ture.GetYaxis().SetTitle("Expected Events")
         MC_neutrino_true_hists[cls] = h_ture
         
-        h_pred = h_proxy_pred.GetValue()
-        neutrino_hist_proxies.append(h_proxy_pred)
-        h_pred.Scale(scale_factor)  # apply lumi scaling
-        h_pred.SetDirectory(0)
-        h_pred.GetXaxis().SetTitle(axis_title)
-        h_pred.GetYaxis().SetTitle("Expected Events")
-        MC_neutrino_pred_hists[cls] = h_pred
-        
     # --- reading muon ---
     beam_types = sorted(muon_df['subfolder'].unique(), key=lambda x: (str(type(x)), x))
 
     muon_true_hists = {}
-    muon_pred_hists = {}
-    muon_pred_bkg_hists = {}
     # add another hist for background pred hist
     muon_hist_proxies = []
 
@@ -326,15 +164,12 @@ def process_hist(args):
         sub_df = muon_df[muon_df['subfolder'] == beam_type]
 
         # build RDF and lumi for this slice
-        rdf, _, int_lumi = read_rdf(args, sub_df[:], MC_muon=True)
+        rdf, _, int_lumi = read_rdf(args, sub_df[:10], MC_muon=True)
         if not int_lumi:
             continue
 
         # filters for true/pred
-        rdf_true = rdf.Filter(f"ParticleClass == {mu_class_id} && count_scifi > 200")
-        rdf_pred = rdf.Filter(f"(pred_class_first == {mu_class_id} && (count_scifi > 200))")
-        rdf_pred_bkg = rdf.Filter(f"(pred_class_first == {mu_class_id} || pred_class_first == {kaon_class_id} || pred_class_first == {neutron_class_id}) && (count_scifi > 200)")
-        
+        rdf_true = rdf.Filter(f"ParticleClass == {mu_class_id} && count_scifi > 200") 
         # histogram proxies (keep them alive!)
         h_proxy_true = rdf_true.Histo1D(
             (f"h_muon_true_{beam_type}_{hist_name}", "", int(n_bins), float(x_min), float(x_max)),
@@ -387,7 +222,7 @@ def process_hist(args):
         sub_df = kaon_df[kaon_df['energy_range'] == erange]
 
         # build RDF and lumi for this slice
-        rdf, _, int_lumi = read_rdf(args, sub_df[:])
+        rdf, _, int_lumi = read_rdf(args, sub_df[:10])
         if not int_lumi:
             continue
 
@@ -449,7 +284,7 @@ def process_hist(args):
 
         # build RDF and lumi for this slice
         
-        rdf, _, int_lumi = read_rdf(args, sub_df[:])
+        rdf, _, int_lumi = read_rdf(args, sub_df[:10])
         if not int_lumi:
             continue
 
@@ -510,14 +345,14 @@ def process_hist(args):
                     )
     plot_MC_pred_VS_data_pred_combined(MC_neutrino_pred_hists, data_pred_hists, muon_pred_bkg_hists, kaon_pred_bkg_hists, neutron_pred_bkg_hists, hist_name, data_int_lumi, logy)
     plot_MC_pred_VS_data_pred_seperated(data_pred_hists, muon_pred_hists, kaon_pred_hists, neutron_pred_hists, hist_name, data_int_lumi, logy)
-    # plot_data_pred_bkg(data_pred_hists, hist_name, data_int_lumi, logy)
-    # plot_MC(MC_neutrino_true_hists, muon_true_hists, kaon_true_hists,neutron_true_hists, hist_name, data_int_lumi, logy)
-    # plot_MC_VS_MC_pred(data_pred_hists,
-    #                    MC_neutrino_true_hists, MC_neutrino_pred_hists, 
-    #                    muon_true_hists, muon_pred_hists, 
-    #                    kaon_true_hists, kaon_pred_hists, 
-    #                    neutron_true_hists, neutron_pred_hists, 
-    #                    hist_name, data_int_lumi, logy)
+    plot_data_pred_bkg(data_pred_hists, hist_name, data_int_lumi, logy)
+    plot_MC(MC_neutrino_true_hists, muon_true_hists, kaon_true_hists,neutron_true_hists, hist_name, data_int_lumi, logy)
+    plot_MC_VS_MC_pred(data_pred_hists,
+                       MC_neutrino_true_hists, MC_neutrino_pred_hists, 
+                       muon_true_hists, muon_pred_hists, 
+                       kaon_true_hists, kaon_pred_hists, 
+                       neutron_true_hists, neutron_pred_hists, 
+                       hist_name, data_int_lumi, logy)
     plot_MC_vs_data(data_hist, muon_true_hists, kaon_true_hists, neutron_true_hists, hist_name, data_int_lumi, logy)
     
     # plot_2d_hist(data_pred_hists,
@@ -1775,83 +1610,17 @@ vetoTagged = False
 model_name = 'GravNet_v4' #'baseline_muon'
 
 #control_region_columns = ['count_scifi', 'sum_hit_density', 'centroid_slope_x', 'centroid_slope_y']
-
 hist_info = {
-    "signed_slope_x": (60, -3, 3, 'Shower Direction X', True),
-    "signed_slope_y": (60, -3, 3, 'Shower Direction Y', True),
+    "vetoHitTime_earlist": (50, 0, 25, 'veto_hit_earlist_time', True),
+    "vetoHitTime_lastest": (50, 0, 25, 'veto_hit_latest_time', True),
     
-    "sum_hit_density": (70, 0, 7e4, 'Sum of Density Weight',True),
-    "density_1st_scifi": (70, 0, 7e4, 'Sum of Density Weight on the Most Dense Plane',True),
-    'density_scifi1':  (70, 0, 7e4, 'SciFi1 Sum of Density Weight', True),
-    'density_scifi2':  (70, 0, 7e4, 'SciFi2 Sum of Density Weight', True),
-    'density_scifi3':  (70, 0, 7e4, 'SciFi3 Sum of Density Weight', True),
-    'density_scifi4':  (70, 0, 7e4, 'SciFi4 Sum of Density Weight', True),
-    'density_scifi5':  (70, 0, 7e4, 'SciFi5 Sum of Density Weight', True),
+    "vetoHitTime_earlist_veto1": (50, 0, 25, 'vetoHitTime_earlist_veto1', True),
+    "vetoHitTime_earlist_veto2": (50, 0, 25, 'vetoHitTime_earlist_veto2', True),
+    "vetoHitTime_earlist_veto3": (50, 0, 25, 'vetoHitTime_earlist_veto3', True),
+    "vetoHitTime_lastest_veto1": (50, 0, 25, 'veto_hit_latest_time_veto1', True),
+    "vetoHitTime_lastest_veto2": (50, 0, 25, 'veto_hit_latest_time_veto2', True),
+    "vetoHitTime_lastest_veto3": (50, 0, 25, 'veto_hit_latest_time_veto3', True),
     
-    'count_scifi':  (100, 0, 1000, 'SciFi Hit Total Count', True),
-    'count_scifi1':  (100, 0, 1000, 'SciFi1 Hit Total Count', True),
-    'count_scifi2':  (100, 0, 1000, 'SciFi2 Hit Total Count', True),
-    'count_scifi3':  (100, 0, 1000, 'SciFi3 Hit Total Count', True),
-    'count_scifi4':  (100, 0, 1000, 'SciFi4 Hit Total Count', True),
-    'count_scifi5':  (100, 0, 1000, 'SciFi5 Hit Total Count', True),
-    'count_us':  (25, 0, 25, 'US Hit Count', True),
-    'count_us1':  (13, 0, 13, 'US1 Hit Count', True),
-    'count_us2':  (13, 0, 13, 'US2 Hit Count', True),
-    'count_us3':  (13, 0, 13, 'US3 Hit Count', True),
-    'count_us4':  (13, 0, 13, 'US4 Hit Count', True),
-    'count_us5':  (13, 0, 13, 'US5 Hit Count', True),
-    'count_ds':  (100, 0, 100, 'DS Hit Count', True),
-    'count_ds1':  (50, 0, 50, 'DS1 Hit Count', True),
-    'count_ds2':  (50, 0, 50, 'DS2 Hit Count', True),
-    'count_ds3':  (50, 0, 50, 'DS3 Hit Count', True),
-    'count_ds4':  (50, 0, 50, 'DS4 Hit Count', True),
-    
-    "avg_scifi_y": (240, 0, 80, 'Scifi AvgPos Y', True),
-    "avg_scifi1_y": (240, 0, 80, 'Scifi1 AvgPos Y', True),
-    "avg_scifi2_y": (240, 0, 80, 'Scifi2 AvgPos Y', True),
-    "avg_scifi3_y": (240, 0, 80, 'Scifi3 AvgPos Y', True),
-    "avg_scifi4_y": (240, 0, 80, 'Scifi4 AvgPos Y', True),
-    "avg_scifi5_y": (240, 0, 80, 'Scifi5 AvgPos Y', True),
-    
-    "avg_scifi_x": (270, -70, 20, 'Scifi AvgPos X', True),
-    "avg_scifi1_x": (270, -70, 20, 'Scifi1 AvgPos X', True),
-    "avg_scifi2_x": (270, -70, 20, 'Scifi2 AvgPos X', True),
-    "avg_scifi3_x": (270, -70, 20, 'Scifi3 AvgPos X', True),
-    "avg_scifi4_x": (270, -70, 20, 'Scifi4 AvgPos X', True),
-    "avg_scifi5_x": (270, -70, 20, 'Scifi5 AvgPos X', True),
-    
-    "avg_ds_y": (80, 0, 80, 'DS AvgPos Y', True),
-    "avg_ds1_y": (80, 0, 80, 'DS1 AvgPos Y', True),
-    "avg_ds2_y": (80, 0, 80, 'DS2 AvgPos Y', True),
-    "avg_ds3_y": (80, 0, 80, 'DS3 AvgPos Y', True),
-    "avg_ds4_y": (80, 0, 80, 'DS4 AvgPos Y', True),
-    
-    "avg_ds_x": (90, -70, 20, 'DS AvgPos X', True),
-    "avg_ds1_x": (90, -70, 20, 'DS1 AvgPos X', True),
-    "avg_ds2_x": (90, -70, 20, 'DS2 AvgPos X', True),
-    "avg_ds3_x": (90, -70, 20, 'DS3 AvgPos X', True),
-    "avg_ds4_x": (90, -70, 20, 'DS4 AvgPos X', True),
-    
-    "avg_us_y": (80, 0, 80, 'US AvgPos Y', True),
-    "avg_us1_y": (80, 0, 80, 'US1 AvgPos Y', True),
-    "avg_us2_y": (80, 0, 80, 'US2 AvgPos Y', True),
-    "avg_us3_y": (80, 0, 80, 'US3 AvgPos Y', True),
-    "avg_us4_y": (80, 0, 80, 'US4 AvgPos Y', True),
-    
-    
-    "start_centroid_x": (90, -70, 20, 'Start Centroid X', True),
-    "start_centroid_y": (80, 0, 80, 'Start Centroid Y', True),
-    "centroid_slope_y": (60, -3, 3, 'Centroid Slope y', True),
-    "centroid_slope_x": (60, -3, 3, 'Centroid Slope x', True),
-    "start_avgPos_x": (90, -70, 20, 'Start AvgPos X', True),
-    "start_avgPos_y": (80, 0, 80, 'Start AvgPos Y', True),
-    "avgPos_slope_x": (60,-3, 3, 'Centroid Slope X', True),
-    "avgPos_slope_y": (60,-3, 3, 'Centroid Slope Y', True),
-    "avg_scifi1_y": (70, 0, 70, 'Scifi1 AvgPos Y', True),
-    "avg_scifi2_y": (70, 0, 70, 'Scifi2 AvgPos Y', True),
-    "avg_scifi3_y": (70, 0, 70, 'Scifi3 AvgPos Y', True),
-    "avg_scifi4_y": (70, 0, 70, 'Scifi4 AvgPos Y', True),
-    "avg_scifi5_y": (70, 0, 70, 'Scifi5 AvgPos Y', True),
 }
 
 if __name__ == "__main__":

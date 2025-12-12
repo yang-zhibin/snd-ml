@@ -723,6 +723,7 @@ def read_train_splts(splits='train'):
     else:
         split_list = ['train', 'val']
 
+    summary_rows = [] 
     # Print counts, lumi, and weight sum for neutrino and neutral background
     def print_counts(df, label):
         for split in split_list:
@@ -731,6 +732,15 @@ def read_train_splts(splits='train'):
             lumi_sum = split_df['lumi_per_file'].sum() if 'lumi_per_file' in split_df.columns else 0
             weight_sum = split_df['total_weights'].sum() if 'total_weights' in split_df.columns else 0
             print(f"{label} [{split}]: vetoFree_count = {vf_count}, lumi_per_file sum = {lumi_sum}, weight sum = {weight_sum}")
+            
+            # also store the same info for the table
+            summary_rows.append({
+                "sample": label,
+                "split": split,
+                "vetoFree_count": vf_count,
+                "lumi_vf": lumi_sum,
+                "weight_sum": weight_sum,
+            })
 
     print_counts(neutrino_df, 'Neutrino')
     # Separate neutral background into kaon and neutron components
@@ -758,9 +768,29 @@ def read_train_splts(splits='train'):
 
             print(f"Muon Background [{split}]: vetoFree_count = {vf_count}, lumi = {lumi_vf}; "
                   f"vetoTagged_count = {vt_count}, lumi = {lumi_vt}, weight sum = {weight_sum}")
+            
+            # store for table
+            summary_rows.append({
+                "sample": "Muon Background",
+                "split": split,
+                "vetoFree_count": vf_count,
+                "vetoTagged_count": vt_count,
+                "lumi_vf": lumi_vf,
+                "lumi_vt": lumi_vt,
+                "weight_sum": weight_sum,
+            })
 
     print_muon_counts(muon_bkg_df)
 
+    summary_df = pd.DataFrame(summary_rows)
+
+    # reorder columns nicely
+    summary_df = summary_df[
+        ["sample", "split", "vetoFree_count", "vetoTagged_count",
+        "lumi_vf", "lumi_vt", "weight_sum"]
+    ]
+
+    print(summary_df)
     
 
      
