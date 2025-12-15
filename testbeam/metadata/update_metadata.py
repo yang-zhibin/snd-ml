@@ -152,6 +152,12 @@ def main(args):
     else:
         print("Warning: 'n_event' column not found; no rows dropped.")
     
+    # drop subfolder =='180GeV_211_Fe'
+    if "subfolder" in df.columns:
+        df = df[df["subfolder"] != "180GeV_211_Fe"].reset_index(drop=True)
+    else:
+        print("Warning: 'subfolder' column not found; no rows dropped.")
+    
     df["feature_path"] = df["digi_path"].apply(get_new_path, pre_fix="feature", file_type=".root", eos_path=args.eos_path)
     df["hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="hit", file_type=".root", eos_path=args.eos_path)
     df["pt_hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="pt_hit", file_type=".pt.gz", eos_path=args.eos_path)

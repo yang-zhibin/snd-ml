@@ -125,11 +125,12 @@ class GNNBase(LightningModule):
 
     def training_step(self, batch, batch_idx, **kwargs):
         output = self(batch).squeeze(-1)
-        #print("output",output.shape)
-        #print("y",batch.y.shape)
+        # print("output",output.shape)
+        # print("y",batch.y.shape)
         loss = self.apply_loss_function(output, batch)
-        
+
         acc, auc, accs = self.get_metrics(batch.y, output)
+        # print("auc:",auc)
         if self.hparams['nb_classes'] == 1:
             save_n_acc = 2
         else:

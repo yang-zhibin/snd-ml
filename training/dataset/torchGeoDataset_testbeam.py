@@ -121,7 +121,7 @@ class TrainGeoDataset(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return [f'{self.split}.pt']
+        return [f'{self.split}_{self.split_name}.pt']
 
     def process(self):
         use_veto_hits = self.use_veto_hits

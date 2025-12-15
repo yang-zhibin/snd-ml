@@ -32,8 +32,8 @@ metadata_csv_list = [
 ]
 
 train_mode = True
-train_split = 'train_2024_split_v1'
-train_model = 'testbeam_2024_GravNet_v1'
+train_split = 'train_2024_split_v2'
+train_model = 'testbeam_2024_GravNet_v2'
 # train_split = 'train_2024_split_v1_horizontal'
 # train_model = 'testbeam_2024_GravNet_v1_horizontal'
 # train_split = 'train_2024_split_v1_vertical'
@@ -173,13 +173,14 @@ rule finish:
 
 rule train:
     input:
-        expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
+        # expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         script = f'{personal_work_dir}/snd-ml/training/train_testbeam.py',
         model_config = f'{personal_work_dir}/snd-ml/training/configs/{train_model}.yml',
         
     #output:
     #    trained_model = "{model_ckpt}"
-    
+    params:
+        conda_env = f"{personal_work_dir}/snd-ml/snakemake/envs/env_snd_pytorch.sh"
     threads:2
     resources:
         runtime=23*60*60,
@@ -191,7 +192,7 @@ rule train:
         echo "training model"
         #avoid unbound variable error (only occur when using snakemake)
         set +u 
-        source /afs/.cern.ch/user/s/sfrankha/env_conda.sh
+        source "{params.conda_env}"
         export EOSSHIP=root://eosuser.cern.ch/
 
         export CUDA_VISIBLE_DEVICES=0
@@ -449,6 +450,7 @@ rule process_features:
         data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
         pdg=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "beam_type"),
         env_file = f"{personal_work_dir}/snd-ml/testbeam/env/env_sndsw.sh",
+        sndsw_dir = personal_sndsw_dir,
         work_dir = personal_work_dir
     output:
         feature_path="{feature_path}"
@@ -468,7 +470,9 @@ rule process_features:
         
         # Set up environment
         echo "Setting up SNDSW"
-        SNDLHC_mymaster={params.work_dir}/public/
+        echo "Setting up SNDSW"
+        export SNDLHC_mymaster="{params.sndsw_dir}"
+        echo $SNDLHC_mymaster
         export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
         source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
         eval $(alienv load sndsw/latest-master-release --no-refresh)

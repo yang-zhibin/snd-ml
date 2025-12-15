@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 # import ROOT
 from collections import defaultdict
 from tqdm import tqdm
+import argparse
+from pathlib import Path
 
-report_outdir = "./metadata_reports/"
-os.makedirs(report_outdir, exist_ok=True)
 
 
 particle_to_target = {
@@ -773,10 +773,6 @@ def get_muon_train_set():
     return df
 
 
-def cal_avg_veto_ineff():
-    pass
-    
-
 def generate_train_dataset(root_path):
     # train:val:test=4:1:5
     train_2024_df = get_2024_train_set(root_path)
@@ -786,7 +782,7 @@ def generate_train_dataset(root_path):
     
     # Output directory and model name
     out_dir = "./training"
-    split_name = 'split_v1'
+    split_name = 'split_v2'
     
     # Ensure output directory exists
     os.makedirs(out_dir, exist_ok=True)
@@ -851,7 +847,7 @@ def print_grouped_summary(
     
 def read_train_splts(splits="train"):
     out_dir = "./training"
-    split_name = "train_2024_split_v1"
+    split_name = "train_2024_split_v2"
 
     train_df_path = f"{out_dir}/{split_name}.csv"
     train_df = pd.read_csv(train_df_path)
@@ -863,31 +859,173 @@ def read_train_splts(splits="train"):
     )
 
     return train_df
-   
-# def read_train_splts(splits='train'):
-#     out_dir = "./training"
-#     split_name = 'train_2024_split_v1'
 
-#     train_df_path = f"{out_dir}/{split_name}.csv"
-  
 
-#     # Read CSVs
-#     train_df = pd.read_csv(train_df_path)
+
+def save_subset_metadata(
+    subset_df,
+    original_csv_path,
+    suffix="_subset",
+):
+    original_csv_path = Path(original_csv_path)
+
+    out_path = (
+        original_csv_path
+        .with_name(original_csv_path.stem + suffix + original_csv_path.suffix)
+    )
+
+    subset_df.to_csv(out_path, index=False)
+    print(f"Saved subset metadata → {out_path}")
+
+    return out_path
+
+
+def pick_raw_per_energy(
+    df: pd.DataFrame,
+    group_col: str = "beam_energy",
+    n_event_col: str = "n_event",
+    target_events: int = 2_000_000,
+    exclude=("no energy", "no_energy", "unknown", "", None),
+):
+    # sanity check
+    for col in (group_col, n_event_col):
+        if col not in df.columns:
+            raise KeyError(f"Column '{col}' not found in DataFrame")
+
+    df2 = df.copy()
+
+    # normalize n_event
+    df2[n_event_col] = pd.to_numeric(df2[n_event_col], errors="coerce")
+
+    # drop invalid energies
+    excl = {str(x).strip().lower() for x in exclude if x is not None}
+    df2 = df2[
+        ~df2[group_col]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .isin(excl)
+    ].copy()
+
+    selected_rows = []
+    missing = {}
+
+    for energy, g in df2.groupby(group_col, sort=True):
+        g = g.sort_index()  # stable, original order
+
+        total = 0
+        rows = []
+
+        for _, row in g.iterrows():
+            if pd.isna(row[n_event_col]):
+                continue
+            rows.append(row)
+            total += int(row[n_event_col])
+            if total >= target_events:
+                break
+
+        if total < target_events:
+            missing[energy] = total
+        else:
+            selected_rows.extend(rows)
+
+    # preserve schema
+    if selected_rows:
+        out = pd.DataFrame(selected_rows).drop_duplicates()
+    else:
+        out = df2.iloc[0:0].copy()
+
+    return out, missing
+
+def generate_realdata_dataset(root_path):
+    realData_files = ['real_data_testbeam_24_metadata.csv']
+    metadata_vars = load_metadata_files(realData_files, root_path)
+    realData_2024 = metadata_vars['real_data_testbeam_24']
+
+    print_grouped_summary(
+        df=realData_2024,
+        group_col="beam_energy",
+        title="2024 Testbeam dataset summary by subfolder:",
+    )
+
+    picked, missing = pick_raw_per_energy(realData_2024)
+    print(picked)
+    print("\nPicked files:")
+    print(picked[["beam_energy", "digi_path"]].to_string(index=False))
+
+    if missing:
+        print("\nWARNING: Not enough events for some energies:")
+        for e, total in missing.items():
+            print(f"  beam_energy={e}: only {total:,} events (need 2,000,000)")
+        
     
-#     # Print event counts by subfolder for 2024 data  
-#     print("\n Training data set MC_data_testbeam2024 event counts by subfolder:")
-#     subfolder_counts_2024 = train_df.groupby('subfolder')['n_event'].sum()
-#     for subfolder, count in subfolder_counts_2024.items():
-#         print(f"{subfolder}: {count:,} events")
+    # reconstruct original CSV path
+    original_csv_path = Path(root_path) / realData_files[0]
+
+    save_subset_metadata(picked, original_csv_path)
+    
+    return 
+    
+    # save the the same dir, same base name with pro fix "_subset"
+
+report_outdir = "./metadata_reports/"
+os.makedirs(report_outdir, exist_ok=True)
 
 
-     
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Dataset generation and checks for SND testbeam ML"
+    )
+
+    parser.add_argument(
+        "--root-path",
+        type=str,
+        default="/afs/cern.ch/work/z/zhibin/snd-ml/testbeam/metadata/updated",
+        help="Root metadata path"
+    )
+
+    parser.add_argument(
+        "--check-mc",
+        action="store_true",
+        help="Run MC data consistency checks"
+    )
+
+    parser.add_argument(
+        "--gen-train",
+        action="store_true",
+        help="Generate training dataset"
+    )
+
+    parser.add_argument(
+        "--read-splits",
+        action="store_true",
+        help="Read train/val/test splits"
+    )
+
+    parser.add_argument(
+        "--gen-realdata",
+        action="store_true",
+        help="Generate real data dataset"
+    )
+
+    args = parser.parse_args()
+
+    if args.check_mc:
+        check_MC_data(args.root_path)
+
+    if args.gen_train:
+        generate_train_dataset(args.root_path)
+
+    if args.read_splits:
+        read_train_splts()
+
+    if args.gen_realdata:
+        generate_realdata_dataset(args.root_path)
+
+
 if __name__ == "__main__":
-    root_path = '/afs/cern.ch/work/z/zhibin/snd-ml/testbeam/metadata/updated' #'/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated'
-    #check_MC_data(root_path)
-    generate_train_dataset(root_path)
-    read_train_splts()
-    
+    main()
     
 
 

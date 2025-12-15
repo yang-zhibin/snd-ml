@@ -6,7 +6,7 @@ logger:
   entity: "1246249540" #"sacha-frankhauser-epfl"
   name: *model_name
   version: 1
-  save_dir: '/afs/cern.ch/work/s/sfrankha/snd-ml/training/log/'
+  save_dir: '/afs/cern.ch/work/z/zhibin/snd-ml/training/log/'
 
 ModelCheckpoint:
   monitor: "val_loss"
@@ -24,9 +24,9 @@ max_epochs: 1000
 check_val_every_n_epoch: 1
 
 
-metadata_dir: /afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/training
+metadata_dir: /afs/cern.ch/work/z/zhibin/snd-ml/testbeam/metadata/training
 
-processed_pt_root: /eos/user/s/sfrankha/processed_pt_root
+processed_pt_root: /eos/user/z/zhibin/sndlhc/processed_pt_root
 
 #resume_from_checkpoint: None
 

@@ -7,7 +7,7 @@ import wandb
 import pandas as pd
 import argparse
 import glob
-
+import time
 from pytorch_lightning import Trainer
 from lightning.pytorch.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -27,23 +27,22 @@ def main(args):
         config = yaml.safe_load(file)
     model_name = config['model_name']
     split_name = config['split_name']
-    wandb_log_dir = os.path.join(config['logger']['save_dir'], f"{split_name}-{config['logger']['name']}")
+    
+    name = f"{config['model_name']}__{config['split_name']}__v{config['logger']['version']}"
+    run_id = f"{name}__{int(time.time())}"   # unique
+    wandb_log_dir = os.path.join(config['logger']['save_dir'], run_id)
     
     if not os.path.exists(wandb_log_dir):
         os.makedirs(wandb_log_dir, exist_ok=True) 
 
-    run = wandb.init(       
-        dir = wandb_log_dir,
-        project=config['logger']['project'],
-        name = f"{config['logger']['name']}_v{config['logger']['version']}",
-        entity = config['logger']['entity'],
-        id = f"{config['logger']['name']}_v{config['logger']['version']}",
-        resume='allow'
-    )
-
     logger = WandbLogger(
-        save_dir=config['logger']['save_dir'],
-        log_model=True
+        project=config["logger"]["project"],
+        entity=config["logger"]["entity"],
+        name=run_id,         
+        id=run_id,            
+        save_dir=wandb_log_dir,
+        log_model=True,      
+        resume="allow", 
     )
 
     checkpoint_callback = ModelCheckpoint(
@@ -68,7 +67,8 @@ def main(args):
         check_val_every_n_epoch = config['check_val_every_n_epoch'],
         logger=logger,
         callbacks=[checkpoint_callback],
-        
+        precision="16-mixed",
+        accumulate_grad_batches=config['accumulate_grad_batches'],
     )
 
     train_data = TrainGeoDataset(root=config['processed_pt_root'], metadata_dir=config['metadata_dir'],split_name=split_name,split='train',
@@ -89,8 +89,27 @@ def main(args):
     
     
     print("prepare dataloader")
-    train_dataloader = DataLoader(train_data, batch_size=config["batch_size"]['train'], shuffle=True, num_workers=4)
-    val_dataloader = DataLoader(val_data, batch_size=config["batch_size"]['val'], shuffle=False, num_workers=4)
+    nw = min(16, os.cpu_count() or 4)
+
+    train_dataloader = DataLoader(
+        train_data,
+        batch_size=config["batch_size"]["train"],
+        shuffle=True,
+        num_workers=nw,
+        pin_memory=True,
+        persistent_workers=True,
+        prefetch_factor=4,              # needs num_workers>0
+    )
+
+    val_dataloader = DataLoader(
+        val_data,
+        batch_size=config["batch_size"]["val"],
+        shuffle=False,
+        num_workers=nw,
+        pin_memory=True,
+        persistent_workers=True,
+        prefetch_factor=4,
+    )
     
     print("start training")
     trainer.fit(model, train_dataloader, val_dataloader, ckpt_path=config.get("resume_from_checkpoint", None)) # 
