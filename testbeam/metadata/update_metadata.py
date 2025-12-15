@@ -89,30 +89,8 @@ def get_beam_energy(run, particle_subfolder):
     return "no energy"
 
 
-def get_feature_path(digi_path):
-    """
-    Construit le chemin de sortie du fichier feature à partir du digi_path.
-    Exemple :
-      /eos/experiment/sndlhc/.../sndsw_raw-0000.root
-      → /eos/user/s/sfrankha/.../feature_sndsw_raw-0000.root
-    """
-    # Trouver la sous-partie à partir de 'sndlhc/'
-    split_key = "sndlhc/"
-    if split_key not in digi_path:
-        raise ValueError(f"'{split_key}' not found in path: {digi_path}")
 
-    relative_path = digi_path.split(split_key, 1)[1] 
-    
-    folder, filename = os.path.split(relative_path)
-    
-    feature_filename = f"feature_{filename}"
-    
-    feature_path = os.path.join("/eos/user/s/sfrankha", "sndlhc", folder, feature_filename)
-    
-    return feature_path
-
-
-def get_new_path(digi_path, pre_fix, file_type):
+def get_new_path(digi_path, pre_fix, file_type, eos_path):
     
     # Trouver la sous-partie à partir de 'sndlhc/'
     split_key = "sndlhc/"
@@ -129,47 +107,11 @@ def get_new_path(digi_path, pre_fix, file_type):
     # Créer le nouveau nom de fichier avec le préfixe et la nouvelle extension
     new_filename = f"{pre_fix}_{name}{file_type}"
     
-    new_path = os.path.join("/eos/user/s/sfrankha", "sndlhc", folder, new_filename)
+    new_path = os.path.join(eos_path, "sndlhc", folder, new_filename)
     
     return new_path
 
-def get_hit_path(digi_path):
-    """
-    Construit le chemin de sortie du fichier feature à partir du digi_path.
-    Exemple :
-      /eos/experiment/sndlhc/.../sndsw_raw-0000.root
-      → /eos/user/s/sfrankha/.../feature_sndsw_raw-0000.root
-    """
-    # Trouver la sous-partie à partir de 'sndlhc/'
-    split_key = "sndlhc/"
-    if split_key not in digi_path:
-        raise ValueError(f"'{split_key}' not found in path: {digi_path}")
 
-    relative_path = digi_path.split(split_key, 1)[1] 
-    
-    folder, filename = os.path.split(relative_path)
-
-    hit_filename = f"hit_{filename}"
-
-    hit_path = os.path.join("/eos/user/s/sfrankha", "sndlhc", folder, hit_filename)
-
-    return hit_path
-
-
-def get_pt_path(digi_path):
-    split_key = "sndlhc/"
-    if split_key not in digi_path:
-        raise ValueError(f"'{split_key}' not found in path: {digi_path}")
-
-    relative_path = digi_path.split(split_key, 1)[1] 
-    
-    folder, filename = os.path.split(relative_path)
-
-    pt_hit_filename = f"pt_hit_{filename}"
-
-    pt_hit_path = os.path.join("/eos/user/s/sfrankha", "sndlhc", folder, pt_hit_filename)
-
-    return pt_hit_path
 
 
 def get_real_particle_type_and_energy(df, particle_subfolder):
@@ -210,9 +152,9 @@ def main(args):
     else:
         print("Warning: 'n_event' column not found; no rows dropped.")
     
-    df["feature_path"] = df["digi_path"].apply(get_new_path, pre_fix="feature", file_type=".root")
-    df["hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="hit", file_type=".root")
-    df["pt_hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="pt_hit", file_type=".pt.gz")
+    df["feature_path"] = df["digi_path"].apply(get_new_path, pre_fix="feature", file_type=".root", eos_path=args.eos_path)
+    df["hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="hit", file_type=".root", eos_path=args.eos_path)
+    df["pt_hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="pt_hit", file_type=".pt.gz", eos_path=args.eos_path)
     
     if data_type == "MC_data":
         df = get_MC_particle_type_and_energy(df, particle_subfolder)
@@ -234,5 +176,6 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--forceRerun",dest="force_rerun",action="store_true",help="Force rerun")
     parser.add_argument("-i", "--csv_input", dest="csv_input", help="csv input", required=True)
     parser.add_argument("-o", "--csv_output", dest="csv_output", help="csv output", required=True)
+    parser.add_argument("-e", "--eos_path", dest="eos_path", help="eos path",required=True)
     args = parser.parse_args()
     main(args)

@@ -300,7 +300,7 @@ def extract_info(file_name):
 
 def main(args):
     
-    config_path = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/metadata_testbeam_config.yaml"
+    config_path = f"{args.work_path}/snd-ml/testbeam/metadata/metadata_testbeam_config.yaml"
     with open(config_path, "r") as file:
         config = yaml.safe_load(file)
     
@@ -333,6 +333,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-f", "--forceRerun",dest="force_rerun",action="store_true",help="Force rerun")
     parser.add_argument("-o", "--csv_output", dest="csv_output", help="csv output", required=True)
+    parser.add_argument("-w", "--work_path", dest="work_path", help="work path",required=True)
     args = parser.parse_args()
     main(args)
 

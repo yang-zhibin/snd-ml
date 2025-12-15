@@ -3,7 +3,7 @@ model_name: &model_name testbeam_2024_GravNet_v1
 split_name: train_2024_split_v1
 logger:
   project: 'snd-ml-testbeam'
-  entity: "sacha-frankhauser-epfl"
+  entity: "1246249540" #"sacha-frankhauser-epfl"
   name: *model_name
   version: 1
   save_dir: '/afs/cern.ch/work/s/sfrankha/snd-ml/training/log/'

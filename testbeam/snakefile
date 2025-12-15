@@ -27,21 +27,23 @@ wildcard_constraints:
 metadata_csv_list = [
     "MC_data_testbeam2023_metadata.csv",
     "MC_data_testbeam2024_metadata.csv",
-    #"real_data_testbeam_June2023_H8_metadata.csv",
+    "real_data_testbeam_June2023_H8_metadata.csv",
     "real_data_testbeam_24_metadata.csv",
 ]
 
 train_mode = True
 train_split = 'train_2024_split_v1'
-train_model = 'testbeam_2024_GravNet_v3'
+train_model = 'testbeam_2024_GravNet_v1'
 # train_split = 'train_2024_split_v1_horizontal'
 # train_model = 'testbeam_2024_GravNet_v1_horizontal'
 # train_split = 'train_2024_split_v1_vertical'
 # train_model = 'testbeam_2024_GravNet_v1_vertical'
 
 personal_work_dir = "/afs/cern.ch/work/z/zhibin"
-                    
+personal_eos_dir   = "/eos/user/z/zhibin" #"/eos/user/s/sfrankha"
+personal_sndsw_dir ='/afs/cern.ch/work/z/zhibin/public/SndBuild'
 #personal_eos_dir 
+#ALIBUILD_WORK_DIR
 
 
 def load_metadata():
@@ -154,10 +156,10 @@ def collect_model_path(target_name):
 
 rule finish:
     input:
-        expand("{personal_work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list, personal_work_dir = personal_work_dir),
-        #  expand("{personal_work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        expand("{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir = personal_work_dir),
+        expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list,work_dir = personal_work_dir),
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
-        # expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         # expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         # expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
@@ -203,11 +205,12 @@ rule train:
 
 rule generate_raw_metadata:
     input:
-        script = '{personal_work_dir}/snd-ml/testbeam/metadata/generate_path_file_testbeam.py'
+        script = '{work_dir}/snd-ml/testbeam/metadata/generate_path_file_testbeam.py'
     output:
-        raw_metadata = "{personal_work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}"
+        raw_metadata = "{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}"
     params:
-        script = '{personal_work_dir}/snd-ml/testbeam/metadata/generate_path_file_testbeam.py'
+        script = '{work_dir}/snd-ml/testbeam/metadata/generate_path_file_testbeam.py',
+        work_dir = "{work_dir}"
     threads:1
     resources:
         runtime=180*60,
@@ -220,16 +223,18 @@ rule generate_raw_metadata:
         #avoid unbound variable error (only occur when using snakemake)
         set +u 
         source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
-        python {params.script} -o {output.raw_metadata} -f
+        python {params.script} -o {output.raw_metadata} -w {params.work_dir} -f 
         """
         
         
 rule update_metadata:
     input:
-        raw_metadata = "{personal_work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}",
-        script = '{personal_work_dir}/snd-ml/testbeam/metadata/update_metadata.py',
+        raw_metadata = "{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}",
+        script = '{work_dir}/snd-ml/testbeam/metadata/update_metadata.py',
     output:
-        updated_metadata = "{personal_work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}"
+        updated_metadata = "{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}",
+    params:
+        eos_dir = personal_eos_dir
     threads:1
     resources:
         runtime=45*60,
@@ -242,8 +247,31 @@ rule update_metadata:
         #avoid unbound variable error (only occur when using snakemake)
         set +u 
         source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
-        python {input.script} -i {input.raw_metadata} -o {output.updated_metadata}
+        python {input.script} -i {input.raw_metadata} -o {output.updated_metadata} -e {params.eos_dir}
         """
+
+# rule generate_train_metadata:
+#     input:
+#         raw_metadata = "{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}",
+#         script = '{work_dir}/snd-ml/testbeam/metadata/update_metadata.py',
+#     output:
+#         updated_metadata = "{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}",
+#     params:
+#         eos_dir = personal_eos_dir
+#     threads:1
+#     resources:
+#         runtime=45*60,
+#         mem_mb=2000,
+#         disk_mb=2000,
+#         nvidia_gpu=0
+#     shell:
+#         """
+#         echo "Updating metadata"
+#         #avoid unbound variable error (only occur when using snakemake)
+#         set +u 
+#         source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+#         python {input.script} -i {input.raw_metadata} -o {output.updated_metadata} -e {params.eos_dir}
+#         """
 
 
 # beam_type = ["e-"]
@@ -352,18 +380,19 @@ rule feature_plot:
 
 rule process_hits:
     input:
-        expand("{personal_work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, personal_work_dir='personal_work_dir'),
+        expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir=personal_work_dir),
         digi=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "geo_path"),
         # preSelect=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "preSelect_path"),
         
         
     params:
-        script = "{personal_work_dir}/snd-ml/testbeam/Converted_data/digi_2_hits_testbeam.py",
+        script = f"{personal_work_dir}/snd-ml/testbeam/Converted_data/digi_2_hits_testbeam.py",
         data_type=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "data_type"),
         pdg=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "beam_type"),
-        env_file = "{personal_work_dir}/snd-ml/testbeam/env/env_sndsw.sh",
-        
+        env_file = f"{personal_work_dir}/snd-ml/testbeam/env/env_sndsw.sh",
+        sndsw_dir = personal_sndsw_dir,
+        work_dir = personal_work_dir
     output:
         hit_path="{hit_path}"
     threads:1
@@ -380,7 +409,8 @@ rule process_hits:
 
         # Set up environment
         echo "Setting up SNDSW"
-        SNDLHC_mymaster={personal_work_dir}/public/
+        export SNDLHC_mymaster="{params.sndsw_dir}"
+        echo $SNDLHC_mymaster
         export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
         source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
         eval $(alienv load sndsw/latest-master-release --no-refresh)
@@ -398,7 +428,8 @@ rule process_hits:
             -g {input.geo} \
             -o "${{tmp_output}}" \
             -t {params.data_type} \
-            -pdg "{params.pdg}"
+            -pdg "{params.pdg}" \
+            -w "{params.work_dir}"
 
         echo "Transferring output to EOS"
         xrdcp -f "${{tmp_output}}" "{output.hit_path}" || {{ echo "xrdcp failed"; exit 1; }}
@@ -409,16 +440,16 @@ rule process_hits:
 
 rule process_features:
     input:
-        expand("{personal_work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, personal_work_dir=personal_work_dir),
+        expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir=personal_work_dir),
         digi=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "geo_path"),
-        script = "{personal_work_dir}/snd-ml/testbeam/Converted_data/digi_2_features_testbeam.py"
+        script = f"{personal_work_dir}/snd-ml/testbeam/Converted_data/digi_2_features_testbeam.py"
         
     params:
         data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
         pdg=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "beam_type"),
-        env_file = "{personal_work_dir}/snd-ml/testbeam/env/env_sndsw.sh",
-        
+        env_file = f"{personal_work_dir}/snd-ml/testbeam/env/env_sndsw.sh",
+        work_dir = personal_work_dir
     output:
         feature_path="{feature_path}"
     threads:1
@@ -437,7 +468,7 @@ rule process_features:
         
         # Set up environment
         echo "Setting up SNDSW"
-        SNDLHC_mymaster={personal_work_dir}/public/
+        SNDLHC_mymaster={params.work_dir}/public/
         export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
         source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
         eval $(alienv load sndsw/latest-master-release --no-refresh)
@@ -468,7 +499,7 @@ rule process_features:
         
 rule process_pt_hit:
     input:
-        script = "{personal_work_dir}/snd-ml/testbeam/Converted_data/root_2_pt_testbeam.py",
+        script = f"{personal_work_dir}/snd-ml/testbeam/Converted_data/root_2_pt_testbeam.py",
         #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
 
         #feature_path=lambda wildcards: get_metadata_value("pt_hit_path", wildcards.pt_hit_path, "feature_path"),

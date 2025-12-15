@@ -1,23 +1,22 @@
 
 # DO NOT DELETE
 
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TObject.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/Rtypes.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/RtypesCore.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/ROOT/RConfig.hxx
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/RVersion.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/ROOT/RVersion.hxx
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/RConfigure.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/DllImport.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/strtok.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/strlcpy.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/snprintf.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TGenericClassInfo.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TSchemaHelper.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TIsAProxy.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TVirtualIsAProxy.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TStorage.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TVersionCheck.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/RVersion.h
-/afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass_h.so: /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/RVersion.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/ROOT/RConfig.hxx /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TClass.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TDictAttributeMap.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TInterpreter.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TROOT.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TBuffer.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TMemberInspector.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TError.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/RtypesImp.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TIsAProxy.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TFileMergeInfo.h /cvmfs/sft.cern.ch/lcg/releases/ROOT/6.34.02-18eb6/x86_64-el9-gcc11-opt/include/TCollectionProxyInfo.h /cvmfs/sft.cern.ch/lcg/views/LCG_107/x86_64-el9-gcc11-opt/bin/rootcling
-EventClass_h__ROOTBUILDVERSION= 6.34.02
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TObject.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/Rtypes.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/RtypesCore.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/ROOT/RConfig.hxx
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/RVersion.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/RConfigure.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/DllImport.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/strtok.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/strlcpy.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/snprintf.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TGenericClassInfo.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TSchemaHelper.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TIsAProxy.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TVirtualIsAProxy.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TStorage.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TVersionCheck.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/RVersion.h
+Converted_data/EventClass_h.so: /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/RVersion.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/ROOT/RConfig.hxx /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TClass.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TDictAttributeMap.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TInterpreter.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TROOT.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TBuffer.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TMemberInspector.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TError.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/RtypesImp.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TIsAProxy.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TFileMergeInfo.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/sw/slc9_x86-64/ROOT/v6-28-12-local1/include/TCollectionProxyInfo.h /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30//sw//slc9_x86-64/ROOT/v6-28-12-local1/bin/rootcling
+EventClass_h__ROOTBUILDVERSION= 6.28/12

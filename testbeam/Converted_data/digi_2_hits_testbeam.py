@@ -83,7 +83,7 @@ def main(args):
     out_file, new_tree = create_output_file(args.out_path, args.mode)
     
     # Define branches (assuming branch setup functions are defined)
-    ROOT.gROOT.ProcessLine(".L /afs/.cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/EventClass.h+")
+    ROOT.gROOT.ProcessLine(f".L {args.work_path}/snd-ml/testbeam/Converted_data/EventClass.h+")
 
     ids = ROOT.Id()
     hits = ROOT.TClonesArray("Hit")
@@ -146,6 +146,7 @@ if __name__ == "__main__":
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
     parser.add_argument("-pdg", "--pdg", dest="pdg", help="PDG code", required=False, default='no type')
+    parser.add_argument("-w", "--work_path", dest="work_path", help="work path",required=True)
 
     args = parser.parse_args()
 

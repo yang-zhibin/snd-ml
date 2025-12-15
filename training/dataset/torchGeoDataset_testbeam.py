@@ -133,7 +133,7 @@ class TrainGeoDataset(InMemoryDataset):
         # 
         for idx, row in pt_paths.iterrows():
             pt_file = row["pt_hit_path"]
-            weight = 1
+            weight = row['event_weight']
         
             with gzip.open(pt_file, 'rb') as f:
                 all_events_flattened = torch.load(f)

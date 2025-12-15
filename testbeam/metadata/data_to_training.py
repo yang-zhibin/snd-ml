@@ -302,38 +302,157 @@ def check_neutrion_bkg_dataset(df,dataset_name):
     print(f"  Veto-tagged particles: {sum(veto_tagged_counts.values())}")
     print(f"  Veto-free particles:   {sum(veto_free_counts.values())}")
 
-def check_MC_data():
-    mc_files = [
-        "MC_data_testbeam2024_metadata.csv",
-        "MC_data_testbeam2023_metadata.csv"
-    ]
+# def check_MC_data(root_path):
+#     mc_files = [
+#         "MC_data_testbeam2024_metadata.csv",
+#         "MC_data_testbeam2023_metadata.csv"
+#     ]
 
-    root_path = '/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated'
-    metadata_vars = load_metadata_files(mc_files, root_path)
+#     metadata_vars = load_metadata_files(mc_files, root_path)
 
-    MC_data_testbeam2023 = metadata_vars["MC_data_testbeam2023"]
-    MC_data_testbeam2024 = metadata_vars["MC_data_testbeam2024"]
+#     MC_data_testbeam2023 = metadata_vars["MC_data_testbeam2023"]
+#     MC_data_testbeam2024 = metadata_vars["MC_data_testbeam2024"]
     
-    # Print event counts by subfolder for 2023 data
-    print("\nMC_data_testbeam2023 event counts by subfolder:")
-    subfolder_counts_2023 = MC_data_testbeam2023.groupby('partition')['n_event'].sum()
-    for subfolder, count in subfolder_counts_2023.items():
-        print(f"{subfolder}: {count:,} events")
+#     # Print event counts by subfolder for 2023 data
+#     print("\nMC_data_testbeam2023 event counts by subfolder:")
+#     subfolder_counts_2023 = MC_data_testbeam2023.groupby('partition')['n_event'].sum()
+#     for subfolder, count in subfolder_counts_2023.items():
+#         print(f"{subfolder}: {count:,} events")
         
-    # Print event counts by subfolder for 2024 data  
-    print("\nMC_data_testbeam2024 event counts by subfolder:")
-    subfolder_counts_2024 = MC_data_testbeam2024.groupby('subfolder')['n_event'].sum()
-    for subfolder, count in subfolder_counts_2024.items():
-        print(f"{subfolder}: {count:,} events")
+#     # Print event counts by subfolder for 2024 data  
+#     print("\nMC_data_testbeam2024 event counts by subfolder:")
+#     subfolder_counts_2024 = MC_data_testbeam2024.groupby('subfolder')['n_event'].sum()
+#     for subfolder, count in subfolder_counts_2024.items():
+#         print(f"{subfolder}: {count:,} events")
+def check_MC_data(root_path):
+    mc_files = {
+        "MC_data_testbeam2023": "MC_data_testbeam2023_metadata.csv",
+        "MC_data_testbeam2024": "MC_data_testbeam2024_metadata.csv",
+    }
+
+    metadata_vars = load_metadata_files(list(mc_files.values()), root_path)
+
+    configs = {
+        "MC_data_testbeam2023": "partition",
+        "MC_data_testbeam2024": "subfolder",
+    }
+
+    results = {}
+
+    for key, group_col in configs.items():
+        df = metadata_vars[key]
+
+        if group_col not in df.columns:
+            raise KeyError(
+                f"{key}: column '{group_col}' not found. "
+                f"Available columns: {list(df.columns)}"
+            )
+
+        grouped = df.groupby(group_col)
+
+        event_counts = grouped["n_event"].sum()
+        file_counts  = grouped.size()
+
+        results[key] = {
+            "events": event_counts,
+            "files": file_counts,
+        }
+
+        # --- formatting ---
+        name_width = max(len(str(x)) for x in event_counts.index)
+        files_width = max(len(f"{file_counts.max():,}"), len("Files"))
+        events_width = max(len(f"{event_counts.max():,}"), len("Events"))
+
+        header = (
+            f"{'Subfolder':<{name_width}}  "
+            f"{'Files':>{files_width}}  "
+            f"{'Events':>{events_width}}"
+        )
+
+        print(f"\n{key} summary by {group_col}:")
+        print(header)
+        print("-" * len(header))
+
+        for name in event_counts.index:
+            print(
+                f"{str(name):<{name_width}}  "
+                f"{file_counts[name]:>{files_width},}  "
+                f"{event_counts[name]:>{events_width},}"
+            )
+
+        print("-" * len(header))
+        print(
+            f"{'TOTAL':<{name_width}}  "
+            f"{file_counts.sum():>{files_width},}  "
+            f"{event_counts.sum():>{events_width},}"
+        )
+
+    return results
 
 
-def get_2024_train_set():
+def add_train_balancing_weights(
+    df: pd.DataFrame,
+    split_col="split",
+    train_value="train",
+    n_event_col="n_event",
+    type_col="beam_type",
+    energy_col="beam_energy",
+    weight_col="event_weight",
+    target_mode="min",  # "min" keeps all weights <= 1 (only downweight). "mean"/"max" allow upweighting.
+):
+    df = df.copy()
+    df[weight_col] = 1.0
+
+    train_mask = df[split_col].eq(train_value)
+    train = df.loc[train_mask, [type_col, energy_col, n_event_col]].copy()
+
+    # raw total events per (type, energy) in TRAIN
+    raw_te = (train.groupby([type_col, energy_col])[n_event_col]
+                   .sum()
+                   .rename("raw_events")
+                   .reset_index())
+
+    if raw_te.empty:
+        return df  # nothing to do
+
+    # total events per type, and number of energies per type (present in TRAIN)
+    raw_t = raw_te.groupby(type_col)["raw_events"].sum()
+    nE_t  = raw_te.groupby(type_col)[energy_col].nunique()
+
+    # choose common target type total
+    if target_mode == "min":
+        target_type_total = raw_t.min()
+    elif target_mode == "mean":
+        target_type_total = raw_t.mean()
+    elif target_mode == "max":
+        target_type_total = raw_t.max()
+    else:
+        raise ValueError("target_mode must be one of: 'min', 'mean', 'max'")
+
+    # target per (type, energy): equal within type, and type totals equal across types
+    target_te = (target_type_total / nE_t).rename("target_events").reset_index()
+    # expand to each energy row by merging on type
+    raw_te = raw_te.merge(target_te, on=type_col, how="left")
+    raw_te["w_te"] = raw_te["target_events"] / raw_te["raw_events"]
+
+    # apply to train rows (merge back by type+energy)
+    df.loc[train_mask, weight_col] = (
+        df.loc[train_mask]
+          .merge(raw_te[[type_col, energy_col, "w_te"]], on=[type_col, energy_col], how="left")["w_te"]
+          .to_numpy()
+    )
+
+    # optional: effective weighted events column
+    df["weighted_events"] = df[n_event_col] * df[weight_col]
+
+    return df
+
+def get_2024_train_set(root_path):
     mc_files = [
         "MC_data_testbeam2024_metadata.csv",
         "MC_data_testbeam2023_metadata.csv"
     ]
 
-    root_path = '/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated'
     metadata_vars = load_metadata_files(mc_files, root_path)
 
     MC_data_testbeam2024 = metadata_vars["MC_data_testbeam2024"]
@@ -347,6 +466,7 @@ def get_2024_train_set():
     # Default everything to 'test'
     df["split"] = "test"
 
+    
     # ---- 1) Split beam_type == 'pi+' into 4:1:5 (train:val:test) by cumulative n_event per beam_energy ----
     pi_mask = df["beam_type"] == "pi+"
     pi_energies = sorted(df.loc[pi_mask, "beam_energy"].dropna().unique())
@@ -439,8 +559,17 @@ def get_2024_train_set():
 
     
     
+    df_w = add_train_balancing_weights(df, target_mode="min")
+    
+    train = df_w[df_w["split"] == "train"]
 
-    return df[df["split"].isin(["train", "val"])].copy()
+    # 1) totals per beam_type equal
+    print(train.groupby("beam_type")["weighted_events"].sum().sort_values())
+
+    # 2) within each beam_type, totals per energy equal
+    print(train.groupby(["beam_type", "beam_energy"])["weighted_events"].sum().sort_values())
+
+    return df_w[df_w["split"].isin(["train", "val"])].copy()
 
 
 def get_vetoFree_event_count(root_path):
@@ -648,9 +777,9 @@ def cal_avg_veto_ineff():
     pass
     
 
-def generate_train_dataset():
+def generate_train_dataset(root_path):
     # train:val:test=4:1:5
-    train_2024_df = get_2024_train_set()
+    train_2024_df = get_2024_train_set(root_path)
     
 
     
@@ -673,28 +802,90 @@ def generate_train_dataset():
     print(f"Saved:")
     print(f" - Neutrino samples to {train_2024_path}")
 
-   
-def read_train_splts(splits='train'):
+
+def print_grouped_summary(
+    df,
+    group_col,
+    title,
+    event_col="n_event",
+):
+    if group_col not in df.columns:
+        raise KeyError(
+            f"Column '{group_col}' not found. "
+            f"Available columns: {list(df.columns)}"
+        )
+
+    grouped = df.groupby(group_col)
+
+    event_counts = grouped[event_col].sum()
+    file_counts  = grouped.size()
+
+    # --- formatting ---
+    name_width   = max(len(str(x)) for x in event_counts.index)
+    files_width  = max(len(f"{file_counts.max():,}"), len("Files"))
+    events_width = max(len(f"{event_counts.max():,}"), len("Events"))
+
+    header = (
+        f"{group_col.capitalize():<{name_width}}  "
+        f"{'Files':>{files_width}}  "
+        f"{'Events':>{events_width}}"
+    )
+
+    print(f"\n{title}")
+    print(header)
+    print("-" * len(header))
+
+    for name in event_counts.index:
+        print(
+            f"{str(name):<{name_width}}  "
+            f"{file_counts[name]:>{files_width},}  "
+            f"{event_counts[name]:>{events_width},}"
+        )
+
+    print("-" * len(header))
+    print(
+        f"{'TOTAL':<{name_width}}  "
+        f"{file_counts.sum():>{files_width},}  "
+        f"{event_counts.sum():>{events_width},}"
+    )
+    
+def read_train_splts(splits="train"):
     out_dir = "./training"
-    split_name = 'train_2024_split_v1'
+    split_name = "train_2024_split_v1"
 
     train_df_path = f"{out_dir}/{split_name}.csv"
+    train_df = pd.read_csv(train_df_path)
+
+    print_grouped_summary(
+        df=train_df,
+        group_col="subfolder",
+        title="Training dataset MC_data_testbeam2024 summary by subfolder:",
+    )
+
+    return train_df
+   
+# def read_train_splts(splits='train'):
+#     out_dir = "./training"
+#     split_name = 'train_2024_split_v1'
+
+#     train_df_path = f"{out_dir}/{split_name}.csv"
   
 
-    # Read CSVs
-    train_df = pd.read_csv(train_df_path)
+#     # Read CSVs
+#     train_df = pd.read_csv(train_df_path)
     
-    # Print event counts by subfolder for 2024 data  
-    print("\n Training data set MC_data_testbeam2024 event counts by subfolder:")
-    subfolder_counts_2024 = train_df.groupby('subfolder')['n_event'].sum()
-    for subfolder, count in subfolder_counts_2024.items():
-        print(f"{subfolder}: {count:,} events")
+#     # Print event counts by subfolder for 2024 data  
+#     print("\n Training data set MC_data_testbeam2024 event counts by subfolder:")
+#     subfolder_counts_2024 = train_df.groupby('subfolder')['n_event'].sum()
+#     for subfolder, count in subfolder_counts_2024.items():
+#         print(f"{subfolder}: {count:,} events")
 
 
      
 if __name__ == "__main__":
-    check_MC_data()
-    # generate_train_dataset()
+    root_path = '/afs/cern.ch/work/z/zhibin/snd-ml/testbeam/metadata/updated' #'/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated'
+    #check_MC_data(root_path)
+    generate_train_dataset(root_path)
     read_train_splts()
     
     
