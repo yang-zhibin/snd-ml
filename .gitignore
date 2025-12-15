@@ -19,4 +19,4 @@ htcondor_log*/
 .snakemake/
 old_log/
 .csv
-
+*.cc
