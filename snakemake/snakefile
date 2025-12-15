@@ -979,8 +979,8 @@ rule cal_matrix:
 # ]
 
 HIST_NAMES = [
-    "sum_hit_density", 
-    "density_1st_scifi",
+    #"sum_hit_density", 
+    #"density_1st_scifi",
     # "density_scifi1",
     # "density_scifi2",
     # "density_scifi3",
@@ -1097,7 +1097,7 @@ rule plot_distribution:
         # cut_arg=lambda wc: ("-c True" if wc.cut == "cut" else "-c False")
     threads: 2
     resources:
-        runtime=30*60*60,
+        runtime=23*60*60,
         mem_mb=1200,
         disk_mb=4000,
         nvidia_gpu=0

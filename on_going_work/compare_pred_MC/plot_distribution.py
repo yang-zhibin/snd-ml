@@ -677,6 +677,9 @@ def summary_yield(data_pred_hists,
     # ============================================================
     #                   SAVE TABLE AS CSV
     # ============================================================
+    out_dir = os.path.join("plots", hist_name)
+    os.makedirs(out_dir, exist_ok=True)
+    out_pdf = os.path.join(out_dir, f"yield_summary_{cut_name}.pdf")
     csv_path = os.path.join(out_dir, f"yield_summary_{cut_name}.csv")
 
 
@@ -699,9 +702,7 @@ def summary_yield(data_pred_hists,
     #              MATPLOTLIB TABLE PLOT
     # ============================================================
     # Output directory
-    out_dir = os.path.join("plots", hist_name)
-    os.makedirs(out_dir, exist_ok=True)
-    out_pdf = os.path.join(out_dir, f"yield_summary_{cut_name}.pdf")
+
 
     # Prepare data for matplotlib.table
     row_labels = [r[0] for r in rows]
