@@ -1837,6 +1837,7 @@ hist_info = {
     "avg_us2_y": (80, 0, 80, 'US2 AvgPos Y', True),
     "avg_us3_y": (80, 0, 80, 'US3 AvgPos Y', True),
     "avg_us4_y": (80, 0, 80, 'US4 AvgPos Y', True),
+    "avg_us5_y": (80, 0, 80, 'US5 AvgPos Y', True),
     
     
     "start_centroid_x": (90, -70, 20, 'Start Centroid X', True),
