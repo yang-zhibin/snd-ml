@@ -27,7 +27,7 @@ wildcard_constraints:
 metadata_csv_list = [
     "MC_data_testbeam2023_metadata.csv",
     "MC_data_testbeam2024_metadata.csv",
-    "real_data_testbeam_June2023_H8_metadata.csv",
+    #"real_data_testbeam_June2023_H8_metadata.csv",
     "real_data_testbeam_24_metadata.csv",
 ]
 
@@ -39,9 +39,14 @@ train_model = 'testbeam_2024_GravNet_v3'
 # train_split = 'train_2024_split_v1_vertical'
 # train_model = 'testbeam_2024_GravNet_v1_vertical'
 
+personal_work_dir = "/afs/cern.ch/work/z/zhibin"
+                    
+#personal_eos_dir 
+
+
 def load_metadata():
     if train_mode:
-        metadata_prefix = f"/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/training/{train_split}"
+        metadata_prefix = f"{personal_work_dir}/snd-ml/testbeam/metadata/training/{train_split}"
         metadata_files = glob.glob(f"{metadata_prefix}*.csv")
         if not metadata_files:
             print(f"Warning: No CSV files found with prefix {metadata_prefix}")
@@ -50,7 +55,7 @@ def load_metadata():
         return df
 
     else:
-        metadata_rootpath = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/"
+        metadata_rootpath = f"{personal_work_dir}/snd-ml/testbeam/metadata/updated/"
         metadata_files = [os.path.join(metadata_rootpath, file_name) for file_name in metadata_csv_list]
         metadata_files = [file for file in metadata_files if os.path.isfile(file)]
         if not metadata_files:  
@@ -149,8 +154,8 @@ def collect_model_path(target_name):
 
 rule finish:
     input:
-        # expand("/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
-        #  expand("/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        expand("{personal_work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list, personal_work_dir = personal_work_dir),
+        #  expand("{personal_work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
         # expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         # expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
@@ -167,8 +172,8 @@ rule finish:
 rule train:
     input:
         expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
-        script = '/afs/cern.ch/work/s/sfrankha/snd-ml/training/train_testbeam.py',
-        model_config = f'/afs/cern.ch/work/s/sfrankha/snd-ml/training/configs/{train_model}.yml',
+        script = f'{personal_work_dir}/snd-ml/training/train_testbeam.py',
+        model_config = f'{personal_work_dir}/snd-ml/training/configs/{train_model}.yml',
         
     #output:
     #    trained_model = "{model_ckpt}"
@@ -198,11 +203,11 @@ rule train:
 
 rule generate_raw_metadata:
     input:
-        script = '/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/generate_path_file_testbeam.py'
+        script = '{personal_work_dir}/snd-ml/testbeam/metadata/generate_path_file_testbeam.py'
     output:
-        raw_metadata = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/raw/{metadata_csv}"
+        raw_metadata = "{personal_work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}"
     params:
-        script = '/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/generate_path_file_testbeam.py'
+        script = '{personal_work_dir}/snd-ml/testbeam/metadata/generate_path_file_testbeam.py'
     threads:1
     resources:
         runtime=180*60,
@@ -221,10 +226,10 @@ rule generate_raw_metadata:
         
 rule update_metadata:
     input:
-        raw_metadata = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/raw/{metadata_csv}",
-        script = '/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/update_metadata.py',
+        raw_metadata = "{personal_work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}",
+        script = '{personal_work_dir}/snd-ml/testbeam/metadata/update_metadata.py',
     output:
-        updated_metadata = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/{metadata_csv}"
+        updated_metadata = "{personal_work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}"
     threads:1
     resources:
         runtime=45*60,
@@ -284,7 +289,7 @@ rule preSelection_plot:
         
         # Set up environment
         echo "Setting up SNDSW"
-        SNDLHC_mymaster=/afs/cern.ch/work/s/sfrankha/public/
+        SNDLHC_mymaster={personal_work_dir}/public/
         export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
         source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
         eval $(alienv load sndsw/latest-master-release --no-refresh)
@@ -305,7 +310,7 @@ rule preSelection_plot:
         
 rule feature_plot:
     input:
-        script="/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/Converted_data/feature_plots.py"
+        script="{personal_work_dir}/snd-ml/testbeam/Converted_data/feature_plots.py"
     output:
         # one flag file per histogram name (wildcard)
         touch("/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/feature_plots/plot_flags/hist.{beam_type}_{energy}_{year}.done")
@@ -326,7 +331,7 @@ rule feature_plot:
         
         # Set up environment
         echo "Setting up SNDSW"
-        SNDLHC_mymaster=/afs/cern.ch/work/s/sfrankha/public/
+        SNDLHC_mymaster={personal_work_dir}/public/
         export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
         source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
         eval $(alienv load sndsw/latest-master-release --no-refresh)
@@ -347,17 +352,17 @@ rule feature_plot:
 
 rule process_hits:
     input:
-        expand("/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        expand("{personal_work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, personal_work_dir='personal_work_dir'),
         digi=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "geo_path"),
         # preSelect=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "preSelect_path"),
         
         
     params:
-        script = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/Converted_data/digi_2_hits_testbeam.py",
+        script = "{personal_work_dir}/snd-ml/testbeam/Converted_data/digi_2_hits_testbeam.py",
         data_type=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "data_type"),
         pdg=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "beam_type"),
-        env_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/env/env_sndsw.sh",
+        env_file = "{personal_work_dir}/snd-ml/testbeam/env/env_sndsw.sh",
         
     output:
         hit_path="{hit_path}"
@@ -375,7 +380,7 @@ rule process_hits:
 
         # Set up environment
         echo "Setting up SNDSW"
-        SNDLHC_mymaster=/afs/cern.ch/work/s/sfrankha/public/
+        SNDLHC_mymaster={personal_work_dir}/public/
         export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
         source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
         eval $(alienv load sndsw/latest-master-release --no-refresh)
@@ -404,15 +409,15 @@ rule process_hits:
 
 rule process_features:
     input:
-        expand("/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        expand("{personal_work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, personal_work_dir=personal_work_dir),
         digi=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "geo_path"),
-        script = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/Converted_data/digi_2_features_testbeam.py"
+        script = "{personal_work_dir}/snd-ml/testbeam/Converted_data/digi_2_features_testbeam.py"
         
     params:
         data_type=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "data_type"),
         pdg=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "beam_type"),
-        env_file = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/env/env_sndsw.sh",
+        env_file = "{personal_work_dir}/snd-ml/testbeam/env/env_sndsw.sh",
         
     output:
         feature_path="{feature_path}"
@@ -432,7 +437,7 @@ rule process_features:
         
         # Set up environment
         echo "Setting up SNDSW"
-        SNDLHC_mymaster=/afs/cern.ch/work/s/sfrankha/public/
+        SNDLHC_mymaster={personal_work_dir}/public/
         export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
         source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
         eval $(alienv load sndsw/latest-master-release --no-refresh)
@@ -463,7 +468,7 @@ rule process_features:
         
 rule process_pt_hit:
     input:
-        script = "/afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/Converted_data/root_2_pt_testbeam.py",
+        script = "{personal_work_dir}/snd-ml/testbeam/Converted_data/root_2_pt_testbeam.py",
         #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
 
         #feature_path=lambda wildcards: get_metadata_value("pt_hit_path", wildcards.pt_hit_path, "feature_path"),
