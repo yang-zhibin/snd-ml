@@ -1,0 +1,1234 @@
+import ROOT
+import os
+from argparse import ArgumentParser
+import SndlhcGeo
+import array
+from collections import defaultdict
+import math
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib.lines import Line2D
+import numpy as np
+import re
+import matplotlib.colors as mcolors
+from matplotlib.lines import Line2D
+from matplotlib.backends.backend_pdf import PdfPages
+from tqdm import tqdm
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from collections import Counter
+
+import matplotlib
+print(matplotlib.__version__)
+
+pdg_to_name = {
+    11: 'e-', -11: 'e+',
+    211:'pi', -211: 'pi',
+    12: 've', -12: 've',
+    14: 'vm', -14: 'vm',
+    16: 'vt', -16: 'vt',
+    112: 'NC', -112: 'NC', 114: 'NC', -114: 'NC', 116: 'NC', -116: 'NC',
+    130: 'kaon', 310: 'kaon',
+    2112: 'neutron',
+    13: 'muon', -13: 'muon' ,
+    0: 'data'
+}
+
+def setup_geometry(geo_file):
+    """Initialize and return the geometry configurations."""
+    snd_geo = SndlhcGeo.GeoInterface(geo_file)
+    lsOfGlobals = ROOT.gROOT.GetListOfGlobals()
+    lsOfGlobals.Add(snd_geo.modules['Scifi'])
+    lsOfGlobals.Add(snd_geo.modules['MuFilter'])
+    return snd_geo
+
+def get_detector_layout(geo_file):
+    """
+    Extract detector component geometry from an SND@LHC/FairRoot geofile.
+
+    Returns
+    -------
+    dict[str, list[dict]]:
+        Keys: wall, mat, veto_bar, us_bar, ds_bar, block
+        Each entry has: name, x, y, z, dx, dy, dz, ver, hor, path
+    """
+
+    # ---- Regex patterns for relevant subdetectors ----
+    WALL_RE      = re.compile(r"^volWallborder(_\d+)?$", re.IGNORECASE)
+    MAT_RE       = re.compile(r"^(Hor|Vert)?MatVolume(_\d+)?$", re.IGNORECASE)
+    VETO_BAR_RE  = re.compile(r"^volVetoBar(_ver)?(_\d+)?$", re.IGNORECASE)
+    US_BAR_RE    = re.compile(r"^volMuUpstreamBar(_(hor|ver))?(_\d+)?$", re.IGNORECASE)
+    DS_BAR_RE    = re.compile(r"^volMuDownstreamBar(_(hor|ver))?(_\d+)?$", re.IGNORECASE)
+    BLOCK_RE     = re.compile(r"^volFeBlock(_\d+)?$", re.IGNORECASE)
+
+    # ---- Ancestor name hints ----
+    IS_TARGET   = lambda path: any(n.startswith("volTarget") for n in path)
+    IS_VETO     = lambda path: any(n.startswith("volVeto") for n in path)
+    IS_VETO_PL  = lambda name: name.startswith("volVetoPlane")
+    IS_MUFILT   = lambda path: any(n.startswith("volMuFilter") for n in path)
+    IS_US_DET   = lambda name: name.startswith("volMuUpstreamDet")
+    IS_DS_DET   = lambda name: name.startswith("volMuDownstreamDet")
+
+    def get_global_xyz(mat):
+        t = mat.GetTranslation()
+        return float(t[0]), float(t[1]), float(t[2])
+
+    # ---- open geometry ----
+    f = ROOT.TFile.Open(geo_file)
+    if not f or f.IsZombie():
+        raise RuntimeError(f"Could not open geometry file: {geo_file}")
+    geom = f.Get("FAIRGeom")
+    if not geom:
+        raise RuntimeError("TGeoManager 'FAIRGeom' not found in file")
+    top = geom.GetTopNode()
+    if not top:
+        raise RuntimeError("No top node in geometry")
+
+    out = defaultdict(list)
+
+    # ---- DFS traversal ----
+    stack = [(top, ROOT.TGeoHMatrix(), [top.GetVolume().GetName()])]
+    while stack:
+        node, M, path = stack.pop()
+        vol = node.GetVolume()
+        if not vol:
+            continue
+
+        for i in range(node.GetNdaughters()):
+            ch = node.GetDaughter(i)
+            ch_vol = ch.GetVolume()
+            if not ch_vol:
+                continue
+            ch_name = ch_vol.GetName()
+
+            # compose global transform
+            M_child = ROOT.TGeoHMatrix(M)
+            M_child.Multiply(ch.GetMatrix())
+            path_child = path + [ch_name]
+            x, y, z = get_global_xyz(M_child)
+
+            # get bounding box dimensions
+            shp = ch_vol.GetShape()
+            dx = getattr(shp, "GetDX", lambda: 0)()
+            dy = getattr(shp, "GetDY", lambda: 0)()
+            dz = getattr(shp, "GetDZ", lambda: 0)()
+
+            # --- Orientation logic ---
+            ver, hor = 0, 0
+
+            if WALL_RE.match(ch_name):
+                ver, hor = 1, 1
+            elif US_BAR_RE.match(ch_name):
+                ver, hor = 0, 1
+            elif VETO_BAR_RE.match(ch_name):
+                if "ver" in ch_name.lower():
+                    ver, hor = 1, 0
+                else:
+                    ver, hor = 0, 1
+            elif BLOCK_RE.match(ch_name):
+                ver, hor = 1, 1
+            else:
+                if "ver" in ch_name.lower() or any("ver" in p.lower() for p in path_child):
+                    ver, hor = 1, 0
+                elif "hor" in ch_name.lower() or any("hor" in p.lower() for p in path_child):
+                    ver, hor = 0, 1
+
+            # ---- Classification ----
+            # 1) Wallborder under Target
+            if WALL_RE.match(ch_name) and IS_TARGET(path_child):
+                out["wall"].append(dict(
+                    name=ch_name, x=x, y=y, z=z,
+                    dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                ))
+
+            # 2) SciFi material layers under Target
+            if MAT_RE.match(ch_name) and IS_TARGET(path_child):
+                out["mat"].append(dict(
+                    name=ch_name, x=x, y=y, z=z,
+                    dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                ))
+
+            # 3) Veto bars
+            if VETO_BAR_RE.match(ch_name) and IS_VETO(path_child):
+                if any(IS_VETO_PL(n) for n in path_child):
+                    out["veto_bar"].append(dict(
+                        name=ch_name, x=x, y=y, z=z,
+                        dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                    ))
+
+            # 4) MuFilter upstream bars
+            if US_BAR_RE.match(ch_name) and IS_MUFILT(path_child):
+                if any(IS_US_DET(n) for n in path_child):
+                    out["us_bar"].append(dict(
+                        name=ch_name, x=x, y=y, z=z,
+                        dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                    ))
+
+            # 5) MuFilter downstream bars
+            if DS_BAR_RE.match(ch_name) and IS_MUFILT(path_child):
+                if any(IS_DS_DET(n) for n in path_child):
+                    out["ds_bar"].append(dict(
+                        name=ch_name, x=x, y=y, z=z,
+                        dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                    ))
+
+            # 6) MuFilter Fe blocks
+            if BLOCK_RE.match(ch_name) and IS_MUFILT(path_child):
+                out["block"].append(dict(
+                    name=ch_name, x=x, y=y, z=z,
+                    dx=dx, dy=dy, dz=dz, ver=1, hor=1, path=tuple(path_child)
+                ))
+
+            # continue recursion
+            stack.append((ch, M_child, path_child))
+
+    return dict(out)
+
+
+def get_detector_layout_testbeam(geo_file):
+    """
+    Extract detector component geometry from an SND@LHC/FairRoot geofile.
+
+    Returns
+    -------
+    dict[str, list[dict]]:
+        Keys: wall, mat
+        Each entry has: name, x, y, z, dx, dy, dz, ver, hor, path
+    """
+
+    # ---- Regex patterns for relevant subdetectors ----
+    WALL_RE      = re.compile(r"^volWallborder(_\d+)?$", re.IGNORECASE)
+    MAT_RE       = re.compile(r"^(Hor|Vert)?MatVolume(_\d+)?$", re.IGNORECASE)
+
+    # ---- Ancestor name hints ----
+    IS_TARGET   = lambda path: any(n.startswith("volTarget") for n in path)
+   
+
+    def get_global_xyz(mat):
+        t = mat.GetTranslation()
+        return float(t[0]), float(t[1]), float(t[2])
+
+    # ---- open geometry ----
+    f = ROOT.TFile.Open(geo_file)
+    if not f or f.IsZombie():
+        raise RuntimeError(f"Could not open geometry file: {geo_file}")
+    geom = f.Get("FAIRGeom")
+    if not geom:
+        raise RuntimeError("TGeoManager 'FAIRGeom' not found in file")
+    top = geom.GetTopNode()
+    if not top:
+        raise RuntimeError("No top node in geometry")
+
+    out = defaultdict(list)
+
+    # ---- DFS traversal ----
+    stack = [(top, ROOT.TGeoHMatrix(), [top.GetVolume().GetName()])]
+    while stack:
+        node, M, path = stack.pop()
+        vol = node.GetVolume()
+        if not vol:
+            continue
+
+        for i in range(node.GetNdaughters()):
+            ch = node.GetDaughter(i)
+            ch_vol = ch.GetVolume()
+            if not ch_vol:
+                continue
+            ch_name = ch_vol.GetName()
+
+            # compose global transform
+            M_child = ROOT.TGeoHMatrix(M)
+            M_child.Multiply(ch.GetMatrix())
+            path_child = path + [ch_name]
+            x, y, z = get_global_xyz(M_child)
+
+            # get bounding box dimensions
+            shp = ch_vol.GetShape()
+            dx = getattr(shp, "GetDX", lambda: 0)()
+            dy = getattr(shp, "GetDY", lambda: 0)()
+            dz = getattr(shp, "GetDZ", lambda: 0)()
+
+            # --- Orientation logic ---
+            ver, hor = 0, 0
+
+            if WALL_RE.match(ch_name):
+                ver, hor = 1, 1
+            else:
+                if "ver" in ch_name.lower() or any("ver" in p.lower() for p in path_child):
+                    ver, hor = 1, 0
+                elif "hor" in ch_name.lower() or any("hor" in p.lower() for p in path_child):
+                    ver, hor = 0, 1
+
+            # ---- Classification ----
+            # 1) Wallborder under Target
+            if WALL_RE.match(ch_name) and IS_TARGET(path_child):
+                out["wall"].append(dict(
+                    name=ch_name, x=x, y=y, z=z,
+                    dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                ))
+
+            # 2) SciFi material layers under Target
+            if MAT_RE.match(ch_name) and IS_TARGET(path_child):
+                out["mat"].append(dict(
+                    name=ch_name, x=x, y=y, z=z,
+                    dx=dx, dy=dy, dz=dz, ver=ver, hor=hor, path=tuple(path_child)
+                ))
+
+            # continue recursion
+            stack.append((ch, M_child, path_child))
+
+    return dict(out)
+
+
+
+def open_root_file(file_path, mode='read'):
+    """Open and return a ROOT file and its primary tree."""
+    file = ROOT.TFile(file_path, mode)
+    tree = file.Get('cbmsim')
+    return file, tree
+
+def create_output_file(path, mode):
+    """Create and return a new ROOT file and a new tree for output."""
+    out_file = ROOT.TFile(path, mode)
+    new_tree = ROOT.TTree('sndData', 'converted cbmsim tree')
+    return out_file, new_tree
+
+def shower_id_legend_handles():
+    """Legend entries matching the fixed mapping above."""
+    items = [
+        ("EM shower (11)",          shower_color(11)),
+        ("Muon (13)",               shower_color(13)),
+        ("Tau shower (15)",         shower_color(15)),
+        ("NC shower (112/114/116)", shower_color(112)),
+        ("Hadronic shower (0)",     shower_color(0)),
+        ("Combine (-1)",            shower_color(-1)),
+        ("Unassigned/invalid (-2)", shower_color(-2)),
+    ]
+    return [Line2D([0],[0], marker='o', linestyle='',
+                   markersize=8, markerfacecolor=c, markeredgecolor='none')
+            for _, c in items], [t for t, _ in items]
+    
+def shower_color(sid: int):
+    """
+    Fixed discrete colors for showerId:
+        11  -> blue   (EM shower)
+        13  -> red    (muon)
+        15  -> orange (Tau shower)
+        112/114/116 -> green (NC shower)
+        0   -> purple (Hadronic shower)
+        -1  -> grey   (combine)
+        -2  -> black  (unassigned or invalid)
+    """
+    sid = int(sid)
+    if sid in (112, 114, 116):   # NC-like
+        return mcolors.to_rgba("tab:green")
+    if sid == 11:
+        return mcolors.to_rgba("tab:blue")
+    if sid == 13:
+        return mcolors.to_rgba("tab:red")
+    if sid == 15:
+        return mcolors.to_rgba("tab:orange")
+    if sid == 0:
+        return mcolors.to_rgba("tab:purple")
+    if sid == -1:
+        return mcolors.to_rgba("tab:gray")
+    if sid == -2:
+        return mcolors.to_rgba("black")
+    # fallback
+    return mcolors.to_rgba("tab:gray")
+
+    
+
+def plot_event(event, all_hits, det_layout, event_dict, args, shower_map, pdf):
+    group_color = {
+        "wall":      "tab:gray",
+        "mat":       "tab:blue",
+        "veto_bar":  "tab:red",
+        "us_bar":    "tab:orange",
+        "ds_bar":    "tab:purple",
+        "block":     "tab:green",
+    }
+
+    # ---- helpers -------------------------------------------------------------
+
+    def setup_ax(ax, title, xlabel, ylabel):
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_aspect("equal")
+        ax.set_facecolor("white")
+        ax.tick_params(direction="in")
+        ax.grid(False)
+
+    def add_rect(ax, z, c, half_w, half_h, color, fill=False, lw=0.6, alpha=0.8):
+        ax.add_patch(Rectangle(
+            (z - half_w, c - half_h),
+            2 * half_w, 2 * half_h,
+            fill=fill,
+            linewidth=lw,
+            edgecolor=color,
+            facecolor=color if fill else "none",
+            alpha=alpha,
+        ))
+        
+    def add_box3d(ax, x, y, z, dx, dy, dz, color, fill=False, alpha=0.15, lw=0.04):
+        """
+        Draw a cuboid centered at (x,y,z) with half-dimensions (dx,dy,dz).
+        """
+        # 8 corners
+        corners = np.array([
+            [x-dx, y-dy, z-dz],
+            [x+dx, y-dy, z-dz],
+            [x+dx, y+dy, z-dz],
+            [x-dx, y+dy, z-dz],
+            [x-dx, y-dy, z+dz],
+            [x+dx, y-dy, z+dz],
+            [x+dx, y+dy, z+dz],
+            [x-dx, y+dy, z+dz],
+        ])
+
+        # 6 faces (each is a list of 4 corner indices)
+        faces = [
+            [corners[i] for i in [0,1,2,3]],  # bottom
+            [corners[i] for i in [4,5,6,7]],  # top
+            [corners[i] for i in [0,1,5,4]],  # side
+            [corners[i] for i in [1,2,6,5]],
+            [corners[i] for i in [2,3,7,6]],
+            [corners[i] for i in [3,0,4,7]],
+        ]
+        rgba = mcolors.to_rgba(color, alpha if fill else 0.0)
+        poly = Poly3DCollection(
+            faces,
+            linewidths=lw,
+            edgecolors=color,
+            alpha=alpha,
+            facecolors=[rgba],
+        )
+        ax.add_collection3d(poly)
+        
+    def set_axes_equal(ax):
+        xlim = ax.get_xlim3d()
+        ylim = ax.get_ylim3d()
+        zlim = ax.get_zlim3d()
+
+        ranges = [abs(xlim[1]-xlim[0]),
+                abs(ylim[1]-ylim[0]),
+                abs(zlim[1]-zlim[0])]
+        max_range = max(ranges)
+
+        Xb = (xlim[0] + xlim[1]) / 2
+        Yb = (ylim[0] + ylim[1]) / 2
+        Zb = (zlim[0] + zlim[1]) / 2
+
+        ax.set_xlim3d([Xb - max_range/2, Xb + max_range/2])
+        ax.set_ylim3d([Yb - max_range/2, Yb + max_range/2])
+        ax.set_zlim3d([Zb - max_range/2, Zb + max_range/2])
+
+    # Discrete color for shower IDs. We assign fixed colors to the IDs you listed
+    # (positives and negatives are distinguished but share the same color family with different alpha).
+
+
+    # ---- figure layout (left = QDC, right = ShowerID) -----------------------
+    
+    fig = plt.figure(figsize=(100, 30), facecolor="white")
+    gs = fig.add_gridspec(
+        4, 4,
+        width_ratios=[1, 1, 1.8, 1.8],
+        height_ratios=[1, 1, 1, 1],
+        wspace=0.10, hspace=0.02
+    )
+
+    ax_xz_qdc = fig.add_subplot(gs[0, 0])
+    ax_xz_shw = fig.add_subplot(gs[0, 1])
+    ax_yz_qdc = fig.add_subplot(gs[1, 0])
+    ax_yz_shw = fig.add_subplot(gs[1, 1])
+
+    ax_3d_a = fig.add_subplot(gs[:, 2], projection="3d")
+    ax_3d_b = fig.add_subplot(gs[:, 3], projection="3d")
+
+    setup_ax(ax_xz_qdc, "XZ View (QDC)", "Z [cm]", "X [cm]")
+    setup_ax(ax_yz_qdc, "YZ View (QDC)", "Z [cm]", "Y [cm]")
+    setup_ax(ax_xz_shw, "XZ View (Shower ID)", "Z [cm]", "X [cm]")
+    setup_ax(ax_yz_shw, "YZ View (Shower ID)", "Z [cm]", "Y [cm]")
+
+    for ax3, title in [(ax_3d_a, "3D Layout (view A)"), (ax_3d_b, "3D Layout (view B)")]:
+        ax3.set_title(title)
+        ax3.set_xlabel("X [cm]")
+        ax3.set_ylabel("Y [cm]")
+        ax3.set_zlabel("Z [cm]")
+        ax3.set_facecolor("white")
+        ax3.grid(False)
+    
+    #ax_3d.view_init(elev=18, azim=-65)  # tweak to taste
+
+    # ---- draw detector layout on all four 2D axes + 3D ----------------------
+    limit_x = [-45, -31]
+    limit_y = [37, 51]
+    for group, items in det_layout.items():
+        if group == 'mat':
+            continue
+        color = group_color.get(group, "k")
+        
+        for it in items:
+            # Récupération des dimensions originales
+            orig_x, orig_y, orig_z = it["x"], it["y"], it["z"]
+            orig_dx, orig_dy, orig_dz = float(it["dx"]), float(it["dy"]), float(it["dz"])
+            ver, hor = int(it["ver"]), int(it["hor"])
+            fill = group in {"wall", "block"}
+
+            # --- DESSIN 2D (inchangé, matplotlib gère le clipping 2D tout seul) ---
+            if ver == 1:
+                add_rect(ax_xz_qdc, orig_z, orig_x, orig_dz, orig_dx, color, fill=fill, alpha=0.4 if fill else 0.8)
+                add_rect(ax_xz_shw, orig_z, orig_x, orig_dz, orig_dx, color, fill=fill, alpha=0.4 if fill else 0.8)
+            if hor == 1:
+                add_rect(ax_yz_qdc, orig_z, orig_y, orig_dz, orig_dy, color, fill=fill, alpha=0.4 if fill else 0.8)
+                add_rect(ax_yz_shw, orig_z, orig_y, orig_dz, orig_dy, color, fill=fill, alpha=0.4 if fill else 0.8)
+
+            # --- DESSIN 3D AVEC DÉCOUPE MANUELLE (CLIPPING) ---
+            
+            # 1. Calculer les bords réels du bloc
+            box_min_x, box_max_x = orig_x - orig_dx, orig_x + orig_dx
+            box_min_y, box_max_y = orig_y - orig_dy, orig_y + orig_dy
+            
+            # 2. Restreindre ("clamper") ces bords aux limites du plot
+            # On prend le max des minimums et le min des maximums (intersection)
+            draw_min_x = max(box_min_x, limit_x[0])
+            draw_max_x = min(box_max_x, limit_x[1])
+            draw_min_y = max(box_min_y, limit_y[0])
+            draw_max_y = min(box_max_y, limit_y[1])
+
+            # 3. Vérifier si le bloc existe encore après la découpe
+            # (Si min >= max, le bloc est totalement hors champ)
+            if draw_max_x > draw_min_x and draw_max_y > draw_min_y:
+                
+                # 4. Recalculer le nouveau centre et les nouvelles dimensions pour le bloc coupé
+                new_dx = (draw_max_x - draw_min_x) / 2.0
+                new_dy = (draw_max_y - draw_min_y) / 2.0
+                new_x  = (draw_min_x + draw_max_x) / 2.0
+                new_y  = (draw_min_y + draw_max_y) / 2.0
+                
+                # On garde Z intact
+                
+                add_box3d(ax_3d_a, new_x, new_y, orig_z, new_dx, new_dy, orig_dz, 
+                          color=color, fill=fill, alpha=0.12 if fill else 0.04, lw=0.01)
+                add_box3d(ax_3d_b, new_x, new_y, orig_z, new_dx, new_dy, orig_dz, 
+                          color=color, fill=fill, alpha=0.12 if fill else 0.04, lw=0.01)
+        # for it in items:
+        #     x, y, z = it["x"], it["y"], it["z"]
+        #     dx, dy, dz = float(it["dx"]), float(it["dy"]), float(it["dz"])
+        #     ver, hor   = int(it["ver"]), int(it["hor"])
+        #     fill = group in {"wall", "block"}
+
+        #     # 2D projections as before
+        #     if ver == 1:
+        #         add_rect(ax_xz_qdc, z, x, dz, dx, color, fill=fill, alpha=0.4 if fill else 0.8)
+        #         add_rect(ax_xz_shw, z, x, dz, dx, color, fill=fill, alpha=0.4 if fill else 0.8)
+        #     if hor == 1:
+        #         add_rect(ax_yz_qdc, z, y, dz, dy, color, fill=fill, alpha=0.4 if fill else 0.8)
+        #         add_rect(ax_yz_shw, z, y, dz, dy, color, fill=fill, alpha=0.4 if fill else 0.8)
+
+
+        #     add_box3d(ax_3d_a, x, y, z, dx, dy, dz, color=color, fill=fill,
+        #               alpha=0.12 if fill else 0.04, lw=0.01)
+        #     add_box3d(ax_3d_b, x, y, z, dx, dy, dz, color=color, fill=fill,
+        #               alpha=0.12 if fill else 0.04, lw=0.01)
+
+    # ---- bar dimensions per orientation (veto/us/ds) ------------------------
+
+    dim_lookup = {}
+    for group in ["veto_bar", "us_bar", "ds_bar"]:
+        dim_lookup[group] = {"ver": None, "hor": None}
+        for it in det_layout.get(group, []):
+            if it["ver"] == 1 and dim_lookup[group]["ver"] is None:
+                dim_lookup[group]["ver"] = (it["dx"], it["dy"], it["dz"])
+            if it["hor"] == 1 and dim_lookup[group]["hor"] is None:
+                dim_lookup[group]["hor"] = (it["dx"], it["dy"], it["dz"])
+
+    # ---- QDC colormaps & scales (SciFi vs bars) -----------------------------
+
+    scifi_qdcs = [h["qdc"] for h in all_hits if h["detType"] == 0 and h["qdc"] > 0]
+    bar_qdcs   = [h["qdc"] for h in all_hits if h["detType"] in [1,2,3] and h["qdc"] > 0]
+    sci_min, sci_max = (min(scifi_qdcs), max(scifi_qdcs)) if scifi_qdcs else (0, 1)
+    bar_min, bar_max = (min(bar_qdcs),   max(bar_qdcs))   if bar_qdcs   else (0, 1)
+    cmap_scifi = plt.cm.viridis   # SciFi continuous
+    cmap_bar   = plt.cm.viridis  # Bars continuous, as requested
+
+    # ---- draw hits ----------------------------------------------------------
+    for hit in all_hits:
+        det_type = hit["detType"]   # 0=scifi, 1=veto, 2=us, 3=ds
+        x, y, z  = hit["x"], hit["y"], hit["z"]
+        qdc      = hit["qdc"]
+        sid      = hit["hit_shower_id"]
+        is_vert  = hit["isVertical"]
+
+        # QDC colors (left figure)
+        if det_type == 0:
+            cval = (qdc - sci_min) / (sci_max - sci_min + 1e-9)
+            c_qdc = cmap_scifi(np.clip(cval, 0, 1))
+            if is_vert:
+                ax_xz_qdc.scatter(z, x, s=10, c=[c_qdc], marker="o", edgecolors="none")
+            else:
+                ax_yz_qdc.scatter(z, y, s=10, c=[c_qdc], marker="o", edgecolors="none")
+        else:
+            cval = (qdc - bar_min) / (bar_max - bar_min + 1e-9)
+            c_qdc = cmap_bar(np.clip(cval, 0, 1))
+            group = {1: "veto_bar", 2: "us_bar", 3: "ds_bar"}[det_type]
+            orient = "ver" if is_vert else "hor"
+            dx, dy, dz = dim_lookup.get(group, {}).get(orient, (0.5, 0.5, 0.5))
+            if is_vert:
+                add_rect(ax_xz_qdc, z, x, dz, dx, c_qdc, fill=True, alpha=0.9)
+            else:
+                add_rect(ax_yz_qdc, z, y, dz, dy, c_qdc, fill=True, alpha=0.9)
+
+        # Shower-ID colors (right figure)
+        c_shw = shower_color(sid)
+        if det_type == 0:
+            if is_vert:
+                ax_xz_shw.scatter(z, x, s=10, c=[c_shw], marker="o", edgecolors="none", alpha=0.7)
+            else:
+                ax_yz_shw.scatter(z, y, s=10, c=[c_shw], marker="o", edgecolors="none", alpha=0.7)
+        else:
+            group = {1: "veto_bar", 2: "us_bar", 3: "ds_bar"}[det_type]
+            orient = "ver" if is_vert else "hor"
+            dx, dy, dz = dim_lookup.get(group, {}).get(orient, (0.5, 0.5, 0.5))
+            if is_vert:
+                add_rect(ax_xz_shw, z, x, dz, dx, c_shw, fill=True, alpha=0.9)
+            else:
+                add_rect(ax_yz_shw, z, y, dz, dy, c_shw, fill=True, alpha=0.9)
+
+    # ---- colorbars for QDC-only (left column) -------------------------------
+
+    sm_scifi = plt.cm.ScalarMappable(cmap=cmap_scifi, norm=plt.Normalize(vmin=sci_min, vmax=sci_max))
+    sm_bar   = plt.cm.ScalarMappable(cmap=cmap_bar,   norm=plt.Normalize(vmin=bar_min,  vmax=bar_max))
+    
+    cax_scifi = fig.add_axes([0.05, 0.89, 0.10, 0.01])   # [x0, y0, width, height]
+    fig.colorbar(
+        sm_scifi,
+        cax=cax_scifi,
+        orientation="horizontal",
+        label="SciFi QDC"
+    )
+
+    # --- Bar QDC colorbar (above SciFi) ---
+    cax_bar = fig.add_axes([0.05, 0.92, 0.10, 0.01])
+    fig.colorbar(
+        sm_bar,
+        cax=cax_bar,
+        orientation="horizontal",
+        label="Veto / US / DS QDC"
+    )
+    
+    handles, labels = shower_id_legend_handles()
+    
+    
+    leg = fig.legend(
+        handles,
+        labels,
+        title="Shower ID Colors",
+        loc="upper right",
+        bbox_to_anchor=(0.3, 0.92),     # (x0, y0) in figure coords
+        frameon=False,
+        ncol=3,
+        fontsize=10,
+        title_fontsize=11,
+    )
+    
+    # ---- plot tracks in both 3D views --------------------------------------
+
+    if 'MC' in args.type:
+        summary = plot_MCTrack(ax_3d_a, event, shower_map)
+        ax_3d_a.text2D(
+            0.02, 0.98, summary,
+            transform=ax_3d_a.transAxes,
+            ha="left", va="top",
+            fontsize=40,
+            bbox=dict(facecolor="white", alpha=0.7, edgecolor="none")
+        )
+        plot_MCTrack(ax_3d_b, event, shower_map)
+
+    
+    # ---- synchronize 3D axis range with 2D plots -------------------------------
+
+    # Z-limits come from any Z-axis (XZ or YZ)
+    zmin = min(ax_xz_qdc.get_xlim()[0], ax_yz_qdc.get_xlim()[0])
+    zmax = max(ax_xz_qdc.get_xlim()[1], ax_yz_qdc.get_xlim()[1])
+    
+    # --- MODIFICATION: Restrictions X et Y fixes ---
+    target_x = [-45, -31]
+    target_y = [37, 51]
+
+    # Appliquer aux vues 2D (l'axe vertical des graphes est la coordonnée physique X ou Y)
+    ax_xz_qdc.set_ylim(target_x)
+    ax_xz_shw.set_ylim(target_x)
+    ax_yz_qdc.set_ylim(target_y)
+    ax_yz_shw.set_ylim(target_y)
+
+    # Définir les limites pour les vues 3D qui suivent
+    xmin, xmax = target_x
+    ymin, ymax = target_y
+
+    # X-limits come from XZ panels (x coordinate on vertical axis)
+    # xmin = min(ax_xz_qdc.get_ylim()[0], ax_xz_shw.get_ylim()[0])
+    # xmax = max(ax_xz_qdc.get_ylim()[1], ax_xz_shw.get_ylim()[1])
+
+    # # Y-limits come from YZ panels (y coordinate)
+    # ymin = min(ax_yz_qdc.get_ylim()[0], ax_yz_shw.get_ylim()[0])
+    # ymax = max(ax_yz_qdc.get_ylim()[1], ax_yz_shw.get_ylim()[1])
+    
+    ax_xz_qdc.set_zorder(10)
+    ax_xz_shw.set_zorder(10)
+    ax_yz_qdc.set_zorder(10)
+    ax_yz_shw.set_zorder(10)
+    for ax3 in (ax_3d_a, ax_3d_b):
+        ax3.set_xlim([xmin, xmax])
+        ax3.set_ylim([ymin, ymax])
+        ax3.set_zlim([zmin, zmax])
+        
+        # Ajustement de l'aspect ratio pour qu'il corresponde à vos données
+        ax3.set_box_aspect((3.75, 1, 1))
+        
+        # --- NOUVEAU : Rapproche la caméra pour remplir le cadre ---
+        # La valeur par défaut est ~10. Une valeur plus petite zoome.
+        # 6.5 semble être un bon compromis pour votre aspect ratio.
+        ax3.dist = 6.5 
+        
+        # J'ai supprimé les lignes 'ax3.set_position(...)' car 'ax3.dist'
+        # fait le travail de manière plus propre et plus fiable.
+    # for ax3 in (ax_3d_a, ax_3d_b):
+    #     ax3.set_xlim([xmin, xmax])
+    #     ax3.set_ylim([ymin, ymax])
+    #     ax3.set_zlim([zmin, zmax])
+    #     ax3.set_box_aspect((3.75, 1, 1))
+        
+    #     pos = ax3.get_position()
+    #     ax3.set_position([pos.x0 - 0.01, pos.y0, pos.width + 0.02, pos.height])
+    
+
+    ax_3d_a.view_init(elev=0, azim=-90,vertical_axis="y")
+    ax_3d_b.view_init(elev=90, azim=-90,vertical_axis="y")
+
+
+    
+    
+
+    # ---- annotation text ----------------------------------------------------
+
+    run_id = event_dict.get("runId", [None])
+    evt_id = event_dict.get("eventId", [None])
+    pdg    = event_dict.get("pdgCode", [None]) 
+    energy    = event_dict.get("energy", [None])
+    n_scifi    = event_dict.get("n_scifi", [None])
+    n_veto_hit = event_dict.get("n_veto_hit", [None])
+    pname = pdg_to_name.get(pdg)
+    header = f"type: {getattr(args, 'type', 'NA')}   run: {run_id}   evtId: {evt_id}   pdgCode:{pdg}, particle:{pname}, energy:{energy:.2f}GeV, \n n_scifi:{n_scifi}, n_veto: {n_veto_hit}"
+    # Put a single header across the top
+    fig.suptitle(header, y=0.985, fontsize=50)
+    #plt.tight_layout(rect=[0.03, 0, 1, 0.97])
+    fig.subplots_adjust(left=0.02)
+
+    # ---- finalize & save (vector) ------------------------------------------
+    fig.canvas.draw()
+    pdf.savefig(fig)
+        
+    # 1. Créer un dossier structuré (ex: plots_indiv/run_100933/evt_600000/)
+    out_dir = f"plots_indiv/run_{run_id}/evt_{evt_id}"
+    os.makedirs(out_dir, exist_ok=True)
+
+    # 2. Liste des axes à exporter avec leur nom de fichier
+    axes_map = {
+        "XZ_QDC": ax_xz_qdc,
+        "YZ_QDC": ax_yz_qdc,
+        # "XZ_ShowerID": ax_xz_shw,
+        # "YZ_ShowerID": ax_yz_shw,
+        "3D_View_A": ax_3d_a,
+        "3D_View_B": ax_3d_b
+    }
+
+    # 3. Boucle de sauvegarde "chirurgicale" (Bounding Box trick)
+    # On récupère le renderer pour calculer la taille exacte de chaque subplot
+    renderer = fig.canvas.get_renderer()
+    
+    for name, ax in axes_map.items():
+        # Calcul de la zone occupée par l'axe (en incluant les labels/titres)
+        bbox = ax.get_tightbbox(renderer).transformed(fig.dpi_scale_trans.inverted())
+        
+        # Sauvegarde en PNG (bbox_inches=bbox fait la découpe)
+        # pad_inches=0.1 ajoute une petite marge blanche propre autour
+        fig.savefig(f"{out_dir}/{name}.png", bbox_inches=bbox, pad_inches=0.1)
+    # ------------------------------------------------------
+    
+    plt.close()
+
+def build_mother_to_daughters(event):
+    """Return dict: mother_index -> [daughter_indices] for event.MCTrack."""
+    m2d = {}
+    n = event.MCTrack.GetEntries()
+    for i in range(n):
+        mid = event.MCTrack[i].GetMotherId()
+        m2d.setdefault(mid, []).append(i)
+        
+    #print(m2d)
+    return m2d
+
+def _categorize_seed_shower_id(track, event_level_pdg):
+    """
+    Decide the showerId for a *seed* track (motherId==0).
+    Rules:
+      - e/μ/τ -> ±11 / ±13 / ±15
+      - νe/νμ/ντ -> ±112/±114/±116 if event is NC-like; else keep ±12/±14/±16
+      - hadronic/other -> 0
+    """
+    pdg = int(track.GetPdgCode()) if hasattr(track, "GetPdgCode") else 0
+    apdg = abs(pdg)
+
+    # Heuristic: event-level NC flags often look like 112/114/116
+    # If event pdgCode matches those (or starts with '11' and length 3), use 100+flavor for neutrinos.
+    is_nc_event = str(event_level_pdg) in {"112", "114", "116", "-112", "-114", "-116"} 
+
+    if apdg in (11, 13, 15):
+        return pdg  # ±11/±13/±15
+    if apdg in (12, 14, 16):
+        return int(math.copysign(100 + apdg, pdg)) if is_nc_event else pdg
+    return 0  # hadronic/other
+
+def _assign_shower_ids(event, m2d, event_level_pdg):
+    """
+    Build dict: trackId -> showerId, seeding on tracks with motherId==0
+    and propagating showerId to all descendants.
+    """
+    n = event.MCTrack.GetEntries()
+    shower = {}
+
+    # Seeds = immediate daughters of the primary (MCTrack[0] usually has mother=-1).
+    seed_ids = [i for i in range(n) if event.MCTrack[i].GetMotherId() == 0]
+
+    #print('seed:',seed_ids)
+    # Determine showerId for each seed and flood-fill to its descendants
+    for sid in seed_ids:
+        seed_track = event.MCTrack[sid]
+        shower_id = _categorize_seed_shower_id(seed_track, event_level_pdg)
+
+        # DFS
+        stack = [sid]
+        while stack:
+            t = stack.pop()
+            if t in shower:
+                continue
+            shower[t] = shower_id
+            stack.extend(m2d.get(t, []))
+
+    # Any leftover tracks (not reachable from seeds) -> hadron(0) by default
+    for i in range(n):
+        if i not in shower:
+            shower[i] = 0
+
+    return shower
+
+def _fmt_track_line(tr, idx, shower_id):
+    """Nice one-line summary with start pos + momentum."""
+    pdg = tr.GetPdgCode() if hasattr(tr, "GetPdgCode") else None
+    x = tr.GetStartX() if hasattr(tr, "GetStartX") else float("nan")
+    y = tr.GetStartY() if hasattr(tr, "GetStartY") else float("nan")
+    z = tr.GetStartZ() if hasattr(tr, "GetStartZ") else float("nan")
+    mother_id = tr.GetMotherId()
+    # momentum
+    vec = None
+    if hasattr(tr, "GetMomentum"):
+        try:
+            vec = tr.GetMomentum()
+        except Exception:
+            vec = None
+    if not isinstance(vec, ROOT.TVector3):
+        px = tr.GetPx() if hasattr(tr, "GetPx") else 0.0
+        py = tr.GetPy() if hasattr(tr, "GetPy") else 0.0
+        pz = tr.GetPz() if hasattr(tr, "GetPz") else 0.0
+        vec = ROOT.TVector3(px, py, pz)
+
+    return f"Track {idx:>3}  PDG={pdg:>4}, mother_id={mother_id:>4}  showerId={shower_id:>4}  start=({x:.3g},{y:.3g},{z:.3g})  p=({vec.X():.3g},{vec.Y():.3g},{vec.Z():.3g}) |p|={vec.Mag():.3g}"
+
+def print_track_tree(event, m2d, track_idx, shower_map, indent=0):
+    """Recursive pretty-printer including showerId, start pos, momentum."""
+    tr = event.MCTrack[track_idx]
+    pad = " " * indent
+    line = _fmt_track_line(tr, track_idx, shower_map.get(track_idx, 0))
+    print(pad + line)
+    for d in m2d.get(track_idx, []):
+        print_track_tree(event, m2d, d, shower_map, indent + 4)
+
+def plot_MCTrack(ax_3d, event, shower_map, lw=0.2, alpha=0.5):
+    
+    
+    #print(shower_map)
+    n = event.MCTrack.GetEntries()
+    for i in range(n):
+        
+        trk = event.MCTrack[i]
+        x = trk.GetStartX()
+        y = trk.GetStartY()
+        z = trk.GetStartZ()
+        
+        mother_id = trk.GetMotherId()
+        if mother_id == -1:
+            continue
+        mom_trk = event.MCTrack[mother_id]
+        
+        xm = mom_trk.GetStartX()
+        ym = mom_trk.GetStartY()
+        zm = mom_trk.GetStartZ()
+        
+        sid = shower_map[i]
+        c = shower_color(sid)
+        
+        ax_3d.plot([xm, x], [ym, y], [zm, z],
+                       color=c, lw=lw, alpha=alpha)
+    
+    track_list = []
+    for aHit in event.Digi_MuFilterHits:
+        if not aHit.isValid() or aHit.GetSystem() != 1:  # Only Veto
+                continue
+        hit2MC = event.Digi_MuFilterHits2MCPoints[0]
+        detID = aHit.GetDetectorID()
+        linksToMCPoints = hit2MC.wList(detID)
+        
+        for mc_point_i, weight in linksToMCPoints: 
+            mc_point = event.MuFilterPoint[mc_point_i]
+            track_id = mc_point.GetTrackID()
+            track_list.append(track_id)
+            trk = event.MCTrack[track_id]
+            
+            # MCPoint position (where energy deposited)
+            xp = mc_point.GetX()
+            yp = mc_point.GetY()
+            zp = mc_point.GetZ()
+
+            # Daughter start position
+            x  = trk.GetStartX()
+            y  = trk.GetStartY()
+            z  = trk.GetStartZ()
+            mom_trk = event.MCTrack[mother_id]
+
+            # Mother start position
+            xm = mom_trk.GetStartX()
+            ym = mom_trk.GetStartY()
+            zm = mom_trk.GetStartZ()
+            
+            c='green'
+            ax_3d.scatter([xp], [yp], [zp], color=c, s=8, alpha=alpha)
+            ax_3d.plot([xm, x], [ym, y], [zm, z],
+                        color=c, lw=lw, alpha=alpha)
+
+
+    summary = summarize_track_hits(track_list)
+    return summary
+
+def summarize_track_hits(track_list):
+    ctr = Counter(track_list)
+    summary = "\n".join([f"MC Track {tid}: {nhits} MC points in Veto System" for tid, nhits in ctr.items()])
+    return summary
+
+def print_hits_table(all_hits):
+    if not all_hits:
+        print("No hits to display.")
+        return
+
+    # Extract keys in the order they appear in the dict
+    keys = list(all_hits[0].keys())
+
+    # Compute column widths
+    col_widths = {
+        key: max(len(key), *(len(str(hit[key])) for hit in all_hits))
+        for key in keys
+    }
+
+    # Build header
+    header = "  ".join(f"{key:{col_widths[key]}}" for key in keys)
+    print(header)
+    print("-" * len(header))
+
+    # Print each hit as a row
+    for hit in all_hits:
+        row = "  ".join(f"{str(hit[key]):{col_widths[key]}}" for key in keys)
+        print(row)
+    
+def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
+    """Process all hits in the event and update hits array and averages."""
+    MC = args.type
+    Scifi = snd_geo.modules['Scifi']
+    MuFilter = snd_geo.modules['MuFilter']
+    A, B = ROOT.TVector3(), ROOT.TVector3()
+    
+    eventId = event_dict["eventId"]
+    pdgCode = event_dict["pdgCode"]
+    
+    #read plane positions, vertical->top_x->A.x, horizontal->right_y->A.y
+
+
+    # pdgCode, ve:12/-12, vm:14/-14, vt:16/-16, NC:112/-112/114/-114/116/-116
+    # need a dictionary: trackId -> showerId (e:11/-11, muon:13/-13, tau:15/-15, NC:12/-12/13/-13/15/-15, hadron: 0)
+    # 1.find all the track from motherId=0
+    # 2. assign showerId to these track
+    # 3. assign the same showerId to the sub-track of these track
+    
+    # --- Build hierarchy and shower mapping ---
+    if "MC" in args.type:
+        m2d = build_mother_to_daughters(event)
+        shower_map = _assign_shower_ids(event, m2d, pdgCode)
+    else:
+        shower_map = []
+        
+    #print(det_layout)
+
+    # Now actually print the tree(s)
+    # primary_tracks = m2d.get(-1, [])
+    # for idx in primary_tracks:
+    #     print_track_tree(event, m2d, idx, shower_map, indent=0)
+    
+    # print(dir(event.MCTrack[0]))
+    #print(shower_map)
+    
+    # plot_MCTrack(event,event_dict,det_layout, pdf)
+
+    # Temporary storage for all hits with positions
+    all_hits = []
+    # SciFi hits
+    for aHit in event.Digi_ScifiHits:
+        if not aHit.isValid():
+            continue
+        detID = aHit.GetDetectorID()
+        station = detID // 1000000
+
+        Scifi.GetSiPMPosition(detID, A, B)
+
+        max_QDC = 200 * 16
+        this_qdc = 0
+        ns = max(1,aHit.GetnSides())
+        for side in range(ns):
+            for m in  range(aHit.GetnSiPMs()):
+                qdc = aHit.GetSignal(m+side*aHit.GetnSiPMs())
+                if not qdc < 0:
+                    this_qdc += qdc
+        if this_qdc > max_QDC :
+            this_qdc = max_QDC
+        hit_time = aHit.GetTime()
+        
+        if ('MC' in  args.type):
+            hit2MC = event.Digi_ScifiHits2MCPoints[0]
+            linksToMCPoints = hit2MC.wList(detID)
+            shower_id_list = []
+            for mc_point_i, weight in linksToMCPoints:  
+                scifi_point = event.ScifiPoint[mc_point_i]
+                track_id = scifi_point.GetTrackID()
+                shower_id = shower_map.get(track_id)
+                if shower_id is None:
+                    #print("shower_id is none, track id:", track_id)
+                    continue
+                shower_id_list.append(shower_id)
+            
+            unique_ids = set(shower_id_list)
+            if len(unique_ids) == 1:
+                hit_shower_id = next(iter(unique_ids))   
+            elif len(unique_ids) > 1:   
+                hit_shower_id = -1  
+            else:
+                hit_shower_id = -2
+        else:
+            hit_shower_id = -2
+            
+            
+            
+            
+            # break
+        
+        all_hits.append({
+            "detType": 0,
+            "station": station,
+            "isVertical": aHit.isVertical(),
+            "x":A.x(),
+            "y":A.y(),
+            "z":A.z(),
+            "qdc":this_qdc,
+            "hit_time": hit_time,
+            "hit_shower_id": hit_shower_id
+            
+        })
+
+    # MuFilter hits
+    
+
+    # n_veto_hit = 0
+    
+    # for aHit in event.Digi_MuFilterHits:
+        
+        
+    #     if not aHit.isValid():
+    #         continue
+    #     detID = aHit.GetDetectorID()
+    #     detType = aHit.GetSystem()
+    #     station = (detID // 1000) % 10
+    #     if aHit.GetSystem() == 1:
+    #         n_veto_hit+=1
+
+
+    #     MuFilter.GetPosition(detID, A, B)
+
+    #     max_QDC = 200 * 16
+    #     this_qdc = 0
+    #     ns = max(1,aHit.GetnSides())
+    #     for side in range(ns):
+    #         for m in  range(aHit.GetnSiPMs()):
+    #             qdc = aHit.GetSignal(m+side*aHit.GetnSiPMs())
+    #             if not qdc < 0:
+    #                 this_qdc += qdc
+    #     if this_qdc > max_QDC :
+    #         this_qdc = max_QDC
+    #     hit_time = aHit.GetTime()
+        
+    #     if ('MC' in  args.type):
+    #         hit2MC = event.Digi_MuFilterHits2MCPoints[0]
+    #         linksToMCPoints = hit2MC.wList(detID)
+    #         start_z = (
+    #             event.MCTrack[1].GetStartZ()
+    #             if event.MCTrack.GetEntries() > 1
+    #             else -999
+    #             )
+    #         event_dict["start_z"] = start_z
+    #     else:
+    #         hit_shower_id = -2
+            
+                
+  
+    #     all_hits.append({
+    #         "detType": detType,
+    #         "station": station+1,
+    #         "isVertical": aHit.isVertical(),
+    #         "x":A.x(),
+    #         "y":A.y(),
+    #         "z":A.z(),
+    #         "qdc":this_qdc,
+    #         "hit_time": hit_time,
+    #         "hit_shower_id": -2
+    #     })
+    
+    # event_dict["n_veto_hit"] = n_veto_hit
+    
+    #print_hits_table(all_hits)
+    plot_event(event,all_hits, det_layout, event_dict, args, shower_map, pdf)
+    
+    return 
+
+def main(args):
+    snd_geo = setup_geometry(args.geo_path )
+    print("getting geo layout")
+    if args.beam == "TI18":
+        det_layout = get_detector_layout(args.geo_path)    
+    else:
+        det_layout = get_detector_layout_testbeam(args.geo_path)
+    
+    raw_data, raw_tree = open_root_file(args.digi_path)
+    
+
+    
+    # Process each event
+    scifi_count_threshold = args.n_scifi
+    print(f"Data type: {args.type}, scifi_count_threshold:{scifi_count_threshold}")
+    
+    
+    event_dict = {}
+    
+    
+    base = os.path.basename(args.digi_path)          
+    base = os.path.splitext(base)[0]   
+    out_pdf = f'{args.out_dir}/{args.type}_{base}.pdf' 
+    os.makedirs(args.out_dir, exist_ok=True)
+    print(f"event display will be save to {out_pdf}")
+    print(f"start plotting events")
+    
+    with PdfPages(out_pdf) as pdf:
+        plotted_event = 0
+        for i_event, event in tqdm(enumerate(raw_tree), total=raw_tree.GetEntries()):
+            #if i_event % 10000 == 0:
+            #    print(f"processed {i_event} events")
+            
+            n_scifi = event.Digi_ScifiHits.GetEntries()
+            event_dict["n_scifi"] = n_scifi
+            if n_scifi<=scifi_count_threshold:
+                #print(f'skip event with {n_scifi} scifi hits (scifi hit threshold:{scifi_count_threshold}) ')
+                continue
+            
+            event_dict["eventIndex"] = i_event
+            event_dict["runId"] = event.EventHeader.GetRunId()
+
+            if ('MC' in  args.type):
+                event_dict["isMC"] = 1
+                #print(dir(event.EventHeader))
+                
+                try:
+                    event_dict["eventId"] = event.EventHeader.GetEventNumber()
+                except Exception:
+                    event_dict["eventId"] = event.EventHeader.GetMCEntryNumber()
+                # Particle codes and initial position
+                
+                event_pdg0 = raw_tree.MCTrack[0].GetPdgCode()
+                event_pdg1 = raw_tree.MCTrack[1].GetPdgCode()
+                
+                event_dict["energy"] = raw_tree.MCTrack[0].GetEnergy()
+                
+
+                neutrino_pdgCode = [12, -12, 14, -14, 16, -16]
+                if (event_pdg0 == event_pdg1) and (event_pdg0 in neutrino_pdgCode):
+                    event_dict["pdgCode"] = event_pdg0 - 100 if event_pdg0 < 0 else event_pdg0 + 100
+                else:
+                    event_dict["pdgCode"] = event_pdg0
+                    
+                #print(dir(raw_tree.MCTrack[0]))
+                event_dict["energy"] = raw_tree.MCTrack[0].GetEnergy()
+
+
+            elif('real' in  args.type):
+                event_dict["isMC"] = 0
+                if 'pi' in args.type:
+                    event_dict["pdgCode"] = 211
+                elif 'el' in args.type:
+                    event_dict["pdgCode"] = 11
+                else:
+                    event_dict["pdgCode"] = 0
+                    print("unknown particle type for real data, set pdgCode=0")
+                event_dict["eventId"] = event.EventHeader.GetEventNumber()
+                event_dict["energy"] = -999
+            #print(f'-------{event_dict["pdgCode"]}---------')
+            process_hits(raw_tree, snd_geo, event_dict, det_layout, args, pdf)
+            plotted_event+=1
+            
+            if plotted_event>=args.n_event:
+                break
+        
+    print("finished")
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("-d", "--digiPath", dest="digi_path", help="digitized data file path", required=True)
+    parser.add_argument("-g", "--geoPath", dest="geo_path", help="geo path", required=True)
+    parser.add_argument("-o", "--outDir", dest="out_dir", help="output directory ", default="./plot_event_display")
+    parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
+    parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
+    parser.add_argument("-b", "--beam", dest='beam', help='testbeam or TI18', default="testbeam")
+    parser.add_argument("-n", "--nEvent", dest='n_event', help='max number of events', default=20)
+    
+    parser.add_argument("-s", "--n_scifi", dest='n_scifi', help='scifi count threshold', default=1)
+
+    args = parser.parse_args()
+
+    main(args)
+    
+    
+    
+# python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/geofile_full.Genie-TGeant4.root -t MC_neutrino
+# python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/1/sndLHC.Genie-TGeant4_dig.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/1/geofile_full.Genie-TGeant4.root -t MC_neutrino
+# python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/K_5_10/Ntuples/1/sndLHC.PG_130-TGeant4_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/K_5_10/Ntuples/1/geofile_full.PG_130-TGeant4.root -t MC_kaon
+# python event_display.py -d ./test_data/filtered_data_2024_run8285.root -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -t real_data 
+# python event_display.py -d ./test_data/filtered_data_2024_run8285_n=10.root -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -t real_data 
+
+# python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/testbeam2024/100GeV_11/X_neg38_Y_45_Z_315/21/sndLHC.PG_11-TGeant4_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/testbeam2024/100GeV_11/X_neg38_Y_45_Z_315/21/geofile_full.PG_11-TGeant4.root -t MC_el
+# python event_display.py -d /eos/experiment/sndlhc/convertedData/commissioning/testbeam_24/run_100933/sndsw_raw-0006.root -g /eos/experiment/sndlhc/convertedData/commissioning/testbeam_24/geofile_sndlhc_H4_2024_W_2walls.root -t real_el
+# python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/testbeam2024/150GeV_211/X_neg37.93_Y_43.12_Z_315/sndLHC.PG_211-TGeant4_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/testbeam2024/150GeV_211/X_neg37.93_Y_43.12_Z_315/geofile_full.PG_211-TGeant4.root -t MC_pi
+# python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/testbeam2024/150GeV_11/X_neg37.93_Y_43.12_Z_315/sndLHC.PG_11-TGeant4_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/testbeam2024/150GeV_11/X_neg37.93_Y_43.12_Z_315/geofile_full.PG_11-TGeant4.root -t MC_el
+# python event_display.py -d /eos/experiment/sndlhc/convertedData/commissioning/testbeam_24/run_100946/sndsw_raw-0002.root -g /eos/experiment/sndlhc/convertedData/commissioning/testbeam_24/geofile_sndlhc_H4_2024_W_2walls.root -t real_pi
