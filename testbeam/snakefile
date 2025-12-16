@@ -25,13 +25,14 @@ wildcard_constraints:
 
 
 metadata_csv_list = [
-    "MC_data_testbeam2023_metadata.csv",
+    #"MC_data_testbeam2023_metadata.csv",
     "MC_data_testbeam2024_metadata.csv",
-    "real_data_testbeam_June2023_H8_metadata.csv",
+    #"real_data_testbeam_June2023_H8_metadata.csv",
     "real_data_testbeam_24_metadata.csv",
+    #"real_data_testbeam_24_metadata_subset.csv",
 ]
 
-train_mode = True
+train_mode = False
 train_split = 'train_2024_split_v2'
 train_model = 'testbeam_2024_GravNet_v2'
 # train_split = 'train_2024_split_v1_horizontal'
@@ -156,10 +157,10 @@ def collect_model_path(target_name):
 
 rule finish:
     input:
-        expand("{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir = personal_work_dir),
-        expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list,work_dir = personal_work_dir),
+        #expand("{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir = personal_work_dir),
+        #expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list,work_dir = personal_work_dir),
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
-        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         # expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         # expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
@@ -441,7 +442,7 @@ rule process_hits:
 
 rule process_features:
     input:
-        expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir=personal_work_dir),
+        #expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir=personal_work_dir),
         digi=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("feature_path", wildcards.feature_path, "geo_path"),
         script = f"{personal_work_dir}/snd-ml/testbeam/Converted_data/digi_2_features_testbeam.py"

@@ -5,6 +5,8 @@ import SndlhcGeo
 import array
 from collections import defaultdict
 import math
+from tqdm import tqdm
+
 
 def setup_geometry(geo_file):
     """Initialize and return the geometry configurations."""
@@ -178,16 +180,22 @@ def process_hit_density(all_hits, branch_vars):
             density_sum += wi
 
         branch_vars[key][0] = density_sum
-
-    # Set default value for missing planes
-    for key in [
-        "density_scifi1", "density_scifi2", "density_scifi3", "density_scifi4",
-    ]:
-        if key not in branch_vars:
-            continue
-        if key not in plane_hits:
-            branch_vars[key][0] = -999
     
+    sum_valid_densities(
+        branch_vars,
+        [f"density_scifi{i}" for i in range(1, 5)],
+        "density_scifi"
+    )
+    
+    
+def sum_valid_densities(branch_vars, group_keys, target_key):
+    total = 0
+    for key in group_keys:
+        value = branch_vars[key][0]
+        if value >=0:
+            total += value
+    branch_vars[target_key][0] = total
+         
     
 def process_showerTagged(all_hits, branch_vars, window_cm=3.3, threshold=36):
     #A sliding window of length d (33mm) checks for at least H (set to 36) hits within one SciFi station (X and Y).
@@ -401,7 +409,7 @@ def main(args):
 
 
         # Hit density sums per plane
-        ("density_scifi1", 'd'), ("density_scifi2", 'd'), ("density_scifi3", 'd'), ("density_scifi4", 'd'),
+        ("density_scifi1", 'd'), ("density_scifi2", 'd'), ("density_scifi3", 'd'), ("density_scifi4", 'd'), ("density_scifi", 'd'),
 
         ("showerTagged", 'i'),
         ("showerStartStation", 'i'),
@@ -409,6 +417,7 @@ def main(args):
         ("avgPos_slope_x", 'd'), ("avgPos_slope_y", 'd'),
         ("centroid_slope_x", 'd'), ("centroid_slope_y", 'd'),
 
+        ("start_z", 'd'),
         #energy, 
     ]
 
@@ -422,9 +431,13 @@ def main(args):
         
     # Process each event
 
-    for i in range(raw_tree.GetEntries()):
+    n = raw_tree.GetEntries()
+    if n>args.max_event:
+        n = args.max_event
+    for i in tqdm(range(n), total=n, desc="Processing events"):
         if i % 10000 == 0:
             print(f"processed {i} events")
+
         # Reset all branch variables before filling them
         for key in branch_vars:
             branch_vars[key][0] = -999
@@ -459,6 +472,13 @@ def main(args):
             branch_vars["px"][0] = raw_tree.MCTrack[0].GetPx()
             branch_vars["py"][0] = raw_tree.MCTrack[0].GetPy()
             branch_vars["pz"][0] = raw_tree.MCTrack[0].GetPz()
+            
+            start_z = (
+                raw_tree.MCTrack[1].GetStartZ()
+                if raw_tree.MCTrack.GetEntries() > 1
+                else -999
+                )
+            branch_vars["start_z"][0] = start_z
             
         elif('real' in  args.type):
             if beam_type != 'no type':
@@ -496,7 +516,7 @@ if __name__ == "__main__":
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
     parser.add_argument("-pdg", "--pdg", dest="pdg", help="PDG code", required=False, default='no type')
-
+    parser.add_argument("-m", "--max_event", dest="max_event", help="max processed events", required=False, default=100000)
     args = parser.parse_args()
 
     main(args)
