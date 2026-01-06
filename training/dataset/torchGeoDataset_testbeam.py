@@ -50,22 +50,7 @@ class PredGeoDataset(InMemoryDataset):
             else:
                 hit_feature = torch.stack([evt["hitFeature"][col] for col in evt["hitFeature"]]).squeeze().mT
 
-            # Select only the columns specified by selected_veto_hit_columns
-            if self.selected_veto_hit_columns:
-                veto_hit_feature = torch.stack([evt["vetoHitFeature"][col] for col in self.selected_veto_hit_columns]).squeeze()
-            else:
-                veto_hit_feature = torch.stack([evt["vetoHitFeature"][col] for col in evt["vetoHitFeature"]]).squeeze()
-
-            # Ensure veto_hit_feature is 2D with shape (features, N)
-            if veto_hit_feature.ndim == 1:
-                veto_hit_feature = veto_hit_feature.unsqueeze(-1)
-            veto_hit_feature = veto_hit_feature.mT
-
-            # Combine hit and veto hit features if required
-            if use_veto_hits:
-                x = torch.cat([hit_feature, veto_hit_feature], dim=0)
-            else:
-                x = hit_feature
+            x = hit_feature
 
             # Select event features if specified
             if self.use_event_feature and self.selected_event_columns:
@@ -74,6 +59,7 @@ class PredGeoDataset(InMemoryDataset):
                 event_feature = torch.tensor([])  # Default empty tensor if no event columns are selected
 
             # Target values (e.g., particle ID mapping)
+
             y = torch.tensor([particle_to_target.get(evt["pdgCode"])]) 
             
             # Event identifiers (pdgCode, runId, eventId)

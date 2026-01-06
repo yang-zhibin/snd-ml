@@ -1,0 +1,3 @@
+- testbeam_2024_GravNet_v2:
+  - config: /afs/cern.ch/work/z/zhibin/snd-ml/training/configs/testbeam_2024_GravNet_v2.yml
+  - ckpt:  /afs/cern.ch/work/z/zhibin/snd-ml/training/log/testbeam_2024_GravNet__train_2024_split_v2__v2__1765834772/best.ckpt

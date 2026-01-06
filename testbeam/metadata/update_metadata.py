@@ -158,9 +158,12 @@ def main(args):
     else:
         print("Warning: 'subfolder' column not found; no rows dropped.")
     
+    # ToDo drop beam_type == mu-, no type
+    
     df["feature_path"] = df["digi_path"].apply(get_new_path, pre_fix="feature", file_type=".root", eos_path=args.eos_path)
     df["hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="hit", file_type=".root", eos_path=args.eos_path)
     df["pt_hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="pt_hit", file_type=".pt.gz", eos_path=args.eos_path)
+    df["prediction_testbeam_2024_GravNet_v2_output_path"] = df["digi_path"].apply(get_new_path, pre_fix="prediction_testbeam_2024_GravNet_v2_output", file_type=".root", eos_path=args.eos_path)
     
     if data_type == "MC_data":
         df = get_MC_particle_type_and_energy(df, particle_subfolder)

@@ -61,91 +61,152 @@ def process_counts(all_hits, branch_vars):
             branch_vars["count_scifi"][0] += 1
 
 def process_avgPos(all_hits, branch_vars):
-    #veto_{1-2}_y, 
-    #veto_3_x, 
-    
-    #scifi_{1-5}_{x,y}, 
-    #US_{1-5}_y, 
-    
-    #DS_{1-4}_{x,y}
-    
-    #y means hotrizontal, and cal the avgPos of y
-    #x means vertival, and cal the avgPos of y
-    # Create temporary storage for sums and counts
+    """
+    Computes:
+      - Per-station averages: avg_scifi{1-4}_{x,y}
+          vertical planes -> x, horizontal planes -> y
+      - Global averages: avg_scifi_x, avg_scifi_y
+          vertical planes -> x, horizontal planes -> y
+    """
+
+    # Per-station accumulators
     sums = defaultdict(float)
     counts = defaultdict(int)
 
+    # Global accumulators
+    sum_x = 0.0
+    sum_y = 0.0
+    cnt_x = 0
+    cnt_y = 0
+
     for hit in all_hits:
-        detType = hit["detType"]
+        if hit["detType"] != 0:  # SciFi only
+            continue
+
         station = hit["station"]
         isVertical = hit["isVertical"]
 
+        # Global averages (all stations)
+        if isVertical:
+            sum_x += hit["x"]
+            cnt_x += 1
+        else:
+            sum_y += hit["y"]
+            cnt_y += 1
 
-        if detType == 0:  # SciFi
-            if 1 <= station <= 4:
-                if isVertical:
-                    key = f"avg_scifi{station}_x"
-                    sums[key] += hit["x"]
-                    counts[key] += 1
-                else:
-                    key = f"avg_scifi{station}_y"
-                    sums[key] += hit["y"]
-                    counts[key] += 1
+        # Per-station averages (stations 1-4, as in your original code)
+        if 1 <= station <= 4:
+            if isVertical:
+                key = f"avg_scifi{station}_x"
+                sums[key] += hit["x"]
+                counts[key] += 1
+            else:
+                key = f"avg_scifi{station}_y"
+                sums[key] += hit["y"]
+                counts[key] += 1
 
-    # Write averages to branch_vars
-    for key in sums:
-        avg = sums[key] / counts[key] if counts[key] > 0 else -999
-        branch_vars[key][0] = avg
+    DEFAULT = -999
 
-    # Fill missing branches with default -999
+    # ---- Fill per-station branches (computed ones) ----
+    for key, total in sums.items():
+        if key in branch_vars:
+            branch_vars[key][0] = total / counts[key] if counts[key] > 0 else DEFAULT
+
+    # ---- Fill missing per-station branches with DEFAULT ----
     for key in [
         "avg_scifi1_x", "avg_scifi1_y", "avg_scifi2_x", "avg_scifi2_y",
         "avg_scifi3_x", "avg_scifi3_y", "avg_scifi4_x", "avg_scifi4_y",
     ]:
-        if key not in branch_vars:
-            continue  # skip if branch not defined
-        if key not in counts:
-            branch_vars[key][0] = -999
+        if key in branch_vars and key not in counts:
+            branch_vars[key][0] = DEFAULT
+
+    # ---- Fill global branches ----
+    if "avg_scifi_x" in branch_vars:
+        branch_vars["avg_scifi_x"][0] = (sum_x / cnt_x) if cnt_x > 0 else DEFAULT
+
+    if "avg_scifi_y" in branch_vars:
+        branch_vars["avg_scifi_y"][0] = (sum_y / cnt_y) if cnt_y > 0 else DEFAULT
 
 
 def process_centroid(all_hits, branch_vars):
-    # Store sum(QDC * pos) and sum(QDC) per plane
+    """
+    Computes:
+      - Per-station QDC-weighted centroids:
+          centroid_scifi{1-4}_{x,y}
+      - Global QDC-weighted centroids:
+          centroid_scifi_x, centroid_scifi_y
+
+    Convention:
+      - Vertical planes   -> x
+      - Horizontal planes -> y
+    """
+
+    # Per-station accumulators
     weighted_sums = defaultdict(float)
     total_qdc = defaultdict(float)
 
-    for hit in all_hits:
-        detType = hit["detType"]
-        station = hit["station"]
-        isVertical = hit["isVertical"]
-        qdc = hit.get("qdc", 0)
+    # Global accumulators
+    global_weighted_x = 0.0
+    global_weighted_y = 0.0
+    global_qdc_x = 0.0
+    global_qdc_y = 0.0
 
+    for hit in all_hits:
+        if hit["detType"] != 0:  # SciFi only
+            continue
+
+        qdc = hit.get("qdc", 0)
         if qdc <= 0:
             continue
 
+        station = hit["station"]
+        isVertical = hit["isVertical"]
 
-        if detType == 0:  # SciFi
-            if 1 <= station <= 4:
-                if isVertical:
-                    key = f"centroid_scifi{station}_x"
-                    weighted_sums[key] += qdc * hit["x"]
-                    total_qdc[key] += qdc
-                else:
-                    key = f"centroid_scifi{station}_y"
-                    weighted_sums[key] += qdc * hit["y"]
-                    total_qdc[key] += qdc
+        # ---- Global centroids ----
+        if isVertical:
+            global_weighted_x += qdc * hit["x"]
+            global_qdc_x += qdc
+        else:
+            global_weighted_y += qdc * hit["y"]
+            global_qdc_y += qdc
 
-    # Finalize
-    all_keys = [
-        "centroid_scifi1_x", "centroid_scifi1_y", "centroid_scifi2_x", "centroid_scifi2_y",
-        "centroid_scifi3_x", "centroid_scifi3_y", "centroid_scifi4_x", "centroid_scifi4_y",
+        # ---- Per-station centroids (1–4, same as original) ----
+        if 1 <= station <= 4:
+            if isVertical:
+                key = f"centroid_scifi{station}_x"
+                weighted_sums[key] += qdc * hit["x"]
+                total_qdc[key] += qdc
+            else:
+                key = f"centroid_scifi{station}_y"
+                weighted_sums[key] += qdc * hit["y"]
+                total_qdc[key] += qdc
+
+    DEFAULT = -999
+
+    # ---- Per-station finalization ----
+    per_station_keys = [
+        "centroid_scifi1_x", "centroid_scifi1_y",
+        "centroid_scifi2_x", "centroid_scifi2_y",
+        "centroid_scifi3_x", "centroid_scifi3_y",
+        "centroid_scifi4_x", "centroid_scifi4_y",
     ]
 
-    for key in all_keys:
-        if total_qdc[key] > 0:
+    for key in per_station_keys:
+        if key in branch_vars and total_qdc[key] > 0:
             branch_vars[key][0] = weighted_sums[key] / total_qdc[key]
-        else:
-            branch_vars[key][0] = -999
-            
+        elif key in branch_vars:
+            branch_vars[key][0] = DEFAULT
+
+    # ---- Global finalization ----
+    if "centroid_scifi_x" in branch_vars:
+        branch_vars["centroid_scifi_x"][0] = (
+            global_weighted_x / global_qdc_x if global_qdc_x > 0 else DEFAULT
+        )
+
+    if "centroid_scifi_y" in branch_vars:
+        branch_vars["centroid_scifi_y"][0] = (
+            global_weighted_y / global_qdc_y if global_qdc_y > 0 else DEFAULT
+        )
 
 def process_hit_density(all_hits, branch_vars):
     plane_hits = defaultdict(list)
@@ -397,11 +458,13 @@ def main(args):
         
         ("count_scifi1", 'i'), ("count_scifi2", 'i'), ("count_scifi3", 'i'),("count_scifi4", 'i'), ("count_scifi", 'i'),
         
+        ("avg_scifi_x", 'd'), ("avg_scifi_y", 'd'),
         ("avg_scifi1_x", 'd'), ("avg_scifi1_y", 'd'),
         ("avg_scifi2_x", 'd'), ("avg_scifi2_y", 'd'),
         ("avg_scifi3_x", 'd'), ("avg_scifi3_y", 'd'),
         ("avg_scifi4_x", 'd'), ("avg_scifi4_y", 'd'),
         
+        ("centroid_scifi_x", 'd'), ("centroid_scifi_y", 'd'),
         ("centroid_scifi1_x", 'd'), ("centroid_scifi1_y", 'd'),
         ("centroid_scifi2_x", 'd'), ("centroid_scifi2_y", 'd'),
         ("centroid_scifi3_x", 'd'), ("centroid_scifi3_y", 'd'),
@@ -432,7 +495,7 @@ def main(args):
     # Process each event
 
     n = raw_tree.GetEntries()
-    if n>args.max_event:
+    if (n>args.max_event) and ('real' in  args.type):
         n = args.max_event
     for i in tqdm(range(n), total=n, desc="Processing events"):
         if i % 10000 == 0:
@@ -516,7 +579,7 @@ if __name__ == "__main__":
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
     parser.add_argument("-pdg", "--pdg", dest="pdg", help="PDG code", required=False, default='no type')
-    parser.add_argument("-m", "--max_event", dest="max_event", help="max processed events", required=False, default=100000)
+    parser.add_argument("-m", "--max_event", dest="max_event", help="max processed events", required=False, default=2000)
     args = parser.parse_args()
 
     main(args)

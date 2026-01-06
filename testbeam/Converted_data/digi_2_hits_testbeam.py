@@ -3,6 +3,8 @@ import os
 from argparse import ArgumentParser
 import SndlhcGeo
 from array import array
+from tqdm import tqdm
+
 
 def setup_geometry(geo_file):
     """Initialize and return the geometry configurations."""
@@ -91,7 +93,11 @@ def main(args):
     new_tree.Branch("Id", ids)
     new_tree.Branch("Hits", hits)
     
-    for i in range(raw_tree.GetEntries()):
+    n = raw_tree.GetEntries()
+    if (n>args.max_event) and ('real' in  args.type):
+        n = args.max_event
+    
+    for i in tqdm(range(n), total=n, desc="Processing events"):
         entry_number = i
         raw_tree.GetEntry(entry_number)
         
@@ -147,6 +153,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
     parser.add_argument("-pdg", "--pdg", dest="pdg", help="PDG code", required=False, default='no type')
     parser.add_argument("-w", "--work_path", dest="work_path", help="work path",required=True)
+    parser.add_argument("-m", "--max_event", dest="max_event", help="max processed events", required=False, default=2000)
 
     args = parser.parse_args()
 

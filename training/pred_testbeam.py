@@ -12,7 +12,7 @@ from pathlib import Path
 from pytorch_lightning import Trainer
 
 
-from dataset.torchGeoDataset import PredGeoDataset
+from dataset.torchGeoDataset_testbeam import PredGeoDataset
 from torch_geometric.loader import DataLoader
 from dataset.CallbackSaver import RootSaver
 
@@ -32,7 +32,8 @@ def main(args):
 
     with open(args.models, 'r') as file:
         models = yaml.safe_load(file)
-
+    
+    print(models)
     print(f'model :{model_name}')
     for entry in models:
         if model_name in entry:
@@ -84,7 +85,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input", dest="input", help='input pt hit file path')
     parser.add_argument("-o", "--output", dest="output", help='prediction output file path')
     parser.add_argument("-t", "--tmpdir", dest="tmpdir", help='tmpdir for dataloader')
-    parser.add_argument("-m", "--models", dest="models", help='models config file path', default='/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/model_config.yaml')
+    parser.add_argument("-m", "--models", dest="models", help='models config file path')
 
     args = parser.parse_args()
     main(args)

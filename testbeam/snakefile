@@ -25,16 +25,17 @@ wildcard_constraints:
 
 
 metadata_csv_list = [
-    #"MC_data_testbeam2023_metadata.csv",
+    # "MC_data_testbeam2023_metadata.csv",
     "MC_data_testbeam2024_metadata.csv",
-    #"real_data_testbeam_June2023_H8_metadata.csv",
+    # "real_data_testbeam_June2023_H8_metadata.csv",
     "real_data_testbeam_24_metadata.csv",
-    #"real_data_testbeam_24_metadata_subset.csv",
 ]
 
 train_mode = False
 train_split = 'train_2024_split_v2'
 train_model = 'testbeam_2024_GravNet_v2'
+
+process_model = 'testbeam_2024_GravNet_v2'
 # train_split = 'train_2024_split_v1_horizontal'
 # train_model = 'testbeam_2024_GravNet_v1_horizontal'
 # train_split = 'train_2024_split_v1_vertical'
@@ -113,7 +114,7 @@ def collect_target_paths(target_name):
 
 
 def collect_model_path(target_name):
-    with open("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/model_config.yaml", "r") as file:
+    with open(f"{personal_work_dir}/snd-ml/testbeam/metadata/model_config.yaml", "r") as file:
         model_config = yaml.safe_load(file)
     
 
@@ -158,18 +159,17 @@ def collect_model_path(target_name):
 rule finish:
     input:
         #expand("{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir = personal_work_dir),
-        #expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list,work_dir = personal_work_dir),
+        # expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list,work_dir = personal_work_dir),
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
         expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
         # expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         # expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
         #expand("{model_3d_ckpt}", model_3d_ckpt=collect_model_path('ckpt')),
-        # expand("{model_output}", model_output=collect_model_path('model_output')),
+        expand("{model_output}", model_output=collect_model_path('model_output')),
         #expand("{eval_output}", eval_output=collect_model_path('eval_output')),
         #expand("{model_3d_output}", model_3d_output=collect_model_path('model_output'))
         #expand("{matrix_output}", matrix_output=collect_model_path('matrix_output')),
-
 
 
 rule train:
@@ -275,121 +275,16 @@ rule update_metadata:
 #         python {input.script} -i {input.raw_metadata} -o {output.updated_metadata} -e {params.eos_dir}
 #         """
 
-
-# beam_type = ["e-"]
-# energy = ["150GeV", "200GeV", "250GeV", "300GeV"]
-# year = ['2024']
-
-beam_type = ["pi-"]
-energy = ["300GeV"]
-year = ['2023']
-
-# beam_type = ["pi+"]
-# energy = ["100GeV","180GeV"]
-# year = ['2023']
-
-rule plots:
-    input:
-        # expand("/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/preselection/plots/plot_flags/hist.{beam_type}_{energy}_{year}.done",
-        #        beam_type=beam_type, energy=energy, year=year)
-        expand("/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/feature_plots/plot_flags/hist.{beam_type}_{energy}_{year}.done",
-               beam_type=beam_type, energy=energy, year=year)
-
-
-rule preSelection_plot:
-    input:
-        script="/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/preselection/preSlection_plot.py"
-    output:
-        # one flag file per histogram name (wildcard)
-        touch("/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/preselection/plots/plot_flags/hist.{beam_type}_{energy}_{year}.done")
-    params:
-        dest_dir="/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/preselection/plots"
-    threads: 1
-    resources:
-        runtime=8*60*60,
-        mem_mb=8000,
-        disk_mb=2000,
-        nvidia_gpu=0
-    shell:
-        r"""
-        echo "running plot_distribution for {wildcards.beam_type}, {wildcards.energy}, {wildcards.year}"
-
-        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
-        set +u  # Avoid unbound variable errors
-        
-        # Set up environment
-        echo "Setting up SNDSW"
-        SNDLHC_mymaster={personal_work_dir}/public/
-        export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
-        source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
-        eval $(alienv load sndsw/latest-master-release --no-refresh)
-        
-        export EOSSHIP=root://eosuser.cern.ch/
-
-        mkdir -p ./tmp/plots/
-        # Run evaluation script for this histogram
-        python {input.script} -b {wildcards.beam_type} -e {wildcards.energy} -y {wildcards.year}
-
-        # Copy result to final destination
-        rm -r {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
-        mkdir -p {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
-        xrdcp ./tmp/plots/* {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
-        rm -r ./tmp/plots/
-        """
-        
-        
-rule feature_plot:
-    input:
-        script="{personal_work_dir}/snd-ml/testbeam/Converted_data/feature_plots.py"
-    output:
-        # one flag file per histogram name (wildcard)
-        touch("/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/feature_plots/plot_flags/hist.{beam_type}_{energy}_{year}.done")
-    params:
-        dest_dir="/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/Converted_data/feature_plots"
-    threads: 1
-    resources:
-        runtime=8*60*60,
-        mem_mb=8000,
-        disk_mb=2000,
-        nvidia_gpu=0
-    shell:
-        r"""
-        echo "running plot_distribution for {wildcards.beam_type}, {wildcards.energy}, {wildcards.year}"
-
-        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
-        set +u  # Avoid unbound variable errors
-        
-        # Set up environment
-        echo "Setting up SNDSW"
-        SNDLHC_mymaster={personal_work_dir}/public/
-        export ALIBUILD_WORK_DIR=$SNDLHC_mymaster/sw
-        source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
-        eval $(alienv load sndsw/latest-master-release --no-refresh)
-        
-        export EOSSHIP=root://eosuser.cern.ch/
-
-        mkdir -p ./tmp/plots/
-        # Run evaluation script for this histogram
-        python {input.script} -b {wildcards.beam_type} -e {wildcards.energy} -y {wildcards.year}
-
-        # Copy result to final destination
-        rm -r {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
-        mkdir -p {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
-        xrdcp ./tmp/plots/* {params.dest_dir}/{wildcards.beam_type}_{wildcards.energy}_{wildcards.year}/
-        rm -r ./tmp/plots/
-        """
-
-
 rule process_hits:
     input:
-        expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir=personal_work_dir),
+        #expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir=personal_work_dir),
         digi=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "digi_path"),
         geo=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "geo_path"),
         # preSelect=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "preSelect_path"),
+        script = f"{personal_work_dir}/snd-ml/testbeam/Converted_data/digi_2_hits_testbeam.py",
         
         
     params:
-        script = f"{personal_work_dir}/snd-ml/testbeam/Converted_data/digi_2_hits_testbeam.py",
         data_type=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "data_type"),
         pdg=lambda wildcards: get_metadata_value("hit_path", wildcards.hit_path, "beam_type"),
         env_file = f"{personal_work_dir}/snd-ml/testbeam/env/env_sndsw.sh",
@@ -425,7 +320,7 @@ rule process_hits:
 
         echo "Running digi_2_hits.py"
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
-            {params.script} \
+            {input.script} \
             -d {input.digi} \
             -g {input.geo} \
             -o "${{tmp_output}}" \
@@ -553,3 +448,133 @@ rule process_pt_hit:
         # Cleanup
         rm -rf "${{tmp_dir}}"
         """
+
+rule prediction:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        #expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
+        #hit_path=lambda wildcards: get_metadata_value("pt_prefix", wildcards.pt_prefix, "hit_path"),
+        #expand("{model_ckpt}", model_ckpt=collect_model_path('ckpt')),
+        pt_hit_file=lambda wildcards: get_metadata_from_output("prediction", wildcards.model_output, "pt_hit_path"),
+    params:    
+        script = f"{personal_work_dir}/snd-ml/training/pred_testbeam.py",
+        model_config_path =f"{personal_work_dir}/snd-ml/testbeam/metadata/model_config.yaml"
+    output:
+        pred_output = "{model_output}",
+
+    threads:1
+    resources:
+        runtime=12*60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        echo "running prediction"
+
+        # Avoid unbound variable error (only occurs when using Snakemake)
+        set +u 
+
+        # Set up environment
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107_cuda x86_64-el9-gcc11-opt
+        export EOSSHIP=root://eosuser.cern.ch/
+        # Create a unique temporary directory
+        tmp_dir=$(mktemp -d)
+        tmp_dir_dataloader=$(mktemp -d)
+        filename=$(basename "{output.pred_output}")
+        tmp_output="${{tmp_dir}}/${{filename}}"
+
+        # Run prediction script
+        python {params.script} \
+            -i {input.pt_hit_file} \
+            -o "${{tmp_output}}" \
+            -t "${{tmp_dir_dataloader}}" \
+            -m {params.model_config_path}
+        # Copy result to final destination
+        xrdcp -f "${{tmp_output}}" "{output.pred_output}" || {{ echo "xrdcp failed"; exit 1; }}
+
+        # Cleanup
+        rm -rf "${{tmp_dir}}"
+        """
+
+
+CUT_STATES = [ "scifi_gt_50"] #  "nocut"
+HIST_NAMES = [
+    "Prediction",
+    "z",
+    "density_scifi", 
+    "density_scifi1",
+    "density_scifi2",
+    "density_scifi3",
+    "density_scifi4",
+
+    "count_scifi",
+    "count_scifi1",
+    "count_scifi2",
+    "count_scifi3",
+    "count_scifi4",
+
+    # "avg_scifi_x",
+    "avg_scifi1_x",
+    "avg_scifi2_x",
+    "avg_scifi3_x",
+    "avg_scifi4_x",
+
+    # "avg_scifi_y",
+    "avg_scifi1_y",
+    "avg_scifi2_y",
+    "avg_scifi3_y",
+    "avg_scifi4_y",
+
+    # "2d_avg_scifi",
+    "2d_avg_scifi1",
+    "2d_avg_scifi2",
+    "2d_avg_scifi3",
+    "2d_avg_scifi4",
+    "2d_xy_start_position",
+    "confusion_matrix"
+]
+
+
+rule plots:
+    input:
+        # expand("/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/preselection/plots/plot_flags/hist.{beam_type}_{energy}_{year}.done",
+        #        beam_type=beam_type, energy=energy, year=year)
+        expand("{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{hist_name}/hist.done",
+               work_dir=personal_work_dir, cut_name=CUT_STATES, hist_name=HIST_NAMES )
+
+
+rule plot_distribution:
+    input:
+        script=f"{personal_work_dir}/snd-ml/testbeam/evaluation/plot_distributions_withGNN.py"
+    output:
+        # one flag file per histogram name (wildcard)
+        touch("{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{hist_name}/hist.done")
+    params:
+        dest_dir="{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{hist_name}",
+        model_name = process_model,
+        split = train_split,
+    threads: 1
+    resources:
+        runtime=7*60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        echo "running plot_distribution for {wildcards.hist_name} ({wildcards.cut_name})"
+
+        set +u
+
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+
+        python {input.script} -n {wildcards.hist_name} -c {wildcards.cut_name} -m {params.model_name} -s {params.split}
+
+        rm -rf {params.dest_dir}
+        mkdir -p {params.dest_dir}
+        xrdcp ./plots_tmp/{wildcards.cut_name}/{wildcards.hist_name}/* {params.dest_dir}/
+        rm -r ./plots_tmp/{wildcards.cut_name}/{wildcards.hist_name}/
+        """
+        
+        
