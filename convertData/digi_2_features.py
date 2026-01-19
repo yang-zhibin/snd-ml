@@ -94,6 +94,45 @@ def process_counts(all_hits, branch_vars):
                 branch_vars[f"count_ds{station}"][0] += 1
             branch_vars["count_ds"][0] += 1
 
+def process_qdc(all_hits, branch_vars):
+    """
+    Process QDC values by detector type and station.
+    """
+    # Reset all QDC sums to 0
+    for key in [
+        "qdc_veto1", "qdc_veto2", "qdc_veto3", "qdc_veto",
+        "qdc_scifi1", "qdc_scifi2", "qdc_scifi3", "qdc_scifi4", "qdc_scifi5", "qdc_scifi",
+        "qdc_us1", "qdc_us2", "qdc_us3", "qdc_us4", "qdc_us5", "qdc_us",
+        "qdc_ds1", "qdc_ds2", "qdc_ds3", "qdc_ds4", "qdc_ds",
+    ]:
+        branch_vars[key][0] = 0
+    for hit in all_hits:
+        detType = hit["detType"]
+        station = hit["station"]
+        qdc_value = hit.get("qdc")  # Use get with default 0.0
+        if qdc_value<0:
+            continue
+        
+        if detType == 0:  # SciFi
+            if 1 <= station <= 5:
+                branch_vars[f"qdc_scifi{station}"][0] += qdc_value
+            branch_vars["qdc_scifi"][0] += qdc_value
+
+        elif detType == 1:  # Veto
+            if station in [1, 2, 3]:
+                branch_vars[f"qdc_veto{station}"][0] += qdc_value
+            branch_vars["qdc_veto"][0] += qdc_value
+
+        elif detType == 2:  # Upstream
+            if 1 <= station <= 5:
+                branch_vars[f"qdc_us{station}"][0] += qdc_value
+            branch_vars["qdc_us"][0] += qdc_value
+
+        elif detType == 3:  # Downstream
+            if 1 <= station <= 4:
+                branch_vars[f"qdc_ds{station}"][0] += qdc_value
+            branch_vars["qdc_ds"][0] += qdc_value
+
 def process_avgPos(all_hits, branch_vars):
     #veto_{1-2}_y, 
     #veto_3_x, 
@@ -673,12 +712,13 @@ def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args)
             
     
     process_counts(all_hits, branch_vars)
+    process_qdc(all_hits, branch_vars)
     process_avgPos(all_hits, branch_vars)
     process_centroid(all_hits, branch_vars)
     process_hit_density(all_hits, branch_vars)
-    process_showerTagged(all_hits, branch_vars)
-    process_slope(all_hits, branch_vars)
-    process_vetoHitTime(all_hits, branch_vars)
+    # process_showerTagged(all_hits, branch_vars)
+    # process_slope(all_hits, branch_vars)
+    # process_vetoHitTime(all_hits, branch_vars)
 
     #print_hits_summary(all_hits)
     return 
@@ -700,7 +740,7 @@ def main(args):
     elif "vetoTagged" in args.out_path:
         selection = "preSelect_vetoTagged==1"
     else:
-        selection = ""
+        selection = "preSelect == 1"
 
     if selection:
         print(f"Applying selection: {selection}")
@@ -731,6 +771,11 @@ def main(args):
         ("count_scifi1", 'i'), ("count_scifi2", 'i'), ("count_scifi3", 'i'),("count_scifi4", 'i'), ("count_scifi5", 'i'), ("count_scifi", 'i'),
         ("count_us1", 'i'), ("count_us2", 'i'), ("count_us3", 'i'),("count_us4", 'i'), ("count_us5", 'i'), ("count_us", 'i'),
         ("count_ds1", 'i'), ("count_ds2", 'i'), ("count_ds3", 'i'), ("count_ds4", 'i'),("count_ds", 'i'),
+        
+        ("qdc_veto1", 'd'), ("qdc_veto2", 'd'), ("qdc_veto3", 'd'),  ("qdc_veto", 'd'), 
+        ("qdc_scifi1", 'd'), ("qdc_scifi2", 'd'), ("qdc_scifi3", 'd'),("qdc_scifi4", 'd'), ("qdc_scifi5", 'd'), ("qdc_scifi", 'd'),
+        ("qdc_us1", 'd'), ("qdc_us2", 'd'), ("qdc_us3", 'd'),("qdc_us4", 'd'), ("qdc_us5", 'd'), ("qdc_us", 'd'),
+        ("qdc_ds1", 'd'), ("qdc_ds2", 'd'), ("qdc_ds3", 'd'), ("qdc_ds4", 'd'),("qdc_ds", 'd'),
         
         ("avg_veto1_y", 'd'), ("avg_veto2_y", 'd'), ("avg_veto3_x", 'd'), ("avg_veto_x", 'd'), ("avg_veto_y", 'd'),
         ("avg_scifi1_x", 'd'), ("avg_scifi1_y", 'd'),

@@ -1,0 +1,61 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 64
+Rules claiming more threads will be scaled down.
+Provided resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, nvidia_gpu=0
+Select jobs to execute...
+
+[Wed Dec 31 14:59:12 2025]
+rule plot_distribution:
+    input: /afs/cern.ch/work/z/zhibin/snd-ml/testbeam/evaluation/plot_distributions_withGNN.py
+    output: /afs/cern.ch/work/z/zhibin/snd-ml/testbeam/evaluation/plots/scifi_gt_50/2d_avg_scifi4/hist.done
+    jobid: 0
+    reason: Forced execution
+    wildcards: work_dir=/afs/cern.ch/work/z/zhibin, cut_name=scifi_gt_50, hist_name=2d_avg_scifi4
+    resources: mem_mb=2000, mem_mib=1908, disk_mb=2000, disk_mib=1908, tmpdir=/pool/condor/dir_2791535/tmp, runtime=25200, nvidia_gpu=0
+
+Warning in <RTaskArenaWrapper>: CPU Bandwith Control Active. Proceeding with 1 threads accordingly
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_beforeGNN_E100GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_beforeGNN_E100GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_beforeGNN_E100GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_afterGNN_E100GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_afterGNN_E100GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_afterGNN_E100GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_beforeGNN_E150GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_beforeGNN_E150GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_beforeGNN_E150GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_afterGNN_E150GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_afterGNN_E150GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_afterGNN_E150GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_beforeGNN_E180GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_pi+_beforeGNN_E180GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_afterGNN_E180GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_pi+_afterGNN_E180GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_beforeGNN_E200GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_beforeGNN_E200GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_beforeGNN_E200GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_afterGNN_E200GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_afterGNN_E200GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_afterGNN_E200GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_beforeGNN_E250GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_beforeGNN_E250GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_beforeGNN_E250GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_afterGNN_E250GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_afterGNN_E250GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_afterGNN_E250GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_beforeGNN_E300GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_beforeGNN_E300GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_beforeGNN_E300GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_afterGNN_E300GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_afterGNN_E300GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_afterGNN_E300GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_beforeGNN_E50GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_beforeGNN_E50GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_beforeGNN_E50GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_pi+_afterGNN_E50GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_MC_e-_afterGNN_E50GeV.pdf has been created
+Info in <TCanvas::Print>: pdf file plots_tmp/scifi_gt_50/2d_avg_scifi4/2d_avg_scifi4_Data_e-_afterGNN_E50GeV.pdf has been created
+Touching output file /afs/cern.ch/work/z/zhibin/snd-ml/testbeam/evaluation/plots/scifi_gt_50/2d_avg_scifi4/hist.done.
+[Wed Dec 31 15:02:38 2025]
+Finished job 0.
+1 of 1 steps (100%) done
