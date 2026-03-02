@@ -735,7 +735,7 @@ def plot_clustering(all_hits, det_layout, event_ID, pdg, run_ID, args):
     # ---- colorbars for QDC-only (left column) -------------------------------
 
     sm_scifi = plt.cm.ScalarMappable(cmap=cmap_scifi, norm=plt.Normalize(vmin=sci_min, vmax=sci_max))
-    sm_bar   = plt.cm.ScalarMappable(cmap=cmap_bar,   norm=plt.Normalize(vmin=bar_min,  vmax=bar_max))
+    #sm_bar   = plt.cm.ScalarMappable(cmap=cmap_bar,   norm=plt.Normalize(vmin=bar_min,  vmax=bar_max))
     #fig.colorbar(sm_scifi, ax=[ax_xz_qdc, ax_yz_qdc], fraction=0.015, pad=0.01, label="SciFi QDC")
     #fig.colorbar(sm_bar,   ax=[ax_xz_qdc, ax_yz_qdc], fraction=0.015, pad=0.06, label="Veto/US/DS QDC")
     handles, labels = shower_id_legend_handles()
@@ -753,7 +753,7 @@ def plot_clustering(all_hits, det_layout, event_ID, pdg, run_ID, args):
 
     run_id = run_ID
     evt_id = event_ID
-    pdg    = pdg # if available in your tree
+    #pdg    = pdg # if available in your tree
     pname = pdg_to_name.get(pdg)
     header = f"type: {getattr(args, 'type', 'NA')}   run: {run_id}   evtId: {evt_id}   pdgCode: {pdg}, particle: {pname}"
     # Put a single header across the top
@@ -866,7 +866,7 @@ def print_track_tree(event, m2d, track_idx, shower_map, indent=0):
 
 def process_hits(event, snd_geo, event_ID, pdg, run_ID, det_layout, args):
     """Process all hits in the event and update hits array and averages."""
-    MC = args.type
+    data_type = args.type
     Scifi = snd_geo.modules['Scifi']
     # MuFilter = snd_geo.modules['MuFilter']
     A, B = ROOT.TVector3(), ROOT.TVector3()
@@ -884,21 +884,22 @@ def process_hits(event, snd_geo, event_ID, pdg, run_ID, det_layout, args):
     # 3. assign the same showerId to the sub-track of these track
     
     # --- Build hierarchy and shower mapping ---
-    m2d = build_mother_to_daughters(event)
+    if ('MC' in  args.type):
+        m2d = build_mother_to_daughters(event)
 
-    # Print the full tree starting from primaries (mother == -1)
-    for root_idx in m2d.get(-1, []):
-        # build shower map once (outside the loop is fine too)
-        pass
+        # Print the full tree starting from primaries (mother == -1)
+        for root_idx in m2d.get(-1, []):
+            # build shower map once (outside the loop is fine too)
+            pass
 
-    shower_map = _assign_shower_ids(event, m2d, pdgCode)
+        shower_map = _assign_shower_ids(event, m2d, pdgCode)
 
-    # Now actually print the tree(s)
-    primary_tracks = m2d.get(-1, [])
-    # for idx in primary_tracks:
-    #     print_track_tree(event, m2d, idx, shower_map, indent=0)
-    
-    #print(shower_map)
+        # Now actually print the tree(s)
+        primary_tracks = m2d.get(-1, [])
+        # for idx in primary_tracks:
+        #     print_track_tree(event, m2d, idx, shower_map, indent=0)
+        
+        #print(shower_map)
 
     # Temporary storage for all hits with positions
     all_hits = []
@@ -925,6 +926,7 @@ def process_hits(event, snd_geo, event_ID, pdg, run_ID, det_layout, args):
             this_qdc = max_QDC
         hit_time = aHit.GetTime()
         
+        hit_shower_id = -2
         if ('MC' in  args.type):
             hit2MC = event.Digi_ScifiHits2MCPoints[0]
             linksToMCPoints = hit2MC.wList(detID)
@@ -1300,8 +1302,8 @@ def main(args):
     snd_geo = setup_geometry(args.geo_path)
     raw_data, raw_tree = open_root_file(args.digi_path)
    
-    pdg = name_to_pdg.get(args.pdg, [])
-    
+    pdg = args.pdg
+    valid_count = 0
     for i in range(raw_tree.GetEntries()):
         if i % 10000 == 0:
             print(f"processed {i} events")
@@ -1310,6 +1312,11 @@ def main(args):
             
         run_ID = raw_tree.EventHeader.GetRunId()
         
+        n_count = raw_tree.Digi_ScifiHits.GetEntries()
+        #print(n_count)
+        if n_count<800:
+            continue
+            valid_count +=1
         if ('MC' in  args.type):
             try:
                 event_ID = raw_tree.EventHeader.GetEventNumber()
@@ -1317,10 +1324,10 @@ def main(args):
                 event_ID = raw_tree.EventHeader.GetMCEntryNumber()
         elif('real' in  args.type):
             event_ID = raw_tree.EventHeader.GetEventNumber()
-    
-        process_hits(raw_tree, snd_geo, event_ID, pdg, run_ID, det_layout, args)
-        # if i>2:
-        #   break
+
+        process_hits(raw_tree, snd_geo, i, pdg, run_ID, det_layout, args)
+        if valid_count>10:
+          break
 
 
 if __name__ == "__main__":
@@ -1329,7 +1336,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--digiPath", dest="digi_path", help="digitized data file path", required=True)
     parser.add_argument("-g", "--geoPath", dest="geo_path", help="geo path", required=True)
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
-    parser.add_argument("-pdg", "--pdg", dest='pdg', help='type of particle', required=True)
+    parser.add_argument("-pdg", "--pdg", dest='pdg', type=int, help='type of particle', required=True)
 
 
     args = parser.parse_args()
@@ -1337,3 +1344,5 @@ if __name__ == "__main__":
     main(args)
     
 # python digi_2_features_shower.py -p /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/1/preSelect_MC_neutrino_volTarget_100fb-1_1.root -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/1/geofile_full.Genie-TGeant4.root -o ./test_data/vetoTagged_shower_feature.root -t MC_neutrino
+# python EventDisplay.py -d /eos/experiment/sndlhc/MonteCarlo/testbeam2024/100GeV_11/nominal_entry_points/X_neg37.93_Y_41.74_Z_315/sndLHC.PG_11-TGeant4_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/testbeam2024/100GeV_11/nominal_entry_points/X_neg37.93_Y_41.74_Z_315/geofile_full.PG_11-TGeant4.root -t MC -pdg 11
+# python EventDisplay.py -d /eos/experiment/sndlhc/convertedData/commissioning/testbeam_24/run_100890/sndsw_raw-0000.root -g /eos/experiment/sndlhc/convertedData/commissioning/testbeam_24/geofile_sndlhc_H4_2024_W_2walls.root -t real_data -pdg 11

@@ -6,6 +6,8 @@ import array
 from collections import defaultdict
 import math
 from tqdm import tqdm
+import bisect
+import pandas as pd
 
 
 def setup_geometry(geo_file):
@@ -365,6 +367,123 @@ def process_slope(all_hits, branch_vars):
     branch_vars["centroid_slope_x"][0] = compute_slope(centroid_x_points)
     branch_vars["centroid_slope_y"][0] = compute_slope(centroid_y_points)
 
+def process_qdc(all_hits, branch_vars):
+    """
+    Process QDC values by detector type and station.
+    """
+    # Reset all QDC sums to 0
+    for key in [
+        "qdc_scifi1", "qdc_scifi2", "qdc_scifi3", "qdc_scifi4","qdc_scifi",
+    ]:
+        branch_vars[key][0] = 0
+    for hit in all_hits:
+        detType = hit["detType"]
+        station = hit["station"]
+        qdc_value = hit.get("qdc")  # Use get with default 0.0
+        if qdc_value<0:
+            continue
+        
+        if detType == 0:  # SciFi
+            if 1 <= station <= 4:
+                branch_vars[f"qdc_scifi{station}"][0] += qdc_value
+            branch_vars["qdc_scifi"][0] += qdc_value
+
+
+def density_sum_1d_fast(coords, dx=1.0):
+    n = len(coords)
+    if n < 2:
+        return 0
+    xs = sorted(coords)
+    density_sum = 0
+    left = 0
+    right = 0
+    for i in range(n):
+        xi = xs[i]
+        while xi - xs[left] >= dx:
+            left += 1
+        if right < i + 1:
+            right = i + 1
+        while right < n and xs[right] - xi < dx:
+            right += 1
+        density_sum += (right - left - 1)
+    return density_sum
+
+
+def process_qdc_with_clockCycle(all_hits, branch_vars, nbins=100,
+                                clock_cycle_windows=(4, 0.5, 0.4, 0.3, 0.2, 0.1, 0.08),
+                                det_type_scifi=0,
+                                density_dx=1.0):
+    # Collect SciFi hits
+    scifi_hits = [h for h in all_hits
+                  if h.get("detType") == det_type_scifi and "hitTime_clockCycle" in h]
+    if not scifi_hits:
+        return
+
+    cc_all = [h["hitTime_clockCycle"] for h in scifi_hits]
+
+    # --- MPV via histogram mode (same as your original) ---
+    cmin, cmax = min(cc_all), max(cc_all)
+    if cmin == cmax:
+        mpv = cmin
+    else:
+        pad = 0.05 * (cmax - cmin)
+        htmp = ROOT.TH1F("h_cc_tmp_qdc", "", nbins, cmin - pad, cmax + pad)
+        for x in cc_all:
+            htmp.Fill(x)
+        mpv = htmp.GetBinCenter(htmp.GetMaximumBin())
+
+    # --- Sort once by clock cycle for fast window slicing ---
+    scifi_hits.sort(key=lambda h: h["hitTime_clockCycle"])
+    cc_sorted = [h["hitTime_clockCycle"] for h in scifi_hits]
+
+    for cy in clock_cycle_windows:
+        lo, hi = mpv - cy, mpv + cy
+
+        # Find hits in [lo, hi] using bisect (O(log N))
+        i0 = bisect.bisect_left(cc_sorted, lo)
+        i1 = bisect.bisect_right(cc_sorted, hi)
+        hits_in_window = scifi_hits[i0:i1]
+        N = len(hits_in_window)
+
+        
+        sum_qdc = 0.0
+        # Group coordinates by station (or station+something)
+        coords_by_group = defaultdict(list)
+
+        for hit in hits_in_window:
+            q = hit.get("qdc", 0.0)
+            if q is not None and math.isfinite(q):
+                sum_qdc += float(q)
+
+            isVertical = hit.get("isVertical", False)
+            coord = hit.get("x", 0.0) if isVertical else hit.get("y", 0.0)
+
+            station = hit.get("station", None)   # <-- MUST exist in hit dict (adapt key name)
+            # Optional: also split by detector plane/layer if needed:
+            # layer = hit.get("layer", None)
+            # group_key = (station, layer, isVertical)
+
+            group_key = (station, isVertical)    # minimal safe version
+            coords_by_group[group_key].append(coord)
+
+        density_sum = 0
+        for group_key, coords in coords_by_group.items():
+            density_sum += density_sum_1d_fast(coords, dx=density_dx)
+
+        # Store
+        kq = f"qdc_scifi_{cy}cy"
+        if kq in branch_vars:
+            branch_vars[kq][0] = sum_qdc
+
+        kc = f"count_scifi_{cy}cy"
+        if kc in branch_vars:
+            branch_vars[kc][0] = N
+
+        kd = f"density_scifi_{cy}cy"
+        if kd in branch_vars:
+            branch_vars[kd][0] = density_sum
+
+
 def print_hits_summary(all_hits):
     summary = defaultdict(list)
 
@@ -390,10 +509,114 @@ def print_hits_summary(all_hits):
         print(f"{name:<10} Station {station:<2} {orientation} - Hits: {count:3} | Avg QDC: {avg_qdc:.1f}")
     print("--------------------------\n")
 
-def process_hits(event, snd_geo, branch_vars):
+
+
+
+
+def process_hitTime_and_QDC(all_hits, branch_vars, nbins=100):
+    """
+    - Find MPV of hitTime_clockCycle (ROOT.TH1F mode)
+    - Keep hits within [MPV-0.5, MPV+2.3] (filters all_hits in place)
+    - Compute min, max, avg, mpv, std of hitTime_clockCycle and qdc after cut
+    - Store in branch_vars:
+        qdc_min, qdc_max, qdc_avg, qdc_mpv, qdc_std,
+        hitTime_min, hitTime_max, hitTime_avg, hitTime_mpv, hitTime_std
+    """
+
+    # --- Collect clock cycles (for MPV) ---
+    cc_all = [h["hitTime_clockCycle"] for h in all_hits if "hitTime_clockCycle" in h]
+    n_before = len(cc_all)
+
+    # Helper to set outputs to a default
+    def _set_defaults():
+        for k in ("qdc_min","qdc_max","qdc_avg","qdc_mpv","qdc_std",
+                  "hitTime_min","hitTime_max","hitTime_avg","hitTime_mpv","hitTime_std"):
+            if k in branch_vars:
+                branch_vars[k][0] = -999.0
+
+    if n_before == 0:
+        return
+
+    # --- MPV of hitTime_clockCycle via histogram mode (same as your process_hitTime) ---
+    cmin, cmax = min(cc_all), max(cc_all)
+    if cmin == cmax:
+        mpv_cc = cmin
+    else:
+        pad = 0.05 * (cmax - cmin)
+        h = ROOT.TH1F("h_cc_tmp_hitTimeQDC", "", nbins, cmin - pad, cmax + pad)
+        for x in cc_all:
+            h.Fill(x)
+        mpv_cc = h.GetBinCenter(h.GetMaximumBin())
+
+    # --- Apply MPV window cut, filter hits in place ---
+    lo, hi = mpv_cc - 0.5, mpv_cc + 2.3
+    all_hits[:] = [h for h in all_hits
+                   if ("hitTime_clockCycle" in h) and (lo <= h["hitTime_clockCycle"] <= hi)]
+
+    # After cut: collect hitTime and QDC
+    cc_sel  = [h["hitTime_clockCycle"] for h in all_hits if "hitTime_clockCycle" in h]
+    qdc_sel = [h["qdc"] for h in all_hits if "qdc" in h]
+
+    if len(cc_sel) == 0 or len(qdc_sel) == 0:
+        _set_defaults()
+        return
+
+    # --- Stats helpers ---
+    def _mean_std(vals):
+        n = len(vals)
+        mean = sum(vals) / n
+        if n > 1:
+            var = sum((x - mean)**2 for x in vals) / (n - 1)
+            std = math.sqrt(var)
+        else:
+            std = 0.0
+        return mean, std
+
+    def _mpv_hist(vals, name):
+        vmin, vmax = min(vals), max(vals)
+        if vmin == vmax:
+            return float(vmin)
+        pad = 0.05 * (vmax - vmin)
+        hh = ROOT.TH1F(name, "", nbins, vmin - pad, vmax + pad)
+        for x in vals:
+            hh.Fill(x)
+        return float(hh.GetBinCenter(hh.GetMaximumBin()))
+
+    # --- hitTime stats (after cut) ---
+    hit_min = float(min(cc_sel))
+    hit_max = float(max(cc_sel))
+    hit_avg, hit_std = _mean_std(cc_sel)
+    hit_mpv = float(mpv_cc)  # MPV used for the window (consistent with selection)
+
+    # --- QDC stats (after cut) ---
+    qdc_min = float(min(qdc_sel))
+    qdc_max = float(max(qdc_sel))
+    qdc_avg, qdc_std = _mean_std(qdc_sel)
+    qdc_mpv = _mpv_hist(qdc_sel, "h_qdc_tmp_hitTimeQDC")
+    #print(f"[QDC] min={qdc_min:.3f} max={qdc_max:.3f} mean={qdc_avg:.3f} std={qdc_std:.3f} mpv={qdc_mpv:.3f}")
+
+    # --- Store to branches ---
+    if "hitTime_min" in branch_vars: branch_vars["hitTime_min"][0] = hit_min
+    if "hitTime_max" in branch_vars: branch_vars["hitTime_max"][0] = hit_max
+    if "hitTime_avg" in branch_vars: branch_vars["hitTime_avg"][0] = float(hit_avg)
+    if "hitTime_std" in branch_vars: branch_vars["hitTime_std"][0] = float(hit_std)
+    if "hitTime_mpv" in branch_vars: branch_vars["hitTime_mpv"][0] = hit_mpv
+
+    if "qdc_min" in branch_vars: branch_vars["qdc_min"][0] = qdc_min
+    if "qdc_max" in branch_vars: branch_vars["qdc_max"][0] = qdc_max
+    if "qdc_avg" in branch_vars: branch_vars["qdc_avg"][0] = float(qdc_avg)
+    if "qdc_std" in branch_vars: branch_vars["qdc_std"][0] = float(qdc_std)
+    if "qdc_mpv" in branch_vars: branch_vars["qdc_mpv"][0] = float(qdc_mpv)
+    
+  
+    
+def process_hits(event, snd_geo, branch_vars, offset_df):
     """Process all hits in the event and update hits array and averages."""
     Scifi = snd_geo.modules['Scifi']
     A, B = ROOT.TVector3(), ROOT.TVector3()
+    
+    
+    
     
     #read plane positions, vertical->top_x->A.x, horizontal->right_y->A.y
     
@@ -404,38 +627,50 @@ def process_hits(event, snd_geo, branch_vars):
     for aHit in event.Digi_ScifiHits:
         if not aHit.isValid():
             continue
+        hitTime = aHit.GetTime()
+        clock_cycle = hitTime/6.25
+        
         detID = aHit.GetDetectorID()
-        station = detID // 1000000
+
+        st  = detID // 1000000
+        ori = int(aHit.isVertical())           # 0/1
+        mat = (detID % 100000) // 10000
+        local_ch  = detID % 1000
+        tofpet_id = (detID % 10000) // 1000
+
+        ch = tofpet_id*128 + local_ch
 
         Scifi.GetSiPMPosition(detID, A, B)
 
-        max_QDC = 200 * 16
-        this_qdc = 0
-        ns = max(1,aHit.GetnSides())
-        for side in range(ns):
-            for m in  range(aHit.GetnSiPMs()):
-                qdc = aHit.GetSignal(m+side*aHit.GetnSiPMs())
-                if not qdc < 0:
-                    this_qdc += qdc
-        if this_qdc > max_QDC :
-            this_qdc = max_QDC
+        qdc = aHit.GetSignal(0)
+        if st == 2 and mat == 0 and ori==0 and ('real' in  args.type):
+            mpv_value = offset_df.loc[ch, "mpv_data_avg"]
+            qdc = qdc-mpv_value
+        if qdc<0:
+            qdc = 0
         
         all_hits.append({
             "detType": 0,
-            "station": station,
+            "station": st,
             "isVertical": aHit.isVertical(),
             "x":A.x(),
             "y":A.y(),
             "z":A.z(),
-            "qdc":this_qdc
+            "qdc":qdc,
+            "hitTime_ns": hitTime,
+            "hitTime_clockCycle": clock_cycle,
         })
 
+
+    process_hitTime_and_QDC(all_hits, branch_vars)
     process_showerTagged(all_hits, branch_vars)
     process_counts(all_hits, branch_vars)
     process_avgPos(all_hits, branch_vars)
     process_centroid(all_hits, branch_vars)
     process_hit_density(all_hits, branch_vars)
     process_slope(all_hits, branch_vars)
+    process_qdc(all_hits, branch_vars)
+    process_qdc_with_clockCycle(all_hits, branch_vars)
     
 
 
@@ -452,12 +687,29 @@ def main(args):
     out_file, new_tree = create_output_file(args.out_path, args.mode)
 
     branches = [
-        ("runId", 'i'), ("eventId", 'i'), ("pdgCode", 'i'), ("isMC", 'i'), ("eventIndex", 'i'),
+        ("runId", 'i'), ("eventId", 'i'), ("pdgCode", 'i'), ("isMC", 'i'), ("eventIndex", 'i'),("pdgCode1", 'i'), ("eventTime", 'd'), ("previous_event_time_gap", 'd'),
         ("px", 'f'), ("py", 'f'), ("pz", 'f'),  # Floats
         ("x", 'f'), ("y", 'f'), ("z", 'f'),    # Floats
         
-        ("count_scifi1", 'i'), ("count_scifi2", 'i'), ("count_scifi3", 'i'),("count_scifi4", 'i'), ("count_scifi", 'i'),
         
+        ("count_scifi1", 'i'), ("count_scifi2", 'i'), ("count_scifi3", 'i'),("count_scifi4", 'i'), ("count_scifi", 'i'),
+        ("count_scifi_0.5cy", 'd'),
+        ("count_scifi_0.4cy", 'd'),
+        ("count_scifi_0.3cy", 'd'),
+        ("count_scifi_0.2cy", 'd'),
+        ("count_scifi_0.1cy", 'd'),
+        ("count_scifi_4cy", 'd'),
+        
+        ("qdc_scifi1", 'd'), ("qdc_scifi2", 'd'), ("qdc_scifi3", 'd'), ("qdc_scifi4", 'd'), ("qdc_scifi", 'd'),
+        ("qdc_scifi_0.5cy", 'd'),
+        ("qdc_scifi_0.4cy", 'd'),
+        ("qdc_scifi_0.3cy", 'd'),
+        ("qdc_scifi_0.2cy", 'd'),
+        ("qdc_scifi_0.1cy", 'd'),
+        ("qdc_scifi_4cy", 'd'),
+        ("qdc_min", 'd'), ("qdc_max", 'd'), ("qdc_avg", 'd'), ("qdc_mpv", 'd'), ("qdc_std", 'd'), 
+        ("hitTime_min", 'd'), ("hitTime_max", 'd'), ("hitTime_avg", 'd'), ("hitTime_mpv", 'd'), ("hitTime_std", 'd'), 
+  
         ("avg_scifi_x", 'd'), ("avg_scifi_y", 'd'),
         ("avg_scifi1_x", 'd'), ("avg_scifi1_y", 'd'),
         ("avg_scifi2_x", 'd'), ("avg_scifi2_y", 'd'),
@@ -473,6 +725,12 @@ def main(args):
 
         # Hit density sums per plane
         ("density_scifi1", 'd'), ("density_scifi2", 'd'), ("density_scifi3", 'd'), ("density_scifi4", 'd'), ("density_scifi", 'd'),
+        ("density_scifi_0.5cy", 'd'),
+        ("density_scifi_0.4cy", 'd'),
+        ("density_scifi_0.3cy", 'd'),
+        ("density_scifi_0.2cy", 'd'),
+        ("density_scifi_0.1cy", 'd'),
+        ("density_scifi_4cy", 'd'),
 
         ("showerTagged", 'i'),
         ("showerStartStation", 'i'),
@@ -483,6 +741,9 @@ def main(args):
         ("start_z", 'd'),
         #energy, 
     ]
+    
+    offset_df = pd.read_csv("/afs/cern.ch/user/z/zhibin/work/snd-ml/testbeam/evaluation/QDC_offset/QDC_offset_st2_mat0_ori0.csv")
+    offset_df = offset_df.set_index("channel")
 
     # Dictionary to hold branch variables
     branch_vars = {}
@@ -509,6 +770,14 @@ def main(args):
         raw_tree.GetEntry(entry_number)
         
         branch_vars["eventIndex"][0] = entry_number
+        branch_vars["eventTime"][0] = raw_tree.EventHeader.GetEventTime()
+        if i==0:
+            last_event_time = raw_tree.EventHeader.GetEventTime()
+            branch_vars["previous_event_time_gap"][0] = 0
+        else:
+            branch_vars["previous_event_time_gap"][0] = raw_tree.EventHeader.GetEventTime() - last_event_time
+            last_event_time = raw_tree.EventHeader.GetEventTime()
+
         branch_vars["runId"][0] = raw_tree.EventHeader.GetRunId()
         
         
@@ -521,6 +790,8 @@ def main(args):
                 
             event_pdg0 = raw_tree.MCTrack[0].GetPdgCode()
             event_pdg1 = raw_tree.MCTrack[1].GetPdgCode()
+            
+            branch_vars["pdgCode1"][0] = event_pdg1
 
             neutrino_pdgCode = [12, -12, 14, -14, 16, -16]
             if (event_pdg0 == event_pdg1) and (event_pdg0 in neutrino_pdgCode):
@@ -562,7 +833,7 @@ def main(args):
             branch_vars["isMC"][0] = 0
             branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
 
-        process_hits(raw_tree, snd_geo, branch_vars)
+        process_hits(raw_tree, snd_geo, branch_vars, offset_df)
         #if i>2:
         #    break
         new_tree.Fill()

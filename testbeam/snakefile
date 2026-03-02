@@ -9,6 +9,7 @@ wildcard_constraints:
     hit_path=".*hit.*.root",
     preSelect_path=".*preSelect.*.root",
     feature_path=".*feature.*.root",
+    newDigi_path=".*newDigi.*.root",
     metadata_csv=".*metadata.*.csv",
     model_ckpt='.*ckpt.*',
     pt_hit_path = '.*pt_hit.*.pt.gz',
@@ -27,15 +28,18 @@ wildcard_constraints:
 metadata_csv_list = [
     # "MC_data_testbeam2023_metadata.csv",
     "MC_data_testbeam2024_metadata.csv",
+    # "MC_data_testbeam2024_metadata_subset.csv",
     # "real_data_testbeam_June2023_H8_metadata.csv",
     "real_data_testbeam_24_metadata.csv",
+    # "train_2024_split_v5.csv"
+    # "MC_data_testbeam2023_metadata_newDigi.csv"
 ]
 
 train_mode = False
-train_split = 'train_2024_split_v2'
-train_model = 'testbeam_2024_GravNet_v2'
+train_split = 'train_2024_split_v5' #"train_2024_test" # 'train_2024_split_v3'
+train_model = 'testbeam_2024_GravNet_v8'
 
-process_model = 'testbeam_2024_GravNet_v2'
+process_model = 'testbeam_2024_GravNet_v7_2'
 # train_split = 'train_2024_split_v1_horizontal'
 # train_model = 'testbeam_2024_GravNet_v1_horizontal'
 # train_split = 'train_2024_split_v1_vertical'
@@ -47,6 +51,7 @@ personal_sndsw_dir ='/afs/cern.ch/work/z/zhibin/public/SndBuild'
 #personal_eos_dir 
 #ALIBUILD_WORK_DIR
 
+generate_split_version = "split_v5"
 
 def load_metadata():
     if train_mode:
@@ -133,7 +138,7 @@ def collect_model_path(target_name):
                     ckpt = item['ckpt']
                     break
             model_ckpt_list.append(ckpt)
-
+    # print(model_name_list)
     if target_name=='ckpt':
         return model_ckpt_list
     elif target_name == 'model_output':
@@ -158,10 +163,12 @@ def collect_model_path(target_name):
 
 rule finish:
     input:
-        #expand("{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir = personal_work_dir),
+        # expand("{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list, work_dir = personal_work_dir),
         # expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list,work_dir = personal_work_dir),
+        # expand("{work_dir}/snd-ml/testbeam/metadata/training/train_2024_{generate_split_version}.csv", work_dir = personal_work_dir, generate_split_version = generate_split_version),
         #expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
-        expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        # expand("{feature_path}", feature_path=collect_target_paths("feature_path")),
+        # expand("{newDigi_path}", newDigi_path=collect_target_paths("newDigi_path"))
         # expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         # expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
         #expand("{pkl_hit_path}", pkl_hit_path=collect_target_paths("pkl_hit_path")),
@@ -184,7 +191,7 @@ rule train:
         conda_env = f"{personal_work_dir}/snd-ml/snakemake/envs/env_snd_pytorch.sh"
     threads:2
     resources:
-        runtime=23*60*60,
+        runtime= 23*60*60,
         mem_mb=8000,
         disk_mb=8000,
         nvidia_gpu=1
@@ -197,11 +204,40 @@ rule train:
         export EOSSHIP=root://eosuser.cern.ch/
 
         export CUDA_VISIBLE_DEVICES=0
-        #nvidia-smi
+        nvidia-smi -L
 
         
         python {input.script} -c {input.model_config} 
+        """
 
+rule test_train_env:
+    input:
+        # expand("{pt_hit_path}", pt_hit_path=collect_target_paths("pt_hit_path")),
+        script = f'{personal_work_dir}/snd-ml/training/test_train_env.py',
+        
+    #output:
+    #    trained_model = "{model_ckpt}"
+    params:
+        conda_env = f"{personal_work_dir}/snd-ml/snakemake/envs/env_snd_pytorch.sh"
+    threads:2
+    resources:
+        runtime= 1*60*60,
+        mem_mb=8000,
+        disk_mb=8000,
+        nvidia_gpu=1
+    shell:
+        r"""
+        echo "test training env"
+        #avoid unbound variable error (only occur when using snakemake)
+        set +u 
+        source "{params.conda_env}"
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        export CUDA_VISIBLE_DEVICES=0
+        nvidia-smi -L
+
+        
+        python {input.script} --all
         """
 
 
@@ -252,28 +288,110 @@ rule update_metadata:
         python {input.script} -i {input.raw_metadata} -o {output.updated_metadata} -e {params.eos_dir}
         """
 
-# rule generate_train_metadata:
-#     input:
-#         raw_metadata = "{work_dir}/snd-ml/testbeam/metadata/raw/{metadata_csv}",
-#         script = '{work_dir}/snd-ml/testbeam/metadata/update_metadata.py',
-#     output:
-#         updated_metadata = "{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}",
-#     params:
-#         eos_dir = personal_eos_dir
-#     threads:1
-#     resources:
-#         runtime=45*60,
-#         mem_mb=2000,
-#         disk_mb=2000,
-#         nvidia_gpu=0
-#     shell:
-#         """
-#         echo "Updating metadata"
-#         #avoid unbound variable error (only occur when using snakemake)
-#         set +u 
-#         source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
-#         python {input.script} -i {input.raw_metadata} -o {output.updated_metadata} -e {params.eos_dir}
-#         """
+
+rule generate_train_metadata:
+    input:
+        expand("{work_dir}/snd-ml/testbeam/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list,work_dir = personal_work_dir),
+        script = '{work_dir}/snd-ml/testbeam/metadata/generate_subset_metadata.py',
+    output:
+        updated_metadata = "{work_dir}/snd-ml/testbeam/metadata/training/train_2024_{generate_split_version}.csv",
+    params:
+        eos_dir = personal_eos_dir,
+        split_version = generate_split_version,
+        work_dir = personal_work_dir
+    threads:1
+    resources:
+        runtime=45*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        """
+        echo "rule generate_train_metadata:"
+        #avoid unbound variable error (only occur when using snakemake)
+        set +u 
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+        python {input.script} --check-mc --gen-train --read-splits --split-version {params.split_version} --work-dir {params.work_dir} 
+        """
+
+rule process_newDigi:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        newRaw=lambda wildcards: get_metadata_value("newDigi_path", wildcards.newDigi_path, "raw_path"),
+        geo=lambda wildcards: get_metadata_value("newDigi_path", wildcards.newDigi_path, "geo_path"),
+        #run_digi_wrapper = "/afs/cern.ch/user/z/zhibin/work/snd-ml/check_MCEventbuilder/run_digi_wrapper.sh"
+    params:
+        env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw.sh",
+        
+    output:
+        newDigi_path="{newDigi_path}"
+    threads:2
+    resources:
+        runtime=23*60*60,
+        mem_mb=8000,
+        disk_mb=8000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        # Avoid conda/python conflicts from the Snakemake env
+        export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+
+        set +u  # Avoid unbound variable errors
+
+        echo "Setting up SNDSW environment"
+        export ALIBUILD_WORK_DIR=/afs/cern.ch/work/z/zhibin/public/SndBuild/sw
+        # Use a single, consistent stack (Jan30); avoid mixing 2024 Python with 2025 libs
+        source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
+        eval "$(alienv load sndsw/latest-24d197c57d-release --no-refresh)"
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        # Work in a scratch dir and ensure cleanup
+        tmp_dir="$(mktemp -d)"
+        trap 'status=$?; echo "Cleaning up"; rm -rf "${{tmp_dir}}"; exit $status' EXIT
+        echo "tmp_dir: ${{tmp_dir}}"
+        cd "${{tmp_dir}}"
+
+        # Localize input
+        filename="$(basename "{input.newRaw}")"
+        echo "Fetching: {input.newRaw} -> ${{filename}}"
+        xrdcp -f "{input.newRaw}"  "${{filename}}"
+        ls -al
+        # Expected output name (bash subst). Keep this in sync with run_digiSND output naming.
+        tmp_output="${{filename/.root/_dig.root}}"
+        echo "Will look for output: ${{tmp_output}}"
+        echo "Geometry: {input.geo}"
+
+        echo "Processing newDigi file"
+        set +e
+        python $SNDSW_ROOT/shipLHC/run_digiSND.py \
+        -f "${{filename}}" \
+        -g {input.geo} \
+        #-d True
+
+        rc=$?
+        set -e
+        echo "[run_digiSND.py] exit code: ${{rc}}"
+        test "${{rc}}" -eq 143 || {{ echo "run_digiSND.py failed"; exit "${{rc}}";}}
+
+        # Resolve the produced file robustly:
+        if [[ -f "${{tmp_output}}" ]]; then
+        produced="${{tmp_output}}"
+        else
+        # Fallback: grab the first *_dig.root in CWD
+        produced="$(ls -1 *_dig.root 2>/dev/null | head -n1 || true)"
+        [[ -n "${{produced}}" ]] || {{ echo "ERROR: No *_dig.root produced"; ls -al; exit 1; }}
+        echo "Detected output: ${{produced}}"
+        fi
+
+        echo "Transferring output to EOS: {output.newDigi_path}"
+        xrdcp -f "${{produced}}" "{output.newDigi_path}" || {{ echo "xrdcp failed"; exit 1; }}
+
+        # Additional explicit cleanup (trap also removes tmp_dir)
+        rm -f "${{produced}}" "${{filename}}"
+
+
+        """
+
 
 rule process_hits:
     input:
@@ -294,7 +412,7 @@ rule process_hits:
         hit_path="{hit_path}"
     threads:1
     resources:
-        runtime=8*60*60,
+        runtime=1*60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -352,7 +470,7 @@ rule process_features:
         feature_path="{feature_path}"
     threads:1
     resources:
-        runtime=8*60*60,
+        runtime=1*60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -417,7 +535,7 @@ rule process_pt_hit:
         pt_hit_path="{pt_hit_path}"
     threads:1
     resources:
-        runtime=120*60,
+        runtime=2*60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -456,16 +574,16 @@ rule prediction:
         #expand("{hit_path}", hit_path=collect_target_paths("hit_path")),
         #hit_path=lambda wildcards: get_metadata_value("pt_prefix", wildcards.pt_prefix, "hit_path"),
         #expand("{model_ckpt}", model_ckpt=collect_model_path('ckpt')),
-        pt_hit_file=lambda wildcards: get_metadata_from_output("prediction", wildcards.model_output, "pt_hit_path"),
-    params:    
         script = f"{personal_work_dir}/snd-ml/training/pred_testbeam.py",
+    params:    
+        pt_hit_file=lambda wildcards: get_metadata_from_output("prediction", wildcards.model_output, "pt_hit_path"),
         model_config_path =f"{personal_work_dir}/snd-ml/testbeam/metadata/model_config.yaml"
     output:
         pred_output = "{model_output}",
 
-    threads:1
+    threads:2
     resources:
-        runtime=12*60*60,
+        runtime=4*60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0
@@ -486,8 +604,8 @@ rule prediction:
         tmp_output="${{tmp_dir}}/${{filename}}"
 
         # Run prediction script
-        python {params.script} \
-            -i {input.pt_hit_file} \
+        python {input.script} \
+            -i {params.pt_hit_file} \
             -o "${{tmp_output}}" \
             -t "${{tmp_dir_dataloader}}" \
             -m {params.model_config_path}
@@ -499,50 +617,90 @@ rule prediction:
         """
 
 
-CUT_STATES = [ "scifi_gt_50"] #  "nocut"
+CUT_STATES = [ "scifi_gt_50-150ns_previous_cut"] #  "nocut"  "scifi_gt_50-150ns_previous_cut" "scifi_gt_50"
 HIST_NAMES = [
-    "Prediction",
-    "z",
-    "density_scifi", 
-    "density_scifi1",
-    "density_scifi2",
-    "density_scifi3",
-    "density_scifi4",
+    # "qdc_scifi_4cy",
+    # "qdc_scifi_0.5cy",
+    # "qdc_scifi_0.4cy",
+    # "qdc_scifi_0.3cy",
+    # "qdc_scifi_0.2cy",
+    # "qdc_scifi_0.1cy",
 
-    "count_scifi",
-    "count_scifi1",
-    "count_scifi2",
-    "count_scifi3",
-    "count_scifi4",
+    # "count_scifi_4cy",
+    # "count_scifi_0.5cy",
+    # "count_scifi_0.4cy",
+    # "count_scifi_0.3cy",
+    # "count_scifi_0.2cy",
+    # "count_scifi_0.1cy",
+
+    # "density_scifi_4cy",
+    # "density_scifi_0.5cy",
+    # "density_scifi_0.4cy",
+    # "density_scifi_0.3cy",
+    # "density_scifi_0.2cy",
+    # "density_scifi_0.1cy",
+
+    # "qdc_min",
+    # "qdc_max",
+    # "qdc_avg",
+    # "qdc_mpv",
+    # "qdc_std",
+
+    # "hitTime_min",
+    # "hitTime_max",
+    # "hitTime_avg",
+    # "hitTime_mpv",
+    # "hitTime_std",
+    # "qdc_scifi",
+    # "qdc_scifi1",
+    # "qdc_scifi2",
+    # "qdc_scifi3",
+    # "qdc_scifi4",
+    "Prediction",
+    # "z",
+    # "density_scifi", 
+    # "density_scifi1",
+    # "density_scifi2",
+    # "density_scifi3",
+    # "density_scifi4",
+
+    # "count_scifi",
+    # "count_scifi1",
+    # "count_scifi2",
+    # "count_scifi3",
+    # "count_scifi4",
 
     # "avg_scifi_x",
-    "avg_scifi1_x",
-    "avg_scifi2_x",
-    "avg_scifi3_x",
-    "avg_scifi4_x",
+    # "avg_scifi1_x",
+    # "avg_scifi2_x",
+    # "avg_scifi3_x",
+    # "avg_scifi4_x",
 
     # "avg_scifi_y",
-    "avg_scifi1_y",
-    "avg_scifi2_y",
-    "avg_scifi3_y",
-    "avg_scifi4_y",
+    # "avg_scifi1_y",
+    # "avg_scifi2_y",
+    # "avg_scifi3_y",
+    # "avg_scifi4_y",
 
     # "2d_avg_scifi",
-    "2d_avg_scifi1",
-    "2d_avg_scifi2",
-    "2d_avg_scifi3",
-    "2d_avg_scifi4",
-    "2d_xy_start_position",
+    # "2d_avg_scifi1",
+    # "2d_avg_scifi2",
+    # "2d_avg_scifi3",
+    # "2d_avg_scifi4",
+    # "2d_xy_start_position",
     "confusion_matrix"
+    # "2d_qdc_count",
+    # "2d_qdc_density"
 ]
 
+Process_Models = [ "testbeam_2024_GravNet_v7_2"] #"testbeam_2024_GravNet_v4",
 
 rule plots:
     input:
         # expand("/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/preselection/plots/plot_flags/hist.{beam_type}_{energy}_{year}.done",
         #        beam_type=beam_type, energy=energy, year=year)
-        expand("{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{hist_name}/hist.done",
-               work_dir=personal_work_dir, cut_name=CUT_STATES, hist_name=HIST_NAMES )
+        expand("{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{process_models}/{hist_name}/hist.done",
+               work_dir=personal_work_dir, cut_name=CUT_STATES, hist_name=HIST_NAMES, process_models=Process_Models )
 
 
 rule plot_distribution:
@@ -550,10 +708,10 @@ rule plot_distribution:
         script=f"{personal_work_dir}/snd-ml/testbeam/evaluation/plot_distributions_withGNN.py"
     output:
         # one flag file per histogram name (wildcard)
-        touch("{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{hist_name}/hist.done")
+        touch("{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{process_models}/{hist_name}/hist.done")
     params:
-        dest_dir="{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{hist_name}",
-        model_name = process_model,
+        dest_dir="{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{process_models}/{hist_name}",
+        model_name = "{process_models}",
         split = train_split,
     threads: 1
     resources:
@@ -573,8 +731,8 @@ rule plot_distribution:
 
         rm -rf {params.dest_dir}
         mkdir -p {params.dest_dir}
-        xrdcp ./plots_tmp/{wildcards.cut_name}/{wildcards.hist_name}/* {params.dest_dir}/
-        rm -r ./plots_tmp/{wildcards.cut_name}/{wildcards.hist_name}/
+        xrdcp ./plots_tmp/{wildcards.cut_name}/{params.model_name}/{wildcards.hist_name}/* {params.dest_dir}/
+        rm -r ./plots_tmp/{wildcards.cut_name}/{params.model_name}/{wildcards.hist_name}/
         """
         
         

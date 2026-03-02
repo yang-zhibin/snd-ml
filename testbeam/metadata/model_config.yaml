@@ -1,3 +1,23 @@
 - testbeam_2024_GravNet_v2:
   - config: /afs/cern.ch/work/z/zhibin/snd-ml/training/configs/testbeam_2024_GravNet_v2.yml
   - ckpt:  /afs/cern.ch/work/z/zhibin/snd-ml/training/log/testbeam_2024_GravNet__train_2024_split_v2__v2__1765834772/best.ckpt
+
+- testbeam_2024_GravNet_v4:
+  - config: /afs/cern.ch/work/z/zhibin/snd-ml/training/configs/testbeam_2024_GravNet_v4.yml
+  - ckpt:  /afs/cern.ch/work/z/zhibin/snd-ml/training/log/testbeam_2024_GravNet__train_2024_split_v4__v4__1769269793/best.ckpt
+
+- testbeam_2024_GravNet_v6:
+  - config: /afs/cern.ch/work/z/zhibin/snd-ml/training/configs/testbeam_2024_GravNet_v6.yml
+  - ckpt:  /afs/cern.ch/user/z/zhibin/work/snd-ml/training/log/testbeam_2024_GravNet__train_2024_split_v5__v6__1771886491/best.ckpt
+
+- testbeam_2024_GravNet_v7:
+  - config: /afs/cern.ch/work/z/zhibin/snd-ml/training/configs/testbeam_2024_GravNet_v7.yml
+  - ckpt:  /afs/cern.ch/user/z/zhibin/work/snd-ml/training/log/testbeam_2024_GravNet__train_2024_split_v5__v7__1771928477/best.ckpt
+
+- testbeam_2024_GravNet_v6_2:
+  - config: /afs/cern.ch/work/z/zhibin/snd-ml/training/configs/testbeam_2024_GravNet_v6.yml
+  - ckpt:  /afs/cern.ch/user/z/zhibin/work/snd-ml/training/log/testbeam_2024_GravNet__train_2024_split_v5__v6__1772002464/best.ckpt
+
+- testbeam_2024_GravNet_v7_2:
+  - config: /afs/cern.ch/work/z/zhibin/snd-ml/training/configs/testbeam_2024_GravNet_v7.yml
+  - ckpt:  /afs/cern.ch/user/z/zhibin/work/snd-ml/training/log/testbeam_2024_GravNet__train_2024_split_v5__v7__1772001630/best.ckpt

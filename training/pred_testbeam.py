@@ -65,7 +65,7 @@ def main(args):
     
     test_data= PredGeoDataset(root=tmp_dir, pt_file=pt_hit_path,use_veto_hits=config['use_veto_hits'], use_event_feature=config['use_event_feature'], weight_type=config['weight_type'],
                               selected_hit_columns=config['hit_feature_cols'], selected_veto_hit_columns=config['hit_feature_cols'], selected_event_columns=config['event_feature_cols'],
-                              force_reload=True)
+                              force_reload=False)
     
     print("preparing dataloader...")
     test_dataloader = DataLoader(test_data,  batch_size=config["batch_size"]['test'], shuffle=False, num_workers=4)

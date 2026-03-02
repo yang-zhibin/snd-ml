@@ -97,7 +97,7 @@ def find_best_matching_geo(root_filename, geo_files):
     return best_match
 
 
-def process_MC_data_since2024(root_path, subfolder, data_type):
+def process_MC_data_2024_old(root_path, subfolder, data_type):
     metadata = []
     for subfolder in tqdm(os.listdir(root_path), desc=f"Processing subfolders"):
         subfolder_path = os.path.join(root_path, subfolder)
@@ -119,6 +119,78 @@ def process_MC_data_since2024(root_path, subfolder, data_type):
 
     return metadata
 
+
+def process_MC_data_2024(root_path, output_subfolder_name, data_type, tree_name="cbmsim"):
+    """
+    Expected structure:
+
+    root_path/
+      50GeV_11/
+        normal_entry_points/
+          X_*_Y_*/
+            geo*.root
+            sndLHC*digCPP.root
+      100GeV_211/
+        normal_entry_points/
+          X_*_Y_*/
+            geo*.root
+            sndLHC*digCPP.root
+    """
+
+    metadata = []
+
+    for subfolder in sorted(os.listdir(root_path)):
+        subfolder_path = os.path.join(root_path, subfolder)
+        if not os.path.isdir(subfolder_path):
+            continue
+        entry_path = os.path.join(subfolder_path, "nominal_entry_points")
+        if not os.path.isdir(entry_path):
+            continue
+
+        for partition in sorted(os.listdir(entry_path)):
+            partition_path = os.path.join(entry_path, partition)
+            if not os.path.isdir(partition_path):
+                continue
+
+            digi_path = None
+            geo_path = None
+            n_event = 0
+
+            for fname in os.listdir(partition_path):
+                fpath = os.path.join(partition_path, fname)
+
+                if fname.endswith("digCPP.root"):
+                    digi_path = fpath
+
+                elif fname.startswith("geo") and fname.endswith(".root"):
+                    geo_path = fpath
+                elif fname.startswith("sndLHC") and fname.endswith("TGeant4.root"):
+                    raw_file = file_path
+
+            # count events if digi exists
+            if digi_path:
+                try:
+                    f = ROOT.TFile.Open(digi_path)
+                    if f and not f.IsZombie():
+                        t = f.Get(tree_name)
+                        if t:
+                            n_event = t.GetEntries()
+                    if f:
+                        f.Close()
+                except Exception:
+                    n_event = 0
+
+            metadata.append({
+                "data_type": data_type,
+                "subfolder": subfolder,
+                "partition": f"{subfolder}/normal_entry_points/{partition}",
+                "n_event": n_event,
+                "digi_path": digi_path,
+                "geo_path": geo_path,
+                "raw_file": raw_file
+            })
+
+    return metadata
             
 def process_MC_subfolders(root_path, output_subfolder_name, data_type, particle_type=None):
 
@@ -170,6 +242,8 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type, particle_
 
                     elif file.startswith("geo"):
                         geo_file = file_path
+                    elif file.startswith("sndLHC") and file.endswith("TGeant4.root"):
+                        raw_file = file_path
                         
                 if geo_file == None:
                     geo_file = os.path.join(root_path, "geofile_full.PG_211-TGeant4.root")
@@ -182,6 +256,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type, particle_
                     'n_event': n_event,
                     'digi_path': digi_file,
                     'geo_path': geo_file,
+                    'raw_path':raw_file
                 }
                 metadata.append(one_file_data)
         else:
@@ -202,6 +277,8 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type, particle_
 
                 elif file.startswith("geo"):
                     geo_file = file_path
+                elif file.startswith("sndLHC") and file.endswith("TGeant4.root"):
+                    raw_file = file_path
                     
             if geo_file == None:
                 geo_file = os.path.join(root_path, "geofile_full.PG_211-TGeant4.root")
@@ -214,6 +291,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type, particle_
                 'n_event': n_event,
                 'digi_path': digi_file,
                 'geo_path': geo_file,
+                'raw_path':raw_file,
             }
             metadata.append(one_file_data)
             #print('add: ', one_file_data)
@@ -222,7 +300,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type, particle_
     return metadata
 
 def save_metadata_to_csv(metadata, csv_name):
-    column_names = ['data_type', 'subfolder', 'partition', 'n_event', 'digi_path', 'geo_path']
+    column_names = ['data_type', 'subfolder', 'partition', 'n_event','raw_path', 'digi_path', 'geo_path']
     
     # Sort metadata as per the specified rules
     data_type = metadata[0].get('data_type')
@@ -252,7 +330,7 @@ def generate_real_data_path(data_type, root_path, subfolder, csv_file):
 
 def generate_MC_data_path(data_type, root_path, subfolder, csv_file):
     if "2024" in subfolder:
-        metadata = process_MC_data_since2024(root_path, subfolder, data_type)
+        metadata = process_MC_data_2024(root_path, subfolder, data_type)
     else:
         metadata = process_MC_subfolders(root_path, subfolder, data_type)
     save_metadata_to_csv(metadata, csv_file)

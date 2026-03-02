@@ -523,6 +523,8 @@ def get_2024_train_set(root_path):
             acc_val = 0
             for idx in idxs:
                 cnt = int(df.at[idx, "n_event"])
+                if cnt>(20000-2):
+                    continue
                 if acc_train < train_target:
                     df.at[idx, "split"] = "train"
                     acc_train += cnt
@@ -545,6 +547,8 @@ def get_2024_train_set(root_path):
 
         for idx in idxs:
             cnt = int(df.at[idx, "n_event"])
+            if cnt>(20000-2):
+                continue
             if acc_train_e < remaining_train:
                 df.at[idx, "split"] = "train"
                 acc_train_e += cnt
@@ -773,7 +777,7 @@ def get_muon_train_set():
     return df
 
 
-def generate_train_dataset(root_path):
+def generate_train_dataset(root_path, split_name, work_dir):
     # train:val:test=4:1:5
     train_2024_df = get_2024_train_set(root_path)
     
@@ -781,8 +785,7 @@ def generate_train_dataset(root_path):
     
     
     # Output directory and model name
-    out_dir = "./training"
-    split_name = 'split_v2'
+    out_dir = f"{work_dir}/snd-ml/testbeam/metadata/training/"
     
     # Ensure output directory exists
     os.makedirs(out_dir, exist_ok=True)
@@ -798,61 +801,112 @@ def generate_train_dataset(root_path):
     print(f"Saved:")
     print(f" - Neutrino samples to {train_2024_path}")
 
-
-def print_grouped_summary(
+def print_grouped_summary_by_split(
     df,
     group_col,
-    title,
+    split_col="split",
+    title="Summary",
     event_col="n_event",
+    split_order=None,      # e.g. ["train","val","test"]
+    sort_by="total_events" # or "name"
 ):
-    if group_col not in df.columns:
-        raise KeyError(
-            f"Column '{group_col}' not found. "
-            f"Available columns: {list(df.columns)}"
+    # --- checks ---
+    for col in (group_col, split_col, event_col):
+        if col not in df.columns:
+            raise KeyError(f"Column '{col}' not found. Available: {list(df.columns)}")
+
+    if df.empty:
+        print(f"\n{title}\nNo data available.")
+        return
+
+    # --- pivoted aggregates: per (group, split) ---
+    g = df.groupby([group_col, split_col], dropna=False)
+    events = g[event_col].sum().unstack(split_col, fill_value=0)
+    files  = g.size().unstack(split_col, fill_value=0)
+
+    # consistent split column order
+    if split_order is None:
+        split_order = list(events.columns)
+    else:
+        # keep only present splits, preserve user order
+        split_order = [s for s in split_order if s in events.columns]
+
+    events = events.reindex(columns=split_order, fill_value=0)
+    files  = files.reindex(columns=split_order, fill_value=0)
+
+    # totals per group
+    events["TOTAL"] = events.sum(axis=1)
+    files["TOTAL"]  = files.sum(axis=1)
+
+    # sort rows
+    if sort_by == "total_events":
+        order = events["TOTAL"].sort_values(ascending=False).index
+        events = events.loc[order]
+        files  = files.loc[order]
+    elif sort_by == "name":
+        events = events.sort_index()
+        files  = files.reindex(events.index)
+
+    # --- formatting widths ---
+    name_width = max(len(str(x)) for x in events.index.tolist() + ["TOTAL"])
+
+    # each split gets two columns: Files + Events
+    # compute widths per split based on max value (including bottom TOTAL row we will print)
+    col_splits = split_order + ["TOTAL"]
+
+    files_w = {
+        s: max(len("Files"), len(f"{int(files[s].max()):,}"), len(f"{int(files[s].sum()):,}"))
+        for s in col_splits
+    }
+    events_w = {
+        s: max(len("Events"), len(f"{int(events[s].max()):,}"), len(f"{int(events[s].sum()):,}"))
+        for s in col_splits
+    }
+
+    # --- header ---
+    header_parts = [f"{group_col.capitalize():<{name_width}}"]
+    for s in col_splits:
+        header_parts.append(f"{str(s):^{files_w[s] + 2 + events_w[s]}}")  # block title centered
+    header = "  ".join(header_parts)
+
+    subheader_parts = [f"{'':<{name_width}}"]
+    for s in col_splits:
+        subheader_parts.append(
+            f"{'Files':>{files_w[s]}}  {'Events':>{events_w[s]}}"
         )
+    subheader = "  ".join(subheader_parts)
 
-    grouped = df.groupby(group_col)
-
-    event_counts = grouped[event_col].sum()
-    file_counts  = grouped.size()
-
-    # --- formatting ---
-    name_width   = max(len(str(x)) for x in event_counts.index)
-    files_width  = max(len(f"{file_counts.max():,}"), len("Files"))
-    events_width = max(len(f"{event_counts.max():,}"), len("Events"))
-
-    header = (
-        f"{group_col.capitalize():<{name_width}}  "
-        f"{'Files':>{files_width}}  "
-        f"{'Events':>{events_width}}"
-    )
-
+    # --- print ---
     print(f"\n{title}")
     print(header)
-    print("-" * len(header))
+    print(subheader)
+    print("-" * max(len(header), len(subheader)))
 
-    for name in event_counts.index:
-        print(
-            f"{str(name):<{name_width}}  "
-            f"{file_counts[name]:>{files_width},}  "
-            f"{event_counts[name]:>{events_width},}"
+    for name in events.index:
+        row = [f"{str(name):<{name_width}}"]
+        for s in col_splits:
+            row.append(
+                f"{int(files.at[name, s]):>{files_w[s]},}  {int(events.at[name, s]):>{events_w[s]},}"
+            )
+        print("  ".join(row))
+
+    print("-" * max(len(header), len(subheader)))
+
+    # grand totals row (across groups)
+    total_row = [f"{'TOTAL':<{name_width}}"]
+    for s in col_splits:
+        total_row.append(
+            f"{int(files[s].sum()):>{files_w[s]},}  {int(events[s].sum()):>{events_w[s]},}"
         )
-
-    print("-" * len(header))
-    print(
-        f"{'TOTAL':<{name_width}}  "
-        f"{file_counts.sum():>{files_width},}  "
-        f"{event_counts.sum():>{events_width},}"
-    )
-    
-def read_train_splts(splits="train"):
-    out_dir = "./training"
-    split_name = "train_2024_split_v2"
+    print("  ".join(total_row))
+def read_train_splts(split_version, work_dir, splits="train"):
+    out_dir = f"{work_dir}/snd-ml/testbeam/metadata/training/"
+    split_name = f"train_2024_{split_version}"
 
     train_df_path = f"{out_dir}/{split_name}.csv"
     train_df = pd.read_csv(train_df_path)
-
-    print_grouped_summary(
+    print(train_df)
+    print_grouped_summary_by_split(
         df=train_df,
         group_col="subfolder",
         title="Training dataset MC_data_testbeam2024 summary by subfolder:",
@@ -937,7 +991,7 @@ def pick_raw_per_energy(
 
     return out, missing
 
-def generate_realdata_dataset(root_path):
+def generate_realdata_dataset_subset(root_path):
     realData_files = ['real_data_testbeam_24_metadata.csv']
     metadata_vars = load_metadata_files(realData_files, root_path)
     realData_2024 = metadata_vars['real_data_testbeam_24']
@@ -996,6 +1050,19 @@ def main():
         action="store_true",
         help="Generate training dataset"
     )
+    
+    parser.add_argument(
+        "--split-version",
+        type=str,
+        help="split version"
+    )
+    
+    parser.add_argument(
+        "--work-dir",
+        type=str,
+        help="work dir"
+    )
+
 
     parser.add_argument(
         "--read-splits",
@@ -1004,9 +1071,9 @@ def main():
     )
 
     parser.add_argument(
-        "--gen-realdata",
+        "--gen-realdata-subset",
         action="store_true",
-        help="Generate real data dataset"
+        help="Generate real data dataset subset"
     )
 
     args = parser.parse_args()
@@ -1015,13 +1082,13 @@ def main():
         check_MC_data(args.root_path)
 
     if args.gen_train:
-        generate_train_dataset(args.root_path)
+        generate_train_dataset(args.root_path, args.split_version, args.work_dir)
 
     if args.read_splits:
-        read_train_splts()
+        read_train_splts(split_version = args.split_version, work_dir = args.work_dir)
 
-    if args.gen_realdata:
-        generate_realdata_dataset(args.root_path)
+    if args.gen_realdata_subset:
+        generate_realdata_dataset_subset(args.root_path)
 
 
 if __name__ == "__main__":

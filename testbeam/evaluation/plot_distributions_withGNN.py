@@ -24,6 +24,12 @@ particle_2_class = {
 }
 class_2_particle = {v: k for k, v in particle_2_class.items()}
 
+def rdf_safe_name(name: str) -> str:
+    s = re.sub(r'[^0-9A-Za-z_]', '_', name)
+    if re.match(r'^\d', s):
+        s = '_' + s
+    s = re.sub(r'__+', '_', s)
+    return s
 
 def read_metadata(directory, split_name):
     """Load all processed metadata CSVs into a dictionary, excluding rows in split."""
@@ -95,10 +101,10 @@ def read_rdf(args, metadata_df, max_file=1e5):
 
         pred = row[f'prediction_{model_name}_output_path']
 
-        n_feat, _ = tree_entries_and_branch(feat, "sndData")
+        n_feat, has_req = tree_entries_and_branch(feat, "sndData", "qdc_avg")
         n_pred, _ = tree_entries_and_branch(pred, "sndData")
 
-        if n_feat > 0 and n_pred > 0 and n_feat == n_pred:
+        if (n_feat > 0 and n_pred > 0 and n_feat == n_pred) and has_req:
             feature_chain.Add(feat)
             Prediction_chain.Add(pred)
             n_read_files+=1
@@ -114,7 +120,9 @@ def read_rdf(args, metadata_df, max_file=1e5):
                 pass
         if n_read_files>=max_file:
             break
-    print(f"Added {feature_chain.GetNtrees()} feature files and {Prediction_chain.GetNtrees()} Prediction files.")
+    print(f"Added {feature_chain.GetNtrees()} feature files and {Prediction_chain.GetNtrees()} Prediction files. n_read_files: {n_read_files}")
+    if n_read_files == 0:
+        return None, None, n_read_files
     feature_chain.AddFriend(Prediction_chain, 'GnnPrediction')
     rdf = ROOT.RDataFrame(feature_chain)
     if args.cut == 'nocut':
@@ -122,9 +130,19 @@ def read_rdf(args, metadata_df, max_file=1e5):
         pass
     elif 'scifi_gt_50' in args.cut:
         rdf = rdf.Filter("count_scifi>50")
+    elif 'scifi_gt_50-150ns_previous_cut' in args.cut:
+        rdf = rdf.Filter("count_scifi>50 && previous_event_time_gap > 150")
     else:
         raise ValueError(f'Unknown cut: {args.cut}')
     
+    
+    
+    feature_chain.GetEntry(408008)
+    tree_number = feature_chain.GetTreeNumber()
+    file_name = feature_chain.GetFile().GetName()
+
+    print("File:", file_name)
+    print("Tree number:", tree_number)
     return rdf, feature_chain, n_read_files
     
 
@@ -234,7 +252,13 @@ def plot_matrix(df, outdir):
             
             # Normalized by true class
             row_sums = cm.sum(axis=1, keepdims=True)
-            cm_norm = cm / row_sums if row_sums.all() > 0 else cm * 0
+
+            cm_norm = np.divide(
+                cm.astype(float),
+                row_sums,
+                out=np.zeros_like(cm, dtype=float),
+                where=(row_sums != 0)
+            )
             
             sns.heatmap(cm_norm, annot=True, fmt='.1%', cmap='Blues',
                        vmin=0, vmax=1, ax=ax2,
@@ -348,10 +372,23 @@ def process_hist(args):
                 continue
             
 
-            # FIX: clamp histogram variable into a stable column so all partial hists merge
-            # (works even if some files have crazy sentinel values)
-            safe_col = f"{hist_name}__clamped"
-            clamp_expr = f"std::min(std::max(static_cast<double>({hist_name}), {float(x_min)}), {float(x_max)} - 1e-9)"
+            src_col = hist_name
+            src_alias = rdf_safe_name(hist_name)
+
+            # IMPORTANT: use Alias (not Define) when hist_name is not a valid C++ identifier
+            if src_alias != src_col:
+                if has_mc:
+                    mc_rdf = mc_rdf.Alias(src_alias, src_col)
+                if has_data:
+                    data_rdf = data_rdf.Alias(src_alias, src_col)
+                src_col = src_alias
+
+            safe_col = rdf_safe_name(f"{hist_name}__clamped")
+            clamp_expr = (
+                f"std::min(std::max(static_cast<double>({src_col}), {float(x_min)}), "
+                f"{float(x_max)} - 1e-9)"
+            )
+
             if has_mc:
                 mc_rdf = mc_rdf.Define(safe_col, clamp_expr)
             if has_data:
@@ -461,6 +498,18 @@ def process_2d_hist(args):
         y_var = "y"
         x_title = "Start X Position"
         y_title = "Start Y Position"
+    if "qdc" in hist_name:
+        # remove "2d_" prefix
+        core = hist_name.replace("2d_", "", 1)
+        base_x, base_y = core.split("_", 1)
+
+        # build tree variable names
+        x_var = f"{base_x}_scifi_0.5cy"
+        y_var = f"{base_y}_scifi_0.5cy"
+
+        # axis titles (pretty)
+        x_title = base_x
+        y_title = base_y
     else:
         raise ValueError(f"process_2d_hist: don't know x/y variables for hist_name='{hist_name}'")
 
@@ -1496,23 +1545,64 @@ hist_info = {
     # n_bins, x_min, x_max, axis_title, logy
     "Prediction": (100, 0, 1, 'GNN Prediction Score', False),
     "z": (206, 319, 370, 'Start Z Position', True),
-    "density_scifi": (100, 0, 2e5, 'Sum of Density Weight',True),
+    
+    'density_scifi_4cy':  (100, 0, 8e5, 'Sum of Density Weight (within 4 clock cycle)', True),
+    'density_scifi_0.5cy':  (100, 0, 8e5, 'Sum of Density Weight (within 0.5 clock cycle)', True),
+    'density_scifi_0.4cy':  (100, 0, 8e5, 'Sum of Density Weight (within 0.4 clock cycle)', True),
+    'density_scifi_0.3cy':  (100, 0, 8e5, 'Sum of Density Weight (within 0.3 clock cycle)', True),
+    'density_scifi_0.2cy':  (100, 0, 8e5, 'Sum of Density Weight (within 0.2 clock cycle)', True),
+    'density_scifi_0.1cy':  (100, 0, 8e5, 'Sum of Density Weight (within 0.1 clock cycle)', True),
+    "density_scifi": (100, 0, 2e5, 'Sum of Density Weight',False),
     'density_scifi1':  (100, 0, 1e5, 'SciFi1 Sum of Density Weight', True),
     'density_scifi2':  (100, 0, 1e5, 'SciFi2 Sum of Density Weight', True),
     'density_scifi3':  (100, 0, 1e5, 'SciFi3 Sum of Density Weight', True),
     'density_scifi4':  (100, 0, 1e5, 'SciFi4 Sum of Density Weight', True),
     
+    'count_scifi_4cy':  (300, 0, 3000, 'SciFi Hit Total Count (within 4 clock cycle)', True),
+    'count_scifi_0.5cy':  (300, 0, 3000, 'SciFi Hit Total Count (within 0.5 clock cycle)', True),
+    'count_scifi_0.4cy':  (300, 0, 3000, 'SciFi Hit Total Count (within 0.4 clock cycle)', True),
+    'count_scifi_0.3cy':  (300, 0, 3000, 'SciFi Hit Total Count (within 0.3 clock cycle)', True),
+    'count_scifi_0.2cy':  (300, 0, 3000, 'SciFi Hit Total Count (within 0.2 clock cycle)', True),
+    'count_scifi_0.1cy':  (300, 0, 3000, 'SciFi Hit Total Count (within 0.1 clock cycle)', True),
     'count_scifi':  (300, 0, 3000, 'SciFi Hit Total Count', True),
     'count_scifi1':  (100, 0, 1000, 'SciFi1 Hit Total Count', True),
     'count_scifi2':  (100, 0, 1000, 'SciFi2 Hit Total Count', True),
     'count_scifi3':  (100, 0, 1000, 'SciFi3 Hit Total Count', True),
     'count_scifi4':  (100, 0, 1000, 'SciFi4 Hit Total Count', True),
     
+    'qdc_scifi_4cy':  (400, 0, 40000, 'SciFi QDC (within 4 clock cycle)', True),
+    'qdc_scifi_0.5cy':  (400, 0, 40000, 'SciFi QDC (within 0.5 clock cycle)', True),
+    'qdc_scifi_0.4cy':  (400, 0, 40000, 'SciFi QDC (within 0.4 clock cycle)', True),
+    'qdc_scifi_0.3cy':  (400, 0, 40000, 'SciFi QDC (within 0.3 clock cycle)', True),
+    'qdc_scifi_0.2cy':  (400, 0, 40000, 'SciFi QDC (within 0.2 clock cycle)', True),
+    'qdc_scifi_0.1cy':  (400, 0, 40000, 'SciFi QDC (within 0.1 clock cycle)', True),
+    'qdc_scifi_0.08cy':  (400, 0, 40000, 'SciFi QDC (within 0.08 clock cycle)', True),
+    'qdc_scifi':  (400, 0, 40000, 'SciFi QDC', True),
+    'qdc_scifi1':  (200, 0, 20000, 'SciFi1 QDC', True),
+    'qdc_scifi2':  (200, 0, 20000, 'SciFi2 QDC', True),
+    'qdc_scifi3':  (200, 0, 20000, 'SciFi3 QDC', True),
+    'qdc_scifi4':  (200, 0, 20000, 'SciFi4 QDC', True),
+    
     "avg_scifi_y": (28, 37, 51, 'Scifi AvgPos Y', False),
     "avg_scifi1_y": (28, 37,51, 'Scifi1 AvgPos Y', False),
     "avg_scifi2_y": (28, 37,51, 'Scifi2 AvgPos Y', False),
     "avg_scifi3_y": (28, 37,51, 'Scifi3 AvgPos Y', False),
     "avg_scifi4_y": (28, 37,51, 'Scifi4 AvgPos Y', False),
+    
+    'qdc_min':  (200, -50, 20, 'SciFi QDC Min', True),
+    'qdc_max':  (200, -10, 150, 'SciFi QDC Max', True),
+    'qdc_avg':  (200, -20, 50, 'SciFi QDC avg', True),
+    'qdc_mpv':  (200, -20, 50, 'SciFi QDC mpv', True),
+    'qdc_std':  (200, 0, 50, 'SciFi QDC std', True),
+    
+    'hitTime_min':  (100, -0.5, 2, 'Hit Time Min', True),
+    'hitTime_max':  (100, -0.5, 2, 'Hit Time Max', True),
+    'hitTime_avg':  (100, -0.5, 2, 'Hit Time avg', True),
+    'hitTime_mpv':  (100, -0.5, 2, 'Hit Time mpv', True),
+    'hitTime_std':  (100, -0.5, 2, 'Hit Time std', True),
+    
+    # ("qdc_min", 'd'), ("qdc_max", 'd'), ("qdc_avg", 'd'), ("qdc_mpv", 'd'), ("qdc_std", 'd'), 
+    #     ("hitTime_min", 'd'), ("hitTime_max", 'd'), ("hitTime_avg", 'd'), ("hitTime_mpv", 'd'), ("hitTime_std", 'd'), 
 
     
     "avg_scifi_x": (30, -45, -30, 'Scifi AvgPos X', False),
@@ -1528,6 +1618,11 @@ hist_info = {
     "2d_avg_scifi3": (30, -45,-30, 28, 37,51, 'Scifi3 Average Position ', False),
     "2d_avg_scifi4": (30, -45,-30, 28, 37,51, 'Scifi4 Average Position ', False),
     "2d_xy_start_position": (30, -45,-30, 28, 37,51, 'XY Start Position ', False),
+    
+    "2d_qdc_count": (400, 0, 40000, 400, 0, 4000, 'QDC vs Count ', True),
+    "2d_qdc_density": (400, 0, 40000, 400, 0, 8e5, 'Density vs Count ', True),
+    
+    
 }
 
 
@@ -1545,7 +1640,7 @@ def main():
     
     print(f"applying cut: {args.cut}")
     
-    outdir = Path(f"./plots_tmp/{args.cut}/{args.hist_name}/")
+    outdir = Path(f"./plots_tmp/{args.cut}/{args.model_name}/{args.hist_name}/")
     outdir.mkdir(parents=True, exist_ok=True)
     out_root = outdir / f"{args.model_name}_{args.hist_name}.root"
     

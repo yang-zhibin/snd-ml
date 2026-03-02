@@ -17,6 +17,7 @@ from torch_geometric.loader import DataLoader
 
 from models.test_model.model import LinearNet
 from models.GravNet.Models.gravnet import GravNet
+import tempfile
 
 
 def main(args):
@@ -71,16 +72,63 @@ def main(args):
         accumulate_grad_batches=config['accumulate_grad_batches'],
     )
 
-    train_data = TrainGeoDataset(root=config['processed_pt_root'], metadata_dir=config['metadata_dir'],split_name=split_name,split='train',
-                                 use_veto_hits=config['use_veto_hits'], use_event_feature=config['use_event_feature'], weight_type=config['weight_type'],
-                                 selected_hit_columns=config['hit_feature_cols'], selected_veto_hit_columns=config['hit_feature_cols'], selected_event_columns=config['event_feature_cols'],
-                                 force_reload=True)
+    # make a tmp dir for tmp processed_pt_root
+    tmp_processed_pt_root = tempfile.mkdtemp(prefix="processed_pt_")
+
+    def maybe_copy_pt(split, split_name, src_root, dst_root):
+        fname = f"{split}_{split_name}.pt"
+        src = os.path.join(src_root, fname)
+        dst = os.path.join(dst_root, fname)
+        if os.path.exists(src):
+            shutil.copy2(src, dst)
+    processed_root = config["processed_pt_root"]
+
+    # remember which files existed BEFORE processing
+    train_existed = os.path.exists(
+        os.path.join(processed_root, f"train_{split_name}.pt")
+    )
+    val_existed = os.path.exists(
+        os.path.join(processed_root, f"val_{split_name}.pt")
+    )
+
+    # copy existing files into tmp
+    maybe_copy_pt("train", split_name, processed_root, tmp_processed_pt_root)
+    maybe_copy_pt("val",   split_name, processed_root, tmp_processed_pt_root)
+
+    train_data = TrainGeoDataset(
+        root=tmp_processed_pt_root,
+        metadata_dir=config["metadata_dir"],
+        split_name=split_name,
+        split="train",
+        use_veto_hits=config["use_veto_hits"],
+        use_event_feature=config["use_event_feature"],
+        weight_type=config["weight_type"],
+        selected_hit_columns=config["hit_feature_cols"],
+        selected_veto_hit_columns=config["hit_feature_cols"],
+        selected_event_columns=config["event_feature_cols"],
+        force_reload=True,
+    )
+
+    val_data = TrainGeoDataset(
+        root=tmp_processed_pt_root,
+        metadata_dir=config["metadata_dir"],
+        split_name=split_name,
+        split="val",
+        use_veto_hits=config["use_veto_hits"],
+        use_event_feature=config["use_event_feature"],
+        weight_type=config["weight_type"],
+        selected_hit_columns=config["hit_feature_cols"],
+        selected_veto_hit_columns=config["hit_feature_cols"],
+        selected_event_columns=config["event_feature_cols"],
+        force_reload=True,
+    )
     
-    val_data = TrainGeoDataset(root=config['processed_pt_root'], metadata_dir=config['metadata_dir'],split_name=split_name,split='val',
-                                 use_veto_hits=config['use_veto_hits'], use_event_feature=config['use_event_feature'], weight_type=config['weight_type'],
-                                 selected_hit_columns=config['hit_feature_cols'], selected_veto_hit_columns=config['hit_feature_cols'], selected_event_columns=config['event_feature_cols'],
-                                 force_reload=True)
-    
+    if not train_existed:
+        maybe_copy_pt("train", split_name, tmp_processed_pt_root, processed_root)
+
+    if not val_existed:
+        maybe_copy_pt("val", split_name, tmp_processed_pt_root, processed_root)
+        
     if "orientation_filter" in config and config["orientation_filter"] is not None:
         orientation_filter = config["orientation_filter"]
         print(f"Filtering dataset for orientation = {orientation_filter}")

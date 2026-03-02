@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 import SndlhcGeo
 from array import array
 from tqdm import tqdm
+import pandas as pd
 
 
 def setup_geometry(geo_file):
@@ -42,16 +43,66 @@ def create_output_file(path, mode):
     return out_file, new_tree
 
 
-def process_hits(event, snd_geo, hits):
+def process_hits(event, snd_geo, hits, offset_df):
     """Process all hits in the event and update hits array and averages."""
     Scifi = snd_geo.modules['Scifi']
     A, B = ROOT.TVector3(), ROOT.TVector3()
+    
+    # ---------------------------
+    # Pass 1: collect clock cycles
+    # ---------------------------
+    cc_all = []
+    clock_period = 6.25
+    nbins=100
+    for aHit in event.Digi_ScifiHits:
+        if not aHit.isValid():
+            continue
+
+        # Define/compute your clock cycle consistently with your analysis
+        # Example: if GetTime() is in "clock cycles already", then:
+        #   cc = float(aHit.GetTime())
+        # If GetTime() is in ns and you want cycle index, then:
+        #   cc = aHit.GetTime() / clock_period
+        cc = aHit.GetTime() / clock_period
+        cc_all.append(cc)
+
+    if not cc_all:
+        return
+
+    # ---------------------------
+    # MPV via histogram mode
+    # ---------------------------
+    cmin, cmax = min(cc_all), max(cc_all)
+    if cmin == cmax:
+        mpv_cc = float(cmin)
+    else:
+        pad = 0.05 * (cmax - cmin)
+        h = ROOT.TH1F("h_cc_tmp_process_hits", "", nbins, cmin - pad, cmax + pad)
+        h.SetDirectory(0)  # avoid ROOT directory ownership / memory buildup
+        for x in cc_all:
+            h.Fill(x)
+        mpv_cc = float(h.GetBinCenter(h.GetMaximumBin()))
+        # optional cleanup
+        # del h
+
+    lo, hi = mpv_cc - 0.5, mpv_cc + 2.3
 
     # Process SciFi hits
     for aHit in event.Digi_ScifiHits:
         if not aHit.isValid():
             continue
+        cc = aHit.GetTime() / clock_period
+        if not (lo <= cc <= hi):
+            continue
+        
         detID = aHit.GetDetectorID()
+        
+        st  = detID // 1000000
+        ori = int(aHit.isVertical())           # 0/1
+        mat = (detID % 100000) // 10000
+        local_ch  = detID % 1000
+        tofpet_id = (detID % 10000) // 1000
+        ch = tofpet_id*128 + local_ch
 
         Scifi.GetSiPMPosition(detID, A, B)
         hit = hits.ConstructedAt(hits.GetEntries())
@@ -62,17 +113,13 @@ def process_hits(event, snd_geo, hits):
         hit.hitTime = aHit.GetTime()
         hit.detId = detID
 
-        max_QDC = 200 * 16
-        this_qdc = 0
-        ns = max(1,aHit.GetnSides())
-        for side in range(ns):
-            for m in  range(aHit.GetnSiPMs()):
-                qdc = aHit.GetSignal(m+side*aHit.GetnSiPMs())
-                if not qdc < 0:
-                    this_qdc += qdc
-        if this_qdc > max_QDC :
-            this_qdc = max_QDC
-        hit.qdc = this_qdc
+        qdc = aHit.GetSignal(0)
+        if st == 2 and mat == 0 and ori==0 and ('real' in  args.type):
+            mpv_value = offset_df.loc[ch, "mpv_data_avg"]
+            qdc = qdc-mpv_value
+        if qdc<0:
+            qdc = 0
+        hit.qdc = qdc
 
 
 def main(args):
@@ -86,7 +133,8 @@ def main(args):
     
     # Define branches (assuming branch setup functions are defined)
     ROOT.gROOT.ProcessLine(f".L {args.work_path}/snd-ml/testbeam/Converted_data/EventClass.h+")
-
+    offset_df = pd.read_csv("/afs/cern.ch/user/z/zhibin/work/snd-ml/testbeam/evaluation/QDC_offset/QDC_offset_st2_mat0_ori0.csv")
+    offset_df = offset_df.set_index("channel")
     ids = ROOT.Id()
     hits = ROOT.TClonesArray("Hit")
     
@@ -134,7 +182,7 @@ def main(args):
             ids.isMC = 0
             ids.eventId = raw_tree.EventHeader.GetEventNumber()
         
-        process_hits(raw_tree, snd_geo, hits)
+        process_hits(raw_tree, snd_geo, hits, offset_df)
         new_tree.Fill()
 
     # Finalize the output file

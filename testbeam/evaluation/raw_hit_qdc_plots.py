@@ -4,8 +4,6 @@ import ROOT
 import random
 import os
 from tqdm import tqdm
-import csv
-import math
 
 
 
@@ -31,13 +29,12 @@ def load_all_metadata(metadata_dir):
         "MC_2024": [],
         "DATA_2024": [],
         "MC_2023": [],
-        "DATA_2023": [],
-        "new_cal": []
+        "DATA_2023": []
     }
 
     for csv_file in metadata_dir.glob("*.csv"):
         name = csv_file.name.lower()
-        # print(name)
+
         # ---- Classify file ----
         if "mc" in name and "2024" in name:
             key = "MC_2024"
@@ -50,8 +47,6 @@ def load_all_metadata(metadata_dir):
                 key = "DATA_2023"
             else:
                 continue
-        elif "new_cal" in name:
-            key = "new_cal"
         else:
             continue
 
@@ -76,8 +71,7 @@ def chains_by_group(metadata, *,
                     file_col="input_path",
                     tree_name="cbmsim",
                     unique_files=True,
-                    max_files = None,
-                    skip_file = 0):
+                    max_files = None):
     """
     Build a ROOT.TChain per (beam_energy, beam_type) group.
 
@@ -89,7 +83,6 @@ def chains_by_group(metadata, *,
 
     grouped = metadata.groupby([energy_col, particle_col], dropna=False)
     geo_file = metadata['geo_path'][0]
-    
     for (E, p), df in grouped:
         chain = ROOT.TChain(tree_name)
 
@@ -98,11 +91,7 @@ def chains_by_group(metadata, *,
             files = files.drop_duplicates()
 
         n_added = 0
-        count =0
         for f in files:
-            count += 1
-            if count<=skip_file:
-                continue
             # TChain.Add returns number of files added (0 if failed)
             ret = chain.Add(f)
             if ret:
@@ -184,6 +173,57 @@ def get_hist1d_for_channel(hmap, ch, E, p, *, var_label, prefix,
         hmap[ch] = h
     return hmap[ch]
 
+def fill_raw_data(chain, E, p, *,
+                     mode="qdc",
+                     tree_branch="Digi_ScifiHits",
+                     max_hits=None,
+                     nbins_chan_2d=200,
+                     st2_mat0_make_per_channel=True):
+    getter, var_label, R = value_spec(mode)
+
+    total = int(chain.GetEntries())
+    n_hits = total if max_hits is None else min(total, int(max_hits))
+
+    # 2D: var vs station
+    h_vs_station = ROOT.TH2F(
+        f"h_{var_label}_vs_station_E{E}_{p}",
+        f"{var_label} vs station [E={E}, p={p}];station;{var_label}",
+        6, -0.5, 5.5,
+        R["y_nbins_2d"], R["y_min_2d"], R["y_max_2d"],
+    )
+    h_vs_station.Sumw2()
+
+    # 2D: var vs channel per (st,ori,mat)
+    h_vs_chan_by_key = {}  # (station, orientation, mat) -> TH2F
+
+    # 1D: st=2, mat=0, split by orientation
+    h_st2_o0_m0 = ROOT.TH1F(
+        f"h_{var_label}_st2_o0_m0_E{E}_{p}",
+        f"{var_label} st=2, ori=0, mat=0 [E={E}, p={p}];{var_label};Counts",
+        R["x_nbins_1d"], R["x_min_1d"], R["x_max_1d"],
+    )
+    h_st2_o0_m0.Sumw2()
+
+    h_st2_o1_m0 = ROOT.TH1F(
+        f"h_{var_label}_st2_o1_m0_E{E}_{p}",
+        f"{var_label} st=2, ori=1, mat=0 [E={E}, p={p}];{var_label};Counts",
+        R["x_nbins_1d"], R["x_min_1d"], R["x_max_1d"],
+    )
+    h_st2_o1_m0.Sumw2()
+
+    # Per-channel 1D (keep separate maps for ori=0 and ori=1 to avoid mixups)
+    by_ch_o0 = {}
+    by_ch_o1 = {}
+
+    for i in tqdm(range(n_hits), desc=f"fill {mode} E={E} p={p}"):
+        chain.GetEntry(i)
+        print(dir(chain))
+        #get goard id for station, orientation
+        # 
+        break
+        
+        
+
 # -----------------------------------------------------------------------------
 # Fill function (works for QDC or hitTime)
 # -----------------------------------------------------------------------------
@@ -191,15 +231,9 @@ def fill_scifi_hists(chain, E, p, *,
                      mode="qdc",
                      tree_branch="Digi_ScifiHits",
                      max_events=None,
-                     nbins_chan_2d=512,
-                     st2_mat0_make_per_channel=True,
-                    MC=False,
-                    cancelOffSet=False):
+                     nbins_chan_2d=200,
+                     st2_mat0_make_per_channel=True):
     getter, var_label, R = value_spec(mode)
-    offset_df = pd.read_csv("./QDC_offset/QDC_offset_st2_mat0_ori0.csv")
-
-    # Set channel column as index
-    offset_df = offset_df.set_index("channel")
 
     total = int(chain.GetEntries())
     n_events = total if max_events is None else min(total, int(max_events))
@@ -247,14 +281,7 @@ def fill_scifi_hists(chain, E, p, *,
             st  = detID // 1000000
             ori = int(aHit.isVertical())           # 0/1
             mat = (detID % 100000) // 10000
-            local_ch  = detID % 1000
-            tofpet_id = (detID % 10000) // 1000
-
-            ch = tofpet_id*128 + local_ch
-            
-            if st == 2 and mat == 0 and ori==0 and MC==False and cancelOffSet == True:
-                mpv_value = offset_df.loc[ch, "mpv_data_avg"]
-                val = val-mpv_value
+            ch  = detID % 1000
 
             h_vs_station.Fill(st, val)
 
@@ -379,34 +406,14 @@ def _draw_4_1d_compare(h_dt_o0, h_dt_o1, h_mc_o0, h_mc_o1, fout, *,
     print(f"[saved] {fout}")
     c.Close()
 
-def hist_mpv_x(h):
-    """
-    Return MPV = bin center of maximum bin.
-    """
-    if not h:
-        return float("nan")
 
-    # protect against empty histogram
-    if h.GetEntries() == 0:
-        return float("nan")
-
-    max_bin = h.GetMaximumBin()
-    return h.GetXaxis().GetBinCenter(max_bin)
-
-def save_by_channel_pdf(
-    h_dt_by_ch, h_mc_by_ch, fout, *,
-    normalize=True,
-    logy=False,
-    mpv_csv=None,            # <-- path to CSV, e.g. "mpv.csv"
-):
+def save_by_channel_pdf(h_dt_by_ch, h_mc_by_ch, fout, *, normalize=True, logy=False):
     ROOT.gStyle.SetOptStat(0)
 
     chans = sorted(set(h_dt_by_ch.keys()) | set(h_mc_by_ch.keys()))
     if not chans:
         print(f"[skip] no channel histograms to save for {fout}")
         return
-
-    mpv_rows = []  # collect rows for CSV
 
     c = ROOT.TCanvas("c_by_ch", "c_by_ch", 900, 700)
     if logy:
@@ -426,19 +433,6 @@ def save_by_channel_pdf(
         if hmc:
             hmc = hmc.Clone(hmc.GetName() + f"_page{ch}_mc")
 
-        # --- compute MPVs (location unaffected by normalization) ---
-        mpv_dt = hist_mpv_x(hdt) if hdt else float("nan")
-        mpv_mc = hist_mpv_x(hmc) if hmc else float("nan")
-
-        mpv_rows.append({
-            "channel": ch,
-            "mpv_data": mpv_dt,
-            "mpv_mc": mpv_mc,
-            "entries_data": int(hdt.GetEntries()) if hdt else 0,
-            "entries_mc": int(hmc.GetEntries()) if hmc else 0,
-        })
-
-        # --- optional normalization for plotting ---
         if normalize:
             if hdt:
                 i = hdt.Integral(0, hdt.GetNbinsX() + 1)
@@ -474,11 +468,11 @@ def save_by_channel_pdf(
             hmc.Draw("HIST")
             hdt.Draw("E1 SAME")
 
-        leg = ROOT.TLegend(0.55, 0.70, 0.88, 0.88)
+        leg = ROOT.TLegend(0.60, 0.74, 0.88, 0.88)
         leg.SetBorderSize(0)
         leg.SetFillStyle(0)
-        if hdt: leg.AddEntry(hdt, f"Data ch={ch}  MPV={mpv_dt:.4g}", "lep")
-        if hmc: leg.AddEntry(hmc, f"MC   ch={ch}  MPV={mpv_mc:.4g}", "l")
+        if hdt: leg.AddEntry(hdt, f"Data ch={ch}", "lep")
+        if hmc: leg.AddEntry(hmc, f"MC   ch={ch}", "l")
         leg.Draw()
 
         c.Update()
@@ -488,14 +482,6 @@ def save_by_channel_pdf(
     c.Close()
     print(f"[saved] {fout}")
 
-    # --- write CSV if requested ---
-    if mpv_csv:
-        fieldnames = ["channel", "mpv_data", "mpv_mc", "entries_data", "entries_mc"]
-        with open(mpv_csv, "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=fieldnames)
-            w.writeheader()
-            w.writerows(mpv_rows)
-        print(f"[saved] {mpv_csv}")
 
 # -----------------------------------------------------------------------------
 # Main driver (same interface, plus mode)
@@ -511,7 +497,6 @@ def plot_comparisons_by_group(
     normalize=False,
     logy=False,
     mode="qdc",
-    cancelOffSet=False
 ):
     """
     Produces (per E,p):
@@ -541,25 +526,21 @@ def plot_comparisons_by_group(
             continue
 
         # Fill
-        h_station_dt, hmap_dt, h_dt_o0, h_dt_o1, h_dt_by_ch_o0, h_dt_by_ch_o1 = fill_scifi_hists(
+        h_station_dt, hmap_dt, h_dt_o0, h_dt_o1, h_dt_by_ch_o0, h_dt_by_ch_o1 = fill_raw_data(
             dt_chain, E, p, mode=mode, tree_branch=tree_branch, max_events=max_events_Data
         )
         h_station_mc, hmap_mc, h_mc_o0, h_mc_o1, h_mc_by_ch_o0, h_mc_by_ch_o1 = fill_scifi_hists(
-            mc_chain, E, p, mode=mode, tree_branch=tree_branch, max_events=max_events_MC, MC=True, cancelOffSet=cancelOffSet
+            mc_chain, E, p, mode=mode, tree_branch=tree_branch, max_events=max_events_MC
         )
 
         # Per-channel PDFs (ori separated)
         fout_ch_o0 = f"{out_dir}/{var_label}_by_channel_E{E}_{p}_st2_mat0_ori0.pdf"
-        fout_ch_o0_csv = f"{out_dir}/{var_label}_MPV_by_channel_E{E}_{p}_st2_mat0_ori0.csv"
         save_by_channel_pdf(h_dt_by_ch_o0, h_mc_by_ch_o0, fout_ch_o0,
-                            normalize=normalize, logy=logy,
-                            mpv_csv=fout_ch_o0_csv)
+                            normalize=normalize, logy=logy)
 
         fout_ch_o1 = f"{out_dir}/{var_label}_by_channel_E{E}_{p}_st2_mat0_ori1.pdf"
-        fout_ch_o1_csv = f"{out_dir}/{var_label}_MPV_by_channel_E{E}_{p}_st2_mat0_ori1.csv"
         save_by_channel_pdf(h_dt_by_ch_o1, h_mc_by_ch_o1, fout_ch_o1,
-                            normalize=normalize, logy=logy,
-                            mpv_csv=fout_ch_o1_csv)
+                            normalize=normalize, logy=logy)
 
         # Station compare
         h_station_dt = h_station_dt.Clone(f"h_{var_label}_vs_station_dt_E{E}_{p}")
@@ -624,42 +605,17 @@ def plot_comparisons_by_group(
         _draw_4_1d_compare(h_dt_o0, h_dt_o1, h_mc_o0, h_mc_o1, fout4,
                            normalize=normalize, logy=logy)
 
-        #break
+        break
 
 def main():
     metadata = load_all_metadata("../metadata/updated")
 
     mc24   = metadata["MC_2024"]
-    # data24 = metadata["DATA_2024"]
-    data24 = metadata["new_cal"]
-    mc23   = metadata["MC_2023"]
-    data23 = metadata["DATA_2023"]
+    data24 = metadata["DATA_2024"]
 
-
-    # print(mc23)
-    # mc23_chains   = chains_by_group(mc23,   file_col="digi_path", tree_name="cbmsim", max_files=10)
-    # data23_chains = chains_by_group(data23, file_col="digi_path", tree_name="cbmsim", max_files=10)
+    mc24_chains, mc24_geo_file   = chains_by_group(mc24,   file_col="digi_path", tree_name="cbmsim", max_files=10)
+    data24_chains, data24_geo_file= chains_by_group(data24, file_col="raw_path", tree_name="data", max_files=10)
     
-    
-
-    
-    # plot_qdc_comparisons_by_group(
-    #     mc23_chains,
-    #     data23_chains,
-    #     out_dir="qdc_plot",
-    #     year = "2023",
-    #     tree_branch="Digi_ScifiHits",
-    #     nbins=200, xmin=-50, xmax=150,
-    #     max_events=200,     
-    #     normalize=True,
-    #     logy=True
-    # )
-    print('reading MC...')
-    mc24_chains, mc24_geo_file   = chains_by_group(mc24,   file_col="digi_path", tree_name="cbmsim", max_files=5)
-    print('reading Data...')
-    data24_chains, data24_geo_file= chains_by_group(data24, file_col="digi_path", tree_name="cbmsim", max_files=5, skip_file=0)
-    
-
     
     #print(mc24_geo_file, data24_geo_file)
     # plot_qdc_comparisons_by_group(
@@ -680,16 +636,15 @@ def main():
         data24_chains,
         mc24_geo_file,
         data24_geo_file,
-        out_dir="TestbeamPlot_oldCal",
+        out_dir="TestbeamPlot",
         year = "2024",
         tree_branch="Digi_ScifiHits",
-        max_events_MC=5000,    
-        max_events_Data=10000,    
+        max_events_MC=50,    
+        max_events_Data=200,    
         logz=True,
         normalize=True,
         logy=True,      
-        mode="qdc",
-        cancelOffSet=False
+        mode="hitTime"  
     )
     
     

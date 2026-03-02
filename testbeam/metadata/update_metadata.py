@@ -7,6 +7,10 @@ import yaml
 from argparse import ArgumentParser
 from tqdm import tqdm
 import difflib
+from math import ceil
+import ROOT
+import re
+
 
 
 pdg_to_particle = {
@@ -18,6 +22,7 @@ pdg_to_particle = {
     "-13": "mu+",
     "22": "photon"
 }
+
 
 
 def get_MC_particle_type_and_energy(df, particle_subfolder):
@@ -90,7 +95,7 @@ def get_beam_energy(run, particle_subfolder):
 
 
 
-def get_new_path(digi_path, pre_fix, file_type, eos_path):
+def get_new_path(digi_path, pre_fix, file_type, eos_path, year):
     
     # Trouver la sous-partie à partir de 'sndlhc/'
     split_key = "sndlhc/"
@@ -107,7 +112,7 @@ def get_new_path(digi_path, pre_fix, file_type, eos_path):
     # Créer le nouveau nom de fichier avec le préfixe et la nouvelle extension
     new_filename = f"{pre_fix}_{name}{file_type}"
     
-    new_path = os.path.join(eos_path, "sndlhc", folder, new_filename)
+    new_path = os.path.join(eos_path, "TestBeam", year, folder, new_filename)
     
     return new_path
 
@@ -123,6 +128,113 @@ def get_real_particle_type_and_energy(df, particle_subfolder):
     
     return df
 
+def split_root_file_ranges(input_path, out_dir, partition,
+                           tree_name="cbmsim", chunk_size=2000,
+                           n_entries_override=None):
+
+    f_in = ROOT.TFile.Open(input_path)
+    tree = f_in.Get(tree_name)
+    n_entries = int(n_entries_override) if n_entries_override else int(tree.GetEntries())
+
+    base = os.path.splitext(os.path.basename(input_path))[0]
+    n_chunks = int(ceil(n_entries / chunk_size)) if n_entries > 0 else 0
+
+    outputs = []
+    file_entries = []
+
+    final_dir = os.path.join(out_dir, str(partition))
+    os.makedirs(final_dir, exist_ok=True)
+
+    for i in range(n_chunks):
+        start = i * chunk_size
+        n_take = min(chunk_size, n_entries - start)
+
+        out_name = f"{base}_{i+1}.root"
+        out_path = os.path.join(final_dir, out_name)
+
+        f_out = ROOT.TFile(out_path, "RECREATE")
+        new_tree = tree.CopyTree("", "", n_take, start)
+        new_tree.Write()
+        f_out.Close()
+
+        outputs.append(out_path)
+        file_entries.append(n_take)
+
+    f_in.Close()
+    return outputs, file_entries
+
+
+
+def split_raw_and_digi_df(
+    df,
+    eos_raw_dir,
+    eos_digi_dir,
+    tree_name="cbmsim",
+    chunk_size=2000,
+):
+    # preserve originals
+    df = df.copy()
+    df["original_raw_path"] = df["raw_path"]
+    df["original_digi_path"] = df["digi_path"]
+
+    new_rows = []
+
+    for idx, row in df.iterrows():
+        raw_in = row["original_raw_path"]
+        digi_in = row["original_digi_path"]
+        partition = row["partition"]
+
+        # Open both to determine aligned number of entries (min of both)
+        f_raw = ROOT.TFile.Open(raw_in)
+        f_digi = ROOT.TFile.Open(digi_in)
+        if not f_raw or f_raw.IsZombie():
+            raise RuntimeError(f"Could not open raw: {raw_in}")
+        if not f_digi or f_digi.IsZombie():
+            raise RuntimeError(f"Could not open digi: {digi_in}")
+
+        t_raw = f_raw.Get(tree_name)
+        t_digi = f_digi.Get(tree_name)
+        if not t_raw:
+            raise RuntimeError(f"TTree '{tree_name}' not found in raw: {raw_in}")
+        if not t_digi:
+            raise RuntimeError(f"TTree '{tree_name}' not found in digi: {digi_in}")
+
+        n_raw = int(t_raw.GetEntries())
+        n_digi = int(t_digi.GetEntries())
+        n_use = min(n_raw, n_digi)  # keep event index alignment
+        f_raw.Close()
+        f_digi.Close()
+
+        if n_use == 0:
+            # nothing to split; leave paths as-is (or handle differently if you prefer)
+            continue
+
+        raw_outs, raw_entries  = split_root_file_ranges(raw_in,  eos_raw_dir, partition, tree_name, chunk_size, n_entries_override=n_use)
+        digi_outs, digi_entries  = split_root_file_ranges(digi_in, eos_digi_dir,partition, tree_name, chunk_size, n_entries_override=n_use)
+
+        if len(raw_outs) != len(digi_outs):
+            # Shouldn't happen given same n_use & chunk_size, but guard anyway
+            m = min(len(raw_outs), len(digi_outs))
+            raw_outs, digi_outs = raw_outs[:m], digi_outs[:m]
+
+        # Replace current row with chunk 1 paths
+        df.at[idx, "raw_path"] = raw_outs[0]
+        df.at[idx, "digi_path"] = digi_outs[0]
+        df.at[idx, "n_event"] = digi_entries[0]
+
+
+        # Add extra rows for chunk 2..N
+        for k in range(1, len(raw_outs)):
+            nr = row.copy()
+            nr["raw_path"] = raw_outs[k]
+            nr["digi_path"] = digi_outs[k]
+            nr["n_event"] = digi_entries[k]
+            new_rows.append(nr)
+
+    if new_rows:
+        df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+
+    return df
     
     
 def extract_info(file_name):
@@ -132,9 +244,26 @@ def extract_info(file_name):
     return data_type, subfolder
 
 
+def to_raw(digi_path: str) -> str:
+    raw_folder = "/eos/experiment/sndlhc/raw_data/testbeam_24"
+    pat = re.compile(r""".*/run_(10\d+)/sndsw_raw-([^.\/]+)\.root$""")
+    m = pat.match(digi_path)
+    if not m:
+        raise ValueError(f"Unexpected digi_path format: {digi_path}")
+    run_id, file_id = m.group(1), m.group(2)
+    return f"{raw_folder}/run_{run_id}/data_{file_id}.root"
+
 def main(args):
+
+    
     csv_file = args.csv_input
     csv_name = os.path.basename(csv_file)
+    
+    if "2024" in csv_name or  "real_data_testbeam_24" in csv_name :
+        year = "2024"
+    elif "2023" in csv_name:
+        year = "2023"
+    
     
     file_exists = os.path.isfile(csv_file)
     if (not file_exists):
@@ -152,19 +281,6 @@ def main(args):
     else:
         print("Warning: 'n_event' column not found; no rows dropped.")
     
-    # drop subfolder =='180GeV_211_Fe'
-    if "subfolder" in df.columns:
-        df = df[df["subfolder"] != "180GeV_211_Fe"].reset_index(drop=True)
-    else:
-        print("Warning: 'subfolder' column not found; no rows dropped.")
-    
-    # ToDo drop beam_type == mu-, no type
-    
-    df["feature_path"] = df["digi_path"].apply(get_new_path, pre_fix="feature", file_type=".root", eos_path=args.eos_path)
-    df["hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="hit", file_type=".root", eos_path=args.eos_path)
-    df["pt_hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="pt_hit", file_type=".pt.gz", eos_path=args.eos_path)
-    df["prediction_testbeam_2024_GravNet_v2_output_path"] = df["digi_path"].apply(get_new_path, pre_fix="prediction_testbeam_2024_GravNet_v2_output", file_type=".root", eos_path=args.eos_path)
-    
     if data_type == "MC_data":
         df = get_MC_particle_type_and_energy(df, particle_subfolder)
     elif data_type == "real_data":
@@ -177,7 +293,108 @@ def main(args):
         print("Update failed")
         return
     
-    df.to_csv(args.csv_output, index=False)
+    
+    # process for 2024
+    if year == "2024":
+        # drop subfolder =='180GeV_211_Fe'
+        if "subfolder" in df.columns:
+            df = df[df["subfolder"] != "180GeV_211_Fe"].reset_index(drop=True)
+        else:
+            print("Warning: 'subfolder' column not found; no rows dropped.")
+        
+        #in the df, digi_path column is like ...digi__folder/run_10****/sndsw_raw-xxxx.root, i want to get the raw_path {raw_folder}/run_10****/data_xxxx.root
+        
+        if data_type == "real_data":
+            df["raw_path"] = df["digi_path"].apply(to_raw)
+        
+        df["feature_path"] = df["digi_path"].apply(get_new_path, pre_fix="feature", file_type=".root", eos_path=args.eos_path, year = year)
+        df["hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="hit", file_type=".root", eos_path=args.eos_path, year=year)
+        df["pt_hit_path"] = df["digi_path"].apply(get_new_path, pre_fix="pt_hit", file_type=".pt.gz", eos_path=args.eos_path, year=year)
+        
+        
+        versions = ["v2", "v3", "v4", "v5","v6", "v7","v6_2", "v7_2", "v8"]
+        for v in versions:
+            df[f"prediction_testbeam_{year}_GravNet_{v}_output_path"] = (
+                df["digi_path"].apply(
+                    get_new_path,
+                    pre_fix=f"prediction_testbeam_{year}_GravNet_{v}_output",
+                    file_type=".root",
+                    eos_path=args.eos_path,
+                    year=year
+                )
+            )
+            
+            
+        corrupted_csv_name = [
+            'log_outputs.csv',
+            'first_peak_150GeV_300GeV.csv'
+        ]
+
+        # directory of the input CSV (same dir as corrupted CSVs)
+        corrupted_csv_dir = os.path.dirname(args.csv_input)
+
+        # collect all corrupted digi paths
+        corrupted_digi_paths = set()
+
+        for name in corrupted_csv_name:
+            csv_path = os.path.join(corrupted_csv_dir, name)
+            if not os.path.exists(csv_path):
+                print(f"[WARN] Corrupted CSV not found: {csv_path}")
+                continue
+
+            try:
+                tmp = pd.read_csv(csv_path)
+                if 'digi_path' in tmp.columns:
+                    corrupted_digi_paths.update(
+                        tmp['digi_path'].dropna().astype(str)
+                    )
+                else:
+                    print(f"[WARN] 'digi_path' column missing in {csv_path}")
+            except Exception as e:
+                print(f"[WARN] Failed to read {csv_path}: {e}")
+
+        # ensure consistent dtype before comparison
+        df['digi_path'] = df['digi_path'].astype(str)
+        # drop rows with corrupted digi paths
+        df = df[~df['digi_path'].isin(corrupted_digi_paths)]
+        
+        df = df[~df['beam_type'].isin(['mu-', 'no type'])]
+        
+        df.to_csv(args.csv_output, index=False)
+    
+    #process for 2023
+    elif year == "2023":
+        #devide digi to multiple file
+        df["original_raw_path"] = df["raw_path"]
+        df["original_n_event"] = df["n_event"]
+        
+        CHUNK_SIZE   = 2000          
+        TREE_NAME    = "cbmsim"      
+        df2 = split_raw_and_digi_df(
+            df,
+            eos_raw_dir=f"{args.eos_path}/TestBeam/{year}/",
+            eos_digi_dir=f"{args.eos_path}/TestBeam/{year}/",
+            tree_name=TREE_NAME,
+            chunk_size=CHUNK_SIZE,
+        )
+        
+        df2.to_csv(args.csv_output, index=False)
+        def make_prefixed_path(path, prefix, file_type=".root"):
+            directory = os.path.dirname(path)
+            base = os.path.splitext(os.path.basename(path))[0]
+            return os.path.join(directory, f"{prefix}_{base}{file_type}")
+        # raw_path -> new_digi_path, new_feature_path, new_hit_path
+        # digi_path ->feature_path, hit_path, 
+        # From raw_path
+        df2["new_digi_path"]    = df2["raw_path"].apply(lambda p: make_prefixed_path(p, "new_digi"))
+        df2["new_feature_path"] = df2["raw_path"].apply(lambda p: make_prefixed_path(p, "new_feature"))
+        df2["new_hit_path"]     = df2["raw_path"].apply(lambda p: make_prefixed_path(p, "new_hit"))
+
+        # From digi_path
+        df2["feature_path"] = df2["digi_path"].apply(lambda p: make_prefixed_path(p, "feature"))
+        df2["hit_path"]     = df2["digi_path"].apply(lambda p: make_prefixed_path(p, "hit"))
+        df2.to_csv(args.csv_output, index=False)
+        
 
 
 if __name__ == "__main__":

@@ -1,13 +1,12 @@
 
-model_name: &model_name testbeam_2024_GravNet_test
-split_name: train_2024_split_test
+model_name: testbeam_2024_GravNet
 logger:
+  version: 7
   project: 'snd-ml-testbeam'
   entity: "1246249540"
-  name: train_2024_split_test_testbeam_2024_GravNet
-  version: 1
   save_dir: '/afs/cern.ch/work/z/zhibin/snd-ml/training/log/'
 
+split_name: train_2024_split_v5
 ModelCheckpoint:
   monitor: "val_loss"
   mode: "min"
@@ -15,18 +14,18 @@ ModelCheckpoint:
   save_last: True
 
 batch_size: 
-  train: 4
-  val: 4
-  test: 4
-accumulate_grad_batches: 4
+  train: 64
+  val: 64
+  test: 1
+accumulate_grad_batches: 128
 
 max_epochs: 1000
 #val_check_interval: 5000
-check_val_every_n_epoch: 1
+check_val_every_n_epoch: 5
 
 
 metadata_dir: /afs/cern.ch/work/z/zhibin/snd-ml/testbeam/metadata/training
-processed_pt_root: /eos/user/z/zhibin/sndlhc/processed_pt_root
+processed_pt_root: /eos/user/z/zhibin/TestBeam/2025/processed_pt_root
 
 #resume_from_checkpoint: None
 
@@ -44,11 +43,11 @@ global_feature_channels: 6
 event_feature_cols: ['RecoMuon.px', 'RecoMuon.py', 'RecoMuon.pz', 'RecoMuon.x', 'RecoMuon.y', 'RecoMuon.z']
 
 
-hit_feature_cols: ['orientation','x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'qdc']
+hit_feature_cols: ['orientation','x1', 'y1', 'z1', 'x2', 'y2', 'z2']
 use_veto_hits: False
 
 
-spatial_channels: 8
+spatial_channels: 7
 final_dropout: 0.1 # The dropout of the final layer
 feature_dropout: 0.0 # This is the dropout within the GNN convolutions
 spatial_dropout: 0.0
@@ -68,12 +67,12 @@ output_activation:
 
 
 n_grav_heads: 5 # 5
-hidden: 2
-n_graph_iters: 1 # 5
-nb_encoder_layer: 1
-nb_decoder_layer: 1
-nb_feature_layer: 1
-nb_spatial_layer: 1
+hidden: 64
+n_graph_iters: 5 # 5
+nb_encoder_layer: 3
+nb_decoder_layer: 3
+nb_feature_layer: 3
+nb_spatial_layer: 3
 concat_all_layers: False # True
 layer_shape: pyramid # flat
 
@@ -83,9 +82,9 @@ rand_k:
 aggs: [add, max, mean]
 
 r: 1.
-max_knn: 2
+max_knn: 16
 
-emb_dims: 2
+emb_dims: 16
 grav_weight: 3.0
 norm_hidden: True
 norm_embedding: False

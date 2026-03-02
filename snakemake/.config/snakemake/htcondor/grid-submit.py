@@ -23,28 +23,38 @@ if not os.path.exists(log_dir):
 jobDir = f"{log_dir}/{job_properties['jobid']}_{UUID}"
 makedirs(jobDir, exist_ok=True)
 
+ngpu = int(job_properties.get("resources", {}).get("nvidia_gpu", 0) or 0)
+base_reqs = '(TARGET.OpSysAndVer =?= "AlmaLinux9")'
+
+if ngpu > 0:
+    reqs = (
+        base_reqs
+         + ' && regexp("V100", GPUs_DeviceName)'
+    )
+else:
+    reqs = base_reqs
+
 sub = htcondor.Submit(
     {
         "executable": "/bin/bash",
         "arguments": jobscript,
         "max_retries": "0",
         "log": join(jobDir, "condor.log"),
-        "output": "condor.out", # join(jobDir, "condor.out"), "condor.out", 
-        "error": "condor.err", #join(jobDir, "condor.err"), "condor.err", 
+        "output":  join(jobDir, "condor.out"),  # join(jobDir, "condor.out"), "condor.out", 
+        "error": join(jobDir, "condor.err"), #join(jobDir, "condor.err"), "condor.err", 
         "should_transfer_files": "NO",
         "getenv": "True",
 #        "request_cpus": str(job_properties["threads"]),
         "+MaxRuntime": job_properties["resources"]["runtime"],
         # Add your custom HTCondor settings
         "+AccountingGroup": '"group_u_SNDLHC.users"',
-        "requirements": '(TARGET.OpSysAndVer =?= "AlmaLinux9")',
+        "requirements": reqs,
     }
 )
 
 # Add GPU request if specified in job properties
-if "nvidia_gpu" in job_properties["resources"] and job_properties["resources"]["nvidia_gpu"] != 0:
-    sub["request_GPUs"] = str(job_properties["resources"]["nvidia_gpu"])
-
+if ngpu > 0:
+    sub["request_GPUs"] = str(ngpu)
 
 request_memory = job_properties["resources"].get("mem_mb", None)
 if request_memory is not None:

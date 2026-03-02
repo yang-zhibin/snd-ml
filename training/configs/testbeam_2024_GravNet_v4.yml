@@ -1,13 +1,12 @@
 
-model_name: &model_name testbeam_2024_GravNet
-split_name: train_2024_split_v1
+model_name: testbeam_2024_GravNet
 logger:
+  version: 5
   project: 'snd-ml-testbeam'
-  entity: "sacha-frankhauser-epfl"
-  name: train_2024_split_v1_testbeam_2024_GravNet
-  version: 4
-  save_dir: '/afs/cern.ch/work/s/sfrankha/snd-ml/training/log/'
+  entity: "1246249540"
+  save_dir: '/afs/cern.ch/work/z/zhibin/snd-ml/training/log/'
 
+split_name: train_2024_split_v4
 ModelCheckpoint:
   monitor: "val_loss"
   mode: "min"
@@ -15,18 +14,18 @@ ModelCheckpoint:
   save_last: True
 
 batch_size: 
-  train: 256
+  train: 128
   val: 1
   test: 1
+accumulate_grad_batches: 128
 
 max_epochs: 1000
 #val_check_interval: 5000
 check_val_every_n_epoch: 1
 
 
-metadata_dir: /afs/cern.ch/work/s/sfrankha/snd-ml/testbeam/metadata/training
-
-processed_pt_root: /eos/user/s/sfrankha/processed_pt_root
+metadata_dir: /afs/cern.ch/work/z/zhibin/snd-ml/testbeam/metadata/training
+processed_pt_root: /eos/user/z/zhibin/TestBeam/2025/processed_pt_root
 
 #resume_from_checkpoint: None
 
@@ -34,7 +33,7 @@ factor: 0.93
 patience: 5
 lr: 0.003
 
-nb_classes: 2
+nb_classes: 1
 use_weights: False
 weight_type: "weight"
 class_weights: [1.0, 1.0]
@@ -44,11 +43,11 @@ global_feature_channels: 6
 event_feature_cols: ['RecoMuon.px', 'RecoMuon.py', 'RecoMuon.pz', 'RecoMuon.x', 'RecoMuon.y', 'RecoMuon.z']
 
 
-hit_feature_cols: ['detType','orientation','x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'qdc']
+hit_feature_cols: ['orientation','x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'qdc']
 use_veto_hits: False
 
 
-spatial_channels: 9
+spatial_channels: 8
 final_dropout: 0.1 # The dropout of the final layer
 feature_dropout: 0.0 # This is the dropout within the GNN convolutions
 spatial_dropout: 0.0
@@ -66,7 +65,6 @@ aggregation: mean_sum
 hidden_activation: ReLU # SiLU
 output_activation: 
 
-# Layer Structure
 
 n_grav_heads: 5 # 5
 hidden: 64
