@@ -1,7 +1,7 @@
 
 model_name: testbeam_2024_GravNet
 logger:
-  version: 8
+  version: 9
   project: 'snd-ml-testbeam'
   entity: "1246249540"
   save_dir: '/afs/cern.ch/work/z/zhibin/snd-ml/training/log/'
@@ -42,11 +42,11 @@ global_feature_channels: 6
 event_feature_cols: ['RecoMuon.px', 'RecoMuon.py', 'RecoMuon.pz', 'RecoMuon.x', 'RecoMuon.y', 'RecoMuon.z']
 
 
-hit_feature_cols: ['orientation','x1', 'y1', 'z1', 'x2', 'y2', 'z2']
+hit_feature_cols: ['x1', 'y1', 'z1']
 use_veto_hits: False
 
 
-spatial_channels: 7
+spatial_channels: 3
 final_dropout: 0.1 # The dropout of the final layer
 feature_dropout: 0.05 # This is the dropout within the GNN convolutions
 spatial_dropout: 0.05

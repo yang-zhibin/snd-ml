@@ -278,6 +278,11 @@ class TrainGeoDataset(InMemoryDataset):
                     event_feature = torch.empty((1, 0), dtype=torch.float)  # consistent 2-D
 
                 # Target values (e.g., particle ID mapping)
+                t = particle_to_target.get(evt["pdgCode"])
+                if t is None:
+                    print(f'event:{evt["pdgCode"]}, target return None')
+                    continue  # or raise
+                y = torch.tensor([t], dtype=torch.long)
                 y = torch.tensor([particle_to_target.get(evt["pdgCode"])]) 
                 
                 # Event identifiers (pdgCode, runId, eventId)

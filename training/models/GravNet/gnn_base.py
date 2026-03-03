@@ -108,20 +108,30 @@ class GNNBase(LightningModule):
         # print("batch.weights.shape",batch.weights.shape)
         #print(batch.weights)
        
-        if (self.hparams['use_weights']==False):
-            if self.hparams["nb_classes"] == 1 :
-                return F.binary_cross_entropy_with_logits(output, batch.y.float(), weight = batch.weights) #, pos_weight=torch.tensor(self.hparams["pos_weight"]))
-            else:
-                return F.cross_entropy(output, batch.y, weight=torch.tensor(self.hparams["class_weights"], device=self.device)) # the version above doesn't work with multiclass and integer class labels
-        else:
-            if self.hparams["nb_classes"] == 1:
-                return F.binary_cross_entropy_with_logits(output, batch.y.float()) #, pos_weight=torch.tensor(self.hparams["pos_weight"]))
-            else:
-                cross_entropy = F.cross_entropy(output, batch.y, weight=torch.tensor(self.hparams["class_weights"], device=self.device),reduction='none')
-                weighted_cross_entropy = cross_entropy * batch.weights 
+        if self.hparams["nb_classes"] == 1:
+            logits = output.view(-1)                 # [B]
+            targets = batch.y.float().view(-1)       # [B]
 
-                return torch.mean(weighted_cross_entropy) # the version above doesn't work with multiclass and integer class labels
-        
+            w = None
+            if self.hparams["use_weights"]:
+                w = batch.weights.float().view(-1).to(logits.device)  # [B]
+
+            return F.binary_cross_entropy_with_logits(logits, targets, weight=w)
+
+        else:
+            # multiclass
+            if self.hparams["use_weights"]:
+                ce = F.cross_entropy(
+                    output, batch.y,
+                    weight=torch.tensor(self.hparams["class_weights"], device=self.device),
+                    reduction="none",
+                )
+                return (ce * batch.weights.float().to(output.device)).mean()
+            else:
+                return F.cross_entropy(
+                    output, batch.y,
+                    weight=torch.tensor(self.hparams["class_weights"], device=self.device),
+                )
 
     def training_step(self, batch, batch_idx, **kwargs):
         output = self(batch).squeeze(-1)

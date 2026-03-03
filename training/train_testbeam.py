@@ -10,7 +10,7 @@ import glob
 import time
 from pytorch_lightning import Trainer
 from lightning.pytorch.loggers import WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from dataset.torchGeoDataset_testbeam import TrainGeoDataset
 from torch_geometric.loader import DataLoader
@@ -54,6 +54,14 @@ def main(args):
         save_top_k=config['ModelCheckpoint']['save_top_k'], 
         save_last=config['ModelCheckpoint']['save_last'],
     )
+    early_stop = EarlyStopping(
+        monitor="val_loss",
+        mode="min",
+        patience=5,
+        min_delta=1e-4,
+        verbose=True,
+    )
+    
 
     model = GravNet(config)
 
@@ -67,7 +75,7 @@ def main(args):
         max_epochs=config['max_epochs'],
         check_val_every_n_epoch = config['check_val_every_n_epoch'],
         logger=logger,
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback, early_stop],
         precision="16-mixed",
         accumulate_grad_batches=config['accumulate_grad_batches'],
     )
@@ -108,6 +116,41 @@ def main(args):
         selected_event_columns=config["event_feature_cols"],
         force_reload=True,
     )
+    
+    ys = []
+    ws = []
+
+    for data in train_data:
+        ys.append(data.y.view(-1))
+        ws.append(data.weights.view(-1))
+
+    ys = torch.cat(ys)          # shape [N]
+    ws = torch.cat(ws)          # shape [N]
+
+    # --- Unweighted ---
+    n_total = len(ys)
+    n_pos = (ys == 1).sum().item()
+    n_neg = (ys == 0).sum().item()
+
+    print("Unweighted counts:")
+    print(f"pion (1): {n_pos} ({n_pos/n_total:.3f})")
+    print(f"electron (0): {n_neg} ({n_neg/n_total:.3f})")
+
+    # --- Weighted ---
+    w_pos = ws[ys == 1].sum().item()
+    w_neg = ws[ys == 0].sum().item()
+
+    print("\nWeighted sums:")
+    print(f"pion (1): {w_pos:.3f}")
+    print(f"electron (0): {w_neg:.3f}")
+
+    print("\nWeighted fraction pion:",
+        w_pos / (w_pos + w_neg))
+
+    # --- Mean weight per class ---
+    print("\nMean weight per class:")
+    print("pion (1):", ws[ys == 1].mean().item())
+    print("electron (0):", ws[ys == 0].mean().item())
 
     val_data = TrainGeoDataset(
         root=tmp_processed_pt_root,
@@ -123,6 +166,44 @@ def main(args):
         force_reload=True,
     )
     
+    
+    print("for val_dataset")
+    ys = []
+    ws = []
+
+    for data in val_data:
+        ys.append(data.y.view(-1))
+        ws.append(data.weights.view(-1))
+
+    ys = torch.cat(ys)          # shape [N]
+    ws = torch.cat(ws)          # shape [N]
+
+    # --- Unweighted ---
+    n_total = len(ys)
+    n_pos = (ys == 1).sum().item()
+    n_neg = (ys == 0).sum().item()
+
+    print("Unweighted counts:")
+    print(f"pion (1): {n_pos} ({n_pos/n_total:.3f})")
+    print(f"electron (0): {n_neg} ({n_neg/n_total:.3f})")
+
+    # --- Weighted ---
+    w_pos = ws[ys == 1].sum().item()
+    w_neg = ws[ys == 0].sum().item()
+
+    print("\nWeighted sums:")
+    print(f"pion (1): {w_pos:.3f}")
+    print(f"electron (0): {w_neg:.3f}")
+
+    print("\nWeighted fraction pion:",
+        w_pos / (w_pos + w_neg))
+
+    # --- Mean weight per class ---
+    print("\nMean weight per class:")
+    print("pion (1):", ws[ys == 1].mean().item())
+    print("electron (0):", ws[ys == 0].mean().item())
+
+    
     if not train_existed:
         maybe_copy_pt("train", split_name, tmp_processed_pt_root, processed_root)
 
@@ -137,16 +218,17 @@ def main(args):
     
     
     print("prepare dataloader")
-    nw = min(16, os.cpu_count() or 4)
+    #nw = min(16, os.cpu_count() or 4)
+    nw = 0
 
     train_dataloader = DataLoader(
         train_data,
         batch_size=config["batch_size"]["train"],
         shuffle=True,
         num_workers=nw,
-        pin_memory=True,
-        persistent_workers=True,
-        prefetch_factor=4,              # needs num_workers>0
+        pin_memory=False,
+        # persistent_workers=True,
+        # prefetch_factor=4,              # needs num_workers>0
     )
 
     val_dataloader = DataLoader(
@@ -154,9 +236,9 @@ def main(args):
         batch_size=config["batch_size"]["val"],
         shuffle=False,
         num_workers=nw,
-        pin_memory=True,
-        persistent_workers=True,
-        prefetch_factor=4,
+        pin_memory=False,
+        # persistent_workers=True,
+        # prefetch_factor=4,
     )
     
     print("start training")

@@ -17,7 +17,6 @@ batch_size:
   train: 64
   val: 64
   test: 1
-accumulate_grad_batches: 128
 
 max_epochs: 1000
 #val_check_interval: 5000

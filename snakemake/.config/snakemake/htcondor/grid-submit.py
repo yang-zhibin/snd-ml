@@ -40,7 +40,7 @@ sub = htcondor.Submit(
         "arguments": jobscript,
         "max_retries": "0",
         "log": join(jobDir, "condor.log"),
-        "output":  join(jobDir, "condor.out"),  # join(jobDir, "condor.out"), "condor.out", 
+        "output": join(jobDir, "condor.out"),  # join(jobDir, "condor.out"), "condor.out", 
         "error": join(jobDir, "condor.err"), #join(jobDir, "condor.err"), "condor.err", 
         "should_transfer_files": "NO",
         "getenv": "True",

@@ -46,6 +46,8 @@ def main(args):
 
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
+        
+    
     
     print(f'ckpt:{ckpt_path}')
     print(f'config:{config_path}')
@@ -68,7 +70,7 @@ def main(args):
                               force_reload=False)
     
     print("preparing dataloader...")
-    test_dataloader = DataLoader(test_data,  batch_size=config["batch_size"]['test'], shuffle=False, num_workers=4)
+    test_dataloader = DataLoader(test_data,  batch_size=config["batch_size"]['test'], shuffle=False, num_workers=0)
 
     trainer = Trainer(
         accelerator = accelerator,
@@ -77,7 +79,20 @@ def main(args):
         )
 
     print("model running test dataset...")
+    # model.eval()
+    # count_b = 0
+    # for batch in test_dataloader:
+    #     logits = model(batch)
+    #     probs = torch.sigmoid(logits.view(-1))
+    #     y = batch.y.view(-1).cpu()
+
+    #     # sanity: print a few pairs each batch
+    #     print(list(zip(y[:5].tolist(), probs[:5].detach().cpu().tolist())))
+    #     if count_b>10:
+    #         break
+    #     count_b+=1
     trainer.test(model, test_dataloader)
+    
 
 
 if __name__ == "__main__":

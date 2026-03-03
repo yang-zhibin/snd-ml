@@ -30,16 +30,16 @@ metadata_csv_list = [
     "MC_data_testbeam2024_metadata.csv",
     # "MC_data_testbeam2024_metadata_subset.csv",
     # "real_data_testbeam_June2023_H8_metadata.csv",
-    "real_data_testbeam_24_metadata.csv",
+    # "real_data_testbeam_24_metadata.csv",
     # "train_2024_split_v5.csv"
     # "MC_data_testbeam2023_metadata_newDigi.csv"
 ]
 
 train_mode = False
 train_split = 'train_2024_split_v5' #"train_2024_test" # 'train_2024_split_v3'
-train_model = 'testbeam_2024_GravNet_v8'
+train_model = 'testbeam_2024_GravNet_v9'
 
-process_model = 'testbeam_2024_GravNet_v7_2'
+process_model = 'testbeam_2024_GravNet_v8'
 # train_split = 'train_2024_split_v1_horizontal'
 # train_model = 'testbeam_2024_GravNet_v1_horizontal'
 # train_split = 'train_2024_split_v1_vertical'
@@ -191,7 +191,7 @@ rule train:
         conda_env = f"{personal_work_dir}/snd-ml/snakemake/envs/env_snd_pytorch.sh"
     threads:2
     resources:
-        runtime= 23*60*60,
+        runtime= 1*60*60,
         mem_mb=8000,
         disk_mb=8000,
         nvidia_gpu=1
@@ -693,15 +693,14 @@ HIST_NAMES = [
     # "2d_qdc_density"
 ]
 
-Process_Models = [ "testbeam_2024_GravNet_v7_2"] #"testbeam_2024_GravNet_v4",
+Process_Models = [ "testbeam_2024_GravNet_v8"] #"testbeam_2024_GravNet_v4",
 
 rule plots:
     input:
-        # expand("/afs/cern.ch/user/s/sfrankha/work/snd-ml/testbeam/preselection/plots/plot_flags/hist.{beam_type}_{energy}_{year}.done",
-        #        beam_type=beam_type, energy=energy, year=year)
-        expand("{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{process_models}/{hist_name}/hist.done",
-               work_dir=personal_work_dir, cut_name=CUT_STATES, hist_name=HIST_NAMES, process_models=Process_Models )
-
+        # expand("{work_dir}/snd-ml/testbeam/evaluation/plots/{cut_name}/{process_models}/{hist_name}/hist.done",
+        #        work_dir=personal_work_dir, cut_name=CUT_STATES, hist_name=HIST_NAMES, process_models=Process_Models ),
+        expand("{work_dir}/snd-ml/testbeam/evaluation/features_inportance_plots/{cut_name}/{process_models}/FI.done",
+               work_dir=personal_work_dir, cut_name=CUT_STATES, process_models=Process_Models )
 
 rule plot_distribution:
     input:
@@ -735,4 +734,34 @@ rule plot_distribution:
         rm -r ./plots_tmp/{wildcards.cut_name}/{params.model_name}/{wildcards.hist_name}/
         """
         
-        
+rule plot_feature_importance:
+    input:
+        script=f"{personal_work_dir}/snd-ml/testbeam/evaluation/plot_feature_importance.py"
+    output:
+        # one flag file per histogram name (wildcard)
+        touch("{work_dir}/snd-ml/testbeam/evaluation/features_inportance_plots/{cut_name}/{process_models}/FI.done")
+    params:
+        dest_dir="{work_dir}/snd-ml/testbeam/evaluation/features_inportance_plots/{cut_name}/{process_models}/",
+        model_name = "{process_models}",
+        split = train_split,
+    threads: 1
+    resources:
+        runtime=7*60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        echo "running plot_feature_importance.py for ({wildcards.cut_name})"
+
+        set +u
+
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+
+        python {input.script} -c {wildcards.cut_name} -m {params.model_name} -s {params.split}
+
+        rm -rf {params.dest_dir}
+        mkdir -p {params.dest_dir}
+        xrdcp ./plots_FI_tmp/{wildcards.cut_name}/{params.model_name}/feature_importance/* {params.dest_dir}/
+        rm -r ./plots_FI_tmp/{wildcards.cut_name}/{params.model_name}/
+        """
