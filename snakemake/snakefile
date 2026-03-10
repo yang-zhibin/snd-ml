@@ -10,6 +10,7 @@ wildcard_constraints:
     newDigi_path=".*newDigi.*.root",
     newRaw_path=".*newRaw.*.root",
     preSelect_path=".*preSelect.*.root",
+    nueAnalysis_path=".*nueAnalysis.*.root",
     preCutEff_path=".*preCutEff.*.csv",
     feature_path=".*feature.*.root",
     metadata_csv=".*metadata.*.csv",
@@ -29,29 +30,25 @@ wildcard_constraints:
 
 metadata_csv_list = [
 #    "MC_kaon_FTFP_BERT_metadata_subset.csv",
-     #"MC_neutron_FTFP_BERT_metadata_subset.csv"
+#      "MC_neutron_FTFP_BERT_metadata_subset.csv"
     # "real_data_2024_skim_runs_metadata_subset.csv",
 
 
-    #"real_data_2024_skim_runs_metadata.csv",
+    # "real_data_2024_skim_runs_metadata.csv",
 
 
 #     # "MC_muon_down_metadata_recoTrks.csv",
 #    "MC_muon_down_metadata.csv",
 #      "MC_muon_horizontal_metadata.csv",
-    # "MC_muon_up_metadata.csv",
+    # "MC_muon_up_metadata.csv",#2024 crossing angle
 
 #     "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
     #"MC_neutrino_volTarget_100fb-1_metadata.csv",
     # "MC_neutrino_volTarget_100fb-1_up_metadata.csv",
     
-    #   "MC_neutrino_2024_vm_metadata.csv",
-    #     "MC_neutrino_2024_ve_metadata.csv",
-        # "MC_neutrino_2024_vm_v2_metadata.csv",
-    #  "MC_neutrino_2024_ve_v2_metadata.csv",
-    #     "MC_neutrino_2025_vm_metadata.csv",
-        "MC_neutrino_2025_ve_metadata.csv",
-    #    "MC_neutrino_2025_ve_metadata_test.csv",
+      "MC_neutrino_2024_vm_metadata.csv",
+        "MC_neutrino_2024_ve_metadata.csv",
+
        
     
 
@@ -64,7 +61,7 @@ metadata_csv_list = [
 
 #      "real_data_2022_metadata.csv",
 #      "real_data_2023_metadata.csv",
-#       "real_data_2024_metadata.csv",
+    #   "real_data_2024_metadata.csv",
         # "real_data_2025_metadata.csv",
     
 ]
@@ -148,7 +145,7 @@ def collect_target_paths(target_name):
     def drop_nan_str(seq):
         return [x for x in seq if str(x).strip().lower() != "nan"]
     
-    if target_name.startswith("preSelect") or target_name.startswith("new") or target_name.startswith("preCutEff"):
+    if target_name.startswith(("preSelect", "new", "preCutEff", "nueAnalysis")):
         target_paths = drop_nan_str(METADATA[f"{target_name}"].tolist())
     else:
         target_paths = []
@@ -203,11 +200,13 @@ def collect_model_path(target_name):
             target_paths.extend(paths)
         return target_paths
 
+
 rule finish:
     input:
-        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
+        # expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/raw/{metadata_csv}", metadata_csv=metadata_csv_list),
         # expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
-        expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
+        expand("{nueAnalysis_path}", nueAnalysis_path=collect_target_paths("nueAnalysis_path")),
+        # expand("{preSelect_path}", preSelect_path=collect_target_paths("preSelect_path")),
         #expand("{newRaw_path}", newRaw_path=collect_target_paths("newRaw_path")),
         # expand("{newDigi_path}", newDigi_path=collect_target_paths("newDigi_path")),
         # expand("{preCutEff_path}", preCutEff_path=collect_target_paths("preCutEff_path")),
@@ -299,6 +298,145 @@ rule update_metadata:
         source /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/envs/env_pyroot.sh
         python {input.script} -i {input.raw_metadata} -o {output.updated_metadata}
         """
+
+
+rule process_nueAnalysis:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        digi=lambda wildcards: get_metadata_value("nueAnalysis_path", wildcards.nueAnalysis_path, "digi_path"),
+        geo=lambda wildcards: get_metadata_value("nueAnalysis_path", wildcards.nueAnalysis_path, "geo_path"),
+        script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/digi_2_nueAnalysis.py"
+        
+    params:
+        data_type=lambda wildcards: get_metadata_value("nueAnalysis_path", wildcards.nueAnalysis_path, "data_type"),
+        env_file = "/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/envs/env_sndsw.sh",
+        
+    output:
+        nueAnalysis_path="{nueAnalysis_path}"
+    threads:1
+    resources:
+        runtime=2*60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        # Avoid conda/python conflicts
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        set +u  # Avoid unbound variable errors
+
+        echo "Setting up SNDSW environment"
+        export ALIBUILD_WORK_DIR=/afs/cern.ch/work/z/zhibin/public/SndBuild/sw
+        source /cvmfs/sndlhc.cern.ch/SNDLHC-2025/Jan30/setUp.sh
+        eval $(alienv load sndsw/latest-master-release --no-refresh)
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        tmp_dir=$(mktemp -d)
+        filename=$(basename "{output.nueAnalysis_path}")
+        tmp_output="${{tmp_dir}}/${{filename}}"
+
+        echo "Running digi_2_nueAnalysis.py"
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
+            {input.script} \
+            -d {input.digi} \
+            -g {input.geo} \
+            -o "${{tmp_output}}" \
+            -t {params.data_type}
+
+        echo "Transferring output to EOS"
+        xrdcp -f "${{tmp_output}}" "{output.nueAnalysis_path}" || {{ echo "xrdcp failed"; exit 1; }}
+        echo "Cleaning up"
+        rm -rf "${{tmp_dir}}"
+        """
+
+
+
+max_real_partitions = 100
+max_kaon_partitions = 20
+max_neutron_partitions = 20
+
+nueAnalysis_partitions = (
+    [f"real_data_2024_Max{max_real_partitions}-{i}" for i in range(1, max_real_partitions + 1)] +
+    [f"MC_kaon_5-10GeV_Max{max_kaon_partitions}-{i}" for i in range(1, max_kaon_partitions + 1)] +
+    [f"MC_neutron_5-10GeV_Max{max_neutron_partitions}-{i}" for i in range(1, max_neutron_partitions + 1)] +
+    [   
+        "real_data_2024_Max20-1",
+        'MC_kaon_10-20GeV', 'MC_kaon_20-30GeV', 'MC_kaon_30-40GeV',
+        'MC_kaon_50-60GeV', 'MC_kaon_60-70GeV', 'MC_kaon_70-80GeV',
+        'MC_kaon_80-90GeV', 'MC_kaon_90-100GeV', 'MC_kaon_100-150GeV',
+
+        'MC_neutron_10-20GeV', 'MC_neutron_20-30GeV', 'MC_neutron_30-40GeV',
+        'MC_neutron_50-60GeV', 'MC_neutron_60-70GeV', 'MC_neutron_70-80GeV',
+        'MC_neutron_80-90GeV', 'MC_neutron_90-100GeV', 'MC_neutron_100-150GeV',
+
+        'MC_NC_nue',
+        'MC_NC_numu',
+        'MC_CC_nue',
+        'MC_CC_numu',
+    ]
+)
+
+
+nueAnalysis_modes = ["eff"] # "eff", "hist"
+Nue_Eos_Dir = "/eos/user/z/zhibin/nueAnalysis"
+
+rule nueAnalysis:
+    input:
+        expand("{nue_eos_dir}/{mode}_{partition}.root", partition=nueAnalysis_partitions,
+            mode=nueAnalysis_modes, nue_eos_dir=Nue_Eos_Dir),
+            
+
+rule process_nueAnalysis_eff_hist:
+    input: 
+        script = "/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/nueAnalysis/nueAnalysis_cut_eff_hist.py"
+    params:
+        partition="{partition}",
+        mode = "{mode}",
+        nue_eos_dir = "{nue_eos_dir}"
+    output:
+        nueAnalysis_out_path="{nue_eos_dir}/{mode}_{partition}.root"
+    wildcard_constraints:
+        mode="hist|eff",
+        partition=".+"
+    threads:1
+    resources:
+        runtime=2*60*60,
+        mem_mb=8000,
+        disk_mb=8000,
+        nvidia_gpu=0
+
+    shell:
+        r"""
+        echo "running nueAnalysis eff calculation"
+
+        # Avoid unbound variable error (only occurs when using Snakemake)
+        set +u
+
+        # Set up environment
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        # Create a unique temporary directory
+        tmp_dir=$(mktemp -d)
+
+        echo "tmp_dir: ${{tmp_dir}}"
+
+        # Run evaluation script
+        python {input.script} \
+            -m {params.mode} \
+            -p {params.partition} \
+            -o "${{tmp_dir}}"
+
+        # Copy results to EOS
+        xrdcp -rf "${{tmp_dir}}"/* "{params.nue_eos_dir}/" || {{ echo "xrdcp failed"; exit 1; }}
+
+        # Cleanup
+        rm -rf "${{tmp_dir}}"
+
+        # Local completion marker for Snakemake
+        touch "{output.nueAnalysis_out_path}"
+        """
+
 
 rule process_preSelection:
     input:

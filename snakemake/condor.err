@@ -2,47 +2,20 @@ Building DAG of jobs...
 Using shell: /usr/bin/bash
 Provided cores: 64
 Rules claiming more threads will be scaled down.
-Provided resources: mem_mb=8000, mem_mib=7630, disk_mb=4000, disk_mib=3815, nvidia_gpu=0
+Provided resources: mem_mb=8000, mem_mib=7630, disk_mb=8000, disk_mib=7630, nvidia_gpu=0
 Select jobs to execute...
 
-[Wed Dec 10 04:03:30 2025]
-rule plot_distribution:
-    input: /afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/plot_distribution.py
-    output: /afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_plots/plot_flags/scifi_x_between_-44_-15__scifi_y_between_18_52/hist.avg_us5_y.done
+[Tue Mar 10 00:41:16 2026]
+rule process_nueAnalysis_eff_hist:
+    input: /afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/nueAnalysis/nueAnalysis_cut_eff_hist.py
+    output: /eos/user/z/zhibin/nueAnalysis/eff_real_data_2024_Max20-1.root
     jobid: 0
     reason: Forced execution
-    wildcards: cut=scifi_x_between_-44_-15__scifi_y_between_18_52, hist_name=avg_us5_y
-    resources: mem_mb=8000, mem_mib=7630, disk_mb=4000, disk_mib=3815, tmpdir=/pool/condor/dir_1906463/tmp, runtime=43200, nvidia_gpu=0
+    wildcards: nue_eos_dir=/eos/user/z/zhibin/nueAnalysis, mode=eff, partition=real_data_2024_Max20-1
+    resources: mem_mb=8000, mem_mib=7630, disk_mb=8000, disk_mib=7630, tmpdir=/pool/condor/dir_2800642/tmp, runtime=7200, nvidia_gpu=0
 
 Warning in <RTaskArenaWrapper>: CPU Bandwith Control Active. Proceeding with 3 threads accordingly
-Traceback (most recent call last):
-  File "/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/plot_distribution.py", line 1867, in <module>
-    process_hist(args)
-  File "/afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/plot_distribution.py", line 234, in process_hist
-    n_bins, x_min, x_max, axis_title, logy = hist_info[hist_name]
-                                             ~~~~~~~~~^^^^^^^^^^^
-KeyError: 'avg_us5_y'
-[Wed Dec 10 04:03:43 2025]
-Error in rule plot_distribution:
-    jobid: 0
-    input: /afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/plot_distribution.py
-    output: /afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_plots/plot_flags/scifi_x_between_-44_-15__scifi_y_between_18_52/hist.avg_us5_y.done
-    shell:
-        
-        echo "running plot_distribution for avg_us5_y (scifi_x_between_-44_-15__scifi_y_between_18_52)"
-
-        set +u
-
-        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
-
-        python /afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/plot_distribution.py -n avg_us5_y -c scifi_x_between_-44_-15__scifi_y_between_18_52
-
-        rm -rf /afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_plots/scifi_x_between_-44_-15__scifi_y_between_18_52/avg_us5_y
-        mkdir -p /afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_plots/scifi_x_between_-44_-15__scifi_y_between_18_52/avg_us5_y
-        xrdcp ./plots/avg_us5_y/* /afs/cern.ch/user/z/zhibin/work/snd-ml/on_going_work/compare_pred_MC/htcondor_plots/scifi_x_between_-44_-15__scifi_y_between_18_52/avg_us5_y/
-        rm -r ./plots/avg_us5_y
-        
-        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
-
-Shutting down, this might take some time.
-Exiting because a job execution failed. Look above for error message
+Building cutflow:   0%|          | 0/10 [00:00<?, ?it/s]Building cutflow: 100%|██████████| 10/10 [00:00<00:00, 218453.33it/s]
+[Tue Mar 10 01:13:36 2026]
+Finished job 0.
+1 of 1 steps (100%) done

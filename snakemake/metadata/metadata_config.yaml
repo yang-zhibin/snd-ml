@@ -19,15 +19,6 @@ MC_neutrino:
     root_path: "/eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget"
   - subfolder: "2024_vm"
     root_path: "/eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu14/volume_volTarget"
-  - subfolder: "2024_ve_v2"
-    root_path: "/eos/experiment/sndlhc/users/ursovsnd/neutrino_production_sndlhc_june_2025/2024/sndlhc_1500fb-1_fixed_flux/nu12/volume_volTarget"
-  - subfolder: "2024_vm_v2"
-    root_path: "/eos/experiment/sndlhc/users/ursovsnd/neutrino_production_sndlhc_june_2025/2024/sndlhc_1500fb-1_NC_1/nu14/volume_volTarget"
-  - subfolder: "2025_ve"
-    root_path: "/eos/experiment/sndlhc/users/ursovsnd/neutrino_production_sndlhc_june_2025/2025/sndlhc_1500fb-1_1/nu12/volume_volTarget"
-  - subfolder: "2025_vm"
-    root_path: "/eos/experiment/sndlhc/users/ursovsnd/neutrino_production_sndlhc_june_2025/2025/sndlhc_1500fb-1_1/nu14/volume_volTarget"
-  -   
 
 MC_kaon:
   - subfolder: "FTFP_BERT"

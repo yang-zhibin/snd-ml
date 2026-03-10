@@ -304,6 +304,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     
     #add preSelect path
     df = add_new_path("preSelect","root", df, csv_input,  eos_root_path, seperate_veto=False)
+    df = add_new_path("nueAnalysis","root", df, csv_input,  eos_root_path, seperate_veto=False)
     
     df = add_new_path(f"preCutEff", "csv", df, csv_input, eos_root_path, seperate_veto=False)
     
