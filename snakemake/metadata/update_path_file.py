@@ -6,7 +6,7 @@ import yaml
 from argparse import ArgumentParser
 import re
 
-def generate_full_path(row, index, path_name, suffix, csv_input, eos_root_path):
+def generate_full_name(row, index, path_name, suffix, csv_input, eos_root_path):
     
     base = f"{path_name}_{row['data_type']}_{row['subfolder'].replace('/', '_')}_{row['partition']}"
     
@@ -18,8 +18,7 @@ def generate_full_path(row, index, path_name, suffix, csv_input, eos_root_path):
     else:
         filename = f"{base}{suffix}"
     
-    full_path = f"{eos_root_path}/{row['data_type']}/{row['subfolder']}/{row['partition']}/{filename}"
-    return full_path
+    return filename
 
 
 def add_new_path(path_name, path_type, df, csv_input, eos_root_path, seperate_veto=True,force_rerun=True):
@@ -41,12 +40,12 @@ def add_new_path(path_name, path_type, df, csv_input, eos_root_path, seperate_ve
         suffix = ".root"
         
     if seperate_veto:
-        df[f"vetoTagged_{column_name}"] = df.apply(lambda row: generate_full_path(row,row.name, f"vetoTagged_{path_name}", suffix, csv_input, eos_root_path),axis=1)
-        df[f"vetoFree_{column_name}"] = df.apply(lambda row: generate_full_path(row,row.name, f"vetoFree_{path_name}", suffix, csv_input, eos_root_path),axis=1)
+        df[f"vetoTagged_{column_name}"] = df.apply(lambda row: generate_full_name(row,row.name, f"vetoTagged_{path_name}", suffix, csv_input, eos_root_path),axis=1)
+        df[f"vetoFree_{column_name}"] = df.apply(lambda row: generate_full_name(row,row.name, f"vetoFree_{path_name}", suffix, csv_input, eos_root_path),axis=1)
         print(f"The column (vetoTagged_{column_name}) and (vetoFree_{column_name}) have been added")
         
     else:
-        df[column_name] = df.apply(lambda row: generate_full_path(row,row.name, path_name, suffix, csv_input, eos_root_path),axis=1)
+        df[column_name] = df.apply(lambda row: generate_full_name(row,row.name, path_name, suffix, csv_input, eos_root_path),axis=1)
     
         print(f"The column '{column_name}' has been added")
     return df
@@ -298,6 +297,11 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
         df = process_muon_path(df)
 
     
+    df["output_base_path"] = df.apply(
+        lambda row: f"{eos_root_path}/{row['data_type']}/{row['subfolder']}/{row['partition']}",
+        axis=1
+    )
+    
     
     df = add_new_path("newRaw","root", df, csv_input,  eos_root_path, seperate_veto=False)
     df = add_new_path("newDigi","root", df, csv_input,  eos_root_path, seperate_veto=False)
@@ -305,7 +309,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     #add preSelect path
     df = add_new_path("preSelect","root", df, csv_input,  eos_root_path, seperate_veto=False)
     df = add_new_path("nueAnalysis","root", df, csv_input,  eos_root_path, seperate_veto=False)
-    
+    df = add_new_path("nueAnalysisFilter","root", df, csv_input,  eos_root_path, seperate_veto=False)
     df = add_new_path(f"preCutEff", "csv", df, csv_input, eos_root_path, seperate_veto=False)
     
     # hit path
@@ -320,13 +324,9 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     # 
     model_names = [list(model.keys())[0] for model in models]
     for model in model_names:
-        
-        if "3d" in model :
-            df = add_new_path(f"eval_{model}_output", "pkl", df, csv_input, eos_root_path)
-            df = add_new_path(f"prediction_{model}_output", "pkl", df, csv_input, eos_root_path)
-        else:
-            df = add_new_path(f"eval_{model}_output", "root", df, csv_input, eos_root_path)
-            df = add_new_path(f"prediction_{model}_output", "root", df, csv_input, eos_root_path)
+
+        df = add_new_path(f"eval_{model}_output", "root", df, csv_input, eos_root_path)
+        df = add_new_path(f"prediction_{model}_output", "root", df, csv_input, eos_root_path)
         
         df = add_new_path(f"matrix_{model}_output", "csv", df, csv_input, eos_root_path)
     

@@ -16,15 +16,9 @@ def process_real_data_since2024(root_path, subfolder, data_type):
         if not os.path.isdir(subfolder_path):
             print(f"Skipping non-directory: {subfolder_path}")
             continue
-        version = 12
-        matching_files = glob.glob(f'{root_path}/geofile_sndlhc_TI18_V{version}_*')
-        print(matching_files)
-        if len(matching_files) == 1:
-            geo_file = matching_files[0]
-        else:
-            raise ValueError(f"Expected exactly one match, found {len(matching_files)}: {matching_files}")
+        
 
-        subfolder_metadata = process_real_data_subfolders(subfolder_path, subfolder, data_type, geo_file)
+        subfolder_metadata = process_real_data_subfolders(subfolder_path, subfolder, data_type)
 
         metadata.extend(subfolder_metadata)
 
@@ -61,7 +55,7 @@ def process_real_data_subfolders(root_path, output_subfolder_name, data_type, ge
                     if not root_file or root_file.IsZombie():
                         raise ValueError(f"Invalid or corrupted ROOT file: {file_path}")
                     tree = root_file.Get(tree_name)
-                    n_event = tree.GetEntries() if tree else 0
+                    n_event = tree.GetEntriesFast() if tree else 0
                     root_file.Close()
                     
                 except Exception as e:
@@ -119,7 +113,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
                     if not root_file or root_file.IsZombie():
                         raise ValueError(f"Invalid or corrupted ROOT file: {file_path}")
                     tree = root_file.Get(tree_name)
-                    n_event = tree.GetEntries() if tree else 0
+                    n_event = tree.GetEntriesFast() if tree else 0
                     root_file.Close()
                     
                 except Exception as e:
@@ -133,7 +127,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
                     if not root_file or root_file.IsZombie():
                         raise ValueError(f"Invalid or corrupted ROOT file: {file_path}")
                     tree = root_file.Get(tree_name)
-                    n_event = tree.GetEntries() if tree else 0
+                    n_event = tree.GetEntriesFast() if tree else 0
                     root_file.Close()
                     
                 except Exception as e:
@@ -188,21 +182,23 @@ def save_metadata_to_csv(metadata, csv_name):
     except Exception as e:
         print(f"Error updating metadata to CSV: {e}")
 
+geo_file_map = [
+    (4361, 5422, 'eos/experiment/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V4_2022.root'),
+    (5482, 7356, 'eos/experiment/sndlhc/convertedData/physics/2023/geofile_sndlhc_TI18_V3_2023.root'),
+    (7357, 10422, 'eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root'),
+    (10919, 12792, 'eos/experiment/sndlhc/convertedData/physics/2025/geofile_sndlhc_TI18_V8_2025.root'),
+]
 def get_geo_file(partition):
     try:
-        run_number = int(partition.split('_')[-1])  
+        run_number = int(partition.split('_')[-1])
     except ValueError:
-        print(f"Could not extract run number from subfolder: {partition}")
-        
+        raise ValueError(f"Could not extract run number from partition: {partition}")
 
-    geo_file_map = {
-        range(0, 5422): '/eos/experiment/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V4_2022.root',
-        range(5483, 7358): '/eos/experiment/sndlhc/convertedData/physics/2023/geofile_sndlhc_TI18_V3_2023.root',
-    }
-    for run_range, geo_file in geo_file_map.items():
-        if run_number in run_range:
+    for min_run, max_run, geo_file in geo_file_map:
+        if min_run <= run_number <= max_run:
             return geo_file
-    return None
+
+    raise ValueError(f"No geometry file found for run {run_number}")
 
 def process_MC_NC(root_path, subfolder,data_type):
 
@@ -308,7 +304,7 @@ def generate_MC_muon(data_type, root_path, output_subfolder_name, csv_file):
                     raise ValueError(f"Invalid or corrupted ROOT file: {file_path}")
 
                 tree = root_file.Get(tree_name)
-                n_event = tree.GetEntries() if tree else 0
+                n_event = tree.GetEntriesFast() if tree else 0
 
             except Exception as e:
                 print(f"Error processing ROOT file {file_path}: {e}")
@@ -379,7 +375,7 @@ def process_root_file(file_path, tree_name):
             raise ValueError(f"Invalid or corrupted ROOT file: {file_path}")
         
         tree = root_file.Get(tree_name)
-        n_event = tree.GetEntries() if tree else 0
+        n_event = tree.GetEntriesFast() if tree else 0
         root_file.Close()
         return n_event
     except Exception as e:

@@ -11,6 +11,17 @@
 
 
 # python -i $SNDSW_ROOT/shipLHC/scripts/2dEventDisplay.py -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -f /eos/experiment/sndlhc/convertedData/physics/2024/run_241/run_008285/sndsw_raw-0000.root -p ""
+
+# python -i $SNDSW_ROOT/shipLHC/scripts/2dEventDisplay.py -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -f /eos/experiment/sndlhc/convertedData/physics/2024/run_241/run_008285/sndsw_raw-0389.root -p ""
+# loopEvents(start=606727,hitColour='q', save=True)
+
+#python -i $SNDSW_ROOT/shipLHC/scripts/2dEventDisplay.py -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -f /eos/experiment/sndlhc/convertedData/physics/2024/run_249/run_009622/sndsw_raw-0050.root -p ""
+# loopEvents(start=912849,hitColour='q', save=True)
+
+#python -i $SNDSW_ROOT/shipLHC/scripts/2dEventDisplay.py -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -f /eos/experiment/sndlhc/convertedData/physics/2024/run_2410/run_009880/sndsw_raw-0286.root -p ""
+# loopEvents(start=333044,hitColour='q', save=True)
+
+
 def main()
     # digi, geo, feature, eval path file
     # get a list of event index

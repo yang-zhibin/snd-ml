@@ -1,26 +1,10 @@
 hostname:
-b9p28p2360.cern.ch
-running nueAnalysis eff calculation
-tmp_dir: /pool/condor/dir_2800642/tmp/tmp.jO8wTV6XaW
-Selected 568 rows from metadata for partition real_data_2024_Max20-1
-
-Files added to TChain: 568
-Missing files: 0
-Total luminosity: 0.9658145214346483
-
-========== CUT FLOW TABLE ==========
-
-Cut                                   Count       RelEff       CumEff
-stableBeam                        544709420     0.960149     0.960149
-IP1BunchCrossing                  506642792     0.930116     0.893049
-PreEvtClockCycle100               304183645     0.600391     0.536179
-avgScifiFiducial                   26582401     0.087389     0.046856
-noVetoHit                            137070     0.005156     0.000242
-consecutiveSciFiHits                   3410     0.024878     0.000006
-SciFiContinuity                        2422     0.710264     0.000004
-USPlaneHit_0_1                         2422     1.000000     0.000004
-SciFiHit35                              393     0.162263     0.000001
-NoHitLastDS                             130     0.330789     0.000000
-
-Total                             567317779
-Total lumi                         0.965815
+b9p19p5184.cern.ch
+Setting up SNDSW environment
+search libraries in slc9_x86-64
+Running digi_2_nueAnalysis.py
+start processing digi to preSelection
+using geofile: root://eospublic.cern.ch//eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root
+finish processing digi to nueAnalysis
+Transferring output to EOS
+Cleaning up

@@ -110,11 +110,15 @@ def Fiducial_Selection(SciFi_hits, MuFilter_hits, branch_vars):
     branch_vars["US2avg"][0] = us2_avg
 
     # user-requested rule: avg bar > 2 and <= 8 in both US1 and US2
-    pass_us_bars = (
-        (len(us1_bars) > 0 and len(us2_bars) > 0 and
-        us1_avg > 2 and us1_avg <= 8 and
-        us2_avg > 2 and us2_avg <= 8)
-    )
+    pass_us_bars = True
+    if len(us1_bars) > 0:
+        if not (us1_avg >= 2 and us1_avg < 8):
+            pass_us_bars = False
+
+    if len(us2_bars) > 0:
+        if not (us2_avg >= 2 and us2_avg < 8):
+            pass_us_bars = False
+
     branch_vars["USBarsVeto"][0] = int(pass_us_bars)
 
     # ---------- Veto-hit requirement ----------
@@ -230,13 +234,13 @@ def nueEventIdentification(SciFi_hits, MuFilter_hits, branch_vars):
     branch_vars["USPlaneHit_0_1"][0] = int(us_counts[0] > 0 and us_counts[1] > 0)
 
     # total SciFi hits > 35
-    branch_vars["SciFiHit35"][0] = int(sum(scifi_counts) > 35)
+    branch_vars["SciFiHit35"][0] = int(sum(scifi_counts) >= 35)
 
     # total US QDC > 600
     branch_vars["USQDC600"][0] = int(sum(us_qdc) > 600.0)
 
     # no hit in last DS plane (ds4)
-    branch_vars["NoHitLastDS"][0] = int(ds_counts[3] == 0)
+    branch_vars["NoHitLastDS"][0] = int(ds_counts[2] == 0 and ds_counts[3] == 0)
 
     return branch_vars
 

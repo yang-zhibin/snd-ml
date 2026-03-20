@@ -281,44 +281,40 @@ def make_histograms(chains, feature, hist_cfg, cut="", fold_underflow=False, fol
     selection = cut.strip()
 
     for category, chain in chains.items():
+        if not (category == "real_data"):
+            continue
         safe_cat = re.sub(r"[^A-Za-z0-9_]", "_", category)
         hname = f"h_{safe_cat}"
 
         draw_expr = f"{feature}>>{hname}({n_bins},{x_min},{x_max})"
         selected = chain.Draw(draw_expr, selection, "goff")
-
-        print(f"[draw] {category:25s} expr={draw_expr} cut={selection!r} selected={selected}")
+        
+        print(category)
+        expr = "runId:eventId:eventIndex:density_scifi"
+        selected = chain.Draw(expr, cut, "goff")
 
         if selected < 0:
-            raise RuntimeError(f"TChain::Draw failed for category={category}")
+            raise RuntimeError("Draw failed")
 
-        hist_tmp = chain.GetHistogram()
-        if not hist_tmp:
-            raise RuntimeError(f"GetHistogram() returned null for category={category}")
+        v1 = chain.GetV1()  # runId
+        v2 = chain.GetV2()  # eventId
+        v3 = chain.GetV3()  # eventIndex
+        v4 = chain.GetV4()  # density_scifi
 
-        hist = hist_tmp.Clone(f"{hname}_clone")
-        hist.SetDirectory(0)
-
-        if fold_underflow:
-            add_underflow_to_first_bin(hist)
-        if fold_overflow:
-            add_overflow_to_last_bin(hist)
-
-        sanitize_hist_bins(hist)
-        grouped_hists[category] = hist
-
-        nb = hist.GetNbinsX()
-        print(
-            f"[raw {category}] "
-            f"entries={hist.GetEntries():.6g} "
-            f"vis={hist.Integral():.6g} "
-            f"all={hist.Integral(0, nb+1):.6g} "
-            f"uf={hist.GetBinContent(0):.6g} "
-            f"of={hist.GetBinContent(nb+1):.6g} "
-            f"max={hist.GetMaximum():.6g}"
-        )
-
-    return grouped_hists
+        for i in range(selected):
+            runId = int(v1[i])
+            eventId = int(v2[i])
+            partition = int(eventId//1e6)
+            eventIndex = int(v3[i])
+            density_scifi  = v4[i]
+            
+            print(
+                f"runId={int(runId):8d}, "
+                f"eventId={int(eventId):10d}, "
+                f"partition={int(partition):3d}, "
+                f"eventIndex={int(eventIndex):10d}, "
+                f"density_scifi={density_scifi:10.4f}"
+            )
 
 
 def scale_mc_to_data(grouped_hists, grouped_lumi, data_category="real_data"):
@@ -603,8 +599,7 @@ def draw_plot(final_hists, feature, hist_cfg, outdir, cut="", title=""):
     legend.SetFillStyle(0)
 
     if data_hist is not None:
-        data_integral = data_hist.Integral()
-        legend.AddEntry(data_hist, f"Data ({data_integral:.1f})", "lep")    
+        legend.AddEntry(data_hist, "Data", "lep")
 
     label_map = {
         "kaon": "MC kaon",
@@ -616,9 +611,7 @@ def draw_plot(final_hists, feature, hist_cfg, outdir, cut="", title=""):
     }
 
     for cat, hist in stack_draw_hists:
-        integral = hist.Integral()
-        label = f"{label_map.get(cat, cat)} ({integral:.1f})"
-        legend.AddEntry(hist, label, "f")
+        legend.AddEntry(hist, label_map.get(cat, cat), "f")
 
     legend.Draw()
     pad_top.RedrawAxis()
@@ -709,26 +702,10 @@ def main(args):
         fold_underflow=args.fold_underflow,
         fold_overflow=args.fold_overflow,
     )
-    scale_mc_to_data(grouped_hists, grouped_lumi, data_category="real_data")
-    final_hists = combine_backgrounds(grouped_hists)
-    style_final_hists(final_hists)
-    
-    
-    draw_plot(
-        final_hists=final_hists,
-        feature=args.feature,
-        hist_cfg=hist_cfg,
-        outdir=args.outdir,
-        cut=args.cut,
-        title=args.title,
-    )
-
-    # keep ROOT files alive until the very end
-    _ = open_files
 
 
 hist_info = {
-    "density_scifi": (5000, 1000, 1e5, "Sum of SciFi Density Weight", True),
+    "density_scifi": (1000, 1000, 1e5, "Sum of SciFi Density Weight", True),
     "count_scifi":   (10, 0, 800, "SciFi Hit Total Count", True),
     "count_us":      (1, 0, 52, "US Hit Count", True),
     "count_us1":      (1, 0, 12, "US1 Hit Count", True),
@@ -751,7 +728,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--cut",
-        default="density_scifi > 25000 && consecutiveSciFiHits == 1 && NoHitLastDS == 1", #count_scifi>200
+        default="density_scifi > 50000 && consecutiveSciFiHits == 1 && SciFiContinuity==1 && SciFiHit35==1 && NoHitLastDS == 1", #count_scifi>200
         #density_scifi > 10000 && consecutiveSciFiHits == 1 && SciFiContinuity==1 && SciFiHit35==1 && NoHitLastDS == 1
         help='Selection cut, e.g. "density_scifi>0.1 && count_us>2"',
     )
@@ -773,7 +750,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--fold-overflow",
         action="store_true",
-        default=True,
+        default=False,
         help="Fold overflow into last bin",
     )
     parser.add_argument(
