@@ -22,4 +22,5 @@ old_log/
 *.err
 *.out
 *.cc
+*.done
 
