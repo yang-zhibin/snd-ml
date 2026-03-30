@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import sys
-import htcondor
-from htcondor import JobEventType
+import htcondor2 as htcondor
+from htcondor2 import JobEventType
 import os
 from os.path import join
 

@@ -5,6 +5,8 @@ import SndlhcGeo
 import array
 from collections import defaultdict
 import math
+from analysis.analyses.snd_analysis_2024_0mu.sciFiTools import selectHits, getSumDensity
+import numpy as np
 
 
 # ROOT.gInterpreter.Declare(r"""
@@ -60,477 +62,101 @@ def create_output_file(path, mode):
     new_tree.SetDirectory(out_file)
     return out_file, new_tree
 
-def process_counts(all_hits, branch_vars):
-    # Reset counters to 0
-    for key in [
-        "count_veto1", "count_veto2", "count_veto3", "count_veto",
-        "count_scifi1", "count_scifi2", "count_scifi3", "count_scifi4", "count_scifi5", "count_scifi",
-        "count_us1", "count_us2", "count_us3", "count_us4", "count_us5", "count_us",
-        "count_ds1", "count_ds2", "count_ds3", "count_ds4", "count_ds", 
-    ]:
-        branch_vars[key][0] = 0
 
-    for hit in all_hits:
-        detType = hit["detType"]
-        station = hit["station"]
+def process_count_and_qdc(SciFi_hits, MuFilter_hits, branch_vars):
+    # ---------- helpers ----------
+    def qdc_value(x):
+        # x can be float/int or dict-like (e.g. GetAllSignals())
+        if isinstance(x, dict):
+            return float(sum(x.values()))
+        try:
+            return float(x)
+        except Exception:
+            return 0.0
 
-        if detType == 0:  # SciFi
-            if 1 <= station <= 5:
-                branch_vars[f"count_scifi{station}"][0] += 1
-            branch_vars["count_scifi"][0] += 1
+    # ---------- init counters ----------
+    scifi_counts = [0] * 5
+    veto_counts = [0] * 3
+    us_counts = [0] * 5
+    ds_counts = [0] * 4
 
-        elif detType == 1:  # Veto
-            if station in [1, 2, 3]:
-                branch_vars[f"count_veto{station}"][0] += 1
-            branch_vars["count_veto"][0] += 1
+    scifi_qdc = [0.0] * 5
+    veto_qdc = [0.0] * 3
+    us_qdc = [0.0] * 5
+    ds_qdc = [0.0] * 4
 
-        elif detType == 2:  # Upstream
-            if 1 <= station <= 5:
-                branch_vars[f"count_us{station}"][0] += 1
-            branch_vars["count_us"][0] += 1
+    # for SciFi event-ID logic (need both views info)
+    scifi_hor = [0] * 5
+    scifi_ver = [0] * 5
 
-        elif detType == 3:  # Downstream
-            if 1 <= station <= 4:
-                branch_vars[f"count_ds{station}"][0] += 1
-            branch_vars["count_ds"][0] += 1
-
-def process_qdc(all_hits, branch_vars):
-    """
-    Process QDC values by detector type and station.
-    """
-    # Reset all QDC sums to 0
-    for key in [
-        "qdc_veto1", "qdc_veto2", "qdc_veto3", "qdc_veto",
-        "qdc_scifi1", "qdc_scifi2", "qdc_scifi3", "qdc_scifi4", "qdc_scifi5", "qdc_scifi",
-        "qdc_us1", "qdc_us2", "qdc_us3", "qdc_us4", "qdc_us5", "qdc_us",
-        "qdc_ds1", "qdc_ds2", "qdc_ds3", "qdc_ds4", "qdc_ds",
-    ]:
-        branch_vars[key][0] = 0
-    for hit in all_hits:
-        detType = hit["detType"]
-        station = hit["station"]
-        qdc_value = hit.get("qdc")  # Use get with default 0.0
-        if qdc_value<0:
-            continue
-        
-        if detType == 0:  # SciFi
-            if 1 <= station <= 5:
-                branch_vars[f"qdc_scifi{station}"][0] += qdc_value
-            branch_vars["qdc_scifi"][0] += qdc_value
-
-        elif detType == 1:  # Veto
-            if station in [1, 2, 3]:
-                branch_vars[f"qdc_veto{station}"][0] += qdc_value
-            branch_vars["qdc_veto"][0] += qdc_value
-
-        elif detType == 2:  # Upstream
-            if 1 <= station <= 5:
-                branch_vars[f"qdc_us{station}"][0] += qdc_value
-            branch_vars["qdc_us"][0] += qdc_value
-
-        elif detType == 3:  # Downstream
-            if 1 <= station <= 4:
-                branch_vars[f"qdc_ds{station}"][0] += qdc_value
-            branch_vars["qdc_ds"][0] += qdc_value
-
-def process_avgPos(all_hits, branch_vars):
-    #veto_{1-2}_y, 
-    #veto_3_x, 
-    
-    #scifi_{1-5}_{x,y}, 
-    #US_{1-5}_y, 
-    
-    #DS_{1-4}_{x,y}
-    
-    #y means hotrizontal, and cal the avgPos of y
-    #x means vertival, and cal the avgPos of y
-    # Create temporary storage for sums and counts
-    sums = defaultdict(float)
-    counts = defaultdict(int)
-
-    for hit in all_hits:
-        detType = hit["detType"]
-        station = hit["station"]
-        isVertical = hit["isVertical"]
-
-        if detType == 1:  # Veto
-            if station in [1, 2] and not isVertical:
-                key = f"avg_veto{station}_y"
-                sums[key] += hit["y"]
-                counts[key] += 1
-                
-                sums["avg_veto_y"] += hit["y"]
-                counts["avg_veto_y"] += 1
-                
-            elif station == 3 and isVertical:
-                key = "avg_veto3_x"
-                sums[key] += hit["x"]
-                counts[key] += 1
-                sums["avg_veto_x"] += hit["x"]
-                counts["avg_veto_x"] += 1
-
-        elif detType == 0:  # SciFi
-            if 1 <= station <= 5:
-                if isVertical:
-                    key = f"avg_scifi{station}_x"
-                    sums[key] += hit["x"]
-                    counts[key] += 1
-                    
-                    sums["avg_scifi_x"] += hit["x"]
-                    counts["avg_scifi_x"] += 1
-                else:
-                    key = f"avg_scifi{station}_y"
-                    sums[key] += hit["y"]
-                    counts[key] += 1
-                    
-                    sums["avg_scifi_y"] += hit["y"]
-                    counts["avg_scifi_y"] += 1
-
-        elif detType == 2:  # Upstream (horizontal only)
-            if 1 <= station <= 5 and not isVertical:
-                key = f"avg_us{station}_y"
-                sums[key] += hit["y"]
-                counts[key] += 1
-                
-                sums["avg_us_y"] += hit["y"]
-                counts["avg_us_y"] += 1
-                
-
-        elif detType == 3:  # Downstream
-            if 1 <= station <= 4:
-                if isVertical:
-                    key = f"avg_ds{station}_x"
-                    sums[key] += hit["x"]
-                    counts[key] += 1
-                    
-                    sums["avg_ds_x"] += hit["x"]
-                    counts["avg_ds_x"] += 1
-                    
-                else:
-                    key = f"avg_ds{station}_y"
-                    sums[key] += hit["y"]
-                    counts[key] += 1
-                    
-                    sums["avg_ds_y"] += hit["y"]
-                    counts["avg_ds_y"] += 1
-                    
-                    
-
-    # Write averages to branch_vars
-    for key in sums:
-        avg = sums[key] / counts[key] if counts[key] > 0 else -999
-        branch_vars[key][0] = avg
-
-
-
-def process_centroid(all_hits, branch_vars):
-    # Store sum(QDC * pos) and sum(QDC) per plane
-    weighted_sums = defaultdict(float)
-    total_qdc = defaultdict(float)
-
-    for hit in all_hits:
-        detType = hit["detType"]
-        station = hit["station"]
-        isVertical = hit["isVertical"]
-        qdc = hit.get("qdc", 0)
-
-        if qdc <= 0:
-            continue
-
-        if detType == 1:  # Veto
-            if station in [1, 2] and not isVertical:
-                key = f"centroid_veto{station}_y"
-                weighted_sums[key] += qdc * hit["y"]
-                total_qdc[key] += qdc
-                weighted_sums["centroid_veto_y"] += qdc * hit["y"]
-                total_qdc["centroid_veto_y"] += qdc
-            elif station == 3 and isVertical:
-                key = "centroid_veto3_x"
-                weighted_sums[key] += qdc * hit["x"]
-                total_qdc[key] += qdc
-                
-                weighted_sums["centroid_veto_x"] += qdc * hit["x"]
-                total_qdc["centroid_veto_x"] += qdc
-
-        elif detType == 0:  # SciFi
-            if 1 <= station <= 5:
-                if isVertical:
-                    key = f"centroid_scifi{station}_x"
-                    weighted_sums[key] += qdc * hit["x"]
-                    total_qdc[key] += qdc
-                    
-                    weighted_sums["centroid_scifi_x"] += qdc * hit["x"]
-                    total_qdc["centroid_scifi_x"] += qdc
-                    
-                else:
-                    key = f"centroid_scifi{station}_y"
-                    weighted_sums[key] += qdc * hit["y"]
-                    total_qdc[key] += qdc
-                    
-                    weighted_sums["centroid_scifi_y"] += qdc * hit["y"]
-                    total_qdc["centroid_scifi_y"] += qdc
-
-
-        elif detType == 2:  # Upstream
-            if 1 <= station <= 5 and not isVertical:
-                key = f"centroid_us{station}_y"
-                weighted_sums[key] += qdc * hit["y"]
-                total_qdc[key] += qdc
-                
-                weighted_sums["centroid_us_y"] += qdc * hit["y"]
-                total_qdc["centroid_us_y"] += qdc
-
-        elif detType == 3:  # Downstream
-            if 1 <= station <= 4:
-                if isVertical:
-                    key = f"centroid_ds{station}_x"
-                    weighted_sums[key] += qdc * hit["x"]
-                    total_qdc[key] += qdc
-                    
-                    weighted_sums["centroid_ds_x"] += qdc * hit["x"]
-                    total_qdc["centroid_ds_x"] += qdc
-                else:
-                    key = f"centroid_ds{station}_y"
-                    weighted_sums[key] += qdc * hit["y"]
-                    total_qdc[key] += qdc
-                    
-                    weighted_sums["centroid_ds_y"] += qdc * hit["y"]
-                    total_qdc["centroid_ds_y"] += qdc
-
-    for key in weighted_sums:
-        centroid = weighted_sums[key] / total_qdc[key] if total_qdc[key] > 0 else -999
-        branch_vars[key][0] = centroid
-
-    
-def sum_valid_densities(branch_vars, group_keys, target_key):
-    total = 0
-    for key in group_keys:
-        value = branch_vars.get(key, [0])[0]
-        if value <=0:
-            total += value
-    branch_vars[target_key][0] = total
-         
-
-def process_hit_density(all_hits, branch_vars):
-    plane_hits = defaultdict(list)
-
-    # Group hits by plane
-    for hit in all_hits:
-        detType = hit["detType"]
-        station = hit["station"]
-        isVertical = hit["isVertical"]
-
-        if detType == 0 and 1 <= station <= 5:
-            key = f"density_scifi{station}"
-        elif detType == 1 and station in [1, 2, 3]:
-            key = f"density_veto{station}"
-        elif detType == 2 and 1 <= station <= 5:
-            key = f"density_us{station}"
-        elif detType == 3 and 1 <= station <= 4:
-            key = f"density_ds{station}"
-        else:
-            continue
-
-        coord = hit["x"] if isVertical else hit["y"]
-        plane_hits[key].append(coord)
-
-    # Compute density sum for each plane
-    for key, coords in plane_hits.items():
-        N = len(coords)
-        if N < 2:
-            branch_vars[key][0] = 0
-            continue
-
-        density_sum = 0
-        for i, xi in enumerate(coords):
-            wi = sum(
-                1 for j, xj in enumerate(coords)
-                if i != j and abs(xj - xi) < 1.0  # ±1 cm window
-            )
-            density_sum += wi
-
-        branch_vars[key][0] = density_sum
-    
-    
-    # calculate the below, exlude value == -999 in them
-    # density_veto = density_veto1+density_veto2+density_veto3
-    # density_scifi1 ...
-    # density_us ...
-    # density_ds ...
-    # desity_total ...
-    sum_valid_densities(
-        branch_vars,
-        ["density_veto1", "density_veto2", "density_veto3"],
-        "density_veto"
-    )
-    sum_valid_densities(
-        branch_vars,
-        [f"density_scifi{i}" for i in range(1, 6)],
-        "density_scifi"
-    )
-    sum_valid_densities(
-        branch_vars,
-        [f"density_us{i}" for i in range(1, 6)],
-        "density_us"
-    )
-    sum_valid_densities(
-        branch_vars,
-        [f"density_ds{i}" for i in range(1, 5)],
-        "density_ds"
-    )
-
-    # Total density
-    sum_valid_densities(
-        branch_vars,
-        ["density_veto", "density_scifi", "density_us", "density_ds"],
-        "density_total"
-    )
-    
-
-    
-    
-def process_showerTagged(all_hits, branch_vars, window_cm=3.3, threshold=36):
-    #A sliding window of length d (33mm) checks for at least H (set to 36) hits within one SciFi station (X and Y).
-    #The most upstream station satisfying this requirement marks the start of the shower
-    # save the result to branch
-
-    # Group hits by station and orientation
-    scifi_hits = defaultdict(lambda: {"x": [], "y": [], "z": []})
-
-    for hit in all_hits:
-        if hit["detType"] != 0:  # Only SciFi
-            continue
-        station = hit["station"]
-        if 1 <= station <= 5:
-            if hit["isVertical"]:
-                scifi_hits[station]["x"].append(hit["x"])
+    # ---------- fill SciFi ----------
+    for h in SciFi_hits:
+        st = int(h.get("station", 0))
+        if 1 <= st <= 5:
+            i = st - 1
+            scifi_counts[i] += 1
+            scifi_qdc[i] += qdc_value(h.get("qdc", 0.0))
+            if h.get("isVertical", False):
+                scifi_ver[i] += 1
             else:
-                scifi_hits[station]["y"].append(hit["y"])
-            scifi_hits[station]["z"].append(hit["z"])
+                scifi_hor[i] += 1
 
-    # Sliding window check
-    showerTagged = 0
-    showerStartStation = -1
+    # ---------- fill MuFilter ----------
+    for h in MuFilter_hits:
+        det = int(h.get("detType", -1))   # 1=veto, 2=US, 3=DS
+        st = int(h.get("station", 0))     # expected 1-based
+        q = qdc_value(h.get("qdc", 0.0))
 
-    for station in sorted(scifi_hits.keys()):
-        for orientation in ["x", "y"]:
-            positions = sorted(scifi_hits[station][orientation])
-            N = len(positions)
-            if N < threshold:
-                continue
+        if det == 1 and 1 <= st <= 3:
+            veto_counts[st - 1] += 1
+            veto_qdc[st - 1] += q
+        elif det == 2 and 1 <= st <= 5:
+            us_counts[st - 1] += 1
+            us_qdc[st - 1] += q
+        elif det == 3 and 1 <= st <= 4:
+            ds_counts[st - 1] += 1
+            ds_qdc[st - 1] += q
 
-            i = 0
-            j = 0
-            while i < N:
-                while j < N and positions[j] - positions[i] < window_cm:
-                    j += 1
-                if (j - i) >= threshold:
-                    showerTagged = 1
-                    showerStartStation = station
-                    break
-                i += 1
+    # ---------- write count branches ----------
+    for i in range(3):
+        branch_vars[f"count_veto{i+1}"][0] = veto_counts[i]
+    branch_vars["count_veto"][0] = sum(veto_counts)
 
-            if showerTagged:
-                break
-        if showerTagged:
-            break
+    for i in range(5):
+        branch_vars[f"count_scifi{i+1}"][0] = scifi_counts[i]
+    branch_vars["count_scifi"][0] = sum(scifi_counts)
 
-    
-    branch_vars["showerTagged"][0] = showerTagged
-    branch_vars["showerStartStation"][0] = showerStartStation
+    for i in range(5):
+        branch_vars[f"count_us{i+1}"][0] = us_counts[i]
+    branch_vars["count_us"][0] = sum(us_counts)
 
-    # calculate the avg z position of hits in showerStartStation
-    if showerTagged == 1:
-        avgShowerZ = sum(scifi_hits[showerStartStation]['z'])/len(scifi_hits[showerStartStation]['z'])
-        branch_vars["showerStart_z"][0] = avgShowerZ
-        
-        branch_vars["showerStart_centroid_x"][0] = branch_vars[f"centroid_scifi{showerStartStation}_x"][0]
-        branch_vars["showerStart_centroid_y"][0] = branch_vars[f"centroid_scifi{showerStartStation}_y"][0]
-        branch_vars["showerStart_avg_x"][0] = branch_vars[f"avg_scifi{showerStartStation}_x"][0]
-        branch_vars["showerStart_avg_y"][0] = branch_vars[f"avg_scifi{showerStartStation}_y"][0]
-        
-        
-    hitStartStation = -1
-    for station in range(1, 6):
-        if station in scifi_hits:
-            total_hits = len(scifi_hits[station]["x"]) + len(scifi_hits[station]["y"])
-            if total_hits >= 2:
-                hitStartStation = station
-                break
-    
-    branch_vars["hitStartStation"][0] = hitStartStation
-    avgHitZ = sum(scifi_hits[hitStartStation]['z'])/len(scifi_hits[hitStartStation]['z'])
-    branch_vars["hitStart_z"][0] = avgHitZ
-    
-    branch_vars["hitStart_centroid_x"][0] = branch_vars[f"centroid_scifi{hitStartStation}_x"][0]
-    branch_vars["hitStart_centroid_y"][0] = branch_vars[f"centroid_scifi{hitStartStation}_y"][0]
-    branch_vars["hitStart_avg_x"][0] = branch_vars[f"avg_scifi{hitStartStation}_x"][0]
-    branch_vars["hitStart_avg_y"][0] = branch_vars[f"avg_scifi{hitStartStation}_y"][0]
-    
+    for i in range(4):
+        branch_vars[f"count_ds{i+1}"][0] = ds_counts[i]
+    branch_vars["count_ds"][0] = sum(ds_counts)
+
+    # ---------- write qdc branches ----------
+    for i in range(3):
+        branch_vars[f"qdc_veto{i+1}"][0] = veto_qdc[i]
+    branch_vars["qdc_veto"][0] = sum(veto_qdc)
+
+    for i in range(5):
+        branch_vars[f"qdc_scifi{i+1}"][0] = scifi_qdc[i]
+    branch_vars["qdc_scifi"][0] = sum(scifi_qdc)
+
+    for i in range(5):
+        branch_vars[f"qdc_us{i+1}"][0] = us_qdc[i]
+    branch_vars["qdc_us"][0] = sum(us_qdc)
+
+    for i in range(4):
+        branch_vars[f"qdc_ds{i+1}"][0] = ds_qdc[i]
+    branch_vars["qdc_ds"][0] = sum(ds_qdc)
     
 
+ 
 
-def process_slope(all_hits, branch_vars):
-    #cal avgPos_slope_{x,y}, and centroid_slope{x,y}, only cal SciFi planes
-    #   get the start plane,
-    #   calculate the slope with the starting plane and the following planes
-    
-    # Check if event is shower tagged
-    if branch_vars["showerTagged"][0] != 1:
-        branch_vars["avgPos_slope_x"][0] = -999
-        branch_vars["avgPos_slope_y"][0] = -999
-        branch_vars["centroid_slope_x"][0] = -999
-        branch_vars["centroid_slope_y"][0] = -999
-        return
-
-    # Collect (z, value) pairs for slope computation
-    avg_x_points = []
-    avg_y_points = []
-    centroid_x_points = []
-    centroid_y_points = []
-    
-    start_station = branch_vars["showerStartStation"][0]
-
-    for station in range(start_station, 6):  # 1 to 5 inclusive
-        # Find avg_x, avg_y
-        avg_x = branch_vars.get(f"avg_scifi{station}_x", [None])[0]
-        avg_y = branch_vars.get(f"avg_scifi{station}_y", [None])[0]
-        cx = branch_vars.get(f"centroid_scifi{station}_x", [None])[0]
-        cy = branch_vars.get(f"centroid_scifi{station}_y", [None])[0]
-
-        # Find corresponding z coordinate from hits
-        z_vals = [hit["z"] for hit in all_hits if hit["detType"] == 0 and hit["station"] == station]
-        if not z_vals:
-            continue
-        z = sum(z_vals) / len(z_vals)
-        #print(f"start station {station}, z position: {z}")
-        if avg_x is not None and avg_x > -998:
-            avg_x_points.append((z, avg_x))
-        if avg_y is not None and avg_y > -998:
-            avg_y_points.append((z, avg_y))
-        if cx is not None and cx > -998:
-            centroid_x_points.append((z, cx))
-        if cy is not None and cy > -998:
-            centroid_y_points.append((z, cy))
-
-    def compute_slope(points):
-        if len(points) < 2:
-            return -999
-        z0, v0 = points[0]
-        for z1, v1 in points[1:]:
-            dz = z1 - z0
-            if abs(dz) > 1e-5:
-                return (v1 - v0) / dz
-        return -999
-
-    branch_vars["avgPos_slope_x"][0] = compute_slope(avg_x_points)
-    branch_vars["avgPos_slope_y"][0] = compute_slope(avg_y_points)
-    branch_vars["centroid_slope_x"][0] = compute_slope(centroid_x_points)
-    branch_vars["centroid_slope_y"][0] = compute_slope(centroid_y_points)
-   
-def process_vetoHitTime(all_hits, branch_vars):
+def process_vetoHitTime(MuFilter_hits, branch_vars):
     # Filter veto hits (detType == 1)
-    veto_hits = [h for h in all_hits if h["detType"] == 1]
+    veto_hits = [h for h in MuFilter_hits if h["detType"] == 1]
 
     # Compute earliest and latest per station
     per_station = {}
@@ -556,192 +182,401 @@ def process_vetoHitTime(all_hits, branch_vars):
     
     
     
-    
-    
 
-def print_hits_summary(all_hits):
-    summary = defaultdict(list)
+def process_avgPos(SciFi_hits, MuFilter_hits, branch_vars):
+    """
+    Compute average hit positions for:
+      - veto_{1-2}_y
+      - veto_3_x
+      - scifi_{1-5}_{x,y}
+      - us_{1-5}_y
+      - ds_{1-4}_{x,y}
+
+    Convention:
+      - horizontal planes -> average y
+      - vertical planes   -> average x
+    """
+    sums = defaultdict(float)
+    counts = defaultdict(int)
+
+    # combine both hit collections
+    all_hits = SciFi_hits + MuFilter_hits
 
     for hit in all_hits:
         detType = hit["detType"]
         station = hit["station"]
         isVertical = hit["isVertical"]
-        qdc = hit["qdc"]
 
-        # Grouping key: (detType, station, orientation)
-        key = (detType, station, "V" if isVertical else "H")
-        summary[key].append(qdc)
+        if detType == 1:  # Veto
+            if station in [1, 2] and not isVertical:
+                key = f"avg_veto{station}_y"
+                sums[key] += hit["y"]
+                counts[key] += 1
 
-    detType_names = {
-        0: "SciFi",
-        1: "Veto",
-        2: "Upstream",
-        3: "Downstream"
-    }
+                sums["avg_veto_y"] += hit["y"]
+                counts["avg_veto_y"] += 1
 
-    print("\n--- Event Hit Summary ---")
-    for (detType, station, orientation), qdcs in sorted(summary.items()):
-        name = detType_names.get(detType, f"Unknown({detType})")
-        count = len(qdcs)
-        avg_qdc = sum(qdcs) / count if count > 0 else 0
-        print(f"{name:<10} Station {station:<2} {orientation} - Hits: {count:3} | Avg QDC: {avg_qdc:.1f}")
-    print("--------------------------\n")
+            elif station == 3 and isVertical:
+                key = "avg_veto3_x"
+                sums[key] += hit["x"]
+                counts[key] += 1
 
-def process_hits(event, vetoHits, snd_geo, new_tree, branch_vars, eventId, args):
+                sums["avg_veto_x"] += hit["x"]
+                counts["avg_veto_x"] += 1
+
+        elif detType == 0:  # SciFi
+            if 1 <= station <= 5:
+                if isVertical:
+                    key = f"avg_scifi{station}_x"
+                    sums[key] += hit["x"]
+                    counts[key] += 1
+
+                    sums["avg_scifi_x"] += hit["x"]
+                    counts["avg_scifi_x"] += 1
+                else:
+                    key = f"avg_scifi{station}_y"
+                    sums[key] += hit["y"]
+                    counts[key] += 1
+
+                    sums["avg_scifi_y"] += hit["y"]
+                    counts["avg_scifi_y"] += 1
+
+        elif detType == 2:  # Upstream
+            if 1 <= station <= 5 and not isVertical:
+                key = f"avg_us{station}_y"
+                sums[key] += hit["y"]
+                counts[key] += 1
+
+                sums["avg_us_y"] += hit["y"]
+                counts["avg_us_y"] += 1
+
+        elif detType == 3:  # Downstream
+            if 1 <= station <= 4:
+                if isVertical:
+                    key = f"avg_ds{station}_x"
+                    sums[key] += hit["x"]
+                    counts[key] += 1
+
+                    sums["avg_ds_x"] += hit["x"]
+                    counts["avg_ds_x"] += 1
+                else:
+                    key = f"avg_ds{station}_y"
+                    sums[key] += hit["y"]
+                    counts[key] += 1
+
+                    sums["avg_ds_y"] += hit["y"]
+                    counts["avg_ds_y"] += 1
+
+    # Fill all requested branch_vars safely
+    for key in branch_vars:
+        if key.startswith("avg_"):
+            branch_vars[key][0] = sums[key] / counts[key] if counts[key] > 0 else -999.
+
+    
+
+def filter_SciFiHits(SciFi_hits, lower_time_threshold=0.5, upper_time_threshold=2.3, bin_width=0.25):
+    """
+    Filter SciFi hits around MPV of hit time (per station + orientation).
+
+    Inputs:
+      SciFi_hits: list of dicts, each with at least:
+        - station (int)
+        - isVertical (bool)
+        - hitTimeCY (float)  # in clock cycles
+      lower_time_threshold, upper_time_threshold: in clock cycles
+
+    Returns:
+      filtered_hits, peak_by_group
+    """
+    if not SciFi_hits:
+        return [], {}
+
+    groups = defaultdict(list)
+    for h in SciFi_hits:
+        groups[(h["station"], h["isVertical"])].append(h)
+
+    filtered = []
+    peak_by_group = {}
+
+    MAX_BINS = 2000
+    for key, hits in groups.items():
+        times = np.array([h["hitTimeCY"] for h in hits], dtype=float)
+
+        # Robust MPV estimate via histogram mode
+        tmin, tmax = float(times.min()), float(times.max())
+        if tmax <= tmin:
+            peak = tmin
+        else:
+            width = tmax - tmin
+            nbins = int(np.ceil(width / bin_width))
+            nbins = max(10, min(nbins, MAX_BINS))
+            
+            hist, edges = np.histogram(times, bins=nbins, range=(tmin, tmax))
+            i_max = int(np.argmax(hist))
+            peak = 0.5 * (edges[i_max] + edges[i_max + 1])
+
+        peak_by_group[key] = peak
+
+        lo = peak - lower_time_threshold
+        hi = peak + upper_time_threshold
+        for h in hits:
+            t = h["hitTimeCY"]
+            if lo <= t <= hi:
+                filtered.append(h)
+
+    return filtered, peak_by_group
+
+
+def fill_mycode_density(branch_vars):
+    station_x = [float(branch_vars[f"density_scifi{i}_x"][0]) for i in range(1, 6)]
+    station_y = [float(branch_vars[f"density_scifi{i}_y"][0]) for i in range(1, 6)]
+
+    # Match getSumDensity station ranking: choose by total density x+y
+    station_sum = [station_x[i] + station_y[i] for i in range(5)]
+    station_min = [min(station_x[i], station_y[i]) for i in range(5)]
+
+    best_idx = 0
+    best_sum = station_sum[0]
+
+    second_idx = -1
+    second_sum = 0.0
+
+    for i in range(5):
+        s = station_sum[i]
+
+        # Match getSumDensity: strict '>' for best, so first max wins ties
+        if s > best_sum:
+            second_idx = best_idx
+            second_sum = best_sum
+            best_idx = i
+            best_sum = s
+        # Match getSumDensity: second-best must be strictly below best and strictly above current second
+        elif s < best_sum and s > second_sum:
+            second_idx = i
+            second_sum = s
+
+    branch_vars["density_mycode_scifi"][0] = station_min[best_idx]
+    branch_vars["density_mycodescifi_second"][0] = station_min[second_idx] if second_idx >= 0 else 0.0
+    branch_vars["density_mycode_scifi_hor"][0] = station_y[best_idx]
+    branch_vars["density_mycode_scifi_ver"][0] = station_x[best_idx]
+
+def hitWeightDensity(SciFi_hits, branch_vars):
+    # Python equivalent of sndSciFiTools.cxx hitWeightComputation (width = 1 cm)
+    def sum_hit_weights_1d(positions, width=1.0):
+        if not positions:
+            return 0.0
+
+        pos = sorted(float(p) for p in positions)
+        n = len(pos)
+        left = 0
+        right = 0
+        total = 0.0
+
+        for i in range(n):
+            x = pos[i]
+            while right < n and pos[right] <= x + width:
+                right += 1
+            while left < n and pos[left] < x - width:
+                left += 1
+
+            neighbors = (right - left) - 1  # exclude self
+            if neighbors < 0:
+                neighbors = 0
+            total += neighbors
+
+        return total
+
+    # collect positions per station and orientation
+    # vertical -> x density, horizontal -> y density
+    st_x = {i: [] for i in range(1, 6)}
+    st_y = {i: [] for i in range(1, 6)}
+
+    for h in SciFi_hits:
+        st = int(h.get("station", 0))
+        if st < 1 or st > 5:
+            continue
+
+        if h.get("isVertical", False):
+            st_x[st].append(h.get("x", 0.0))
+        else:
+            st_y[st].append(h.get("y", 0.0))
+
+    total_x = 0.0
+    total_y = 0.0
+
+    for st in range(1, 6):
+        dx = sum_hit_weights_1d(st_x[st], width=1.0)
+        dy = sum_hit_weights_1d(st_y[st], width=1.0)
+        d = dx + dy
+
+        branch_vars[f"density_scifi{st}_x"][0] = dx
+        branch_vars[f"density_scifi{st}_y"][0] = dy
+        branch_vars[f"density_scifi{st}"][0] = d
+
+        total_x += dx
+        total_y += dy
+
+    branch_vars["density_scifi_x"][0] = total_x
+    branch_vars["density_scifi_y"][0] = total_y
+    branch_vars["density_scifi"][0] = total_x + total_y
+
+    return branch_vars
+
+def process_hits(args, event, vetoHits, snd_geo, branch_vars):
     """Process all hits in the event and update hits array and averages."""
+    eventId = branch_vars["eventId"][0]
     MC = args.type
     Scifi = snd_geo.modules['Scifi']
     MuFilter = snd_geo.modules['MuFilter']
     A, B = ROOT.TVector3(), ROOT.TVector3()
     
-    #read plane positions, vertical->top_x->A.x, horizontal->right_y->A.y
-    
-    # Temporary storage for all hits with positions
-    all_hits = []
 
-    # SciFi hits
+    sel_hits = selectHits(event, MC = (True if "MC" in args.type else False))  
+    dens, dens2, dver, dhor = getSumDensity(sel_hits, return_2ndhighest=True, return_hv=True)
+    branch_vars["density_sndsw_scifi"][0] = dens
+    branch_vars["density_sndsw_scifi_second"][0] = dens2
+    branch_vars["density_sndsw_scifi_ver"][0] = dver
+    branch_vars["density_sndsw_scifi_hor"][0] = dhor
+    
+
+        
+    
+    SciFi_hits = []
+    # Process SciFi hits
     for aHit in event.Digi_ScifiHits:
         if not aHit.isValid():
             continue
         detID = aHit.GetDetectorID()
         station = detID // 1000000
-
-        Scifi.GetSiPMPosition(detID, A, B)
-
-        max_QDC = 200 * 16
-        this_qdc = 0
-        ns = max(1,aHit.GetnSides())
-        for side in range(ns):
-            for m in  range(aHit.GetnSiPMs()):
-                qdc = aHit.GetSignal(m+side*aHit.GetnSiPMs())
-                if not qdc < 0:
-                    this_qdc += qdc
-        if this_qdc > max_QDC :
-            this_qdc = max_QDC
-        hit_time = aHit.GetTime()
+        hitTime = aHit.GetTime()
+        clock_cycle = hitTime/6.25
+        qdc = aHit.GetSignal(0)
+        mat = aHit.GetMat()
+        sipm = aHit.GetSiPM()
+        channel = aHit.GetSiPMChan()
+        layer_channel = channel + sipm*128 + mat*4*128
         
-        all_hits.append({
+        Scifi.GetSiPMPosition(detID, A, B)
+        
+        SciFi_hits.append({
             "detType": 0,
             "station": station,
             "isVertical": aHit.isVertical(),
+            "layer_channel": layer_channel,
+            "qdc":qdc,
             "x":A.x(),
             "y":A.y(),
             "z":A.z(),
-            "qdc":this_qdc,
-            "hit_time": hit_time
+            "hitTimeCY": clock_cycle
         })
 
-    # MuFilter hits
-    
-    
+    # Process MuFilter hits
+    MuFilter_hits = []
     n_veto_hit = 0
-    # print(f"\n================ Event {eventId} ================")
     for aHit in event.Digi_MuFilterHits:
-        
-        
         if not aHit.isValid():
             continue
+        
+        # process veto hits
+        if aHit.GetSystem() == 1:
+            vh = vetoHits.ConstructedAt(n_veto_hit)
+            n_veto_hit += 1
+            
+            total_energy_loss = 0
+            vh.mcPoints.clear()
+            for mc_point_i, mc_point_weight in linksToMCPoints:   
+                mc_point = event.MuFilterPoint[mc_point_i]
+                pdg = int(mc_point.PdgCode())
+                el  = float(mc_point.GetEnergyLoss())
+                x   = float(mc_point.GetX())
+                y   = float(mc_point.GetY())
+                z   = float(mc_point.GetZ())
+
+                total_energy_loss += el
+
+                # Construct ScifiMiniPoint in-place, then fill its fields
+                vh.mcPoints.emplace_back()
+                p = vh.mcPoints.back()
+                p.pdg = pdg
+                p.energy_loss = el
+                p.x, p.y, p.z = x, y, z
+                p.weight = mc_point_weight
+                
+            # fill veto fields (note: you probably want station+1)
+            vh.hit_time   = hit_time
+            vh.veto_plane = int(station + 1)
+            vh.energy_loss = float(total_energy_loss)
+            vh.qdc = float(this_qdc)
+                
+        MuFilter.GetPosition(detID, A, B)
         detID = aHit.GetDetectorID()
         detType = aHit.GetSystem()
         station = (detID // 1000) % 10
-
-        MuFilter.GetPosition(detID, A, B)
-
-        max_QDC = 200 * 16
-        this_qdc = 0
-        ns = max(1,aHit.GetnSides())
-        for side in range(ns):
-            for m in  range(aHit.GetnSiPMs()):
-                qdc = aHit.GetSignal(m+side*aHit.GetnSiPMs())
-                if not qdc < 0:
-                    this_qdc += qdc
-        if this_qdc > max_QDC :
-            this_qdc = max_QDC
-        hit_time = aHit.GetTime()
+        hitTime = aHit.GetTime()
+        clock_cycle = hitTime/6.25
+        barIndex = detID%100
         
-        if ('MC' in  args.type):
-            hit2MC = event.Digi_MuFilterHits2MCPoints[0]
-            linksToMCPoints = hit2MC.wList(detID)
-            start_z = (
-                event.MCTrack[1].GetStartZ()
-                if event.MCTrack.GetEntries() > 1
-                else -999
-                )
-            branch_vars["start_z"][0] = start_z
-            
-            if aHit.GetSystem() == 1:
-                vh = vetoHits.ConstructedAt(n_veto_hit)
-                n_veto_hit += 1
-                
-                total_energy_loss = 0
-                vh.mcPoints.clear()
-                for mc_point_i, mc_point_weight in linksToMCPoints:   
-                    mc_point = event.MuFilterPoint[mc_point_i]
-                    pdg = int(mc_point.PdgCode())
-                    el  = float(mc_point.GetEnergyLoss())
-                    x   = float(mc_point.GetX())
-                    y   = float(mc_point.GetY())
-                    z   = float(mc_point.GetZ())
-
-                    total_energy_loss += el
-
-                    # Construct ScifiMiniPoint in-place, then fill its fields
-                    vh.mcPoints.emplace_back()
-                    p = vh.mcPoints.back()
-                    p.pdg = pdg
-                    p.energy_loss = el
-                    p.x, p.y, p.z = x, y, z
-                    p.weight = mc_point_weight
-                    
-                # fill veto fields (note: you probably want station+1)
-                vh.hit_time   = hit_time
-                vh.veto_plane = int(station + 1)
-                vh.energy_loss = float(total_energy_loss)
-                vh.qdc = float(this_qdc)
         
-        all_hits.append({
+        qdc = 0.0
+        for key, value in aHit.GetAllSignals():
+            qdc += value
+        
+        
+        MuFilter_hits.append({
             "detType": detType,
             "station": station+1,
             "isVertical": aHit.isVertical(),
+            "qdc":qdc,
+            "barIndex":barIndex,
+            "hitTimeCY": clock_cycle,
             "x":A.x(),
             "y":A.y(),
             "z":A.z(),
-            "qdc":this_qdc,
-            "hit_time": hit_time
         })
-            
     
-    process_counts(all_hits, branch_vars)
-    process_qdc(all_hits, branch_vars)
-    process_avgPos(all_hits, branch_vars)
-    process_centroid(all_hits, branch_vars)
-    process_hit_density(all_hits, branch_vars)
-    # process_showerTagged(all_hits, branch_vars)
-    # process_slope(all_hits, branch_vars)
-    # process_vetoHitTime(all_hits, branch_vars)
+    #filter SciFi hits for real data
+    SciFi_hits, peak_by_group = filter_SciFiHits(
+            SciFi_hits,
+            lower_time_threshold=0.5,
+            upper_time_threshold=1.2
+        )
+    
+    hitWeightDensity(SciFi_hits, branch_vars)
+    
+    process_count_and_qdc(SciFi_hits, MuFilter_hits, branch_vars)
+    
+    process_avgPos(SciFi_hits, MuFilter_hits, branch_vars)
+    
+    fill_mycode_density(branch_vars)
+    
+    process_vetoHitTime(MuFilter_hits, branch_vars)
 
-    #print_hits_summary(all_hits)
     return 
+
+
+
 
 
 def main(args):
     print("start processing digi to features")
+    
     snd_geo = setup_geometry(args.geo_path )
     raw_data, raw_tree = open_root_file(args.digi_path)
-    preSelect_data, preSelect_tree = open_root_file(args.preSelect_path, tree_name='sndData')
+    preSelect_data, preSelect_tree = open_root_file(args.preSelect_path, tree_name='cutFlowSummary')
+    preSelect_tree.SetAlias("EventDeltat_m1_100", "EventDeltat_-1_100")
     
     out_file, new_tree = create_output_file(args.out_path, args.mode)
     
     elist_name = "elist"
 
 
-    if "vetoFree" in args.out_path:
-        selection = "preSelect_vetoFree==1"
-    elif "vetoTagged" in args.out_path:
-        selection = "preSelect_vetoTagged==1"
+    if "veto_" in args.out_path:
+        selection = "AvgSFChan == 1 && NoVetoHits == 0"
     else:
-        selection = "preSelect == 1"
+        selection = "AvgSFChan == 1 && NoVetoHits == 1"
 
+    if "MC" not in args.type:
+        selection = selection + "&& StableBeams==1 && IP1 == 1 && EventDeltat_1_100 == 1"
     if selection:
         print(f"Applying selection: {selection}")
         n_match = preSelect_tree.GetEntries(selection)
@@ -789,38 +624,16 @@ def main(args):
         ("avg_ds3_x", 'd'), ("avg_ds3_y", 'd'),
         ("avg_ds4_x", 'd'), ("avg_ds4_y", 'd'), ("avg_ds_x", 'd'), ("avg_ds_y", 'd'),
         
-        ("centroid_veto1_y", 'd'), ("centroid_veto2_y", 'd'), ("centroid_veto3_x", 'd'), ("centroid_veto_y", 'd'), ("centroid_veto_x", 'd'), 
-        ("centroid_scifi1_x", 'd'), ("centroid_scifi1_y", 'd'),
-        ("centroid_scifi2_x", 'd'), ("centroid_scifi2_y", 'd'),
-        ("centroid_scifi3_x", 'd'), ("centroid_scifi3_y", 'd'),
-        ("centroid_scifi4_x", 'd'), ("centroid_scifi4_y", 'd'),
-        ("centroid_scifi5_x", 'd'), ("centroid_scifi5_y", 'd'), ("centroid_scifi_x", 'd'), ("centroid_scifi_y", 'd'),
-        ("centroid_us1_y", 'd'), ("centroid_us2_y", 'd'),("centroid_us3_y", 'd'), ("centroid_us4_y", 'd'), ("centroid_us5_y", 'd'), ("centroid_us_y", 'd'),
-        ("centroid_ds1_x", 'd'), ("centroid_ds1_y", 'd'),
-        ("centroid_ds2_x", 'd'), ("centroid_ds2_y", 'd'),
-        ("centroid_ds3_x", 'd'), ("centroid_ds3_y", 'd'),
-        ("centroid_ds4_x", 'd'), ("centroid_ds4_y", 'd'), ("centroid_ds_x", 'd'), ("centroid_ds_y", 'd'),
-
         # Hit density sums per plane
-        ("density_veto1", 'd'), ("density_veto2", 'd'), ("density_veto3", 'd'), ("density_veto", 'd'),
         ("density_scifi1", 'd'), ("density_scifi2", 'd'), ("density_scifi3", 'd'), ("density_scifi4", 'd'), ("density_scifi5", 'd'), ("density_scifi", 'd'),
-        ("density_us1", 'd'), ("density_us2", 'd'), ("density_us3", 'd'), ("density_us4", 'd'), ("density_us5", 'd'), ("density_us", 'd'),
-        ("density_ds1", 'd'), ("density_ds2", 'd'), ("density_ds3", 'd'), ("density_ds4", 'd'), ("density_ds", 'd'),
-        ("density_total", 'd'),
-
-        ("showerTagged", 'i'),
-        ("showerStartStation", 'i'),
-        ("showerStart_z", 'd'),
-        ("showerStart_centroid_x", 'd'), ("showerStart_centroid_y", 'd'),
-        ("showerStart_avg_x", 'd'), ("showerStart_avg_y", 'd'),
+        ("density_scifi1_x", 'd'), ("density_scifi2_x", 'd'), ("density_scifi3_x", 'd'), ("density_scifi4_x", 'd'), ("density_scifi5_x", 'd'), ("density_scifi_x", 'd'),
+        ("density_scifi1_y", 'd'), ("density_scifi2_y", 'd'), ("density_scifi3_y", 'd'), ("density_scifi4_y", 'd'), ("density_scifi5_y", 'd'), ("density_scifi_y", 'd'),
         
-        ("hitStartStation",'i'),
-        ("hitStart_z", 'd'),
-        ("hitStart_centroid_x", 'd'), ("hitStart_centroid_y", 'd'),
-        ("hitStart_avg_x", 'd'), ("hitStart_avg_y", 'd'),
+        ("density_mycode_scifi", 'd'), ("density_mycodescifi_second", 'd'), ("density_mycode_scifi_hor", 'd'), ("density_mycode_scifi_ver", 'd'), 
+        
+        ("density_sndsw_scifi", 'd'), ("density_sndsw_scifi_second", 'd'), ("density_sndsw_scifi_hor", 'd'), ("density_sndsw_scifi_ver", 'd'), 
+        
 
-        ("avgPos_slope_x", 'd'), ("avgPos_slope_y", 'd'),
-        ("centroid_slope_x", 'd'), ("centroid_slope_y", 'd'),
         ("vetoHitTime_earlist", 'd'), ("vetoHitTime_latest", 'd'),
         ("vetoHitTime_earlist_veto1", 'd'), ("vetoHitTime_latest_veto1", 'd'),
         ("vetoHitTime_earlist_veto2", 'd'), ("vetoHitTime_latest_veto2", 'd'),
@@ -840,12 +653,12 @@ def main(args):
     #vetoHits = ROOT.std.vector('VetoHit')()
     
     
-    ROOT.gROOT.ProcessLine(".L /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h+")
-    vetoHits = ROOT.TClonesArray("VetoHit")
+    if not ROOT.TClass.GetClass("VetoHit"):
+        ROOT.gROOT.ProcessLine('.L /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h+')
 
-    # Branch on the vector; ROOT will serialize the container each entry
+    vetoHits = ROOT.TClonesArray("VetoHit")
     new_tree.Branch("vetoHits", vetoHits)
-    # Process each event
+
     
     for i in range(elist.GetN()):
         vetoHits.Clear()
@@ -893,12 +706,15 @@ def main(args):
             branch_vars["isMC"][0] = 0
             branch_vars["pdgCode"][0] = 0
             branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
-        process_hits(raw_tree,vetoHits, snd_geo, new_tree, branch_vars, branch_vars["eventId"][0],  args)
+        process_hits(args, raw_tree, vetoHits, snd_geo, branch_vars)
         #if i>2:
         #    break
         new_tree.Fill()
     # Finalize the output file
     new_tree.Write()
+    cutflow_selected = preSelect_tree.CopyTree(selection)
+    cutflow_selected.SetName("cutFlowSummary")
+    cutflow_selected.Write()
     out_file.Close()
     print("finish processing digi to feature")
 
@@ -918,3 +734,4 @@ if __name__ == "__main__":
 # python digi_2_features.py -p /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/0/preSelect_MC_neutrino_volTarget_100fb-1_0.root -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/0/sndLHC.Genie-TGeant4_20240126_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/sndlhc_13TeV_down_volTarget_100fb-1_SNDG18_02a_01_000/0/geofile_full.Genie-TGeant4.root -o /eos/experiment/sndlhc/users/zhibin/MC_neutrino/volTarget_100fb-1/0/vetoTagged_feature_MC_neutrino_volTarget_100fb-1_0.root -t MC_neutrino
 
 # python digi_2_features.py -p /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/preSelect_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -d /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/sndLHC.Ntuple-TGeant4-160urad_magfield_2022TCL6_muons_rock_2e8pr_Trks.root -g /eos/experiment/sndlhc/MonteCarlo/MuonBackground/muons_down/scoring_1.8_Bfield_4xstat/geofile_full.Ntuple-TGeant4.root -o /eos/experiment/sndlhc/users/zhibin/MC_muon/down/scoring_1.8_Bfield_4xstat/vetoTagged_feature_MC_muon_down_scoring_1.8_Bfield_4xstat_3.root -t MC_muon
+# python digi_2_features.py -p /eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_vm/10/nueAnalysisFilter_MC_neutrino_2024_vm_10.root -d /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu14/volume_volTarget/10/sndLHC.Genie-TGeant4_dig.root -g /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu14/volume_volTarget/10/geofile_full.Genie-TGeant4.root -o /eos/experiment/sndlhc/users/zhibin/MC_neutrino/2024_vm/10/feature_MC_neutrino_2024_vm_10.root -t MC_ve

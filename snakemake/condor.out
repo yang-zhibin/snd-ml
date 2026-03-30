@@ -1,10 +1,260 @@
 hostname:
-b9p19p5184.cern.ch
-Setting up SNDSW environment
-search libraries in slc9_x86-64
-Running digi_2_nueAnalysis.py
-start processing digi to preSelection
-using geofile: root://eospublic.cern.ch//eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root
-finish processing digi to nueAnalysis
-Transferring output to EOS
-Cleaning up
+b9p17p6101.cern.ch
+plotting nueAnalysis hist
+Using TMPDIR=/pool/condor/dir_3575126/tmp/tmp.BJCZyVHxbG
+[ok] MC_CC_nue                           -> MC_CC_nue                 lumi=14640.0
+[ok] MC_CC_numu                          -> MC_CC_numu                lumi=13350.0
+[ok] MC_NC_nue                           -> MC_NC_nue                 lumi=14640.0
+[ok] MC_NC_numu                          -> MC_NC_numu                lumi=13350.0
+[ok] MC_kaon_10-20GeV                    -> MC_kaon_10-20GeV          lumi=1928.4965034965057
+[ok] MC_kaon_20-30GeV                    -> MC_kaon_20-30GeV          lumi=12932.004689331716
+[ok] MC_kaon_30-40GeV                    -> MC_kaon_30-40GeV          lumi=100281.81818181761
+[ok] MC_kaon_5-10GeV_Max20-1             -> MC_kaon_5-10GeV           lumi=577.1864541832646
+[ok] MC_kaon_5-10GeV_Max20-10            -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-11            -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-12            -> MC_kaon_5-10GeV           lumi=1442.966135458174
+[ok] MC_kaon_5-10GeV_Max20-13            -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-14            -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-15            -> MC_kaon_5-10GeV           lumi=1442.966135458174
+[ok] MC_kaon_5-10GeV_Max20-16            -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-17            -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-18            -> MC_kaon_5-10GeV           lumi=1442.966135458174
+[ok] MC_kaon_5-10GeV_Max20-19            -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-2             -> MC_kaon_5-10GeV           lumi=580.1163346613522
+[ok] MC_kaon_5-10GeV_Max20-20            -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-3             -> MC_kaon_5-10GeV           lumi=577.1864541832646
+[ok] MC_kaon_5-10GeV_Max20-4             -> MC_kaon_5-10GeV           lumi=580.1163346613522
+[ok] MC_kaon_5-10GeV_Max20-5             -> MC_kaon_5-10GeV           lumi=580.1163346613522
+[ok] MC_kaon_5-10GeV_Max20-6             -> MC_kaon_5-10GeV           lumi=1420.9920318725165
+[ok] MC_kaon_5-10GeV_Max20-7             -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-8             -> MC_kaon_5-10GeV           lumi=1450.2908366533932
+[ok] MC_kaon_5-10GeV_Max20-9             -> MC_kaon_5-10GeV           lumi=1442.966135458174
+[ok] MC_kaon_50-60GeV                    -> MC_kaon_50-60GeV          lumi=170231.48148148242
+[ok] MC_kaon_60-70GeV                    -> MC_kaon_60-70GeV          lumi=1114242.4242424234
+[ok] MC_kaon_70-80GeV                    -> MC_kaon_70-80GeV          lumi=476014.5935344791
+[ok] MC_kaon_80-90GeV                    -> MC_kaon_80-90GeV          lumi=959217.3913043431
+[ok] MC_kaon_90-100GeV                   -> MC_kaon_90-100GeV         lumi=961372.433043474
+[ok] MC_neutron_10-20GeV                 -> MC_neutron_10-20GeV       lumi=1453.3596837944635
+[ok] MC_neutron_20-30GeV                 -> MC_neutron_20-30GeV       lumi=9348.305084745713
+[ok] MC_neutron_30-40GeV                 -> MC_neutron_30-40GeV       lumi=20813.20754716979
+[ok] MC_neutron_5-10GeV_Max20-1          -> MC_neutron_5-10GeV        lumi=310.3961038961035
+[ok] MC_neutron_5-10GeV_Max20-10         -> MC_neutron_5-10GeV        lumi=779.9696969696998
+[ok] MC_neutron_5-10GeV_Max20-11         -> MC_neutron_5-10GeV        lumi=775.9902597402626
+[ok] MC_neutron_5-10GeV_Max20-12         -> MC_neutron_5-10GeV        lumi=775.9902597402626
+[ok] MC_neutron_5-10GeV_Max20-13         -> MC_neutron_5-10GeV        lumi=775.9902597402626
+[ok] MC_neutron_5-10GeV_Max20-14         -> MC_neutron_5-10GeV        lumi=775.9902597402626
+[ok] MC_neutron_5-10GeV_Max20-15         -> MC_neutron_5-10GeV        lumi=779.9696969696998
+[ok] MC_neutron_5-10GeV_Max20-16         -> MC_neutron_5-10GeV        lumi=775.9902597402626
+[ok] MC_neutron_5-10GeV_Max20-17         -> MC_neutron_5-10GeV        lumi=775.9902597402626
+[ok] MC_neutron_5-10GeV_Max20-18         -> MC_neutron_5-10GeV        lumi=772.0108225108253
+[ok] MC_neutron_5-10GeV_Max20-19         -> MC_neutron_5-10GeV        lumi=775.9902597402626
+[ok] MC_neutron_5-10GeV_Max20-2          -> MC_neutron_5-10GeV        lumi=310.3961038961035
+[ok] MC_neutron_5-10GeV_Max20-20         -> MC_neutron_5-10GeV        lumi=779.9696969696998
+[ok] MC_neutron_5-10GeV_Max20-3          -> MC_neutron_5-10GeV        lumi=308.8043290043286
+[ok] MC_neutron_5-10GeV_Max20-4          -> MC_neutron_5-10GeV        lumi=310.3961038961035
+[ok] MC_neutron_5-10GeV_Max20-5          -> MC_neutron_5-10GeV        lumi=310.3961038961035
+[ok] MC_neutron_5-10GeV_Max20-6          -> MC_neutron_5-10GeV        lumi=721.074025974028
+[ok] MC_neutron_5-10GeV_Max20-7          -> MC_neutron_5-10GeV        lumi=775.9902597402626
+[ok] MC_neutron_5-10GeV_Max20-8          -> MC_neutron_5-10GeV        lumi=775.9902597402626
+[ok] MC_neutron_5-10GeV_Max20-9          -> MC_neutron_5-10GeV        lumi=772.0108225108253
+[ok] MC_neutron_50-60GeV                 -> MC_neutron_50-60GeV       lumi=424269.2307692295
+[ok] MC_neutron_60-70GeV                 -> MC_neutron_60-70GeV       lumi=612833.3333333293
+[ok] MC_neutron_70-80GeV                 -> MC_neutron_70-80GeV       lumi=1300825.4716981167
+[ok] MC_neutron_80-90GeV                 -> MC_neutron_80-90GeV       lumi=1300825.4716981167
+[ok] MC_neutron_90-100GeV                -> MC_neutron_90-100GeV      lumi=nan
+[ok] real_data_2024_Max100-1             -> real_data                 lumi=0.18865060873350703
+[ok] real_data_2024_Max100-10            -> real_data                 lumi=0.20498868894552705
+[ok] real_data_2024_Max100-100           -> real_data                 lumi=0.09580499968490927
+[ok] real_data_2024_Max100-11            -> real_data                 lumi=0.19096567154059438
+[ok] real_data_2024_Max100-12            -> real_data                 lumi=0.12333891098986505
+[ok] real_data_2024_Max100-13            -> real_data                 lumi=0.10524920404468484
+[ok] real_data_2024_Max100-14            -> real_data                 lumi=0.11347179811067584
+[ok] real_data_2024_Max100-15            -> real_data                 lumi=0.12333891098986505
+[ok] real_data_2024_Max100-16            -> real_data                 lumi=0.19332147429122734
+[ok] real_data_2024_Max100-17            -> real_data                 lumi=0.12466524977658558
+[ok] real_data_2024_Max100-18            -> real_data                 lumi=0.10840456502311792
+[ok] real_data_2024_Max100-19            -> real_data                 lumi=0.09937085127119144
+[ok] real_data_2024_Max100-2             -> real_data                 lumi=0.19033498916862762
+[ok] real_data_2024_Max100-20            -> real_data                 lumi=0.20242304656547702
+[ok] real_data_2024_Max100-21            -> real_data                 lumi=0.11753946695255714
+[ok] real_data_2024_Max100-22            -> real_data                 lumi=0.08499007610415664
+[ok] real_data_2024_Max100-23            -> real_data                 lumi=0.1392390608514907
+[ok] real_data_2024_Max100-24            -> real_data                 lumi=0.11753946695255714
+[ok] real_data_2024_Max100-25            -> real_data                 lumi=0.19530042986834084
+[ok] real_data_2024_Max100-26            -> real_data                 lumi=0.1975272237018207
+[ok] real_data_2024_Max100-27            -> real_data                 lumi=0.12411002551176352
+[ok] real_data_2024_Max100-28            -> real_data                 lumi=0.0996376261150778
+[ok] real_data_2024_Max100-29            -> real_data                 lumi=0.19262077830756905
+[ok] real_data_2024_Max100-3             -> real_data                 lumi=0.1920193696037482
+[ok] real_data_2024_Max100-30            -> real_data                 lumi=0.1071648527164256
+[ok] real_data_2024_Max100-31            -> real_data                 lumi=0.20027529851922216
+[ok] real_data_2024_Max100-32            -> real_data                 lumi=0.19851849765501844
+[ok] real_data_2024_Max100-33            -> real_data                 lumi=0.19938069853976145
+[ok] real_data_2024_Max100-34            -> real_data                 lumi=0.2015287956645374
+[ok] real_data_2024_Max100-35            -> real_data                 lumi=0.19976099921133972
+[ok] real_data_2024_Max100-36            -> real_data                 lumi=0.2015287956645374
+[ok] real_data_2024_Max100-37            -> real_data                 lumi=0.2015287956645374
+[ok] real_data_2024_Max100-38            -> real_data                 lumi=0.1926881509947705
+[ok] real_data_2024_Max100-39            -> real_data                 lumi=0.19178139345063858
+[ok] real_data_2024_Max100-4             -> real_data                 lumi=0.15740632582248784
+[ok] real_data_2024_Max100-40            -> real_data                 lumi=0.19178139345063858
+[ok] real_data_2024_Max100-41            -> real_data                 lumi=0.19009910052563297
+[ok] real_data_2024_Max100-42            -> real_data                 lumi=0.19178139345063858
+[ok] real_data_2024_Max100-43            -> real_data                 lumi=0.1506794156489183
+[ok] real_data_2024_Max100-44            -> real_data                 lumi=0.20068873983842497
+[ok] real_data_2024_Max100-45            -> real_data                 lumi=0.20246474638566767
+[ok] real_data_2024_Max100-46            -> real_data                 lumi=0.20246474638566767
+[ok] real_data_2024_Max100-47            -> real_data                 lumi=0.19810757682286187
+[ok] real_data_2024_Max100-48            -> real_data                 lumi=0.20045136454132734
+[ok] real_data_2024_Max100-49            -> real_data                 lumi=0.20222527042222405
+[ok] real_data_2024_Max100-5             -> real_data                 lumi=0.19954745447452552
+[ok] real_data_2024_Max100-50            -> real_data                 lumi=0.20045136454132734
+[ok] real_data_2024_Max100-51            -> real_data                 lumi=0.19867745866043063
+[ok] real_data_2024_Max100-52            -> real_data                 lumi=0.20026003747268042
+[ok] real_data_2024_Max100-53            -> real_data                 lumi=0.20046927456168698
+[ok] real_data_2024_Max100-54            -> real_data                 lumi=0.1986952101850349
+[ok] real_data_2024_Max100-55            -> real_data                 lumi=0.1986952101850349
+[ok] real_data_2024_Max100-56            -> real_data                 lumi=0.20018446283295033
+[ok] real_data_2024_Max100-57            -> real_data                 lumi=0.20103710721109758
+[ok] real_data_2024_Max100-58            -> real_data                 lumi=0.20281619665544356
+[ok] real_data_2024_Max100-59            -> real_data                 lumi=0.20281619665544356
+[ok] real_data_2024_Max100-6             -> real_data                 lumi=0.19954745447452552
+[ok] real_data_2024_Max100-60            -> real_data                 lumi=0.20103710721109758
+[ok] real_data_2024_Max100-61            -> real_data                 lumi=0.2004142552934816
+[ok] real_data_2024_Max100-62            -> real_data                 lumi=0.20225362430279173
+[ok] real_data_2024_Max100-63            -> real_data                 lumi=0.20047946970364444
+[ok] real_data_2024_Max100-64            -> real_data                 lumi=0.20225362430279173
+[ok] real_data_2024_Max100-65            -> real_data                 lumi=0.19716711446992916
+[ok] real_data_2024_Max100-66            -> real_data                 lumi=0.1980176088083811
+[ok] real_data_2024_Max100-67            -> real_data                 lumi=0.1997699770279243
+[ok] real_data_2024_Max100-68            -> real_data                 lumi=0.1997699770279243
+[ok] real_data_2024_Max100-69            -> real_data                 lumi=0.1980176088083811
+[ok] real_data_2024_Max100-7             -> real_data                 lumi=0.19779703820720512
+[ok] real_data_2024_Max100-70            -> real_data                 lumi=0.1991535635861303
+[ok] real_data_2024_Max100-71            -> real_data                 lumi=0.19791800089144407
+[ok] real_data_2024_Max100-72            -> real_data                 lumi=0.19791800089144407
+[ok] real_data_2024_Max100-73            -> real_data                 lumi=0.19966948762499667
+[ok] real_data_2024_Max100-74            -> real_data                 lumi=0.19966948762499667
+[ok] real_data_2024_Max100-75            -> real_data                 lumi=0.17431328516077718
+[ok] real_data_2024_Max100-76            -> real_data                 lumi=0.1670935198996381
+[ok] real_data_2024_Max100-77            -> real_data                 lumi=0.16857222361556412
+[ok] real_data_2024_Max100-78            -> real_data                 lumi=0.16857222361556412
+[ok] real_data_2024_Max100-79            -> real_data                 lumi=0.14639166787667396
+[ok] real_data_2024_Max100-8             -> real_data                 lumi=0.20195324786658486
+[ok] real_data_2024_Max100-80            -> real_data                 lumi=0.06708220683647054
+[ok] real_data_2024_Max100-81            -> real_data                 lumi=0.1977159780443341
+[ok] real_data_2024_Max100-82            -> real_data                 lumi=0.1994812992768728
+[ok] real_data_2024_Max100-83            -> real_data                 lumi=0.1994812992768728
+[ok] real_data_2024_Max100-84            -> real_data                 lumi=0.2012466205094115
+[ok] real_data_2024_Max100-85            -> real_data                 lumi=0.1973489500659297
+[ok] real_data_2024_Max100-86            -> real_data                 lumi=0.2023779283217719
+[ok] real_data_2024_Max100-87            -> real_data                 lumi=0.2023779283217719
+[ok] real_data_2024_Max100-88            -> real_data                 lumi=0.2006026833364932
+[ok] real_data_2024_Max100-89            -> real_data                 lumi=0.2004485760945662
+[ok] real_data_2024_Max100-9             -> real_data                 lumi=0.20680274813973526
+[ok] real_data_2024_Max100-90            -> real_data                 lumi=0.1995442186020134
+[ok] real_data_2024_Max100-91            -> real_data                 lumi=0.1977938307195396
+[ok] real_data_2024_Max100-92            -> real_data                 lumi=0.1995442186020134
+[ok] real_data_2024_Max100-93            -> real_data                 lumi=0.1995442186020134
+[ok] real_data_2024_Max100-94            -> real_data                 lumi=0.1960434428370658
+[ok] real_data_2024_Max100-95            -> real_data                 lumi=0.1995442186020134
+[ok] real_data_2024_Max100-96            -> real_data                 lumi=0.1988288921178576
+[ok] real_data_2024_Max100-97            -> real_data                 lumi=0.20159177132713166
+[ok] real_data_2024_Max100-98            -> real_data                 lumi=0.20337576930347795
+[ok] real_data_2024_Max100-99            -> real_data                 lumi=0.20337576930347795
+[chain] MC_CC_nue                : 1 files, entries=7373
+[chain] MC_CC_numu               : 1 files, entries=20660
+[chain] MC_NC_nue                : 1 files, entries=2427
+[chain] MC_NC_numu               : 1 files, entries=6576
+[chain] MC_kaon_10-20GeV         : 1 files, entries=38496
+[chain] MC_kaon_20-30GeV         : 1 files, entries=33587
+[chain] MC_kaon_30-40GeV         : 1 files, entries=30178
+[chain] MC_kaon_5-10GeV          : 20 files, entries=2460312
+[chain] MC_kaon_50-60GeV         : 1 files, entries=26306
+[chain] MC_kaon_60-70GeV         : 1 files, entries=24617
+[chain] MC_kaon_70-80GeV         : 1 files, entries=23988
+[chain] MC_kaon_80-90GeV         : 1 files, entries=23002
+[chain] MC_kaon_90-100GeV        : 1 files, entries=21914
+[chain] MC_neutron_10-20GeV      : 1 files, entries=38430
+[chain] MC_neutron_20-30GeV      : 1 files, entries=33281
+[chain] MC_neutron_30-40GeV      : 1 files, entries=30608
+[chain] MC_neutron_5-10GeV       : 20 files, entries=2418619
+[chain] MC_neutron_50-60GeV      : 1 files, entries=26823
+[chain] MC_neutron_60-70GeV      : 1 files, entries=25828
+[chain] MC_neutron_70-80GeV      : 1 files, entries=24754
+[chain] MC_neutron_80-90GeV      : 1 files, entries=23632
+[chain] MC_neutron_90-100GeV     : 1 files, entries=23123
+[chain] real_data                : 100 files, entries=2668347
+[draw] MC_CC_nue                 expr=density_sndsw_scifi>>h_MC_CC_nue(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=4608
+[raw MC_CC_nue] entries=4610 vis=4608 all=4608 uf=0 of=0 max=125
+[draw] MC_CC_numu                expr=density_sndsw_scifi>>h_MC_CC_numu(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=8876
+[raw MC_CC_numu] entries=8878 vis=8876 all=8876 uf=0 of=0 max=789
+[draw] MC_NC_nue                 expr=density_sndsw_scifi>>h_MC_NC_nue(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=1225
+[raw MC_NC_nue] entries=1227 vis=1225 all=1225 uf=0 of=0 max=58
+[draw] MC_NC_numu                expr=density_sndsw_scifi>>h_MC_NC_numu(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=2595
+[raw MC_NC_numu] entries=2597 vis=2595 all=2595 uf=0 of=0 max=218
+[draw] MC_kaon_10-20GeV          expr=density_sndsw_scifi>>h_MC_kaon_10_20GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=813
+[raw MC_kaon_10-20GeV] entries=815 vis=813 all=813 uf=0 of=0 max=455
+[draw] MC_kaon_20-30GeV          expr=density_sndsw_scifi>>h_MC_kaon_20_30GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=3635
+[raw MC_kaon_20-30GeV] entries=3637 vis=3635 all=3635 uf=0 of=0 max=1380
+[draw] MC_kaon_30-40GeV          expr=density_sndsw_scifi>>h_MC_kaon_30_40GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=6860
+[raw MC_kaon_30-40GeV] entries=6862 vis=6860 all=6860 uf=0 of=0 max=1978
+[draw] MC_kaon_5-10GeV           expr=density_sndsw_scifi>>h_MC_kaon_5_10GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=1211
+[raw MC_kaon_5-10GeV] entries=1213 vis=1211 all=1211 uf=0 of=0 max=956
+[draw] MC_kaon_50-60GeV          expr=density_sndsw_scifi>>h_MC_kaon_50_60GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=12058
+[raw MC_kaon_50-60GeV] entries=12060 vis=12058 all=12058 uf=0 of=0 max=2459
+[draw] MC_kaon_60-70GeV          expr=density_sndsw_scifi>>h_MC_kaon_60_70GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=13184
+[raw MC_kaon_60-70GeV] entries=13186 vis=13184 all=13184 uf=0 of=0 max=2278
+[draw] MC_kaon_70-80GeV          expr=density_sndsw_scifi>>h_MC_kaon_70_80GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=14455
+[raw MC_kaon_70-80GeV] entries=14457 vis=14455 all=14455 uf=0 of=0 max=2153
+[draw] MC_kaon_80-90GeV          expr=density_sndsw_scifi>>h_MC_kaon_80_90GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=14861
+[raw MC_kaon_80-90GeV] entries=14863 vis=14861 all=14861 uf=0 of=0 max=1783
+[draw] MC_kaon_90-100GeV         expr=density_sndsw_scifi>>h_MC_kaon_90_100GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=14825
+[raw MC_kaon_90-100GeV] entries=14827 vis=14825 all=14825 uf=0 of=0 max=1484
+[draw] MC_neutron_10-20GeV       expr=density_sndsw_scifi>>h_MC_neutron_10_20GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=475
+[raw MC_neutron_10-20GeV] entries=477 vis=475 all=475 uf=0 of=0 max=318
+[draw] MC_neutron_20-30GeV       expr=density_sndsw_scifi>>h_MC_neutron_20_30GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=2685
+[raw MC_neutron_20-30GeV] entries=2687 vis=2685 all=2685 uf=0 of=0 max=1220
+[draw] MC_neutron_30-40GeV       expr=density_sndsw_scifi>>h_MC_neutron_30_40GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=6144
+[raw MC_neutron_30-40GeV] entries=6146 vis=6144 all=6144 uf=0 of=0 max=2103
+[draw] MC_neutron_5-10GeV        expr=density_sndsw_scifi>>h_MC_neutron_5_10GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=373
+[raw MC_neutron_5-10GeV] entries=375 vis=373 all=373 uf=0 of=0 max=257
+[draw] MC_neutron_50-60GeV       expr=density_sndsw_scifi>>h_MC_neutron_50_60GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=11274
+[raw MC_neutron_50-60GeV] entries=11276 vis=11274 all=11274 uf=0 of=0 max=2514
+[draw] MC_neutron_60-70GeV       expr=density_sndsw_scifi>>h_MC_neutron_60_70GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=12931
+[raw MC_neutron_60-70GeV] entries=12933 vis=12931 all=12931 uf=0 of=0 max=2440
+[draw] MC_neutron_70-80GeV       expr=density_sndsw_scifi>>h_MC_neutron_70_80GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=13965
+[raw MC_neutron_70-80GeV] entries=13967 vis=13965 all=13965 uf=0 of=0 max=2222
+[draw] MC_neutron_80-90GeV       expr=density_sndsw_scifi>>h_MC_neutron_80_90GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=14589
+[raw MC_neutron_80-90GeV] entries=14591 vis=14589 all=14589 uf=0 of=0 max=1921
+[draw] MC_neutron_90-100GeV      expr=density_sndsw_scifi>>h_MC_neutron_90_100GeV(78,1000,40000.0) cut='(cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=14700
+[raw MC_neutron_90-100GeV] entries=14702 vis=14700 all=14700 uf=0 of=0 max=1613
+[draw] real_data                 expr=density_sndsw_scifi>>h_real_data(78,1000,40000.0) cut='(cutFlowSummary_StableBeams == 1) && (cutFlowSummary_IP1 == 1) && (cutFlowSummary_EventDeltat_1_100 == 1) && (cutFlowSummary_AvgSFChan == 1) && (cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000 == 1) && (cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000 == 1) && (cutFlowSummary_NoVetoHits == 1) && (cutFlowSummary_At_least_two_consecutive_SciFi_planes == 1) && (cutFlowSummary_SciFiContinuity == 1) && (cutFlowSummary_USPlanesHit == 1) && (cutFlowSummary_SciFiMinHits == 1) && (density_sndsw_scifi > 1000)' selected=153
+[raw real_data] entries=155 vis=153 all=153 uf=0 of=0 max=68
+
+Total data lumi = 18.2027
+[scale] MC_CC_nue                 : x 0.00124335
+[scale] MC_CC_numu                : x 0.0013635
+[scale] MC_NC_nue                 : x 0.00124335
+[scale] MC_NC_numu                : x 0.0013635
+[scale] MC_kaon_10-20GeV          : x 0.00943881
+[scale] MC_kaon_20-30GeV          : x 0.00140757
+[scale] MC_kaon_30-40GeV          : x 0.000181516
+[scale] MC_kaon_5-10GeV           : x 0.000740234
+[scale] MC_kaon_50-60GeV          : x 0.000106929
+[scale] MC_kaon_60-70GeV          : x 1.63364e-05
+[scale] MC_kaon_70-80GeV          : x 3.82398e-05
+[scale] MC_kaon_80-90GeV          : x 1.89766e-05
+[scale] MC_kaon_90-100GeV         : x 1.89341e-05
+[scale] MC_neutron_10-20GeV       : x 0.0125246
+[scale] MC_neutron_20-30GeV       : x 0.00194717
+[scale] MC_neutron_30-40GeV       : x 0.000874575
+[scale] MC_neutron_5-10GeV        : x 0.00138536
+[scale] MC_neutron_50-60GeV       : x 4.29037e-05
+[scale] MC_neutron_60-70GeV       : x 2.97025e-05
+[scale] MC_neutron_70-80GeV       : x 1.39932e-05
+[scale] MC_neutron_80-90GeV       : x 1.39932e-05
+[scale] MC_neutron_90-100GeV      : set to 0 (invalid lumi = nan)
+
+Saved plot to /pool/condor/dir_3575126/tmp/tmp.BJCZyVHxbG/density_sndsw_scifi__base-cut-2-3-4-5-6-7-8-9-10-11-12__extra-cut-density_sndsw_scifigt1000__binWidth500__range1000-40000.0__logyTrue.pdf
+Warning: No metadata files found.

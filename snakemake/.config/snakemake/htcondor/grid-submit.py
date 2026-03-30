@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-import htcondor
+import htcondor2 as htcondor
 from os import makedirs
 from os.path import join
 from uuid import uuid4
@@ -28,9 +28,9 @@ sub = htcondor.Submit(
         "executable": "/bin/bash",
         "arguments": jobscript,
         "max_retries": "0",
-        "log": join(jobDir, "condor.log"), #join(jobDir, "condor.log"), "condor.log"
-        "output":  join(jobDir, "condor.out"), # join(jobDir, "condor.out"), "condor.out", 
-        "error": join(jobDir, "condor.err"), #join(jobDir, "condor.err"), "condor.err", 
+        "log": join(jobDir, "condor.log"), #join(jobDir, "condor.log"), "/tmp/zhibin/condor.log"
+        "output":  "condor.out", # join(jobDir, "condor.out"), "condor.out", 
+        "error": "condor.err", #join(jobDir, "condor.err"), "condor.err", 
         "should_transfer_files": "NO",
         "getenv": "True",
 #        "request_cpus": str(job_properties["threads"]),

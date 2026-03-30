@@ -671,7 +671,7 @@ def draw_plot(final_hists, feature, hist_cfg, outdir, cut="", title=""):
     else:
         ratio_ymin, ratio_ymax = 0.5, 1.5
     
-    ratio_frame.SetMinimum(0)
+    ratio_frame.SetMinimum(ratio_ymin)
     ratio_frame.SetMaximum(15)
     
 

@@ -39,15 +39,12 @@ def add_new_path(path_name, path_type, df, csv_input, eos_root_path, seperate_ve
     else:
         suffix = ".root"
         
+    df[column_name] = df.apply(lambda row: generate_full_name(row,row.name, path_name, suffix, csv_input, eos_root_path),axis=1)
+    print(f"The column '{column_name}' has been added")
     if seperate_veto:
-        df[f"vetoTagged_{column_name}"] = df.apply(lambda row: generate_full_name(row,row.name, f"vetoTagged_{path_name}", suffix, csv_input, eos_root_path),axis=1)
-        df[f"vetoFree_{column_name}"] = df.apply(lambda row: generate_full_name(row,row.name, f"vetoFree_{path_name}", suffix, csv_input, eos_root_path),axis=1)
-        print(f"The column (vetoTagged_{column_name}) and (vetoFree_{column_name}) have been added")
+        df[f"veto_{column_name}"] = df.apply(lambda row: generate_full_name(row,row.name, f"vetoFree_{path_name}", suffix, csv_input, eos_root_path),axis=1)
+        print(f"The column (veto_{column_name}) have been added")
         
-    else:
-        df[column_name] = df.apply(lambda row: generate_full_name(row,row.name, path_name, suffix, csv_input, eos_root_path),axis=1)
-    
-        print(f"The column '{column_name}' has been added")
     return df
 
 
@@ -174,6 +171,13 @@ def cal_lumi_for_neutral_bkg(int_rate_df, metadata_df):
         return n_event / rate
 
     metadata_df["lumi_per_file"] = metadata_df.apply(compute_lumi, axis=1)
+    
+    #drop rows with energy above 100GeV 
+    metadata_df = metadata_df[
+        metadata_df["energy_range"].apply(
+            lambda x: x is not None and x[1] <= 100
+        )
+    ]
 
     #print(metadata_df)
     return metadata_df
@@ -313,13 +317,11 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     df = add_new_path(f"preCutEff", "csv", df, csv_input, eos_root_path, seperate_veto=False)
     
     # hit path
-    df = add_new_path("hit","root", df, csv_input,  eos_root_path)
+    df = add_new_path("hit","root", df, csv_input,  eos_root_path, seperate_veto=False)
     # feature path
-    df = add_new_path("feature","root", df, csv_input, eos_root_path)
+    df = add_new_path("feature","root", df, csv_input, eos_root_path, seperate_veto=False)
     # pt hit path
-    df = add_new_path("pt_hit","pt", df, csv_input, eos_root_path)
-
-    
+    df = add_new_path("pt_hit","pt", df, csv_input, eos_root_path, seperate_veto=False)
 
     # 
     model_names = [list(model.keys())[0] for model in models]

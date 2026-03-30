@@ -8,7 +8,7 @@ rule generate_raw_metadata:
         script = f'{PERSONAL_WORK_SPACE}/snakemake/metadata/generate_path_file.py'
     threads:1
     resources:
-        runtime=4*60*60,
+        runtime=5*60*60,
         mem_mb=2000,
         disk_mb=2000,
         nvidia_gpu=0

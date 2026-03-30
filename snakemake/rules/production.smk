@@ -58,24 +58,16 @@ def collect_metadata_targets(target_name, after_model=False):
             base[valid].astype(str).str.rstrip("/") + "/" +
             rel[valid].astype(str).str.lstrip("/")
         ).tolist()
-
-    if target_name.startswith(("preSelect", "new", "preCutEff", "nueAnalysis", "nue")):
-        if target_name not in METADATA.columns:
-            raise KeyError(f"{target_name} not found in metadata")
-
-        return combine_paths(METADATA["output_base_path"], METADATA[target_name])
-
     target_paths = []
 
-    if process_vetoFree:
-        col = f"vetoFree_{target_name}"
+    if target_name in METADATA.columns:
+        target_paths.extend(combine_paths(METADATA["output_base_path"], METADATA[target_name]))
+
+    if process_veto:
+        col = f"veto_{target_name}"
         if col in METADATA.columns:
             target_paths.extend(combine_paths(METADATA["output_base_path"], METADATA[col]))
 
-    if process_vetoTagged:
-        col = f"vetoTagged_{target_name}"
-        if col in METADATA.columns:
-            target_paths.extend(combine_paths(METADATA["output_base_path"], METADATA[col]))
 
     return (set(target_paths))
 
@@ -119,15 +111,10 @@ def get_metadata_value(ref_name, ref_value, target_name, after_model=False):
             target_name = f"eval_{m_name}_output_path"
 
     # Handle vetoFree / vetoTagged prefixes
-    if "vetoFree" in ref_value and (ref_name not in METADATA.columns):
-        ref_name = f"vetoFree_{ref_name}"
+    if "veto_" in ref_value and (ref_name not in METADATA.columns):
+        ref_name = f"veto_{ref_name}"
         if target_name not in METADATA.columns:
-            target_name = f"vetoFree_{target_name}"
-
-    elif "vetoTagged" in ref_value and (ref_name not in METADATA.columns):
-        ref_name = f"vetoTagged_{ref_name}"
-        if target_name not in METADATA.columns:
-            target_name = f"vetoTagged_{target_name}"
+            target_name = f"veto_{target_name}"
 
     if ref_name not in METADATA.columns:
         raise ValueError(
@@ -173,8 +160,6 @@ rule process_nueAnalysis:
     params:
         data_type=lambda wildcards: get_metadata_value("nueAnalysisFilter_path", wildcards.nueAnalysisFilter_path, "data_type"),
         pipeline = f"$SNDSW_ROOT/analysis/analyses/snd_analysis_2024_0mu/pipelines/nueFilterMoriondOrder_withEventLevelOutput.h"
-    wildcard_constraints:
-        nueAnalysisFilter_path = r".*nueAnalysisFilter.*\.root"
     output:
         nueAnalysisFilter_path="{nueAnalysisFilter_path}"
     threads:1
@@ -208,6 +193,58 @@ rule process_nueAnalysis:
 
         echo "Transferring output to EOS"
         xrdcp -f "${{tmp_output}}" "{output.nueAnalysisFilter_path}" || {{ echo "xrdcp failed"; exit 1; }}
+        echo "Cleaning up"
+        rm -rf "${{tmp_dir}}"
+        """
+
+rule process_features:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        digi=lambda wildcards: get_metadata_value(ref_name = "feature_path", ref_value = wildcards.feature_path, target_name = "digi_path",  after_model = False),
+        geo=lambda wildcards: get_metadata_value(ref_name = "feature_path", ref_value = wildcards.feature_path, target_name = "geo_path",  after_model = False),
+        script = f"{PERSONAL_WORK_SPACE}/convertData/digi_2_features.py",
+        nueAnalysisFilter_path=lambda wildcards: get_metadata_value(ref_name = "feature_path", ref_value = wildcards.feature_path, target_name = "nueAnalysisFilter_path",  after_model = False),
+    params:
+        data_type=lambda wildcards: get_metadata_value(ref_name = "feature_path", ref_value = wildcards.feature_path, target_name = "data_type",  after_model = False),
+    output:
+        feature_path="{feature_path}"
+    threads:1
+    resources:
+        runtime=60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        # Avoid sndsw and conda python conflict 
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        
+        # Avoid unbound variable error (only occurs when using Snakemake)
+        set +u 
+        
+        echo "Source SNDSW environment script"
+        source {env_script_sndsw_nue}
+
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        # Create a unique temporary directory
+        tmp_dir=$(mktemp -d)
+        filename=$(basename "{output.feature_path}")
+        tmp_output="${{tmp_dir}}/${{filename}}"
+
+        export PYTHONPATH="$SNDSW_ROOT:$PYTHONPATH"
+        echo "Running feature generation script"
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
+            {input.script} \
+            -p {input.nueAnalysisFilter_path}\
+            -d {input.digi} \
+            -g {input.geo} \
+            -o "${{tmp_output}}" \
+            -t {params.data_type}
+
+        echo "Copying result to final location"
+        xrdcp -f "${{tmp_output}}" "{output.feature_path}" || {{ echo "xrdcp failed"; exit 1; }}
+
         echo "Cleaning up"
         rm -rf "${{tmp_dir}}"
         """

@@ -183,10 +183,10 @@ def save_metadata_to_csv(metadata, csv_name):
         print(f"Error updating metadata to CSV: {e}")
 
 geo_file_map = [
-    (4361, 5422, 'eos/experiment/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V4_2022.root'),
-    (5482, 7356, 'eos/experiment/sndlhc/convertedData/physics/2023/geofile_sndlhc_TI18_V3_2023.root'),
-    (7357, 10422, 'eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root'),
-    (10919, 12792, 'eos/experiment/sndlhc/convertedData/physics/2025/geofile_sndlhc_TI18_V8_2025.root'),
+    (4361, 5422, '/eos/experiment/sndlhc/convertedData/physics/2022/geofile_sndlhc_TI18_V4_2022.root'),
+    (5482, 7356, '/eos/experiment/sndlhc/convertedData/physics/2023/geofile_sndlhc_TI18_V3_2023.root'),
+    (7357, 10422, '/eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root'),
+    (10919, 12792, '/eos/experiment/sndlhc/convertedData/physics/2025/geofile_sndlhc_TI18_V8_2025.root'),
 ]
 def get_geo_file(partition):
     try:
