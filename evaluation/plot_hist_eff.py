@@ -57,7 +57,7 @@ def get_total_lumi(root_file):
 
 def partition_from_filename(filepath):
     base = os.path.basename(filepath)
-    m = re.match(r"^eff_(.+)\.root$", base)
+    m = re.match(r"^hist_(.+)\.root$", base)
     return m.group(1) if m else None
 
 
@@ -95,9 +95,9 @@ def zero_hist(hist):
 
 
 def collect_files_and_lumi(input_dir):
-    filepaths = sorted(glob.glob(os.path.join(input_dir, "eff_*.root")))
+    filepaths = sorted(glob.glob(os.path.join(input_dir, "hist_*.root")))
     if not filepaths:
-        raise RuntimeError(f"No files matching eff_*.root found in {input_dir}")
+        raise RuntimeError(f"No files matching hist_*.root found in {input_dir}")
 
     category_files = defaultdict(list)
     grouped_lumi = defaultdict(float)
@@ -131,10 +131,52 @@ def collect_files_and_lumi(input_dir):
 
         print(f"[ok] {partition:35s} -> {category:25s} lumi={lumi}")
 
+
     if "real_data" not in category_files:
         raise RuntimeError("No real_data files found.")
 
     return category_files, grouped_lumi, open_files
+
+
+def make_cutflow_hist_from_file(root_file, hist_name="cutflow_counts"):
+    cuts = [
+        ("avgScifiFiducial", "cutFlowSummary_AvgSFChan"),
+        ("noVetoHit", "cutFlowSummary_NoVetoHits"),
+        ("count_scifi>100", "count_scifi > 100"),
+        ("density_sndsw_scifi>2000", "(count_scifi > 100) && (density_sndsw_scifi > 2000)"),
+    ]
+
+    snd = root_file.Get("sndData")
+
+    if not snd:
+        print("[skip] missing sndData tree")
+        return None
+
+    hist = ROOT.TH1D(hist_name, "Stepwise cutflow", len(cuts), 0, len(cuts))
+    hist.SetDirectory(0)
+
+    # read cutFlowSummary branches
+    avg_count = 0.0
+    veto_count = 0.0
+
+    # read sndData cuts
+    avg_count = snd.GetEntries("cutFlowSummary_AvgSFChan == 1")
+    veto_count = snd.GetEntries("cutFlowSummary_AvgSFChan == 1 && cutFlowSummary_NoVetoHits == 1")
+    scifi_count = snd.GetEntries("cutFlowSummary_AvgSFChan == 1 && cutFlowSummary_NoVetoHits == 1 &&count_scifi > 100")
+    density_count = snd.GetEntries("cutFlowSummary_AvgSFChan == 1 && cutFlowSummary_NoVetoHits == 1 &&count_scifi > 100 && (density_sndsw_scifi > 2000)")
+
+    values = [
+        avg_count,
+        veto_count,
+        scifi_count,
+        density_count,
+    ]
+
+    for ibin, ((label, _), value) in enumerate(zip(cuts, values), start=1):
+        hist.SetBinContent(ibin, value)
+        hist.GetXaxis().SetBinLabel(ibin, label)
+
+    return hist
 
 
 def read_category_count_hists(category_files):
@@ -149,28 +191,26 @@ def read_category_count_hists(category_files):
                 print(f"[skip] could not open {filepath}")
                 continue
 
-            hist = root_file.Get("cutflow_counts")
-            if hist is None:
-                print(f"[skip] missing cutflow_counts in {filepath}")
-                root_file.Close()
-                continue
+            hist = make_cutflow_hist_from_file(root_file, hist_name=f"tmp_{category}_{i}")
+            root_file.Close()
 
-            hist = clone_hist(hist, f"tmp_{category}_{i}")
+            if not hist:
+                print(f"[skip] could not build cutflow from {filepath}")
+                continue
 
             if summed is None:
                 summed = clone_hist(hist, f"count_{category}")
             else:
                 summed.Add(hist)
 
-            root_file.Close()
-
         if summed is None:
-            print(f"[warn] no cutflow_counts found for {category}")
+            print(f"[warn] no cutflow counts found for {category}")
             continue
 
         grouped_counts[category] = summed
         print(f"[count] {category:25s} integral={summed.Integral(0, summed.GetNbinsX()+1):.6g}")
 
+    # print("grouped categories:", list(grouped_counts.keys()))
     return grouped_counts
 
 

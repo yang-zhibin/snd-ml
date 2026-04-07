@@ -582,9 +582,13 @@ def main(args):
         n_match = preSelect_tree.GetEntries(selection)
         print(f"Entries matching selection: {n_match}")
         if n_match == 0:
+            out_file.cd()
             new_tree.Write()
+            cutflow_selected = preSelect_tree.CloneTree(0)
+            cutflow_selected.SetName("cutFlowSummary")
+            cutflow_selected.Write()
             out_file.Close()
-            print("No entries matched the selection condition, save empty file")
+            print("No entries matched the selection condition, saved empty sndData and cutFlowSummary trees")
             return 0
 
         preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")

@@ -334,16 +334,21 @@ def combine_cuts(base_cut, extra_cut, cut_info):
     return combined_cut, cut_names
 
 def make_histograms(chains, feature, hist_cfg, base_cut="", extra_cut="" ,fold_underflow=False, fold_overflow=False):
-    bin_width, x_min, x_max, _, _ = hist_cfg
+    bin_width, x_min, x_max, _, _, feature_cut= hist_cfg
     n_bins =int((x_max - x_min)/bin_width)
     grouped_hists = {}
 
+    if feature_cut != "":
+        if extra_cut:
+            extra_cut = extra_cut + " && " + feature_cut
+        else:
+            extra_cut = feature_cut
 
     for category, chain in chains.items():
         safe_cat = re.sub(r"[^A-Za-z0-9_]", "_", category)
         hname = f"h_{safe_cat}"
         
-        selection = get_category_selection(category, args.base_cut, args.extra_cut, cut_info)
+        selection = get_category_selection(category, base_cut, extra_cut, cut_info)
         
         #print(category, selection)
         
@@ -549,8 +554,9 @@ def build_mc_sum(stack_draw_hists):
         sanitize_hist_bins(mc_sum)
 
     return mc_sum
+def get_ratio_range(ratio_hist, default_min=0.5, default_max=1.5,
+                    padding=0.15, q_low=0.1, q_high=0.9):
 
-def get_ratio_range(ratio_hist, default_min=0.5, default_max=1.5, padding=0.15):
     vals = []
 
     for ibin in range(1, ratio_hist.GetNbinsX() + 1):
@@ -566,26 +572,31 @@ def get_ratio_range(ratio_hist, default_min=0.5, default_max=1.5, padding=0.15):
     if not vals:
         return default_min, default_max
 
-    # avoid absurdly large outlier
     vals = sorted(vals)
-    if len(vals) > 1:
-        vals = vals[0:-1]   # drop highest
-    
+    n = len(vals)
+
+    # --- quantile trimming ---
+    if n >= 10:  # only meaningful if enough entries
+        i_low = int(q_low * n)
+        i_high = int(q_high * n)
+        vals = vals[i_low:i_high]
+
     ymin = min(vals)
     ymax = max(vals)
 
-    # avoid absurdly tiny range
-    if ymax - ymin < 0.2:
+    # --- enforce minimum span ---
+    min_span = 0.2
+    if ymax - ymin < min_span:
         center = 0.5 * (ymin + ymax)
-        ymin = center - 0.1
-        ymax = center + 0.1
+        ymin = center - 0.5 * min_span
+        ymax = center + 0.5 * min_span
 
-    # add fractional padding
+    # --- padding ---
     span = ymax - ymin
     ymin -= padding * span
     ymax += padding * span
 
-    # optional: keep 1 inside the frame
+    # --- keep ratio = 1 visible ---
     ymin = min(ymin, 1.0)
     ymax = max(ymax, 1.0)
 
@@ -594,10 +605,10 @@ def get_ratio_range(ratio_hist, default_min=0.5, default_max=1.5, padding=0.15):
 def draw_plot(data_lumi, final_hists, feature, hist_cfg, outdir, base_cut="", extra_cut="", title=""):
     ROOT.gStyle.SetOptStat(0)
 
-    bin_width, x_min, x_max, axis_title, logy = hist_cfg
+    bin_width, x_min, x_max, axis_title, logy, feature_cut = hist_cfg
     n_bins =int((x_max - x_min) / bin_width)
 
-    cut_tag = sanitize_cut(base_cut, extra_cut)
+    cut_tag = sanitize_cut(base_cut)
     output_file = os.path.join(outdir, f"{feature}__{cut_tag}__binWidth{(bin_width)}__range{x_min}-{x_max}__logy{logy}.pdf")
 
     # --------------------------------------------------
@@ -821,7 +832,7 @@ def main(args):
     final_hists = combine_backgrounds(args, grouped_hists)
     style_final_hists(final_hists)
     
-    # for key in ["MC_NC_nue", "MC_NC_numu", "MC_CC_nue", "MC_CC_numu"]:
+    # for key in ["MC_NC_nue", "MC_NC_numu", "MC_CC_nue", "MC_CC_numu"]: # . #"data", "kaon", "neutron"
     #     final_hists.pop(key, None)
     
     
@@ -841,65 +852,96 @@ def main(args):
 
 
 hist_info = {
-    "density_scifi": (5000, 1000, 1e5, "Sum of SciFi Density Weight", True),
-    "density_scifi1": (1000, 0, 0.4e5, "Plane1 Sum of SciFi Density Weight", True),
-    "density_scifi2": (1000, 0, 0.4e5, "Plane2 Sum of SciFi Density Weight", True),
-    "density_scifi3": (1000, 0, 0.4e5, "Plane3 Sum of SciFi Density Weight", True),
-    "density_scifi4": (1000, 0, 0.4e5, "Plane4 Sum of SciFi Density Weight", True),
-    "density_scifi5": (1000, 0, 0.4e5, "Plane5 Sum of SciFi Density Weight", True),
+    "density_scifi": (5000, 1000, 1e5, "Sum of SciFi Density Weight", True, ""),
+    "density_scifi1": (1000, 0, 0.4e5, "Plane1 Sum of SciFi Density Weight", True, ""),
+    "density_scifi2": (1000, 0, 0.4e5, "Plane2 Sum of SciFi Density Weight", True, ""),
+    "density_scifi3": (1000, 0, 0.4e5, "Plane3 Sum of SciFi Density Weight", True, ""),
+    "density_scifi4": (1000, 0, 0.4e5, "Plane4 Sum of SciFi Density Weight", True, ""),
+    "density_scifi5": (1000, 0, 0.4e5, "Plane5 Sum of SciFi Density Weight", True, ""),
     
-    "density_sndsw_scifi": (500, 1000, 0.4e5, "Sum of SciFi Density Weight (SNDSW)", True),
+    "density_sndsw_scifi": (500, 1000, 0.4e5, "Sum of SciFi Density Weight (SNDSW)", True, ""),
     # "density_sndsw_scifi": (1000, 400, 4e4, "Sum of SciFi Density Weight (SNDSW)", True),
-    "count_scifi":   (10, 0, 800, "SciFi Hit Total Count", True),
-    "count_scifi1":   (10, 0, 500, "Plane1 SciFi Hit Total Count", True),
-    "count_scifi2":   (10, 0, 500, "Plane2 SciFi Hit Total Count", True),
-    "count_scifi3":   (10, 0, 500, "Plane3 SciFi Hit Total Count", True),
-    "count_scifi4":   (10, 0, 500, "Plane4 SciFi Hit Total Count", True),
-    "count_scifi5":   (10, 0, 500, "Plane5 SciFi Hit Total Count", True),
+    "count_scifi":   (10, 0, 800, "SciFi Hit Total Count", True, ""),
+    "count_scifi1":   (10, 0, 500, "Plane1 SciFi Hit Total Count", True, ""),
+    "count_scifi2":   (10, 0, 500, "Plane2 SciFi Hit Total Count", True, ""),
+    "count_scifi3":   (10, 0, 500, "Plane3 SciFi Hit Total Count", True, ""),
+    "count_scifi4":   (10, 0, 500, "Plane4 SciFi Hit Total Count", True, ""),
+    "count_scifi5":   (10, 0, 500, "Plane5 SciFi Hit Total Count", True, ""),
     
-    "avg_scifi_x":    (1, -60, 0, "Average SciFi X Position (Vertical)", True),
-    "avg_scifi1_x":   (1, -60, 0, "Plane1 Average SciFi X Position (Vertical)", True),
-    "avg_scifi2_x":   (1, -60, 0, "Plane2 Average SciFi X Position (Vertical)", True),
-    "avg_scifi3_x":   (1, -60, 0, "Plane3 Average SciFi X Position (Vertical)", True),
-    "avg_scifi4_x":   (1, -60, 0, "Plane4 Average SciFi X Position (Vertical)", True),
-    "avg_scifi5_x":   (1, -60, 0, "Plane5 Average SciFi X Position (Vertical)", True),
+    "avg_scifi_x":    (1, -60, 0, "Average SciFi X Position (Vertical)", True, ""),
+    "avg_scifi1_x":   (1, -60, 0, "Plane1 Average SciFi X Position (Vertical)", True, "count_scifi1 > 2"),
+    "avg_scifi2_x":   (1, -60, 0, "Plane2 Average SciFi X Position (Vertical)", True, "count_scifi2 > 2"),
+    "avg_scifi3_x":   (1, -60, 0, "Plane3 Average SciFi X Position (Vertical)", True, "count_scifi3 > 2"),
+    "avg_scifi4_x":   (1, -60, 0, "Plane4 Average SciFi X Position (Vertical)", True, "count_scifi4 > 2"),
+    "avg_scifi5_x":   (1, -60, 0, "Plane5 Average SciFi X Position (Vertical)", True, "count_scifi5 > 2"),
     
-    "avg_scifi_y":    (1, 0, 60, "Average SciFi Y Position (Horizontal)", True),
-    "avg_scifi1_y":   (1, 0, 60, "Plane1 Average SciFi Y Position (Horizontal)", True),
-    "avg_scifi2_y":   (1, 0, 60, "Plane2 Average SciFi Y Position (Horizontal)", True),
-    "avg_scifi3_y":   (1, 0, 60, "Plane3 Average SciFi Y Position (Horizontal)", True),
-    "avg_scifi4_y":   (1, 0, 60, "Plane4 Average SciFi Y Position (Horizontal)", True),
-    "avg_scifi5_y":   (1, 0, 60, "Plane5 Average SciFi Y Position (Horizontal)", True),
+    "avg_scifi_x - avg_scifi1_x":   (1, -30, 30, "Total Average SciFi X Position minus Plane1 Average SciFi X Position (Vertical)", False, "count_scifi1 > 2"),
+    "avg_scifi_x - avg_scifi2_x":   (1, -30, 30, "Total Average SciFi X Position minus Plane2 Average SciFi X Position (Vertical)", False, "count_scifi2 > 2"),
+    "avg_scifi_x - avg_scifi3_x":   (1, -30, 30, "Total Average SciFi X Position minus Plane3 Average SciFi X Position (Vertical)", False, "count_scifi3 > 2"),
+    "avg_scifi_x - avg_scifi4_x":   (1, -30, 30, "Total Average SciFi X Position minus Plane4 Average SciFi X Position (Vertical)", False, "count_scifi4 > 2"),
+    "avg_scifi_x - avg_scifi5_x":   (1, -30, 30, "Total Average SciFi X Position minus Plane5 Average SciFi X Position (Vertical)", False, "count_scifi5 > 2"),
 
-    "count_us":      (1, 0, 52, "US Hit Count", True),
-    "count_us1":      (1, 0, 12, "US1 Hit Count", True),
-    "count_us2":      (1, 0, 12, "US2 Hit Count", True),
-    "count_us3":      (1, 0, 12, "US3 Hit Count", True),
-    "count_us4":      (1, 0, 12, "US4 Hit Count", True),
-    "count_us5":      (1, 0, 12, "US5 Hit Count", True),
+    "avg_scifi_y - avg_scifi1_y":   (1, -30, 30, "Total Average SciFi Y Position minus Plane1 Average SciFi Y Position (Vertical)", False, "count_scifi1 > 2"),
+    "avg_scifi_y - avg_scifi2_y":   (1, -30, 30, "Total Average SciFi Y Position minus Plane2 Average SciFi Y Position (Vertical)", False, "count_scifi2 > 2"),
+    "avg_scifi_y - avg_scifi3_y":   (1, -30, 30, "Total Average SciFi Y Position minus Plane3 Average SciFi Y Position (Vertical)", False, "count_scifi3 > 2"),
+    "avg_scifi_y - avg_scifi4_y":   (1, -30, 30, "Total Average SciFi Y Position minus Plane4 Average SciFi Y Position (Vertical)", False, "count_scifi4 > 2"),
+    "avg_scifi_y - avg_scifi5_y":   (1, -30, 30, "Total Average SciFi Y Position minus Plane5 Average SciFi Y Position (Vertical)", False, "count_scifi5 > 2"),
     
-    "count_ds":      (1, 0, 40, "US Hit Count", True),
-    "count_ds1":      (1, 0, 40, "US1 Hit Count", True),
-    "count_ds2":      (1, 0, 40, "US2 Hit Count", True),
-    "count_ds3":      (1, 0, 40, "US3 Hit Count", True),
-    "count_ds4":      (1, 0, 40, "US4 Hit Count", True),
+    "avg_scifi_y":    (1, 0, 60, "Average SciFi Y Position (Horizontal)", True, ""),
+    "avg_scifi1_y":   (1, 0, 60, "Plane1 Average SciFi Y Position (Horizontal)", True, "count_scifi1 > 2"),
+    "avg_scifi2_y":   (1, 0, 60, "Plane2 Average SciFi Y Position (Horizontal)", True, "count_scifi2 > 2"),
+    "avg_scifi3_y":   (1, 0, 60, "Plane3 Average SciFi Y Position (Horizontal)", True, "count_scifi3 > 2"),
+    "avg_scifi4_y":   (1, 0, 60, "Plane4 Average SciFi Y Position (Horizontal)", True, "count_scifi4 > 2"),
+    "avg_scifi5_y":   (1, 0, 60, "Plane5 Average SciFi Y Position (Horizontal)", True, "count_scifi5 > 2"),
+    
+    "avg_ds_x":    (1, -60, 15, "Average DS X Position (Vertical)", True, ""),
+    "avg_ds1_x":   (1, -60, 15, "Plane1 Average DS X Position (Vertical)", True, "count_ds1 > 2"),
+    "avg_ds2_x":   (1, -60, 15, "Plane2 Average DS X Position (Vertical)", True, "count_ds2 > 2"),
+    "avg_ds3_x":   (1, -60, 15, "Plane3 Average DS X Position (Vertical)", True, "count_ds3 > 2"),
+    "avg_ds4_x":   (1, -60, 15, "Plane4 Average DS X Position (Vertical)", True, "count_ds4 > 2"),
+    
+    "avg_ds_y":    (1, -5, 80, "Average DS Y Position (Horizontal)", True, ""),
+    "avg_ds1_y":   (1, -5, 80, "Plane1 Average DS Y Position (Horizontal)", True, "count_ds1 > 2"),
+    "avg_ds2_y":   (1, -5, 80, "Plane2 Average DS Y Position (Horizontal)", True, "count_ds2 > 2"),
+    "avg_ds3_y":   (1, -5, 80, "Plane3 Average DS Y Position (Horizontal)", True, "count_ds3 > 2"),
+    "avg_ds4_y":   (1, -5, 80, "Plane4 Average DS Y Position (Horizontal)", True, "count_ds4 > 2"),
+    
+    "avg_us_y":    (1, -5, 80, "Average US Y Position (Horizontal)", True, ""),
+    "avg_us1_y":   (1, -5, 80, "Plane1 Average US Y Position (Horizontal)", True, "count_us1 > 2"),
+    "avg_us2_y":   (1, -5, 80, "Plane2 Average US Y Position (Horizontal)", True, "count_us2 > 2"),
+    "avg_us3_y":   (1, -5, 80, "Plane3 Average US Y Position (Horizontal)", True, "count_us3 > 2"),
+    "avg_us4_y":   (1, -5, 80, "Plane4 Average US Y Position (Horizontal)", True, "count_us4 > 2"),
+    "avg_us5_y":   (1, -5, 80, "Plane5 Average US Y Position (Horizontal)", True, "count_us5 > 2"),
+
+    "count_us":      (1, 0, 52, "US Hit Count", True, ""),
+    "count_us1":      (1, 0, 12, "US1 Hit Count", True, ""),
+    "count_us2":      (1, 0, 12, "US2 Hit Count", True, ""),
+    "count_us3":      (1, 0, 12, "US3 Hit Count", True, ""),
+    "count_us4":      (1, 0, 12, "US4 Hit Count", True, ""),
+    "count_us5":      (1, 0, 12, "US5 Hit Count", True, ""),
+    
+    "count_ds":      (1, 0, 40, "DS Hit Count", True, ""),
+    "count_ds1":      (1, 0, 40, "DS1 Hit Count", True, ""),
+    "count_ds2":      (1, 0, 40, "DS2 Hit Count", True, ""),
+    "count_ds3":      (1, 0, 40, "DS3 Hit Count", True, ""),
+    "count_ds4":      (1, 0, 40, "DS4 Hit Count", True, ""),
     
     
-    "qdc_scifi":     (500, 0, 1.5e4, "Sum of SciFi QDC", True),
-    "qdc_scifi1":     (500, 0, 1e4, "Plane1 Sum of SciFi QDC", True),
-    "qdc_scifi2":     (500, 0, 2e4, "Plane2 Sum of SciFi QDC", True),
-    "qdc_scifi3":     (500, 0, 3e4, "Plane3 Sum of SciFi QDC", True),
-    "qdc_scifi4":     (500, 0, 4e4, "Plane4 Sum of SciFi QDC", True),
-    "qdc_scifi5":     (500, 0, 5e4, "Plane5 Sum of SciFi QDC", True),
+    "qdc_scifi":     (500, 0, 1.5e4, "Sum of SciFi QDC", True, ""),
+    "qdc_scifi1":     (500, 0, 1e4, "Plane1 Sum of SciFi QDC", True, ""),
+    "qdc_scifi2":     (500, 0, 2e4, "Plane2 Sum of SciFi QDC", True, ""),
+    "qdc_scifi3":     (500, 0, 3e4, "Plane3 Sum of SciFi QDC", True, ""),
+    "qdc_scifi4":     (500, 0, 4e4, "Plane4 Sum of SciFi QDC", True, ""),
+    "qdc_scifi5":     (500, 0, 5e4, "Plane5 Sum of SciFi QDC", True, ""),
     
     
     
-    "qdc_us":     (1000, 0, 4e4, "Sum of US QDC", True),
-    "qdc_us1":     (1000, 0, 2e4, "US1 QDC", True),
-    "qdc_us2":     (1000, 0, 2e4, "US2 QDC", True),
-    "qdc_us3":     (1000, 0, 2e4, "US3 QDC", True),
-    "qdc_us4":     (1000, 0, 2e4, "US4 QDC", True),
-    "qdc_us5":     (1000, 0, 2e4, "US5 QDC", True),
+    "qdc_us":     (1000, 0, 4e4, "Sum of US QDC", True, ""),
+    "qdc_us1":     (1000, 0, 2e4, "US1 QDC", True, ""),
+    "qdc_us2":     (1000, 0, 2e4, "US2 QDC", True, ""),
+    "qdc_us3":     (1000, 0, 2e4, "US3 QDC", True, ""),
+    "qdc_us4":     (1000, 0, 2e4, "US4 QDC", True, ""),
+    "qdc_us5":     (1000, 0, 2e4, "US5 QDC", True, ""),
 }
 
 cut_info = {
@@ -982,4 +1024,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    
+    # if "avg" in args.feature:
+    #     args.fold_overflow = False
     main(args)

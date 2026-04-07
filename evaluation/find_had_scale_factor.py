@@ -608,7 +608,7 @@ def draw_plot(data_lumi, final_hists, feature, hist_cfg, outdir, Nutral_scale_fa
     bin_width, x_min, x_max, axis_title, logy = hist_cfg
     n_bins =int((x_max - x_min) / bin_width)
 
-    cut_tag = sanitize_cut(base_cut, extra_cut)
+    cut_tag = sanitize_cut(base_cut)
     output_file = os.path.join(outdir, f"Had-sacle-factor-{Nutral_scale_factor}__{feature}__{cut_tag}__binWidth{(bin_width)}__range{x_min}-{x_max}__logy{logy}.pdf")
 
     # --------------------------------------------------
