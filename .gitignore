@@ -23,4 +23,6 @@ old_log/
 *.out
 *.cc
 *.done
-
+*.npz
+*.txt
+*.json
