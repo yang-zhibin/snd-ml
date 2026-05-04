@@ -32,6 +32,8 @@ def add_new_path(path_name, path_type, df, csv_input, eos_root_path, seperate_ve
     # Determine suffix based on path_type
     if path_type == "pt":
         suffix = ".pt.gz"
+    elif path_type == "npz":
+        suffix = ".npz"
     elif path_type == "pkl":
         suffix = ".pkl.gz"
     elif path_type == "csv":
@@ -316,12 +318,16 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     df = add_new_path("nueAnalysisFilter","root", df, csv_input,  eos_root_path, seperate_veto=False)
     df = add_new_path(f"preCutEff", "csv", df, csv_input, eos_root_path, seperate_veto=False)
     
+    df = add_new_path(f"muonDISFeature", "root", df, csv_input, eos_root_path, seperate_veto=False)
+    
     # hit path
     df = add_new_path("hit","root", df, csv_input,  eos_root_path, seperate_veto=False)
     # feature path
     df = add_new_path("feature","root", df, csv_input, eos_root_path, seperate_veto=False)
     # pt hit path
     df = add_new_path("pt_hit","pt", df, csv_input, eos_root_path, seperate_veto=False)
+    
+    df = add_new_path("npz_hit","npz", df, csv_input, eos_root_path, seperate_veto=False)
 
     # 
     model_names = [list(model.keys())[0] for model in models]

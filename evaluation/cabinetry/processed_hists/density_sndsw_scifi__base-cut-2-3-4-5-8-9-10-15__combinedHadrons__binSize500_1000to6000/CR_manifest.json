@@ -1,0 +1,77 @@
+{
+  "region_name": "CR",
+  "root_file": "processed_hists/density_sndsw_scifi__base-cut-2-3-4-5-8-9-10-15__combinedHadrons__binSize500_1000to6000/CR.root",
+  "variation": "nominal",
+  "samples": [
+    {
+      "category": "real_data",
+      "sample_name": "data",
+      "hist_name": "data_nominal",
+      "is_data": true,
+      "integral": 163.0,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "kaon",
+      "sample_name": "kaon",
+      "hist_name": "kaon_nominal",
+      "is_data": false,
+      "integral": 32.100714817643166,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "neutron",
+      "sample_name": "neutron",
+      "hist_name": "neutron_nominal",
+      "is_data": false,
+      "integral": 26.493291072547436,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_NC_nue",
+      "sample_name": "MC_NC_nue",
+      "hist_name": "MC_NC_nue_nominal",
+      "is_data": false,
+      "integral": 0.4786915108561516,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_NC_numu",
+      "sample_name": "MC_NC_numu",
+      "hist_name": "MC_NC_numu_nominal",
+      "is_data": false,
+      "integral": 1.5407538190484047,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_CC_nue",
+      "sample_name": "MC_CC_nue",
+      "hist_name": "MC_CC_nue_nominal",
+      "is_data": false,
+      "integral": 0.23996743373572826,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_CC_numu",
+      "sample_name": "MC_CC_numu",
+      "hist_name": "MC_CC_numu_nominal",
+      "is_data": false,
+      "integral": 5.035401612520218,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    }
+  ]
+}

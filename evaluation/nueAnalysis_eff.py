@@ -186,6 +186,15 @@ def parse_partition(partition: str) -> PartitionInfo:
             interaction=interaction,
             flavor=flavor,
         )
+        
+    # MC muon:
+    m = re.fullmatch(r"MC_muon", partition)
+    if m:
+        return PartitionInfo(
+            raw=partition,
+            is_mc=True,
+            category="muon",
+        )
 
     raise ValueError(f"Unrecognized partition format: {partition}")
 
@@ -201,6 +210,9 @@ def resolve_metadata_csv(info: PartitionInfo, metadata_dir: str | Path) -> Path:
 
     if info.category == "neutron":
         return metadata_dir / "MC_neutron_FTFP_BERT_metadata.csv"
+
+    if info.category == "muon":
+        return metadata_dir / "MC_muon_up_metadata.csv"
 
     # neutrino samples
     if  "nue" in info.category:

@@ -145,7 +145,7 @@ def get_metadata_value(ref_name, ref_value, target_name, after_model=False):
     row = rows.iloc[0]
     value = str(row[target_name])
 
-    if target_name in ["digi_path", "geo_path", "raw_path"]:
+    if target_name in ["digi_path", "geo_path", "raw_path", "data_type", "subfolder","partition","n_event", "split"]:
         return value
 
     return f"{row['output_base_path'].rstrip('/')}/{value.lstrip('/')}"
@@ -245,6 +245,108 @@ rule process_features:
         echo "Copying result to final location"
         xrdcp -f "${{tmp_output}}" "{output.feature_path}" || {{ echo "xrdcp failed"; exit 1; }}
 
+        echo "Cleaning up"
+        rm -rf "${{tmp_dir}}"
+        """
+
+
+rule process_hits:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        digi=lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "digi_path",  after_model = False),
+        geo=lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "geo_path",  after_model = False),
+        script = f"{PERSONAL_WORK_SPACE}/convertData/digi_2_hits3D.py",
+        nueAnalysisFilter_path=lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "nueAnalysisFilter_path",  after_model = False),
+    params:
+        data_type=lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "data_type",  after_model = False),
+        split = lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "split",  after_model = False),
+    output:
+        npz_hit_path="{npz_hit_path}"
+    threads:1
+    resources:
+        runtime=60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        # Avoid sndsw and conda python conflict 
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        
+        # Avoid unbound variable error (only occurs when using Snakemake)
+        set +u 
+        
+        echo "Source SNDSW environment script"
+        source {env_script_sndsw_nue}
+
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        # Create a unique temporary directory
+        tmp_dir=$(mktemp -d)
+        filename=$(basename "{output.npz_hit_path}")
+        tmp_output="${{tmp_dir}}/${{filename}}"
+
+        export PYTHONPATH="$SNDSW_ROOT:$PYTHONPATH"
+        echo "Running hit generation script"
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
+            {input.script} \
+            -p {input.nueAnalysisFilter_path}\
+            -d {input.digi} \
+            -g {input.geo} \
+            -o "${{tmp_output}}" \
+            -t {params.data_type} \
+            --dataset-split {params.split}
+
+        echo "Copying result to final location"
+        xrdcp -f "${{tmp_output}}" "{output.npz_hit_path}" || {{ echo "xrdcp failed"; exit 1; }}
+
+        echo "Cleaning up"
+        rm -rf "${{tmp_dir}}"
+        """
+
+rule process_muonDIS_features:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        digi=lambda wildcards: get_metadata_value(ref_name = "muonDISFeature_path", ref_value = wildcards.muonDISFeature_path, target_name = "digi_path",  after_model = False),
+        geo=lambda wildcards: get_metadata_value(ref_name = "muonDISFeature_path", ref_value = wildcards.muonDISFeature_path, target_name = "geo_path",  after_model = False),
+        script = f"{PERSONAL_WORK_SPACE}/convertData/digi_2_muonDIS.py",
+    params:
+        data_type=lambda wildcards: get_metadata_value("muonDISFeature_path", wildcards.muonDISFeature_path, "data_type"),
+    output:
+        muonDISFeature_path="{muonDISFeature_path}"
+    threads:1
+    resources:
+        runtime=2*60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        # Avoid conda/python conflicts
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        set +u  # Avoid unbound variable errors
+
+        echo "Source SNDSW environment script"
+        source {env_script_sndsw_nue}
+
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        tmp_dir=$(mktemp -d)
+        filename=$(basename "{output.muonDISFeature_path}")
+        tmp_output="${{tmp_dir}}/${{filename}}"
+
+        export PYTHONPATH="$SNDSW_ROOT:$PYTHONPATH"
+        echo "Running process_muonDIS_features"
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
+            {input.script} \
+            -d {input.digi} \
+            -g {input.geo} \
+            -o "${{tmp_output}}" \
+            -t {params.data_type}
+
+
+        echo "Transferring output to EOS"
+        xrdcp -f "${{tmp_output}}" "{output.muonDISFeature_path}" || {{ echo "xrdcp failed"; exit 1; }}
         echo "Cleaning up"
         rm -rf "${{tmp_dir}}"
         """

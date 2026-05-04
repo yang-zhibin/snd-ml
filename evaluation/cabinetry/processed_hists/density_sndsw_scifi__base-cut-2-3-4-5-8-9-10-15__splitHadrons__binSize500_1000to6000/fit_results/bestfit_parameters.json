@@ -1,0 +1,157 @@
+[
+  {
+    "name": "mu_MC_CC_nue",
+    "value": 0.99998633844308,
+    "uncertainty": 0.0014643086619446355
+  },
+  {
+    "name": "mu_MC_CC_numu",
+    "value": 0.999330231945433,
+    "uncertainty": 0.0018118536751098313
+  },
+  {
+    "name": "mu_MC_NC_nue",
+    "value": 0.9990469791912222,
+    "uncertainty": 0.0015370476893132312
+  },
+  {
+    "name": "mu_MC_NC_numu",
+    "value": 1.0009900345084224,
+    "uncertainty": 0.0017649580331645098
+  },
+  {
+    "name": "mu_MC_kaon_10_20GeV",
+    "value": 0.0008271430869590643,
+    "uncertainty": 6.811924940804961
+  },
+  {
+    "name": "mu_MC_kaon_20_30GeV",
+    "value": 2.26980402620884e-07,
+    "uncertainty": 6.690637960350504
+  },
+  {
+    "name": "mu_MC_kaon_30_40GeV",
+    "value": 9.999967808276061,
+    "uncertainty": 8.336441207721158
+  },
+  {
+    "name": "mu_MC_kaon_50_60GeV",
+    "value": 9.999990070213624,
+    "uncertainty": 8.179281979735359
+  },
+  {
+    "name": "mu_MC_kaon_5_10GeV",
+    "value": 9.999258106230771,
+    "uncertainty": 7.586651664551232
+  },
+  {
+    "name": "mu_MC_kaon_60_70GeV",
+    "value": 9.82143566722566,
+    "uncertainty": 7.767618583697654
+  },
+  {
+    "name": "mu_MC_kaon_70_80GeV",
+    "value": 9.999614136416909,
+    "uncertainty": 8.316676117200224
+  },
+  {
+    "name": "mu_MC_kaon_80_90GeV",
+    "value": 9.999999875583308,
+    "uncertainty": 8.407513594573672
+  },
+  {
+    "name": "mu_MC_kaon_90_100GeV",
+    "value": 9.999999820072194,
+    "uncertainty": 8.44026230607458
+  },
+  {
+    "name": "mu_MC_neutron_10_20GeV",
+    "value": 2.5628383058034405,
+    "uncertainty": 1.553398217696618
+  },
+  {
+    "name": "mu_MC_neutron_20_30GeV",
+    "value": 2.9787065798951226e-09,
+    "uncertainty": 6.7936324209925845
+  },
+  {
+    "name": "mu_MC_neutron_30_40GeV",
+    "value": 2.8534551085503033,
+    "uncertainty": 2.836327023401945
+  },
+  {
+    "name": "mu_MC_neutron_50_60GeV",
+    "value": 9.999934489075304,
+    "uncertainty": 8.469729937289994
+  },
+  {
+    "name": "mu_MC_neutron_5_10GeV",
+    "value": 9.999379020078441,
+    "uncertainty": 8.300404424206555
+  },
+  {
+    "name": "mu_MC_neutron_60_70GeV",
+    "value": 9.9998041140946,
+    "uncertainty": 8.331580919090591
+  },
+  {
+    "name": "mu_MC_neutron_70_80GeV",
+    "value": 9.969396083788775,
+    "uncertainty": 8.206383763194971
+  },
+  {
+    "name": "mu_MC_neutron_80_90GeV",
+    "value": 9.999982536597889,
+    "uncertainty": 8.439801484198739
+  },
+  {
+    "name": "staterror_CR[0]",
+    "value": 1.0003763245251425,
+    "uncertainty": 0.014079426866250022
+  },
+  {
+    "name": "staterror_CR[1]",
+    "value": 0.9989449954238911,
+    "uncertainty": 0.01995440700230866
+  },
+  {
+    "name": "staterror_CR[2]",
+    "value": 1.002329163703104,
+    "uncertainty": 0.025077286679212607
+  },
+  {
+    "name": "staterror_CR[3]",
+    "value": 0.9971659643915974,
+    "uncertainty": 0.029446599246577165
+  },
+  {
+    "name": "staterror_CR[4]",
+    "value": 0.99762989199688,
+    "uncertainty": 0.031196924470045073
+  },
+  {
+    "name": "staterror_CR[5]",
+    "value": 1.001237514469906,
+    "uncertainty": 0.03341077556128513
+  },
+  {
+    "name": "staterror_CR[6]",
+    "value": 1.0012702883028946,
+    "uncertainty": 0.0353370332262527
+  },
+  {
+    "name": "staterror_CR[7]",
+    "value": 1.0036592172842247,
+    "uncertainty": 0.0348358000956826
+  },
+  {
+    "name": "staterror_CR[8]",
+    "value": 0.999196826000165,
+    "uncertainty": 0.036082484589628316
+  },
+  {
+    "name": "staterror_CR[9]",
+    "value": 0.9983404832783939,
+    "uncertainty": 0.03966703975893976
+  }
+]

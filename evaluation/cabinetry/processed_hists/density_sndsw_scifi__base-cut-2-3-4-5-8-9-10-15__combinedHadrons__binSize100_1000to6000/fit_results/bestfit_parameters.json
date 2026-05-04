@@ -1,0 +1,282 @@
+[
+  {
+    "name": "mu_MC_CC_nue",
+    "value": 0.9994655487989073,
+    "uncertainty": 0.0017626216822508867
+  },
+  {
+    "name": "mu_MC_CC_numu",
+    "value": 0.9996823144110265,
+    "uncertainty": 0.0016560408367091717
+  },
+  {
+    "name": "mu_MC_NC_nue",
+    "value": 1.000621947559007,
+    "uncertainty": 0.0017961958195443772
+  },
+  {
+    "name": "mu_MC_NC_numu",
+    "value": 0.9997794759315357,
+    "uncertainty": 0.0015997126523187855
+  },
+  {
+    "name": "mu_kaon",
+    "value": 0.9000003322447259,
+    "uncertainty": 0.9672499558545063
+  },
+  {
+    "name": "mu_neutron",
+    "value": 4.741937493714376,
+    "uncertainty": 0.48177914046077586
+  },
+  {
+    "name": "staterror_CR[0]",
+    "value": 0.9989683177003661,
+    "uncertainty": 0.026939147816584907
+  },
+  {
+    "name": "staterror_CR[1]",
+    "value": 0.9999318290828157,
+    "uncertainty": 0.029323307304976842
+  },
+  {
+    "name": "staterror_CR[2]",
+    "value": 0.9980998797192251,
+    "uncertainty": 0.031820812764380924
+  },
+  {
+    "name": "staterror_CR[3]",
+    "value": 1.0093020497509302,
+    "uncertainty": 0.0348983058090056
+  },
+  {
+    "name": "staterror_CR[4]",
+    "value": 1.0046868134108178,
+    "uncertainty": 0.036477797390449596
+  },
+  {
+    "name": "staterror_CR[5]",
+    "value": 0.9886602204090054,
+    "uncertainty": 0.04006667470715053
+  },
+  {
+    "name": "staterror_CR[6]",
+    "value": 0.9931878991137422,
+    "uncertainty": 0.04198194978831049
+  },
+  {
+    "name": "staterror_CR[7]",
+    "value": 1.0035207179589516,
+    "uncertainty": 0.04509262319686347
+  },
+  {
+    "name": "staterror_CR[8]",
+    "value": 1.0026974159183641,
+    "uncertainty": 0.04776503832546436
+  },
+  {
+    "name": "staterror_CR[9]",
+    "value": 0.9997122798148756,
+    "uncertainty": 0.04983862703541403
+  },
+  {
+    "name": "staterror_CR[10]",
+    "value": 0.9919183819734967,
+    "uncertainty": 0.0537658660928757
+  },
+  {
+    "name": "staterror_CR[11]",
+    "value": 1.008935078967631,
+    "uncertainty": 0.05466882838474463
+  },
+  {
+    "name": "staterror_CR[12]",
+    "value": 1.0016544800805793,
+    "uncertainty": 0.05589535533066159
+  },
+  {
+    "name": "staterror_CR[13]",
+    "value": 1.0003028860856724,
+    "uncertainty": 0.056232173593230184
+  },
+  {
+    "name": "staterror_CR[14]",
+    "value": 0.9972328702003561,
+    "uncertainty": 0.05854916253227649
+  },
+  {
+    "name": "staterror_CR[15]",
+    "value": 0.9887520110838749,
+    "uncertainty": 0.06516464985895226
+  },
+  {
+    "name": "staterror_CR[16]",
+    "value": 0.9938538857919593,
+    "uncertainty": 0.06414567777835306
+  },
+  {
+    "name": "staterror_CR[17]",
+    "value": 0.9890524021591406,
+    "uncertainty": 0.06707518741059848
+  },
+  {
+    "name": "staterror_CR[18]",
+    "value": 1.0058821252599761,
+    "uncertainty": 0.06645125072803593
+  },
+  {
+    "name": "staterror_CR[19]",
+    "value": 1.0015409447781027,
+    "uncertainty": 0.0577178459352411
+  },
+  {
+    "name": "staterror_CR[20]",
+    "value": 0.9971244434412511,
+    "uncertainty": 0.06760365995692635
+  },
+  {
+    "name": "staterror_CR[21]",
+    "value": 0.9987632231570861,
+    "uncertainty": 0.06419889710723958
+  },
+  {
+    "name": "staterror_CR[22]",
+    "value": 0.9933649521805272,
+    "uncertainty": 0.06880138323316914
+  },
+  {
+    "name": "staterror_CR[23]",
+    "value": 0.9992597486124342,
+    "uncertainty": 0.07489413699150793
+  },
+  {
+    "name": "staterror_CR[24]",
+    "value": 1.0003429510116977,
+    "uncertainty": 0.07054615795746372
+  },
+  {
+    "name": "staterror_CR[25]",
+    "value": 1.0049046187865358,
+    "uncertainty": 0.0691144065440023
+  },
+  {
+    "name": "staterror_CR[26]",
+    "value": 0.9946349692221269,
+    "uncertainty": 0.07216546032099713
+  },
+  {
+    "name": "staterror_CR[27]",
+    "value": 1.0138158559518553,
+    "uncertainty": 0.08118367297063567
+  },
+  {
+    "name": "staterror_CR[28]",
+    "value": 0.9971033973559172,
+    "uncertainty": 0.06584793041314385
+  },
+  {
+    "name": "staterror_CR[29]",
+    "value": 1.0024117223218583,
+    "uncertainty": 0.08112293134194132
+  },
+  {
+    "name": "staterror_CR[30]",
+    "value": 1.0028915988861418,
+    "uncertainty": 0.08517177493020134
+  },
+  {
+    "name": "staterror_CR[31]",
+    "value": 1.007225327437552,
+    "uncertainty": 0.07270830731546951
+  },
+  {
+    "name": "staterror_CR[32]",
+    "value": 1.0028717341979934,
+    "uncertainty": 0.0805723399837886
+  },
+  {
+    "name": "staterror_CR[33]",
+    "value": 1.0023165508639225,
+    "uncertainty": 0.06623220456438927
+  },
+  {
+    "name": "staterror_CR[34]",
+    "value": 0.99638195807079,
+    "uncertainty": 0.08069558432516694
+  },
+  {
+    "name": "staterror_CR[35]",
+    "value": 1.00276178048266,
+    "uncertainty": 0.0694026171785519
+  },
+  {
+    "name": "staterror_CR[36]",
+    "value": 0.9974199479933182,
+    "uncertainty": 0.08298603087264422
+  },
+  {
+    "name": "staterror_CR[37]",
+    "value": 1.004606283910822,
+    "uncertainty": 0.08356454569774197
+  },
+  {
+    "name": "staterror_CR[38]",
+    "value": 1.0144694234279807,
+    "uncertainty": 0.07369255711622436
+  },
+  {
+    "name": "staterror_CR[39]",
+    "value": 1.0043349457805841,
+    "uncertainty": 0.07702180941760389
+  },
+  {
+    "name": "staterror_CR[40]",
+    "value": 1.003587700048319,
+    "uncertainty": 0.07302177732897103
+  },
+  {
+    "name": "staterror_CR[41]",
+    "value": 0.9984018282159991,
+    "uncertainty": 0.07993989910111216
+  },
+  {
+    "name": "staterror_CR[42]",
+    "value": 0.9979119121440948,
+    "uncertainty": 0.09045768031684814
+  },
+  {
+    "name": "staterror_CR[43]",
+    "value": 1.0045261726279069,
+    "uncertainty": 0.07874509187501832
+  },
+  {
+    "name": "staterror_CR[44]",
+    "value": 0.9982344579650602,
+    "uncertainty": 0.08005282986035683
+  },
+  {
+    "name": "staterror_CR[45]",
+    "value": 0.9985672691222557,
+    "uncertainty": 0.08688111930108061
+  },
+  {
+    "name": "staterror_CR[46]",
+    "value": 1.0065614888407537,
+    "uncertainty": 0.08868803380315471
+  },
+  {
+    "name": "staterror_CR[47]",
+    "value": 0.9984678088033173,
+    "uncertainty": 0.08786210497533559
+  },
+  {
+    "name": "staterror_CR[48]",
+    "value": 0.9985242282482396,
+    "uncertainty": 0.08857348749217508
+  },
+  {
+    "name": "staterror_CR[49]",
+    "value": 0.9984999518703228,
+    "uncertainty": 0.09140098339809927
+  }
+]

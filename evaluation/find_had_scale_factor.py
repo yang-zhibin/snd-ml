@@ -463,24 +463,24 @@ def combine_backgrounds(args, grouped_hists):
     
     Nutral_scale_factor = NutralHadronTotal/NutralHadron_integral
     
+    print("=== Neutral Hadron Scaling Info ===")
+    print(f"NutralHadronTotal (90% CL Upper limit)                       = {NutralHadronTotal}")
+    print(f"MC Kaon total                                                = {kaon_integral}")
+    print(f"MC Neutron total                                             = {neutron_integral}")
+    print(f"MC Neutral total (MC Kaon + MC Neutron)                      = {NutralHadron_integral}")
+    print(f"Nutral_scale_factor = NutralHadronTotal/ MC Neutral total    = {Nutral_scale_factor}")
+    
+    # Nutral_scale_factor = data_integral/NutralHadron_integral
     # print("=== Neutral Hadron Scaling Info ===")
-    # print(f"NutralHadronTotal (90% CL Upper limit)                       = {NutralHadronTotal}")
+    # print(f"Data total (density range [1000, 6000]                       = {data_integral}")
     # print(f"MC Kaon total                                                = {kaon_integral}")
     # print(f"MC Neutron total                                             = {neutron_integral}")
     # print(f"MC Neutral total (MC Kaon + MC Neutron)                      = {NutralHadron_integral}")
     # print(f"Nutral_scale_factor = NutralHadronTotal/ MC Neutral total    = {Nutral_scale_factor}")
     
-    Nutral_scale_factor = data_integral/NutralHadron_integral
-    print("=== Neutral Hadron Scaling Info ===")
-    print(f"Data total (density range [1000, 6000]                       = {data_integral}")
-    print(f"MC Kaon total                                                = {kaon_integral}")
-    print(f"MC Neutron total                                             = {neutron_integral}")
-    print(f"MC Neutral total (MC Kaon + MC Neutron)                      = {NutralHadron_integral}")
-    print(f"Nutral_scale_factor = NutralHadronTotal/ MC Neutral total    = {Nutral_scale_factor}")
-        
-    kaon_hist.Scale(Nutral_scale_factor)
-    neutron_hist.Scale(Nutral_scale_factor)
-    
+    if args.normalise:
+        kaon_hist.Scale(Nutral_scale_factor)
+        neutron_hist.Scale(Nutral_scale_factor)
     
     
     
@@ -726,17 +726,24 @@ def draw_plot(data_lumi, final_hists, feature, hist_cfg, outdir, Nutral_scale_fa
         legend.AddEntry(hist, label, "f")
 
     legend.Draw()
-    
-    lumi_label = None
+        
+    y0 = 0.88      # starting height (top)
+    dy = 0.06      # vertical spacing
+
+    text = ROOT.TLatex()
+    text.SetNDC()
+    text.SetTextAlign(13)   # left-align
+    text.SetTextSize(0.040)
+
+    # 1. Cut
+    text.DrawLatex(0.15, y0, f"#bf{{Cut}}: {cut_tag}")
+
+    # 2. Neutral scale factor
+    text.DrawLatex(0.15, y0 - dy, f"Neutral scale factor = {Nutral_scale_factor:.3g}")
+
+    # 3. Luminosity
     if data_lumi is not None:
-        lumi_label = ROOT.TLatex()
-        lumi_label.SetNDC()
-        lumi_label.SetTextAlign(31)
-        lumi_label.SetTextSize(0.045)
-        lumi_label.DrawLatex(0.55, 0.80, f"#int #font[12]{{L}} dt = {data_lumi:.3f} fb^{{-1}}")
-        
-        
-    pad_top.RedrawAxis()
+        text.DrawLatex(0.15, y0 - 2*dy, f"#int #font[12]{{L}} dt = {data_lumi:.3f} fb^{{-1}}")
 
     # --------------------------------------------------
     # Bottom pad
@@ -859,7 +866,7 @@ hist_info = {
     "density_scifi5": (1000, 0, 0.4e5, "Plane5 Sum of SciFi Density Weight", True),
     
     # "density_sndsw_scifi": (2500, 2000, 0.4e5, "Sum of SciFi Density Weight (SNDSW)", False),
-    "density_sndsw_scifi": (200, 1000, 6000, "Sum of SciFi Density Weight (SNDSW)", False),
+    "density_sndsw_scifi": (2000, 100, 40000, "Sum of SciFi Density Weight (SNDSW)", True),
     "count_scifi":   (10, 0, 800, "SciFi Hit Total Count", True),
     "count_scifi1":   (10, 0, 500, "Plane1 SciFi Hit Total Count", True),
     "count_scifi2":   (10, 0, 500, "Plane2 SciFi Hit Total Count", True),
@@ -982,6 +989,13 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Fold underflow into first bin",
+    )
+    
+    parser.add_argument(
+        "--normalise",
+        action="store_true",
+        default=False,
+        help="Normalise with the calculated had scale factor",
     )
     
     parser.add_argument(

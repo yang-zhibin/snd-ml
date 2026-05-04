@@ -507,9 +507,9 @@ def process_hits(args, event, vetoHits, snd_geo, branch_vars):
             vh.veto_plane = int(station + 1)
             vh.energy_loss = float(total_energy_loss)
             vh.qdc = float(this_qdc)
-                
+        
+        detID = aHit.GetDetectorID()      
         MuFilter.GetPosition(detID, A, B)
-        detID = aHit.GetDetectorID()
         detType = aHit.GetSystem()
         station = (detID // 1000) % 10
         hitTime = aHit.GetTime()
@@ -576,7 +576,7 @@ def main(args):
         selection = "AvgSFChan == 1 && NoVetoHits == 1"
 
     if "MC" not in args.type:
-        selection = selection + "&& StableBeams==1 && IP1 == 1 && EventDeltat_1_100 == 1"
+        selection = selection + "&& StableBeams==1 && IP1 == 1 && EventDeltat_m1_100 == 1"
     if selection:
         print(f"Applying selection: {selection}")
         n_match = preSelect_tree.GetEntries(selection)

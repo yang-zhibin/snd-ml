@@ -95,3 +95,32 @@ rule subset_neutral_bkg:
             --input {input.metadata} \
             --output {output.subset}
         """
+
+
+rule generate_train_metadata:
+    input:
+        script = f'{PERSONAL_WORK_SPACE}/snakemake/metadata/generate_train_dataset.py',
+    output:
+        train_metadata = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{train_split}}_{{split_dataset}}.csv"
+    params:
+        train_set_list = " ".join(train_metadata_csv_list),
+        metadata_dir = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated",
+        split_dataset = split_dataset
+    threads:1
+    resources:
+        runtime=45*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        """
+        echo "generateing trianing set metadata"
+        #avoid unbound variable error (only occur when using snakemake)
+        set +u 
+        source {env_script_lcg}
+        python {input.script} \
+            -o {output.train_metadata} \
+            -m {params.train_set_list} \
+            -i {params.metadata_dir} \
+            --split-dataset {params.split_dataset}
+        """

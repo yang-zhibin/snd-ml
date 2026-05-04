@@ -46,8 +46,6 @@ rule process_nueAnalysis_eff:
         # Cleanup
         rm -rf "${{tmp_dir}}"
 
-        # Local completion marker for Snakemake
-        touch "{output.nueAnalysis_out_path}"
         """
 
 
@@ -72,7 +70,7 @@ rule process_nueAnalysis_hist:
 
     shell:
         r"""
-        echo "running nueAnalysis eff calculation"
+        echo "running nueAnalysis hist calculation"
 
         # Avoid unbound variable error (only occurs when using Snakemake)
         set +u
@@ -99,9 +97,59 @@ rule process_nueAnalysis_hist:
         # Cleanup
         rm -rf "${{tmp_dir}}"
 
-        # Local completion marker for Snakemake
-        touch "{output.nueAnalysis_out_path}"
         """
+
+
+
+rule process_nueAnalysis_digi:
+    input: 
+        script = f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis_digi.py"
+    params:
+        partition="{partition}",
+        nue_eos_dir = f"{EOS_Work_SPACE}/nueAnalysis/",
+        metadata_dir = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/"
+    output:
+        nueAnalysis_out_path=f"{{EOS_Work_SPACE}}/nueAnalysis/digi_{{partition}}.root"
+    wildcard_constraints:
+        partition=".+"
+    threads:1
+    resources:
+        runtime=2*60*60,
+        mem_mb=8000,
+        disk_mb=8000,
+        nvidia_gpu=0
+
+    shell:
+        r"""
+        echo "running nueAnalysis digi calculation"
+
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        set +u  # Avoid unbound variable errors
+
+        echo "Source SNDSW environment script"
+        source {env_script_sndsw_nue}
+        
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        # Create a unique temporary directory
+        tmp_dir=$(mktemp -d)
+
+        echo "tmp_dir: ${{tmp_dir}}"
+
+        # Run evaluation script
+        python {input.script} \
+            -p {params.partition} \
+            -o "${{tmp_dir}}" \
+            -d {params.metadata_dir}
+
+
+        # Copy results to EOS
+        xrdcp -rf "${{tmp_dir}}"/* "{params.nue_eos_dir}/" || {{ echo "xrdcp failed"; exit 1; }}
+
+        # Cleanup
+        rm -rf "${{tmp_dir}}"
+        """
+
 
 
 

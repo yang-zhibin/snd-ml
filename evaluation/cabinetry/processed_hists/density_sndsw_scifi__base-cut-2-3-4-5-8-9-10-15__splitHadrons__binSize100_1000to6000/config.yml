@@ -1,0 +1,166 @@
+General:
+  Measurement: "template_fit"
+  POI: "mu_MC_CC_nue"
+  InputPath: "{RegionPath}.root:{SamplePath}_{VariationPath}"
+  HistogramFolder: "processed_hists/density_sndsw_scifi__base-cut-2-3-4-5-8-9-10-15__splitHadrons__binSize100_1000to6000/templates"
+  VariationPath: "nominal"
+
+Regions:
+  - Name: "CR"
+    RegionPath: "CR"
+
+Samples:
+  - Name: "MC_CC_nue"
+    SamplePath: "MC_CC_nue"
+  - Name: "MC_CC_numu"
+    SamplePath: "MC_CC_numu"
+  - Name: "MC_NC_nue"
+    SamplePath: "MC_NC_nue"
+  - Name: "MC_NC_numu"
+    SamplePath: "MC_NC_numu"
+  - Name: "MC_kaon_10_20GeV"
+    SamplePath: "MC_kaon_10_20GeV"
+  - Name: "MC_kaon_20_30GeV"
+    SamplePath: "MC_kaon_20_30GeV"
+  - Name: "MC_kaon_30_40GeV"
+    SamplePath: "MC_kaon_30_40GeV"
+  - Name: "MC_kaon_5_10GeV"
+    SamplePath: "MC_kaon_5_10GeV"
+  - Name: "MC_kaon_50_60GeV"
+    SamplePath: "MC_kaon_50_60GeV"
+  - Name: "MC_kaon_60_70GeV"
+    SamplePath: "MC_kaon_60_70GeV"
+  - Name: "MC_kaon_70_80GeV"
+    SamplePath: "MC_kaon_70_80GeV"
+  - Name: "MC_kaon_80_90GeV"
+    SamplePath: "MC_kaon_80_90GeV"
+  - Name: "MC_kaon_90_100GeV"
+    SamplePath: "MC_kaon_90_100GeV"
+  - Name: "MC_neutron_10_20GeV"
+    SamplePath: "MC_neutron_10_20GeV"
+  - Name: "MC_neutron_20_30GeV"
+    SamplePath: "MC_neutron_20_30GeV"
+  - Name: "MC_neutron_30_40GeV"
+    SamplePath: "MC_neutron_30_40GeV"
+  - Name: "MC_neutron_5_10GeV"
+    SamplePath: "MC_neutron_5_10GeV"
+  - Name: "MC_neutron_50_60GeV"
+    SamplePath: "MC_neutron_50_60GeV"
+  - Name: "MC_neutron_60_70GeV"
+    SamplePath: "MC_neutron_60_70GeV"
+  - Name: "MC_neutron_70_80GeV"
+    SamplePath: "MC_neutron_70_80GeV"
+  - Name: "MC_neutron_80_90GeV"
+    SamplePath: "MC_neutron_80_90GeV"
+  - Name: "MC_neutron_90_100GeV"
+    SamplePath: "MC_neutron_90_100GeV"
+  - Name: "Data"
+    SamplePath: "data"
+    Data: true
+
+NormFactors:
+  - Name: "mu_MC_CC_nue"
+    Samples: "MC_CC_nue"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.999, 1.001]
+  - Name: "mu_MC_CC_numu"
+    Samples: "MC_CC_numu"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.999, 1.001]
+  - Name: "mu_MC_NC_nue"
+    Samples: "MC_NC_nue"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.999, 1.001]
+  - Name: "mu_MC_NC_numu"
+    Samples: "MC_NC_numu"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.999, 1.001]
+  - Name: "mu_MC_kaon_10_20GeV"
+    Samples: "MC_kaon_10_20GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_kaon_20_30GeV"
+    Samples: "MC_kaon_20_30GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_kaon_30_40GeV"
+    Samples: "MC_kaon_30_40GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_kaon_5_10GeV"
+    Samples: "MC_kaon_5_10GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_kaon_50_60GeV"
+    Samples: "MC_kaon_50_60GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_kaon_60_70GeV"
+    Samples: "MC_kaon_60_70GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_kaon_70_80GeV"
+    Samples: "MC_kaon_70_80GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_kaon_80_90GeV"
+    Samples: "MC_kaon_80_90GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_kaon_90_100GeV"
+    Samples: "MC_kaon_90_100GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_neutron_10_20GeV"
+    Samples: "MC_neutron_10_20GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_neutron_20_30GeV"
+    Samples: "MC_neutron_20_30GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_neutron_30_40GeV"
+    Samples: "MC_neutron_30_40GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_neutron_5_10GeV"
+    Samples: "MC_neutron_5_10GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_neutron_50_60GeV"
+    Samples: "MC_neutron_50_60GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_neutron_60_70GeV"
+    Samples: "MC_neutron_60_70GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_neutron_70_80GeV"
+    Samples: "MC_neutron_70_80GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_neutron_80_90GeV"
+    Samples: "MC_neutron_80_90GeV"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]

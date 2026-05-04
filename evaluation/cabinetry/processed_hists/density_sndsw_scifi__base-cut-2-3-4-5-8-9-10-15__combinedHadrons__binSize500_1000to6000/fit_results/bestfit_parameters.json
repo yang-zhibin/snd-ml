@@ -1,0 +1,82 @@
+[
+  {
+    "name": "mu_MC_CC_nue",
+    "value": 1.0009999540344436,
+    "uncertainty": 0.0016624795772798295
+  },
+  {
+    "name": "mu_MC_CC_numu",
+    "value": 1.0009999828266327,
+    "uncertainty": 0.0010310020019674293
+  },
+  {
+    "name": "mu_MC_NC_nue",
+    "value": 1.0009999249659813,
+    "uncertainty": 0.0017390309302992568
+  },
+  {
+    "name": "mu_MC_NC_numu",
+    "value": 1.0009993892456417,
+    "uncertainty": 0.0012801964110125685
+  },
+  {
+    "name": "mu_kaon",
+    "value": 5.65912255348847e-05,
+    "uncertainty": 6.183451575586043
+  },
+  {
+    "name": "mu_neutron",
+    "value": 5.817612037532447,
+    "uncertainty": 0.48369092736505026
+  },
+  {
+    "name": "staterror_CR[0]",
+    "value": 1.0013534468071987,
+    "uncertainty": 0.014052729070763992
+  },
+  {
+    "name": "staterror_CR[1]",
+    "value": 0.9969119878608994,
+    "uncertainty": 0.01995463251596591
+  },
+  {
+    "name": "staterror_CR[2]",
+    "value": 1.0002986320832645,
+    "uncertainty": 0.025068027255933212
+  },
+  {
+    "name": "staterror_CR[3]",
+    "value": 0.9959708976503274,
+    "uncertainty": 0.029434905030215675
+  },
+  {
+    "name": "staterror_CR[4]",
+    "value": 0.9977501860742215,
+    "uncertainty": 0.031179652935108382
+  },
+  {
+    "name": "staterror_CR[5]",
+    "value": 1.001954707237326,
+    "uncertainty": 0.03340233921935182
+  },
+  {
+    "name": "staterror_CR[6]",
+    "value": 1.0027495622406677,
+    "uncertainty": 0.035331199918798295
+  },
+  {
+    "name": "staterror_CR[7]",
+    "value": 1.0051242020254814,
+    "uncertainty": 0.034834339602551945
+  },
+  {
+    "name": "staterror_CR[8]",
+    "value": 1.0008511574444783,
+    "uncertainty": 0.0360821610781738
+  },
+  {
+    "name": "staterror_CR[9]",
+    "value": 1.0001553294933414,
+    "uncertainty": 0.03966765479439066
+  }
+]

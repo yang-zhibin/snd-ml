@@ -199,7 +199,10 @@ def resolve_metadata_csv(info: PartitionInfo, metadata_dir: str | Path) -> Path:
 
     if info.category == "neutron":
         return metadata_dir / "MC_neutron_FTFP_BERT_metadata.csv"
-
+    
+    if info.category == "muon":
+        return metadata_dir / "MC_muon_up_metadata.csv"
+    
     # neutrino samples
     if  "nue" in info.category:
         return metadata_dir / "MC_neutrino_2024_ve_metadata.csv"

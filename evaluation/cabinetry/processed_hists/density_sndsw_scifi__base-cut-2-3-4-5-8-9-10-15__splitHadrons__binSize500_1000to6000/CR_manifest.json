@@ -1,0 +1,237 @@
+{
+  "region_name": "CR",
+  "root_file": "processed_hists/density_sndsw_scifi__base-cut-2-3-4-5-8-9-10-15__splitHadrons__binSize500_1000to6000/CR.root",
+  "variation": "nominal",
+  "samples": [
+    {
+      "category": "MC_CC_nue",
+      "sample_name": "MC_CC_nue",
+      "hist_name": "MC_CC_nue_nominal",
+      "is_data": false,
+      "integral": 0.23996743373572826,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_CC_numu",
+      "sample_name": "MC_CC_numu",
+      "hist_name": "MC_CC_numu_nominal",
+      "is_data": false,
+      "integral": 5.035401612520218,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_NC_nue",
+      "sample_name": "MC_NC_nue",
+      "hist_name": "MC_NC_nue_nominal",
+      "is_data": false,
+      "integral": 0.4786915108561516,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_NC_numu",
+      "sample_name": "MC_NC_numu",
+      "hist_name": "MC_NC_numu_nominal",
+      "is_data": false,
+      "integral": 1.5407538190484047,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_kaon_10-20GeV",
+      "sample_name": "MC_kaon_10_20GeV",
+      "hist_name": "MC_kaon_10_20GeV_nominal",
+      "is_data": false,
+      "integral": 16.621743988245726,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_kaon_20-30GeV",
+      "sample_name": "MC_kaon_20_30GeV",
+      "hist_name": "MC_kaon_20_30GeV_nominal",
+      "is_data": false,
+      "integral": 7.301069259643555,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_kaon_30-40GeV",
+      "sample_name": "MC_kaon_30_40GeV",
+      "hist_name": "MC_kaon_30_40GeV_nominal",
+      "is_data": false,
+      "integral": 1.3905907440930605,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_kaon_5-10GeV",
+      "sample_name": "MC_kaon_5_10GeV",
+      "hist_name": "MC_kaon_5_10GeV_nominal",
+      "is_data": false,
+      "integral": 4.898127555672545,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_kaon_50-60GeV",
+      "sample_name": "MC_kaon_50_60GeV",
+      "hist_name": "MC_kaon_50_60GeV_nominal",
+      "is_data": false,
+      "integral": 1.0389238223433495,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_kaon_60-70GeV",
+      "sample_name": "MC_kaon_60_70GeV",
+      "hist_name": "MC_kaon_60_70GeV_nominal",
+      "is_data": false,
+      "integral": 0.1559146111831069,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_kaon_70-80GeV",
+      "sample_name": "MC_kaon_70_80GeV",
+      "hist_name": "MC_kaon_70_80GeV_nominal",
+      "is_data": false,
+      "integral": 0.365457933396101,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_kaon_80-90GeV",
+      "sample_name": "MC_kaon_80_90GeV",
+      "hist_name": "MC_kaon_80_90GeV_nominal",
+      "is_data": false,
+      "integral": 0.170410112477839,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_kaon_90-100GeV",
+      "sample_name": "MC_kaon_90_100GeV",
+      "hist_name": "MC_kaon_90_100GeV_nominal",
+      "is_data": false,
+      "integral": 0.15847832337021828,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_neutron_10-20GeV",
+      "sample_name": "MC_neutron_10_20GeV",
+      "hist_name": "MC_neutron_10_20GeV_nominal",
+      "is_data": false,
+      "integral": 11.084248199127614,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_neutron_20-30GeV",
+      "sample_name": "MC_neutron_20_30GeV",
+      "hist_name": "MC_neutron_20_30GeV_nominal",
+      "is_data": false,
+      "integral": 6.9864349672570825,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_neutron_30-40GeV",
+      "sample_name": "MC_neutron_30_40GeV",
+      "hist_name": "MC_neutron_30_40GeV_nominal",
+      "is_data": false,
+      "integral": 5.5141953602433205,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_neutron_5-10GeV",
+      "sample_name": "MC_neutron_5_10GeV",
+      "hist_name": "MC_neutron_5_10GeV_nominal",
+      "is_data": false,
+      "integral": 1.9893815536051989,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_neutron_50-60GeV",
+      "sample_name": "MC_neutron_50_60GeV",
+      "hist_name": "MC_neutron_50_60GeV_nominal",
+      "is_data": false,
+      "integral": 0.3818427436053753,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_neutron_60-70GeV",
+      "sample_name": "MC_neutron_60_70GeV",
+      "hist_name": "MC_neutron_60_70GeV_nominal",
+      "is_data": false,
+      "integral": 0.27929305098950863,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_neutron_70-80GeV",
+      "sample_name": "MC_neutron_70_80GeV",
+      "hist_name": "MC_neutron_70_80GeV_nominal",
+      "is_data": false,
+      "integral": 0.13121423544362187,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_neutron_80-90GeV",
+      "sample_name": "MC_neutron_80_90GeV",
+      "hist_name": "MC_neutron_80_90GeV_nominal",
+      "is_data": false,
+      "integral": 0.12668043840676546,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "MC_neutron_90-100GeV",
+      "sample_name": "MC_neutron_90_100GeV",
+      "hist_name": "MC_neutron_90_100GeV_nominal",
+      "is_data": false,
+      "integral": 0.0,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    },
+    {
+      "category": "real_data",
+      "sample_name": "data",
+      "hist_name": "data_nominal",
+      "is_data": true,
+      "integral": 163.0,
+      "nbins": 10,
+      "xmin": 1000.0,
+      "xmax": 6000.0
+    }
+  ]
+}

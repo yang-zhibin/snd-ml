@@ -1,0 +1,23 @@
+{
+  "feature": "density_sndsw_scifi",
+  "hist_cfg": {
+    "bin_size": 500,
+    "nbins": 10,
+    "xmin": 1000,
+    "xmax": 6000,
+    "title": "Sum of SciFi Density Weight (SNDSW)",
+    "logy": false,
+    "extra": ""
+  },
+  "base_cut": "2 3 4 5 8 9 10 15",
+  "extra_cut": "",
+  "cut_name": "base-cut-2-3-4-5-8-9-10-15",
+  "tree": "sndData",
+  "region_name": "CR",
+  "fold_overflow": false,
+  "fold_underflow": false,
+  "input_dir": "/eos/experiment/sndlhc/users/zhibin/nueAnalysis",
+  "had_scale_factor": 1,
+  "combine_hadrons": false,
+  "plot_title": ""
+}

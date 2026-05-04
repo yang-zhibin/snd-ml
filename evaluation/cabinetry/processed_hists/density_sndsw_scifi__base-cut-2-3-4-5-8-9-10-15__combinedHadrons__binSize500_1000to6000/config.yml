@@ -1,0 +1,59 @@
+General:
+  Measurement: "template_fit"
+  POI: "mu_kaon"
+  InputPath: "{RegionPath}.root:{SamplePath}_{VariationPath}"
+  HistogramFolder: "processed_hists/density_sndsw_scifi__base-cut-2-3-4-5-8-9-10-15__combinedHadrons__binSize500_1000to6000/templates"
+  VariationPath: "nominal"
+
+Regions:
+  - Name: "CR"
+    RegionPath: "CR"
+
+Samples:
+  - Name: "Data"
+    SamplePath: "data"
+    Data: true
+  - Name: "kaon"
+    SamplePath: "kaon"
+  - Name: "neutron"
+    SamplePath: "neutron"
+  - Name: "MC_NC_nue"
+    SamplePath: "MC_NC_nue"
+  - Name: "MC_NC_numu"
+    SamplePath: "MC_NC_numu"
+  - Name: "MC_CC_nue"
+    SamplePath: "MC_CC_nue"
+  - Name: "MC_CC_numu"
+    SamplePath: "MC_CC_numu"
+
+NormFactors:
+  - Name: "mu_kaon"
+    Samples: "kaon"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_neutron"
+    Samples: "neutron"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.0, 10.0]
+  - Name: "mu_MC_NC_nue"
+    Samples: "MC_NC_nue"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.999, 1.001]
+  - Name: "mu_MC_NC_numu"
+    Samples: "MC_NC_numu"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.999, 1.001]
+  - Name: "mu_MC_CC_nue"
+    Samples: "MC_CC_nue"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.999, 1.001]
+  - Name: "mu_MC_CC_numu"
+    Samples: "MC_CC_numu"
+    Regions: ["CR"]
+    Nominal: 1.0
+    Bounds: [0.999, 1.001]

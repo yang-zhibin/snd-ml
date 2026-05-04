@@ -1,5 +1,15 @@
 hostname:
-b9p28p7318.cern.ch
-plotting nueAnalysis hist
-Using TMPDIR=/pool/condor/dir_2059572/tmp/tmp.Jx5Rt800vv
-Warning: No metadata files found.
+b9p19p9007.cern.ch
+Source SNDSW environment script
+Setting up SNDSW
+search libraries in slc9_x86-64
+Running hit generation script
+start processing digi to hits3D
+using geofile: root://eospublic.cern.ch//eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/neutrons/neu_90_100/Ntuples/328/geofile_full.PG_2112-TGeant4.root
+Dataset split: train
+Applying selection: AvgSFChan == 1 && NoVetoHits == 1 && At_least_two_consecutive_SciFi_planes == 1 && SciFiContinuity == 1
+Entries matching selection: 62
+processed 0 / 62 events
+finish processing digi to hits3D, saved 62 events to /pool/condor/dir_38898/tmp/tmp.YNDcKr5Gxo/npz_hit_MC_neutron_FTFP_BERT_neu_90_100_328.npz
+Copying result to final location
+Cleaning up

@@ -100,6 +100,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
 
         digi_file = None
         fallback_digi_file = None
+        raw_file = None
         geo_file = None
         partition = subfolder
         n_event = 0
@@ -148,7 +149,7 @@ def process_MC_subfolders(root_path, output_subfolder_name, data_type):
             'n_event': n_event,
             'digi_path': digi_file,
             'geo_path': geo_file,
-            'raw_path': raw_file
+            'raw_path': raw_file if raw_file else None
         }
         metadata.append(one_file_data)
         #print('add: ', one_file_data)
@@ -265,7 +266,77 @@ def generate_neutron_QGSP_path(data_type, root_path, output_subfolder_name, csv_
         tmp_metadata = process_MC_subfolders(second_subfolder_path, second_subfolder_name, data_type)
         save_metadata_to_csv(tmp_metadata, csv_file)
 
+def generate_MC_muonDIS(data_type, root_path, subfolder, csv_file):
 
+    # user/sii in root_path, only one folder, two digiCPP file and one geo file
+    tree_name = "cbmsim"
+    metadata = []
+
+    # -------------------------------
+    # CASE 1: special user/sii layout
+    # -------------------------------
+    if "users/sii" in root_path: 
+        folder_path = root_path
+
+        if not os.path.isdir(folder_path):
+            print(f"Skipping non-directory: {folder_path}")
+            return metadata
+
+        geo_file = None
+
+        # find geo file
+        for file in os.listdir(folder_path):
+            if file.startswith("geo"):
+                geo_file = os.path.join(folder_path, file)
+                break
+
+        # loop over digi files
+        for i, file in enumerate(os.listdir(folder_path)):
+
+            if not (file.startswith("snd") and file.endswith("digCPP.root")):
+                continue
+
+            digi_file = os.path.join(folder_path, file)
+            raw_file = digi_file.replace("_digCPP.root", ".root")
+
+            n_event = 0
+
+            try:
+                root_file = ROOT.TFile(raw_file)
+                if not root_file or root_file.IsZombie():
+                    raise ValueError(f"Invalid ROOT file: {raw_file}")
+
+                tree = root_file.Get(tree_name)
+                n_event = tree.GetEntriesFast() if tree else 0
+                root_file.Close()
+
+            except Exception as e:
+                print(f"Error processing {raw_file}: {e}")
+
+            one_file_data = {
+                'data_type': data_type,
+                'subfolder': subfolder if subfolder else os.path.basename(folder_path),
+                'partition': f"{subfolder}_{i}",
+                'n_event': n_event,
+                'digi_path': digi_file,
+                'geo_path': geo_file,
+                'raw_path': raw_file
+            }
+
+            metadata.append(one_file_data)
+    elif "users/cvilela" in root_path: 
+        metadata =  process_MC_subfolders(root_path, subfolder, data_type)
+        
+    else:
+        raise ValueError(f"Unknown dataset structure for path: {root_path}")
+
+    # ----------------------------------
+    # Save
+    # ----------------------------------
+    metadata.sort(key=lambda x: x['partition'])
+    save_metadata_to_csv(metadata, csv_file)
+        
+    
 
 def generate_MC_muon(data_type, root_path, output_subfolder_name, csv_file):
 
@@ -403,6 +474,8 @@ def process(data_type, root_path, subfolder, csv_file):
             generate_neutral_hadron_path(data_type, root_path, subfolder, csv_file)
     elif data_type == "MC_muon":
         generate_MC_muon(data_type, root_path, subfolder, csv_file)
+    elif data_type == "MC_muonDIS":
+        generate_MC_muonDIS(data_type, root_path, subfolder, csv_file)
     else:
         print(f"Unknown data type: {data_type}")
 

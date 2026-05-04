@@ -39,3 +39,8 @@ MC_muon:
     root_path: "/eos/experiment//sndlhc/MonteCarlo/MuonBackground/muons_up"
   - subfolder: "horizontal"
     root_path: "/eos/experiment//sndlhc/MonteCarlo/MuonBackground/muons_horizontal"
+MC_muonDIS:    
+  - subfolder: "sii"
+    root_path: "/eos/experiment/sndlhc/users/sii/MC_2024/dis_Mar"
+  - subfolder: "cvilela"
+    root_path: "/eos/experiment/sndlhc/users/cvilela/muonDIS_prod_20240826"

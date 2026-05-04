@@ -9,11 +9,13 @@ wildcard_constraints:
     preSelect_path=".*preSelect.*.root",
     nueAnalysis_path=".*nueAnalysis.*.root",
     preCutEff_path=".*preCutEff.*.csv",
+    muonDISFeature_path=".*muonDISFeature.*.root",
     feature_path=".*feature.*.root",
     metadata_csv=".*metadata.*.csv",
     model_ckpt='.*ckpt.*',
     pt_hit_path = '.*pt_hit.*.pt.gz',
     pkl_hit_path = '.*pkl_hit.*.pkl.gz',
+    npz_hit_path = '.*npz_hit.*.npz',
     model_output='.*prediction.*.root',
     eval_output = '.*eval.*.root',
     model_3d_output = '.*prediction.*.pkl.gz',
@@ -23,12 +25,15 @@ wildcard_constraints:
 
 raw_metadata_csv_list = [
 
-#     "MC_muon_down_metadata.csv",
-#     "MC_muon_horizontal_metadata.csv",
-#     "MC_muon_up_metadata.csv",#2024 crossing angle
+    # "MC_muon_down_metadata.csv",
+    # "MC_muon_horizontal_metadata.csv",
+    # "MC_muon_up_metadata.csv",#2024 crossing angle
 
-#     "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
-#     "MC_neutrino_volTarget_100fb-1_metadata.csv",
+    # "MC_muonDIS_sii_metadata.csv",
+    # "MC_muonDIS_cvilela_metadata.csv",
+
+    # "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
+    # "MC_neutrino_volTarget_100fb-1_metadata.csv",
     
     # "MC_neutrino_2024_vm_metadata.csv",
     # "MC_neutrino_2024_ve_metadata.csv",
@@ -36,13 +41,15 @@ raw_metadata_csv_list = [
     # "MC_kaon_FTFP_BERT_metadata.csv",
     # "MC_neutron_FTFP_BERT_metadata.csv",
 
-#     "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
-#     "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
+    # "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
+    # "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
 
-#     "real_data_2022_metadata.csv",
-#     "real_data_2023_metadata.csv",
+    # "real_data_2022_metadata.csv",
+    # "real_data_2023_metadata.csv",
     # "real_data_2024_metadata.csv",
-#     "real_data_2025_metadata.csv",
+    # "real_data_2025_metadata.csv",
+
+    "Split_regression_v1_neutral_hadron.csv",
 ]
 subset_metadata_csv_list = [
     # "MC_kaon_FTFP_BERT_metadata_subset.csv",
@@ -50,6 +57,16 @@ subset_metadata_csv_list = [
 
     # "real_data_2024_skim_runs_metadata.csv",
     # "real_data_2024_skim_runs_metadata_subset.csv",
+    # "Split_v3.csv",
+]
+
+train_metadata_csv_list = [
+    "MC_neutrino_2024_vm_metadata.csv",
+    "MC_neutrino_2024_ve_metadata.csv",
+    "MC_muon_up_metadata.csv",
+    "MC_kaon_FTFP_BERT_metadata.csv",
+    "MC_neutron_FTFP_BERT_metadata.csv",
+
 ]
 
 PERSONAL_WORK_SPACE = "/afs/cern.ch/work/z/zhibin/snd-ml"
@@ -66,8 +83,9 @@ process_veto = False
 process_model = ['GravNet_v4']
 
 train_mode = False
-train_split = 'Split_v3' 
-train_model = 'GravNet_v5'
+train_split = 'Split_regression_v1'
+split_dataset =  "neutral_hadron" # or "neutrino" / "all"
+train_model = 'CNN3D_v1'
 
 include: "rules/metadata.smk"
 include: "rules/production.smk"
@@ -79,19 +97,30 @@ rule metadata:
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/raw/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=subset_metadata_csv_list)
+        expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{train_split}}_{{split_dataset}}.csv", train_split=train_split, split_dataset = split_dataset)
+
+# need another process before train split to add  preSelect_count
+
 
 
 ##### production
 rule production:
     input:
         # expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),
-        expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
+        # expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
+        expand("{npz_hit_path}", npz_hit_path=collect_metadata_targets("npz_hit_path", after_model = False)),
+        # expand("{muonDISFeature_path}", muonDISFeature_path=collect_metadata_targets("muonDISFeature_path", after_model = False)),
         # expand("{model_output}", model_output=collect_metadata_targets('model_output', after_model = True)),
 
+        # after model is train, add prediction process for test set (which match the feature files)
+        # 
 
 
-
-
+rule train:
+    input:
+        expand(f"{EOS_Work_SPACE}/training_data/{{train_split}}_train.npz", train_split=train_split),
+        # training
+        # 
 ##### nueAnalysis
 
 
@@ -104,18 +133,20 @@ nueAnalysis_partitions = (
     # [f"MC_kaon_5-10GeV_Max{max_kaon_partitions}-{i}" for i in range(1, max_kaon_partitions + 1)] +
     # [f"MC_neutron_5-10GeV_Max{max_neutron_partitions}-{i}" for i in range(1, max_neutron_partitions + 1)] +
     [   
-        'MC_kaon_10-20GeV', 'MC_kaon_20-30GeV', 'MC_kaon_30-40GeV',
-        'MC_kaon_50-60GeV', 'MC_kaon_60-70GeV', 'MC_kaon_70-80GeV',
-        'MC_kaon_80-90GeV', 'MC_kaon_90-100GeV', 
+        # 'MC_kaon_10-20GeV', 'MC_kaon_20-30GeV', 'MC_kaon_30-40GeV',
+        # 'MC_kaon_50-60GeV', 'MC_kaon_60-70GeV', 'MC_kaon_70-80GeV',
+        # 'MC_kaon_80-90GeV', 'MC_kaon_90-100GeV', 
 
-        'MC_neutron_10-20GeV', 'MC_neutron_20-30GeV', 'MC_neutron_30-40GeV',
-        'MC_neutron_50-60GeV', 'MC_neutron_60-70GeV', 'MC_neutron_70-80GeV',
-        'MC_neutron_80-90GeV', 'MC_neutron_90-100GeV', 
+        # 'MC_neutron_10-20GeV', 'MC_neutron_20-30GeV', 'MC_neutron_30-40GeV',
+        # 'MC_neutron_50-60GeV', 'MC_neutron_60-70GeV', 'MC_neutron_70-80GeV',
+        # 'MC_neutron_80-90GeV', 'MC_neutron_90-100GeV', 
 
-        'MC_NC_nue',
-        'MC_NC_numu',
-        'MC_CC_nue',
-        'MC_CC_numu',
+        'MC_muon',
+
+        # 'MC_NC_nue',
+        # 'MC_NC_numu',
+        # 'MC_CC_nue',
+        # 'MC_CC_numu',
     ]
 )
 
@@ -123,90 +154,100 @@ nueAnalysis_partitions = (
 rule nueAnalysis:
     input:
         expand(f"{EOS_Work_SPACE}/nueAnalysis/eff_{{partition}}.root", partition=nueAnalysis_partitions),
-        expand(f"{EOS_Work_SPACE}/nueAnalysis/hist_{{partition}}.root", partition=nueAnalysis_partitions),
+        # expand(f"{EOS_Work_SPACE}/nueAnalysis/hist_{{partition}}.root", partition=nueAnalysis_partitions),
+        # expand(f"{EOS_Work_SPACE}/nueAnalysis/digi_{{partition}}.root", partition=nueAnalysis_partitions),
+        # expand(f"{EOS_Work_SPACE}/nueAnalysis/npz_{{partition}}.root", partition=nueAnalysis_partitions),
+        # expand(f"{EOS_Work_SPACE}/nueAnalysis/{train_model}_{{partition}}.root", partition=nueAnalysis_partitions, train_model=train_model),
+
+
+
+# preSelect digi (read tchian of nueFilter and digi path)
+#  train digi npz, add  train/test/val spilt in it
+#  all digi to npz
+
 
 
 hist_names = [
-    'density_sndsw_scifi',
-    'density_scifi1',
-    'density_scifi2',
-    'density_scifi3',
-    'density_scifi4',
-    'density_scifi5',
+    # 'density_sndsw_scifi',
+    # 'density_scifi1',
+    # 'density_scifi2',
+    # 'density_scifi3',
+    # 'density_scifi4',
+    # 'density_scifi5',
 
-    'count_scifi',
+    # 'count_scifi',
     'count_scifi1',
     'count_scifi2',
-    'count_scifi3',
-    'count_scifi4',
-    'count_scifi5',
-    'avg_scifi_x',
-    'avg_scifi1_x',
-    'avg_scifi2_x',
-    'avg_scifi3_x',
-    'avg_scifi4_x',
-    'avg_scifi5_x',
-    'avg_scifi_y',
-    'avg_scifi1_y',
-    'avg_scifi2_y',
-    'avg_scifi3_y',
-    'avg_scifi4_y',
-    'avg_scifi5_y',
+    # 'count_scifi3',
+    # 'count_scifi4',
+    # 'count_scifi5',
+    # 'avg_scifi_x',
+    # 'avg_scifi1_x',
+    # 'avg_scifi2_x',
+    # 'avg_scifi3_x',
+    # 'avg_scifi4_x',
+    # 'avg_scifi5_x',
+    # 'avg_scifi_y',
+    # 'avg_scifi1_y',
+    # 'avg_scifi2_y',
+    # 'avg_scifi3_y',
+    # 'avg_scifi4_y',
+    # 'avg_scifi5_y',
 
-    "avg_ds_x",
-    "avg_ds1_x",
-    "avg_ds2_x",
-    "avg_ds3_x",
-    "avg_ds4_x",
+    # "avg_ds_x",
+    # "avg_ds1_x",
+    # "avg_ds2_x",
+    # "avg_ds3_x",
+    # "avg_ds4_x",
 
-    "avg_ds_y",
-    "avg_ds1_y",
-    "avg_ds2_y",
-    "avg_ds3_y",
-    "avg_ds4_y",
+    # "avg_ds_y",
+    # "avg_ds1_y",
+    # "avg_ds2_y",
+    # "avg_ds3_y",
+    # "avg_ds4_y",
 
-    "avg_us_y",
-    "avg_us1_y",
-    "avg_us2_y",
-    "avg_us3_y",
-    "avg_us4_y",
-    "avg_us5_y",
+    # "avg_us_y",
+    # "avg_us1_y",
+    # "avg_us2_y",
+    # "avg_us3_y",
+    # "avg_us4_y",
+    # "avg_us5_y",
 
-    'count_us',
-    'count_us1',
-    'count_us2',
-    'count_us3',
-    'count_us4',
-    'count_us5',
-    'count_ds',
-    'count_ds1',
-    'count_ds2',
-    'count_ds3',
-    'count_ds4',
-    'qdc_scifi',
-    'qdc_scifi1',
-    'qdc_scifi2',
-    'qdc_scifi3',
-    'qdc_scifi4',
-    'qdc_scifi5',
-    'qdc_us',
-    'qdc_us1',
-    'qdc_us2',
-    'qdc_us3',
-    'qdc_us4',
-    'qdc_us5',
+    # 'count_us',
+    # 'count_us1',
+    # 'count_us2',
+    # 'count_us3',
+    # 'count_us4',
+    # 'count_us5',
+    # 'count_ds',
+    # 'count_ds1',
+    # 'count_ds2',
+    # 'count_ds3',
+    # 'count_ds4',
+    # 'qdc_scifi',
+    # 'qdc_scifi1',
+    # 'qdc_scifi2',
+    # 'qdc_scifi3',
+    # 'qdc_scifi4',
+    # 'qdc_scifi5',
+    # 'qdc_us',
+    # 'qdc_us1',
+    # 'qdc_us2',
+    # 'qdc_us3',
+    # 'qdc_us4',
+    # 'qdc_us5',
 
-    "avg_scifi_x - avg_scifi1_x",
-    "avg_scifi_x - avg_scifi2_x",
-    "avg_scifi_x - avg_scifi3_x",
-    "avg_scifi_x - avg_scifi4_x",
-    "avg_scifi_x - avg_scifi5_x",
+    # "avg_scifi_x - avg_scifi1_x",
+    # "avg_scifi_x - avg_scifi2_x",
+    # "avg_scifi_x - avg_scifi3_x",
+    # "avg_scifi_x - avg_scifi4_x",
+    # "avg_scifi_x - avg_scifi5_x",
         
-    "avg_scifi_y - avg_scifi1_y",
-    "avg_scifi_y - avg_scifi2_y",
-    "avg_scifi_y - avg_scifi3_y",
-    "avg_scifi_y - avg_scifi4_y",
-    "avg_scifi_y - avg_scifi5_y",
+    # "avg_scifi_y - avg_scifi1_y",
+    # "avg_scifi_y - avg_scifi2_y",
+    # "avg_scifi_y - avg_scifi3_y",
+    # "avg_scifi_y - avg_scifi4_y",
+    # "avg_scifi_y - avg_scifi5_y",
 
 ]          
 
@@ -218,14 +259,17 @@ base_cut_map = {
     # "2_3_4_5_6_7_8_9_10": "2 3 4 5 6 7 8 9 10",
     # "2_3_4_5_6_7_8_9_10_11": "2 3 4 5 6 7 8 9 10 11",
     # "2_3_4_5_6_7_8_9_10_11_12": "2 3 4 5 6 7 8 9 10 11 12",
-    # "2_3_4_5_6_7_8_9_10_11_12_13": "2 3 4 5 6 7 8 9 10 11 12",
-    # "2_3_4_5_6_7_8_9_10_11_12_13_14": "2 3 4 5 6 7 8 9 10 11 12 14",
+    # "2_3_4_5_6_7_8_9_10_11_12_13": "2 3 4 5 6 7 8 9 10 11 12 13 ",
+    # "2_3_4_5_6_7_8_9_10_11_12_13_14": "2 3 4 5 6 7 8 9 10 11 12 13 14",
 }
 
 extra_cut_map = {
     # "density_sndsw_scifi_gt_1000__density_sndsw_scifi_lt_6000": "density_sndsw_scifi > 1000 && density_sndsw_scifi < 6000",
     # "density_sndsw_scifi_gt_2000__density_sndsw_scifi_lt_5000": "density_sndsw_scifi > 2000 && density_sndsw_scifi < 5000",
-    # "density_sndsw_scifi_gt_1000" : "density_sndsw_scifi > 1000"
+    "density_sndsw_scifi_gt_1000" : "density_sndsw_scifi > 1000",
+    # "density_sndsw_scifi_gt_100" : "density_sndsw_scifi > 100",
+    # "density_sndsw_scifi_gt_2000" : "density_sndsw_scifi > 2000",
+    # "density_sndsw_scifi_second_gt_20__density_sndsw_scifi_gt_11000" : "density_sndsw_scifi_second > 20 && density_sndsw_scifi > 11000",
     # "density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial":
     #     "density_sndsw_scifi > 1000 && "
     #     "(count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) && "
@@ -233,22 +277,22 @@ extra_cut_map = {
     #     "(count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) && "
     #     "(count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) && "
     #     "(count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50)) "
-    "density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10":
-        "density_sndsw_scifi > 1000 && "
-        "(count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) && "
-        "(count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) && "
-        "(count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) && "
-        "(count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) && "
-        "(count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50)) &&"
-        "(count_scifi1 <= 2 || (abs(avg_scifi_x - avg_scifi1_x) < 10) && (abs(avg_scifi_y - avg_scifi1_y) < 10)) && "
-        "(count_scifi2 <= 2 || (abs(avg_scifi_x - avg_scifi2_x) < 10) && (abs(avg_scifi_y - avg_scifi2_y) < 10)) && "
-        "(count_scifi3 <= 2 || (abs(avg_scifi_x - avg_scifi3_x) < 10) && (abs(avg_scifi_y - avg_scifi3_y) < 10)) && "
-        "(count_scifi4 <= 2 || (abs(avg_scifi_x - avg_scifi4_x) < 10) && (abs(avg_scifi_y - avg_scifi4_y) < 10)) &&"
-        "(count_scifi5 <= 2 || (abs(avg_scifi_x - avg_scifi5_x) < 10) && (abs(avg_scifi_y - avg_scifi5_y) < 10))"
+    # "density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10":
+    #     "density_sndsw_scifi > 1000 && "
+    #     "(count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) && "
+    #     "(count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) && "
+    #     "(count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) && "
+    #     "(count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) && "
+    #     "(count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50)) &&"
+    #     "(count_scifi1 <= 2 || (abs(avg_scifi_x - avg_scifi1_x) < 10) && (abs(avg_scifi_y - avg_scifi1_y) < 10)) && "
+    #     "(count_scifi2 <= 2 || (abs(avg_scifi_x - avg_scifi2_x) < 10) && (abs(avg_scifi_y - avg_scifi2_y) < 10)) && "
+    #     "(count_scifi3 <= 2 || (abs(avg_scifi_x - avg_scifi3_x) < 10) && (abs(avg_scifi_y - avg_scifi3_y) < 10)) && "
+    #     "(count_scifi4 <= 2 || (abs(avg_scifi_x - avg_scifi4_x) < 10) && (abs(avg_scifi_y - avg_scifi4_y) < 10)) &&"
+    #     "(count_scifi5 <= 2 || (abs(avg_scifi_x - avg_scifi5_x) < 10) && (abs(avg_scifi_y - avg_scifi5_y) < 10))"
 
 }
 HAD_scale_factor = [
-        1.9 #2.8 #2.9 #5.2 #7.1
+        2.9 #0.638, 0.29 #2.8 #2.9 #5.2 #7.1
 ]
 include: "rules/evaluation.smk"
 rule plot:

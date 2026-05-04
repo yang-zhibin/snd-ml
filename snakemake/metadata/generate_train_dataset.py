@@ -1,807 +1,813 @@
+import argparse
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
-import os
-import re
-import matplotlib.pyplot as plt
 import ROOT
-from collections import defaultdict
 from tqdm import tqdm
 
-report_outdir = "./metadata_reports/"
-os.makedirs(report_outdir, exist_ok=True)
+import io
+import contextlib
 
 
-particle_to_target = {
-        12: 0, -12: 0,
-        14: 1, -14: 1,
-        16: 2, -16: 2,
-        112: 3, -112: 3, 114: 3, -114: 3, 116: 3, -116: 3,
-        130: 4, 310: 4,
-        2112: 5,
-        13:6, -13:6,
-        0:6
-}
-particle_mapping = {
-    12: 've', -12: 've',
-    14: 'vm', -14: 'vm',
-    16: 'vt', -16: 'vt',
-    112: 'NC', -112: 'NC', 114: 'NC', -114: 'NC', 116: 'NC', -116: 'NC',
-    130: 'kaon', 310: 'kaon',
-    2112: 'neutron',
-    13:'muon', -13:'muon',
-    0:'data'
-}
+ROOT.EnableImplicitMT()
 
-def load_metadata_files(file_list, root_path):
-    loaded_data = {}
-    for fname in file_list:
-        var_name = fname.replace("_metadata.csv", "").replace("-", "_").replace(".", "_")
-        full_path = os.path.join(root_path, fname)
-        loaded_data[var_name] = pd.read_csv(full_path)
-    return loaded_data
-
-def check_neutral_bkg_dataset(df, dataset_name):
-    pat = re.compile(r"""
-        (?P<model>[^/]+)/                    # mc_model_type
-        (?P<particle>[^_]+)_                 # particle
-        (?P<E_low>\d+\.?\d*)_                # E_low
-        (?P<E_high>\d+\.?\d*)                # E_high
-        (?:_.*)?                             # optional suffix
-    """, re.VERBOSE)
+PRESELECT_CUT = """
+(
+    AvgSFChan == 1
+    && NoVetoHits == 0
+    && At_least_two_consecutive_SciFi_planes == 1
+    && SciFiContinuity == 1
+)
+""".strip()
 
 
-    def _parse(row):
-        m = pat.fullmatch(row["subfolder"])
-        if m is None:
-            raise ValueError(f"Unparsable subfolder: {row['subfolder']}")
-        gd = m.groupdict()
-        return pd.Series(
-            {
-                "mc_model": gd["model"],
-                "particle": gd["particle"],
-                "E_low": float(gd["E_low"]),
-                "E_high": float(gd["E_high"]),
-            }
+def extract_sample_name(file_name: str) -> str:
+    stem = Path(file_name).stem
+
+    if not stem.startswith("MC_") or not stem.endswith("_metadata"):
+        raise ValueError(f"Unexpected filename format: {file_name}")
+
+    return stem[len("MC_"):-len("_metadata")]
+
+
+def extract_particle_name(sample_name: str) -> str:
+    return sample_name.split("_")[0]
+
+
+def build_split_group(df: pd.DataFrame, sample_name: str) -> pd.Series:
+    particle_name = extract_particle_name(sample_name)
+
+    if particle_name in ["kaon", "neutron"]:
+        if "energy_range" not in df.columns:
+            raise ValueError(f"'energy_range' column not found for {sample_name}")
+        return sample_name + "__" + df["energy_range"].astype(str)
+
+    return pd.Series([sample_name] * len(df), index=df.index)
+
+
+def build_train_cap_group(df: pd.DataFrame) -> pd.Series:
+    special_mask = df["particle_name"].isin(["kaon", "neutron"])
+
+    result = df["sample_name"].copy()
+    result.loc[special_mask] = (
+        df.loc[special_mask, "sample_name"]
+        + "__"
+        + df.loc[special_mask, "energy_range"].astype(str)
+    )
+    return result
+
+
+def count_preselected_events(root_file_path: Path) -> int:
+    root_file_path = str(Path(root_file_path))
+
+    if not Path(root_file_path).exists():
+        raise FileNotFoundError(f"ROOT file not found: {root_file_path}")
+
+    rdf = ROOT.RDataFrame("cutFlowSummary", root_file_path)
+    count = rdf.Filter(PRESELECT_CUT).Count()
+
+    return int(count.GetValue())
+
+
+def add_preselect_count_column(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    preselect_counts = []
+
+    print("\nComputing preSelect_count from ROOT files...")
+    for row in tqdm(
+        df.itertuples(index=False),
+        total=len(df),
+        desc="Processing ROOT files",
+        unit="file",
+    ):
+        root_path = row.nueAnalysisFilter_path
+        base_path = row.output_base_path
+        full_root_path = f"{base_path}/{root_path}"
+        count = count_preselected_events(full_root_path)
+        preselect_counts.append(count)
+
+    df["preSelect_count"] = preselect_counts
+    return df
+
+
+def load_and_merge_metadata(metadata_dir, metadata_file_list):
+    metadata_dir = Path(metadata_dir)
+    df_list = []
+
+    for file_name in metadata_file_list:
+        file_path = metadata_dir / file_name
+
+        if not file_path.exists():
+            raise FileNotFoundError(f"Metadata file not found: {file_path}")
+
+        sample_name = extract_sample_name(file_name)
+        particle_name = extract_particle_name(sample_name)
+
+        df = pd.read_csv(file_path)
+
+        required_columns = ["n_event", "lumi_per_file", "nueAnalysis_path"]
+        for col in required_columns:
+            if col not in df.columns:
+                raise ValueError(f"'{col}' column not found in {file_name}")
+
+        if particle_name in ["kaon", "neutron"] and "energy_range" not in df.columns:
+            raise ValueError(f"'energy_range' column not found in {file_name}")
+
+        df = df.copy()
+        df["source_metadata_file"] = file_name
+        df["sample_name"] = sample_name
+        df["particle_name"] = particle_name
+        df["split_group"] = build_split_group(df, sample_name)
+
+        df_list.append(df)
+
+        print(f"Loaded {file_name:<40} -> {sample_name}")
+
+    merged_df = pd.concat(df_list, ignore_index=True)
+    merged_df["train_cap_group"] = build_train_cap_group(merged_df)
+
+    return merged_df
+
+
+def split_one_group(
+    df_group: pd.DataFrame,
+    train_frac: float = 0.4,
+    test_frac: float = 0.1,
+    val_frac: float = 0.5,
+    seed: int = 42,
+) -> pd.DataFrame:
+    if not np.isclose(train_frac + test_frac + val_frac, 1.0):
+        raise ValueError("Split fractions must sum to 1.")
+
+    df_group = df_group.sample(frac=1, random_state=seed).reset_index(drop=True)
+    n = len(df_group)
+
+    if n == 1:
+        split_labels = ["train"]
+    elif n == 2:
+        split_labels = ["train", "val"]
+    else:
+        n_train = int(np.floor(n * train_frac))
+        n_test = int(np.floor(n * test_frac))
+        n_val = n - n_train - n_test
+
+        if n_train == 0:
+            n_train = 1
+            if n_val > 1:
+                n_val -= 1
+            elif n_test > 0:
+                n_test -= 1
+
+        split_labels = ["train"] * n_train + ["test"] * n_test + ["val"] * n_val
+
+        if len(split_labels) != n:
+            raise RuntimeError(
+                f"Split label length mismatch: len(split_labels)={len(split_labels)}, n={n}"
+            )
+
+    df_group = df_group.copy()
+    df_group["split"] = split_labels
+    return df_group
+
+
+def stratified_split(
+    merged_df: pd.DataFrame,
+    train_frac: float = 0.4,
+    test_frac: float = 0.1,
+    val_frac: float = 0.5,
+    seed: int = 42,
+) -> pd.DataFrame:
+    split_df_list = []
+
+    for split_group, df_group in merged_df.groupby("split_group", sort=True):
+        group_seed = seed + (abs(hash(str(split_group))) % 100000)
+        split_df = split_one_group(
+            df_group=df_group,
+            train_frac=train_frac,
+            test_frac=test_frac,
+            val_frac=val_frac,
+            seed=group_seed,
+        )
+        split_df_list.append(split_df)
+
+    return pd.concat(split_df_list, ignore_index=True)
+
+
+def select_rows_by_event_budget(
+    df_group: pd.DataFrame,
+    target_events: float,
+    event_column: str,
+    seed: int = 42,
+) -> pd.Index:
+    if len(df_group) == 0 or target_events <= 0:
+        return pd.Index([])
+
+    shuffled = df_group.sample(frac=1, random_state=seed).copy()
+    shuffled["cum_event_budget"] = shuffled[event_column].cumsum()
+
+    keep_mask = shuffled["cum_event_budget"] <= target_events
+
+    if keep_mask.any():
+        selected = shuffled.loc[keep_mask]
+        selected_sum = selected[event_column].sum()
+
+        if len(selected) < len(shuffled):
+            next_row = shuffled.iloc[[len(selected)]]
+            next_sum = selected_sum + next_row[event_column].iloc[0]
+
+            if abs(next_sum - target_events) < abs(selected_sum - target_events):
+                selected = pd.concat([selected, next_row], axis=0)
+    else:
+        selected = shuffled.iloc[[0]]
+
+    return selected.index
+
+
+def apply_event_count_based_train_cap(
+    df: pd.DataFrame,
+    event_column: str = "preSelect_count",
+    background_to_signal_ratio: float = 5.0,
+    alpha: float = 0.5,
+    seed: int = 42,
+) -> pd.DataFrame:
+    df = df.copy()
+    df["selected_for_use"] = False
+
+    train_mask = df["split"] == "train"
+    signal_mask = df["particle_name"] == "neutrino"
+    background_mask = df["particle_name"].isin(["muon", "kaon", "neutron"])
+
+    df.loc[train_mask & signal_mask, "selected_for_use"] = True
+
+    signal_train_events = df.loc[train_mask & signal_mask, event_column].sum()
+    background_train_budget = background_to_signal_ratio * signal_train_events
+
+    print("\nTraining event-count cap")
+    print("-" * 120)
+    print(f"train signal {event_column:<15}: {int(signal_train_events):,}")
+    print(f"background/signal ratio      : {background_to_signal_ratio:.3f}")
+    print(f"target background train evts : {int(background_train_budget):,}")
+    print(f"allocation alpha             : {alpha:.3f}")
+    print("-" * 120)
+
+    train_bkg_df = df.loc[train_mask & background_mask].copy()
+
+    if train_bkg_df.empty:
+        print("No background rows found in training split.")
+        return df
+
+    available_by_group = (
+        train_bkg_df.groupby("train_cap_group", dropna=False)[event_column]
+        .sum()
+        .sort_index()
+    )
+
+    n_groups = len(available_by_group)
+    total_available = available_by_group.sum()
+
+    if n_groups == 0 or total_available <= 0:
+        print("No available background events for capping.")
+        return df
+
+    equal_share = background_train_budget / n_groups
+
+    target_by_group = {}
+    for group_name, available in available_by_group.items():
+        proportional_share = background_train_budget * (available / total_available)
+        target = alpha * equal_share + (1.0 - alpha) * proportional_share
+        target = min(target, available)
+        target_by_group[group_name] = target
+
+    selected_indices = []
+
+    print(
+        f"{'group':<40} {'available':>15} {'target':>15} "
+        f"{'selected':>15} {'selected_files':>15}"
+    )
+    print("-" * 120)
+
+    total_selected_background_events = 0
+    total_selected_background_files = 0
+
+    for i, (group_name, target) in enumerate(sorted(target_by_group.items())):
+        group_df = train_bkg_df[train_bkg_df["train_cap_group"] == group_name].copy()
+        group_seed = seed + i
+
+        selected_idx = select_rows_by_event_budget(
+            df_group=group_df,
+            target_events=target,
+            event_column=event_column,
+            seed=group_seed,
         )
 
-    df = df.join(df.apply(_parse, axis=1))
-    # List to hold aggregated values
-    summary = []
+        selected_group_df = group_df.loc[selected_idx]
+        selected_events = selected_group_df[event_column].sum()
+        selected_files = len(selected_group_df)
+        available_events = group_df[event_column].sum()
 
-    # Group by 'E_low'
-    for e_low, group in df.groupby('E_low'):
-        total_lumi = group['lumi_per_file'].sum()
-        total_events = group['n_event'].sum()
-        e_high = group['E_high'].iloc[0]
-        summary.append((e_low, e_high, total_lumi, total_events))
+        selected_indices.extend(selected_idx.tolist())
 
-    # Convert to DataFrame
-    summary_df = pd.DataFrame(summary, columns=['E_low', 'E_high', 'lumi', 'n_event'])
+        total_selected_background_events += selected_events
+        total_selected_background_files += selected_files
 
-    # Format labels with units
-    lumi_labels = [
-        f"{row.E_low}-{row.E_high} GeV ({row.lumi:.2e} pb⁻¹)"
-        for row in summary_df.itertuples()
-    ]
-    event_labels = [
-        f"{row.E_low}-{row.E_high} GeV ({row.n_event:.2e} events)"
-        for row in summary_df.itertuples()
-    ]
-
-    # Plot
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-
-    def autopct_func(pct):
-        return f'{pct:.1f}%' if pct > 5 else ''
-
-    # Lumi pie chart
-    wedges1, _, _ = axes[0].pie(
-        summary_df['lumi'],
-        autopct=autopct_func,
-        startangle=90
-    )
-    axes[0].set_title('Lumi Distribution')
-    axes[0].legend(wedges1, lumi_labels, loc='center left', bbox_to_anchor=(1, 0.5))
-    axes[0].axis('equal')
-
-    # Event pie chart
-    wedges2, _, _ = axes[1].pie(
-        summary_df['n_event'],
-        autopct=autopct_func,
-        startangle=90
-    )
-    axes[1].set_title('Event Count Distribution')
-    axes[1].legend(wedges2, event_labels, loc='center left', bbox_to_anchor=(1, 0.5))
-    axes[1].axis('equal')
-
-    plt.tight_layout()
-    output_path = os.path.join(report_outdir, f"{dataset_name}_lumi_and_event_pie_charts.png")
-    plt.savefig(output_path, bbox_inches='tight')
-    plt.close()
-
-    print(f"Pie charts saved to: {output_path}")
-    
-
-def plot_muon_bkg_dataset(df, dataset_name):
-    summary = []
-
-    # Summarize lumi, n_event, and preSelect per partition
-    for partition, group in df.groupby('partition'):
-        total_lumi = group['lumi_per_file'].sum()
-        total_events = group['n_event'].sum()
-        total_preselect = group['preSelect'].sum()  # assuming this column exists
-        summary.append((partition, total_lumi, total_events, total_preselect))
-
-    # Create summary DataFrame
-    summary_df = pd.DataFrame(summary, columns=['partition', 'lumi', 'n_event', 'preSelect'])
-
-    # Prepare labels with scientific notation
-    lumi_labels = [
-        f"{row.partition} ({row.lumi:.2e} pb⁻¹)"
-        for row in summary_df.itertuples()
-    ]
-    event_labels = [
-        f"{row.partition} ({row.n_event:.2e} events)"
-        for row in summary_df.itertuples()
-    ]
-    preSelect_labels = [
-        f"{row.partition} ({row.preSelect:.2e} events)"
-        for row in summary_df.itertuples()
-    ]
-
-
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6))  # adjust layout for 3 charts
-
-    def autopct_func(pct):
-        return f'{pct:.1f}%' if pct > 5 else ''
-    # Lumi pie
-    wedges1, _, _ = axes[0].pie(
-        summary_df['lumi'], autopct=autopct_func, startangle=90
-    )
-    axes[0].set_title('Lumi Distribution')
-    axes[0].legend(wedges1, lumi_labels, loc='center left', bbox_to_anchor=(1, 0.5))
-    axes[0].axis('equal')
-
-    # Event pie
-    wedges2, _, _ = axes[1].pie(
-        summary_df['n_event'], autopct=autopct_func, startangle=90
-    )
-    axes[1].set_title('Event Count Distribution')
-    axes[1].legend(wedges2, event_labels, loc='center left', bbox_to_anchor=(1, 0.5))
-    axes[1].axis('equal')
-
-    # PreSelect pie
-    wedges3, _, _ = axes[2].pie(
-        summary_df['preSelect'], autopct=autopct_func, startangle=90
-    )
-    axes[2].set_title('PreSelected Event Distribution')
-    axes[2].legend(wedges3, preSelect_labels, loc='center left', bbox_to_anchor=(1, 0.5))
-    axes[2].axis('equal')
-
-    # Save plot
-    plt.tight_layout()
-    output_path = os.path.join(report_outdir, f"{dataset_name}_partition_pie_charts.png")
-    plt.savefig(output_path, bbox_inches='tight')
-    plt.close()
-
-    print(f"Saved partition pie charts to: {output_path}")
-
-def check_muon_bkg_dataset(df,dataset_name):
-    tagged_counts = []
-    free_counts = []
-
-    for i, row in df.iterrows():
-        root_file = row["preSelect_path"]
-
-        try:
-            rdf = ROOT.RDataFrame("sndData", root_file)
-
-            # Count where the branch equals 1
-            tagged_count = rdf.Filter("preSelect_vetoTagged == 1").Count().GetValue()
-            free_count = rdf.Filter("preSelect_vetoFree == 1").Count().GetValue()
-        except Exception as e:
-            print(f"Error processing {root_file}: {e}")
-            tagged_count = -1
-            free_count = -1
-
-        tagged_counts.append(tagged_count)
-        free_counts.append(free_count)
-
-    df[f"preSelect_vetoTagged"] = tagged_counts
-    df[f"preSelect_vetoFree"] = free_counts
-    df[f"preSelect"] = df[f"preSelect_vetoTagged"] + df[f"preSelect_vetoFree"]
-    
-   
-    plot_muon_bkg_dataset(df, dataset_name)
-    
-def check_neutrion_bkg_dataset(df,dataset_name):
-    # read ve,vm,vt, NC for total, preSelect_vetoTagged and preSelect_vetoFree
-    #
-    # Initialize counters
-    total_counts = defaultdict(int)
-    veto_tagged_counts = defaultdict(int)
-    veto_free_counts = defaultdict(int)
-
-    for i, row in df.iterrows():
-        root_file = row["preSelect_path"]
-
-        try:
-            f = ROOT.TFile.Open(root_file)
-            if not f or f.IsZombie():
-                raise IOError("File could not be opened")
-
-            tree = f.Get("sndData")
-            if not tree:
-                raise ValueError("Tree 'sndData' not found in file")
-
-            for event in tree:
-                pdg = event.pdgCode
-                total_counts[particle_mapping[pdg]] += 1
-                veto = event.veto
-                if veto > 0:
-                    veto_tagged_counts[particle_mapping[pdg]] += 1
-                else:
-                    veto_free_counts[particle_mapping[pdg]] += 1
-            f.Close()
-
-        except Exception as e:
-            print(f"Error processing {root_file}: {e}")
-            continue
-        
-    particle_colors = {
-        've': '#1f77b4',
-        'vm': '#ff7f0e',
-        'vt': '#2ca02c',
-        'NC': '#d62728',
-        'kaon': '#9467bd',
-        'neutron': '#8c564b',
-        'muon': '#e377c2',
-        'data': '#7f7f7f'
-    }
-    fig, axs = plt.subplots(1, 3, figsize=(18, 6))
-
-    def plot_pie(ax, counts_dict, title):
-        items = [(label, counts_dict[label]) for label in particle_colors if counts_dict[label] > 0]
-        if not items:
-            ax.set_title(f"{title}\n(no data)")
-            ax.axis('off')
-            return
-
-        labels, sizes = zip(*items)
-        colors = [particle_colors[label] for label in labels]
-
-        wedges, texts, autotexts = ax.pie(
-            sizes,
-            labels=None,
-            autopct='%1.1f%%',
-            startangle=140,
-            colors=colors
+        print(
+            f"{str(group_name):<40} "
+            f"{int(available_events):>15,} "
+            f"{int(target):>15,} "
+            f"{int(selected_events):>15,} "
+            f"{selected_files:>15}"
         )
-        ax.set_title(title)
 
-        # Add custom legend with counts
-        legend_labels = [f"{lbl} ({cnt})" for lbl, cnt in zip(labels, sizes)]
-        ax.legend(wedges, legend_labels, title="Particles", loc='upper right', bbox_to_anchor=(1.3, 1.0))
+    df.loc[selected_indices, "selected_for_use"] = True
 
-
-
-    plot_pie(axs[0], total_counts, "Total Particles")
-    plot_pie(axs[1], veto_tagged_counts, "Veto Tagged")
-    plot_pie(axs[2], veto_free_counts, "Veto Free")
-
-    plt.tight_layout()
-
-    # Save figure
-    output_path = os.path.join(report_outdir, f"{dataset_name}_pie_charts.png")
-    plt.savefig(output_path)
-    plt.close()
-    print(f"Saved pie chart to {output_path}")
-    
-    # Print total event counts per category
-    print(f"\nSummary for {dataset_name}:")
-    print(f"  Total particles:       {sum(total_counts.values())}")
-    print(f"  Veto-tagged particles: {sum(veto_tagged_counts.values())}")
-    print(f"  Veto-free particles:   {sum(veto_free_counts.values())}")
-
-def check_MC_data():
-    mc_files = [
-    # "MC_kaon_FTFP_BERT_metadata.csv",
-    # "MC_neutron_FTFP_BERT_metadata.csv",
-    
-    # "MC_kaon_QGSP_BERT_HP_PEN_metadata.csv",
-    # "MC_neutron_QGSP_BERT_HP_PEN_metadata.csv",
-    
-    # "MC_muon_down_metadata.csv",
-    # "MC_muon_horizontal_metadata.csv",
-    # "MC_muon_up_metadata.csv",
-    
-    # "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
-     "MC_neutrino_volTarget_100fb-1_metadata.csv",
-    
-    # "real_data_2022_metadata.csv",
-    # "real_data_2023_metadata.csv",
-    # "real_data_2024_metadata.csv",
-    ]
-
-    root_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated'
-
-    metadata_vars = load_metadata_files(mc_files, root_path)
-
-    
-
-    # MC_neutrino_volMuFilter_20fb_1 = metadata_vars["MC_neutrino_volMuFilter_20fb_1"]
-    MC_neutrino_volTarget_100fb_1 = metadata_vars["MC_neutrino_volTarget_100fb_1"]
-
-    # real_data_2022 = metadata_vars["real_data_2022"]
-    # real_data_2023 = metadata_vars["real_data_2023"]
-    # real_data_2024 = metadata_vars["real_data_2024"]
-    
-    #MC_muon = pd.concat([MC_muon_down, MC_muon_horizontal, MC_muon_up], ignore_index=True)
-    
-    #create_dataset_report
-    # MC_kaon_FTFP_BERT = metadata_vars["MC_kaon_FTFP_BERT"]
-    # MC_neutron_FTFP_BERT = metadata_vars["MC_neutron_FTFP_BERT"]
-    
-    # MC_neutron_QGSP_BERT_HP_PEN = metadata_vars["MC_neutron_QGSP_BERT_HP_PEN"]
-    # MC_kaon_QGSP_BERT_HP_PEN = metadata_vars["MC_kaon_QGSP_BERT_HP_PEN"]
-    # check_neutral_bkg_dataset(MC_kaon_FTFP_BERT, "MC_kaon_FTFP_BERT")
-    # check_neutral_bkg_dataset(MC_neutron_FTFP_BERT, "MC_neutron_FTFP_BERT")
-    # check_neutral_bkg_dataset(MC_neutron_QGSP_BERT_HP_PEN, "MC_neutron_QGSP_BERT_HP_PEN")
-    # check_neutral_bkg_dataset(MC_kaon_QGSP_BERT_HP_PEN, "MC_kaon_QGSP_BERT_HP_PEN")
-    
-    
-    
-    # MC_muon_down = metadata_vars["MC_muon_down"]
-    # MC_muon_horizontal = metadata_vars["MC_muon_horizontal"]
-    # MC_muon_up = metadata_vars["MC_muon_up"]
-    # check_muon_bkg_dataset(MC_muon_down, "MC_muon_down")
-    # check_muon_bkg_dataset(MC_muon_horizontal, "MC_muon_horizontal")
-    # check_muon_bkg_dataset(MC_muon_up, "MC_muon_up")
-    
-    #check_neutrino_dataset
-    check_neutrion_bkg_dataset(MC_neutrino_volTarget_100fb_1, "MC_neutrino_volTarget_100fb_1")
-    
-    # check_real_data
-
-def get_neutrino_train_set():
-    mc_files = [
-        # "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
-        "MC_neutrino_volTarget_100fb-1_metadata.csv",
-    ]
-    root_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated'
-    metadata_vars = load_metadata_files(mc_files, root_path)
-
-    df = metadata_vars["MC_neutrino_volTarget_100fb_1"]
-    updated_rows = []
-
-    print("Reading vetoFree and vetoTagged counts from ROOT files...")
-    for _, row in tqdm(df.iterrows(), total=len(df), unit="file"):
-        row = row.copy()
-
-        if "preSelect_path" in row and isinstance(row["preSelect_path"], str):
-            path = row["preSelect_path"]
-            if os.path.exists(path):
-                try:
-                    f = ROOT.TFile.Open(path)
-                    if f and not f.IsZombie():
-                        tree = f.Get("sndData")
-                        if tree:
-                            row["vetoFree_count"] = tree.GetEntries("preSelect_vetoFree == 1")
-                            row["vetoTagged_count"] = tree.GetEntries("preSelect_vetoTagged == 1")
-                    f.Close()
-                except Exception as e:
-                    print(f"Error reading {path}: {e}")
-
-        updated_rows.append(row)
-
-    df = pd.DataFrame(updated_rows)
-    df["vetoFree_count"] = df["vetoFree_count"].fillna(0).astype(int)
-    df["vetoTagged_count"] = df["vetoTagged_count"].fillna(0).astype(int)
-
-    # ---- Split by cumulative count (not row count) ----
-    total_events = df["vetoFree_count"].sum()
-    train_target = int(0.4 * total_events)
-    val_target = int(0.1 * total_events)
-
-    print(f"\nTotal vetoFree events: {total_events:.3e}")
-    print(f"Target: train={train_target:.3e}, val={val_target:.3e}")
-
-    df["split"] = ""
-    accum = 0
-
-    for idx, row in df.iterrows():
-        if accum < train_target:
-            df.at[idx, "split"] = "train"
-        elif accum < train_target + val_target:
-            df.at[idx, "split"] = "val"
-        accum += row["vetoFree_count"]
-
-    # Summary
-    train_sum = df[df["split"] == "train"]["vetoFree_count"].sum()
-    val_sum = df[df["split"] == "val"]["vetoFree_count"].sum()
-
-    print(f"Train vetoFree count: {train_sum:.3e}")
-    print(f"Val  vetoFree count: {val_sum:.3e}")
-    
-    
-
-    return df[df["split"].isin(["train", "val"])].copy()
-
-
-def get_vetoFree_event_count(root_path):
-    try:
-        f = ROOT.TFile.Open(root_path)
-        if not f or f.IsZombie():
-            return 0
-        tree = f.Get("sndData")
-        if not tree:
-            return 0
-        count = tree.GetEntries("preSelect_vetoFree == 1")
-        
-        f.Close()
-        return count
-    except Exception as e:
-        print(f"Error reading {root_path}: {e}")
-        return 0
-
-def process_neutral_bkg_df(df):
-    target_events = {
-        '5-10': 50_000,
-        '10-20': 10_000,
-        '20-30': 5_000,
-        '30-40': 5_000,
-        '40-50': 5_000,
-        '50-60': 5_000,
-        '60-70': 5_000,
-        '70-90': 5_000,
-    }
-    def canonical_energy_range(er_str):
-        try:
-            er_tuple = eval(er_str)
-            return f"{int(er_tuple[0])}-{int(er_tuple[1])}"
-        except Exception:
-            return "unknown"
-
-    df["energy_bin"] = df["energy_range"].apply(canonical_energy_range)
-    selected_rows = []
-    grouped = df.groupby("energy_bin")
-    
-    for energy_range, group in grouped:
-        print(energy_range)
-        target = target_events.get(energy_range, 0)
-        if target == 0:
-            continue
-
-        train_target = target
-        val_target = int(0.2 * target)
-        train_accum = 0
-        val_accum = 0
-
-        print(f"\nProcessing energy range {energy_range} (target: {target} events)")
-
-        for _, row in tqdm(group.iterrows(), total=len(group), desc=f"{energy_range} progress", unit="file"):
-            root_file = row["preSelect_path"]
-            vetoFree_count = get_vetoFree_event_count(root_file)  # or use get_vetoFree_event_count if filtering is needed
-
-            if vetoFree_count == 0:
-                continue
-
-            row = row.copy()
-            row["vetoFree_count"] = vetoFree_count
-
-            if train_accum < train_target:
-                row["split"] = "train"
-                train_accum += vetoFree_count
-                selected_rows.append(row)
-
-            elif val_accum < val_target:
-                row["split"] = "val"
-                val_accum += vetoFree_count
-                selected_rows.append(row)
-
-            # Update tqdm description with % completed
-            total_accum = train_accum + val_accum
-            tqdm.write(f"  -> {total_accum}/{target} accumulated ({100 * total_accum / target:.1f}%)")
-
-            if train_accum >= train_target and val_accum >= val_target:
-                break
-
-    return pd.DataFrame(selected_rows)
-
-def get_neutral_bkg_train_set():
-    mc_files = [
-    "MC_kaon_FTFP_BERT_metadata.csv",
-    "MC_neutron_FTFP_BERT_metadata.csv",
-    ]
-    root_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated'
-    metadata_vars = load_metadata_files(mc_files, root_path)
-    
-    MC_kaon_FTFP_BERT = metadata_vars["MC_kaon_FTFP_BERT"]
-    MC_neutron_FTFP_BERT = metadata_vars["MC_neutron_FTFP_BERT"]
-    MC_kaon_train_df = process_neutral_bkg_df(MC_kaon_FTFP_BERT)
-    MC_neutron_train_df = process_neutral_bkg_df(MC_neutron_FTFP_BERT)
-    
-    #print(MC_kaon_train_df)
-    #print(MC_neutron_train_df)
-
-    combined_df = pd.concat([MC_kaon_train_df, MC_neutron_train_df], ignore_index=True)
-    return combined_df
-    
-def get_muon_train_set():
-    mc_files = [
-    "MC_muon_down_metadata.csv",
-    "MC_muon_horizontal_metadata.csv",
-    "MC_muon_up_metadata.csv",
-    ]
-    root_path = '/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/updated'
-    metadata_vars = load_metadata_files(mc_files, root_path)
-    
-    MC_muon_down = metadata_vars["MC_muon_down"]
-    MC_muon_horizontal = metadata_vars["MC_muon_horizontal"]
-    MC_muon_up = metadata_vars["MC_muon_up"]
-    
-    MC_muon_df = pd.concat([MC_muon_down, MC_muon_horizontal, MC_muon_up], ignore_index=True)
-    
-    updated_rows = []
-
-    print("Reading vetoFree and vetoTagged event counts...")
-    for _, row in tqdm(MC_muon_df.iterrows(), total=len(MC_muon_df), unit="file"):
-        row = row.copy()
-
-        # Veto-free
-        if "vetoFree_hit_path" in row and isinstance(row["vetoFree_hit_path"], str):
-            path = row["vetoFree_hit_path"]
-            if os.path.exists(path):
-                try:
-                    f = ROOT.TFile.Open(path)
-                    if f and not f.IsZombie():
-                        tree = f.Get("sndData")
-                        if tree:
-                            row["vetoFree_count"] = tree.GetEntries()
-                    f.Close()
-                except Exception as e:
-                    print(f"Error reading vetoFree file: {path}, error: {e}")
-
-        # Veto-tagged
-        if "vetoTagged_hit_path" in row and isinstance(row["vetoTagged_hit_path"], str):
-            path = row["vetoTagged_hit_path"]
-            if os.path.exists(path):
-                try:
-                    f = ROOT.TFile.Open(path)
-                    if f and not f.IsZombie():
-                        tree = f.Get("sndData")
-                        if tree:
-                            row["vetoTagged_count"] = tree.GetEntries()
-                    f.Close()
-                except Exception as e:
-                    print(f"Error reading vetoTagged file: {path}, error: {e}")
-
-        updated_rows.append(row)
-
-    df = pd.DataFrame(updated_rows)
-    df["vetoFree_count"] = df["vetoFree_count"].fillna(0).astype(int)
-    df["vetoTagged_count"] = df["vetoTagged_count"].fillna(0).astype(int)
-
-    # ---- VetoFree split ----
-    total_vf = df["vetoFree_count"].sum()
-    train_threshold_vf = 0.8 * total_vf
-    accum_vf = 0
-    vf_split = []
-
-    for count in df["vetoFree_count"]:
-        if accum_vf < train_threshold_vf:
-            vf_split.append("train")
-        else:
-            vf_split.append("val")
-        accum_vf += count
-
-    df["vetoFree_split"] = vf_split
-
-    # ---- VetoTagged split ----
-    total_vt = df["vetoTagged_count"].sum()
-    train_threshold_vt = 0.8 * total_vt
-    accum_vt = 0
-    vt_split = []
-
-    for count in df["vetoTagged_count"]:
-        if accum_vt < train_threshold_vt:
-            vt_split.append("train")
-        else:
-            vt_split.append("val")
-        accum_vt += count
-
-    df["vetoTagged_split"] = vt_split
-
-    # ---- Summary ----
-    vf_train = df[df["vetoFree_split"] == "train"]["vetoFree_count"].sum()
-    vf_val  = df[df["vetoFree_split"] == "val"]["vetoFree_count"].sum()
-    vt_train = df[df["vetoTagged_split"] == "train"]["vetoTagged_count"].sum()
-    vt_val  = df[df["vetoTagged_split"] == "val"]["vetoTagged_count"].sum()
-
-    print("\nVetoFree Split:")
-    print(f"  Train: {vf_train:.3e}")
-    print(f"  Val : {vf_val:.3e}")
-
-    print("\nVetoTagged Split:")
-    print(f"  Train: {vt_train:.3e}")
-    print(f"  Val : {vt_val:.3e}")
+    print("-" * 120)
+    print(
+        f"{'TOTAL_SELECTED_BACKGROUND':<40} "
+        f"{int(total_available):>15,} "
+        f"{int(sum(target_by_group.values())):>15,} "
+        f"{int(total_selected_background_events):>15,} "
+        f"{total_selected_background_files:>15}"
+    )
+    print("-" * 120)
 
     return df
 
 
-def cal_avg_veto_ineff():
-    pass
-    
+def apply_split_selection(
+    df: pd.DataFrame,
+    split_name: str,
+    use_frac: float,
+    equal_size: bool,
+    event_column: str = "n_event",
+    seed: int = 42,
+) -> pd.DataFrame:
+    if not 0.0 <= use_frac <= 1.0:
+        raise ValueError(f"{split_name} use fraction must be between 0 and 1.")
 
-def generate_train_dataset():
-    # Neutrino total: 318547, train:val:test=4:1:5, train=127k (vetoFree)
-    neutrino_df = get_neutrino_train_set()
-    
-    
-    # MC kaon(vetoFree)
-    # MC Neutron (vetoFree)
-    neutral_bkg_df = get_neutral_bkg_train_set()
-    
+    df = df.copy()
 
-    # MC muon (vetoFree + vetoTagged but drop veto hits)
-    muon_bkg_df = get_muon_train_set()
-    
-    
-    # Output directory and model name
-    out_dir = "./training"
-    model_name = 'GravNet_v2'
-    
-    # Ensure output directory exists
-    os.makedirs(out_dir, exist_ok=True)
+    split_mask = df["split"] == split_name
+    split_df = df[split_mask].copy()
 
-    # Save individual splits
-    neutrino_path = f"{out_dir}/{model_name}_neutrino_split.csv"
-    neutral_bkg_path = f"{out_dir}/{model_name}_neutral_bkg_split.csv"
-    muon_bkg_path = f"{out_dir}/{model_name}_muon_bkg_split.csv"
-    
-    
-    neutrino_df.to_csv(neutrino_path, index=False)
-    neutral_bkg_df.to_csv(neutral_bkg_path, index=False)
-    muon_bkg_df.to_csv(muon_bkg_path, index=False)
+    df.loc[split_mask, "selected_for_use"] = False
 
-    print(f"Saved:")
-    print(f" - Neutrino samples to {neutrino_path}")
-    print(f" - Neutral background samples to {neutral_bkg_path}")
-    print(f" - Muon background samples to {muon_bkg_path}")
-   
-def read_train_splts(splits='train'):
-    out_dir = "./training"
-    model_name = 'GravNet_v2'
+    if split_df.empty:
+        print(f"No {split_name} rows found.")
+        return df
 
-    neutrino_path = f"{out_dir}/{model_name}_neutrino_split.csv"
-    neutral_bkg_path = f"{out_dir}/{model_name}_neutral_bkg_split.csv"
-    muon_bkg_path = f"{out_dir}/{model_name}_muon_bkg_split.csv"
-    
+    available_by_group = (
+        split_df.groupby("train_cap_group", dropna=False)[event_column]
+        .sum()
+        .sort_index()
+    )
 
-    # Read CSVs
-    neutrino_df = pd.read_csv(neutrino_path)
-    neutral_bkg_df = pd.read_csv(neutral_bkg_path)
-    muon_bkg_df = pd.read_csv(muon_bkg_path)
-    
-    neutrino_df['weight'] = neutrino_df['lumi_per_file']/neutrino_df['vetoFree_count']
-    neutral_bkg_df['weight'] = neutral_bkg_df['lumi_per_file']/neutral_bkg_df['vetoFree_count']
-    
-    neutrion_lumi = neutrino_df['lumi_per_file'].sum()
-    muon_factor = neutrion_lumi/muon_bkg_df['lumi_per_file'].sum()
-    muon_bkg_df['weight'] = muon_bkg_df['lumi_per_file']/muon_bkg_df['vetoTagged_count'] * muon_factor
-    
-    # Group neutral background by energy bin and data_type
-    grouped = neutral_bkg_df.groupby(['energy_bin', 'data_type'])
-    weights = {}
-    # Normalize rates to get weights
-    for (energy_bin, data_type), group_df in grouped:
-        factor = neutrion_lumi / group_df['lumi_per_file'].sum()
-        for idx, row in group_df.iterrows():
-            weights[idx] = row['lumi_per_file'] / row['vetoFree_count'] * factor * 0.15
-            #write weight to row
+    if available_by_group.empty:
+        print(f"No groups found for {split_name}.")
+        return df
 
-    # Assign weights
-    neutral_bkg_df['weight'] = neutral_bkg_df.index.map(weights)
-    
-    
-    #update neutrino_df, neutral_bkg_df, muon_bkg_df which has new columns to its csv file
-    neutrino_df.to_csv(neutrino_path, index=False)
-    neutral_bkg_df.to_csv(neutral_bkg_path, index=False)
-    muon_bkg_df.to_csv(muon_bkg_path, index=False)
-    
-    neutrino_df['total_weights'] = neutrino_df['weight'] * neutrino_df['vetoFree_count']
-    neutral_bkg_df['total_weights'] = neutral_bkg_df['weight'] * neutral_bkg_df['vetoFree_count']
-    muon_bkg_df['total_weights'] = muon_bkg_df['weight'] * muon_bkg_df['vetoTagged_count']
-    print(neutrino_df)
-    print(neutral_bkg_df)
-    print(muon_bkg_df)
+    equal_target = available_by_group.min()
 
-        # Determine which splits to include
-    if splits == 'train':
-        split_list = ['train']
-    elif splits == 'val':
-        split_list = ['val']
-    else:
-        split_list = ['train', 'val']
+    print(f"\nSelecting {split_name} split")
+    print("-" * 120)
+    print(f"use fraction : {use_frac:.3f}")
+    print(f"equal size   : {equal_size}")
+    if equal_size:
+        print(f"equal target : {int(equal_target):,}")
+    print("-" * 120)
 
-    summary_rows = [] 
-    # Print counts, lumi, and weight sum for neutrino and neutral background
-    def print_counts(df, label):
-        for split in split_list:
-            split_df = df[df['split'] == split]
-            vf_count = split_df['vetoFree_count'].sum() if 'vetoFree_count' in split_df.columns else 0
-            lumi_sum = split_df['lumi_per_file'].sum() if 'lumi_per_file' in split_df.columns else 0
-            weight_sum = split_df['total_weights'].sum() if 'total_weights' in split_df.columns else 0
-            print(f"{label} [{split}]: vetoFree_count = {vf_count}, lumi_per_file sum = {lumi_sum}, weight sum = {weight_sum}")
-            
-            # also store the same info for the table
-            summary_rows.append({
-                "sample": label,
-                "split": split,
-                "vetoFree_count": vf_count,
-                "lumi_vf": lumi_sum,
-                "weight_sum": weight_sum,
-            })
+    selected_indices = []
 
-    print_counts(neutrino_df, 'Neutrino')
-    # Separate neutral background into kaon and neutron components
-    kaon_df = neutral_bkg_df[neutral_bkg_df['data_type'] == 'MC_kaon'].copy()
-    neutron_df = neutral_bkg_df[neutral_bkg_df['data_type'] == 'MC_neutron'].copy()
+    print(
+        f"{'group':<40} {'available':>15} {'base_target':>15} "
+        f"{'target':>15} {'selected':>15} {'selected_files':>15}"
+    )
+    print("-" * 120)
 
-    # Print separate stats
-    print_counts(kaon_df, 'Neutral Background (Kaon)')
-    print_counts(neutron_df, 'Neutral Background (Neutron)')
+    for i, (group_name, available_events) in enumerate(available_by_group.items()):
+        group_df = split_df[split_df["train_cap_group"] == group_name].copy()
+
+        if equal_size:
+            base_target = equal_target
+        else:
+            base_target = available_events
+
+        target_events = base_target * use_frac
+
+        selected_idx = select_rows_by_event_budget(
+            df_group=group_df,
+            target_events=target_events,
+            event_column=event_column,
+            seed=seed + i,
+        )
+
+        selected_group_df = group_df.loc[selected_idx]
+        selected_events = selected_group_df[event_column].sum()
+        selected_files = len(selected_group_df)
+
+        selected_indices.extend(selected_idx.tolist())
+
+        print(
+            f"{str(group_name):<40} "
+            f"{int(available_events):>15,} "
+            f"{int(base_target):>15,} "
+            f"{int(target_events):>15,} "
+            f"{int(selected_events):>15,} "
+            f"{selected_files:>15}"
+        )
+
+    df.loc[selected_indices, "selected_for_use"] = True
+    return df
 
 
-    # Print counts, lumi, and weight sum for muon background
-    def print_muon_counts(df):
-        for split in split_list:
-            vf_mask = df['vetoFree_split'] == split
-            vt_mask = df['vetoTagged_split'] == split
+def filter_by_split_dataset(df: pd.DataFrame, split_dataset: str) -> pd.DataFrame:
+    if split_dataset == "neutral_hadron":
+        return df[df["particle_name"].isin(["kaon", "neutron"])].copy()
 
-            vf_count = df.loc[vf_mask, 'vetoFree_count'].sum()
-            vt_count = df.loc[vt_mask, 'vetoTagged_count'].sum()
+    if split_dataset == "neutrino":
+        mask = (
+            df["sample_name"].str.contains("ve", case=False, regex=False)
+            | df["sample_name"].str.contains("vm", case=False, regex=False)
+        )
+        return df[mask].copy()
 
-            lumi_vf = df.loc[vf_mask, 'lumi_per_file'].sum()
-            lumi_vt = df.loc[vt_mask, 'lumi_per_file'].sum()
+    if split_dataset == "all":
+        return df.copy()
 
-            weight_sum = df.loc[vt_mask, 'total_weights'].sum() if 'total_weights' in df.columns else 0
+    raise ValueError(f"Unknown split_dataset: {split_dataset}")
 
-            print(f"Muon Background [{split}]: vetoFree_count = {vf_count}, lumi = {lumi_vf}; "
-                  f"vetoTagged_count = {vt_count}, lumi = {lumi_vt}, weight sum = {weight_sum}")
-            
-            # store for table
-            summary_rows.append({
-                "sample": "Muon Background",
-                "split": split,
-                "vetoFree_count": vf_count,
-                "vetoTagged_count": vt_count,
-                "lumi_vf": lumi_vf,
-                "lumi_vt": lumi_vt,
-                "weight_sum": weight_sum,
-            })
 
-    print_muon_counts(muon_bkg_df)
+def format_int(value):
+    return f"{int(value):,}"
 
-    summary_df = pd.DataFrame(summary_rows)
 
-    # reorder columns nicely
-    summary_df = summary_df[
-        ["sample", "split", "vetoFree_count", "vetoTagged_count",
-        "lumi_vf", "lumi_vt", "weight_sum"]
-    ]
+def format_float(value):
+    return f"{float(value):,.6f}"
 
-    print(summary_df)
-    
 
-     
+def print_summary_header(event_column: str):
+    print(
+        f"{'class':<40} "
+        f"{event_column:>18} "
+        f"{'total_event':>18} "
+        f"{'fraction':>12} "
+        f"{'lumi_per_file_sum':>20}"
+    )
+
+
+def print_summary_row(name, event_sum, lumi_sum, total_events, indent=0):
+    prefix = " " * indent
+    width = max(8, 40 - indent)
+
+    frac = 100.0 * event_sum / total_events if total_events else 0.0
+
+    print(
+        f"{prefix}{name:<{width}} "
+        f"{format_int(event_sum):>18} "
+        f"{format_int(total_events):>18} "
+        f"{frac:>11.2f}% "
+        f"{format_float(lumi_sum):>20}"
+    )
+
+
+def print_event_summary(
+    df: pd.DataFrame,
+    title: str,
+    event_column: str,
+    reference_df: pd.DataFrame,
+):
+    print(f"\n{title}")
+    print_summary_header(event_column)
+    print("-" * 120)
+
+    particle_total_dict = {}
+
+    for sample_name, sample_df in df.groupby("sample_name", sort=True):
+        particle_name = sample_df["particle_name"].iloc[0]
+
+        sample_event_sum = sample_df[event_column].sum()
+        sample_lumi_sum = sample_df["lumi_per_file"].sum()
+
+        ref_sample_df = reference_df[reference_df["sample_name"] == sample_name]
+        ref_sample_total = ref_sample_df[event_column].sum()
+
+        print_summary_row(
+            name=sample_name,
+            event_sum=sample_event_sum,
+            lumi_sum=sample_lumi_sum,
+            total_events=ref_sample_total,
+        )
+
+        particle_total_dict.setdefault(
+            particle_name,
+            {"event": 0, "lumi": 0.0, "ref_event": 0},
+        )
+        particle_total_dict[particle_name]["event"] += sample_event_sum
+        particle_total_dict[particle_name]["lumi"] += sample_lumi_sum
+        particle_total_dict[particle_name]["ref_event"] += ref_sample_total
+
+        if particle_name in ["kaon", "neutron"]:
+            grouped = (
+                sample_df.groupby("energy_range", dropna=False)[
+                    [event_column, "lumi_per_file"]
+                ]
+                .sum()
+                .reset_index()
+            )
+
+            for _, row in grouped.iterrows():
+                energy = row["energy_range"]
+
+                ref_energy_total = ref_sample_df[
+                    ref_sample_df["energy_range"] == energy
+                ][event_column].sum()
+
+                print_summary_row(
+                    name=f"energy={energy}",
+                    event_sum=row[event_column],
+                    lumi_sum=row["lumi_per_file"],
+                    total_events=ref_energy_total,
+                    indent=4,
+                )
+
+    print("\nEvent summary by particle:")
+    print_summary_header(event_column)
+    print("-" * 120)
+
+    for particle_name, totals in sorted(particle_total_dict.items()):
+        print_summary_row(
+            name=particle_name,
+            event_sum=totals["event"],
+            lumi_sum=totals["lumi"],
+            total_events=totals["ref_event"],
+        )
+
+
+def print_selection_overview(
+    df: pd.DataFrame,
+    event_column: str,
+):
+    print("\nSelection overview")
+    print("-" * 100)
+    print(
+        f"{'split':<15} "
+        f"{'assigned_events':>18} "
+        f"{'selected_events':>18} "
+        f"{'selected/assigned':>18} "
+        f"{'selected_files':>15} "
+        f"{'assigned_files':>15}"
+    )
+    print("-" * 100)
+
+    for split_name in ["train", "val", "test"]:
+        split_df = df[df["split"] == split_name]
+        selected_df = split_df[split_df["selected_for_use"]]
+
+        assigned_events = split_df[event_column].sum()
+        selected_events = selected_df[event_column].sum()
+        frac = 100.0 * selected_events / assigned_events if assigned_events else 0.0
+
+        print(
+            f"{split_name:<15} "
+            f"{format_int(assigned_events):>18} "
+            f"{format_int(selected_events):>18} "
+            f"{frac:>17.2f}% "
+            f"{len(selected_df):>15} "
+            f"{len(split_df):>15}"
+        )
+
+
+def print_actual_subset_summaries(
+    df: pd.DataFrame,
+    event_column: str,
+    reference_df: pd.DataFrame,
+):
+    train_df = df[(df["split"] == "train") & (df["selected_for_use"])]
+    val_df = df[(df["split"] == "val") & (df["selected_for_use"])]
+    test_df = df[(df["split"] == "test") & (df["selected_for_use"])]
+
+    print_selection_overview(df, event_column=event_column)
+
+    print_event_summary(
+        train_df,
+        title="Actual training subset summary",
+        event_column=event_column,
+        reference_df=reference_df,
+    )
+
+    print_event_summary(
+        val_df,
+        title="Actual validation subset summary",
+        event_column=event_column,
+        reference_df=reference_df,
+    )
+
+    print_event_summary(
+        test_df,
+        title="Actual test subset summary",
+        event_column=event_column,
+        reference_df=reference_df,
+    )
+
+
+def main(args):
+    buffer = io.StringIO()
+
+    with contextlib.redirect_stdout(buffer):
+        merged_df = load_and_merge_metadata(
+            metadata_dir=args.metadata_dir,
+            metadata_file_list=args.metadata,
+        )
+
+        merged_df = filter_by_split_dataset(
+            merged_df,
+            split_dataset=args.split_dataset,
+        )
+
+        if merged_df.empty:
+            raise ValueError(
+                f"No rows left after applying split_dataset={args.split_dataset}"
+            )
+
+        print_event_summary(
+            merged_df,
+            title=f"Full metadata summary after split_dataset={args.split_dataset}",
+            event_column="n_event",
+            reference_df=merged_df,
+        )
+
+        split_df = stratified_split(
+            merged_df=merged_df,
+            train_frac=0.4,
+            test_frac=0.4,
+            val_frac=0.2,
+            seed=args.seed,
+        )
+
+        split_df["selected_for_use"] = False
+
+        split_df = apply_split_selection(
+            df=split_df,
+            split_name="train",
+            use_frac=args.train_use_frac,
+            equal_size=args.equal_size_train,
+            event_column="n_event",
+            seed=args.seed,
+        )
+
+        split_df = apply_split_selection(
+            df=split_df,
+            split_name="val",
+            use_frac=args.val_use_frac,
+            equal_size=args.equal_size_val,
+            event_column="n_event",
+            seed=args.seed + 1000,
+        )
+
+        split_df = apply_split_selection(
+            df=split_df,
+            split_name="test",
+            use_frac=args.test_use_frac,
+            equal_size=args.equal_size_test,
+            event_column="n_event",
+            seed=args.seed + 2000,
+        )
+
+        print_actual_subset_summaries(
+            split_df,
+            event_column="n_event",
+            reference_df=merged_df,
+        )
+
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # split_df.to_csv(output_path, index=False)
+
+        # print(f"\nSaved split metadata to: {output_path}")
+        selected_df = split_df[split_df["selected_for_use"]].copy()
+
+        selected_df.to_csv(output_path, index=False)
+
+        print(
+            f"\nSaved selected metadata to: {output_path} "
+            f"({len(selected_df):,} rows / {len(split_df):,} total rows"
+        )
+
+    report_text = buffer.getvalue()
+
+    print(report_text)
+
+    txt_path = Path(args.output).with_suffix(".txt")
+    txt_path.write_text(report_text)
+
+    print(f"Saved summary report to: {txt_path}")
+
+
 if __name__ == "__main__":
-    #check_MC_data()
-    #generate_train_dataset()
-    read_train_splts()
-    
-    
+    parser = argparse.ArgumentParser(
+        description="Generate merged metadata CSV with split and selected-for-use flags"
+    )
 
+    parser.add_argument(
+        "-o", "--output",
+        required=True,
+        help="Path to output merged CSV file",
+    )
 
+    parser.add_argument(
+        "-m", "--metadata",
+        nargs="+",
+        required=True,
+        help="Metadata CSV filenames",
+    )
 
+    parser.add_argument(
+        "-i", "--metadata-dir",
+        required=True,
+        help="Directory containing metadata CSV files",
+    )
 
-# weight for each file
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for reproducible splitting and selection",
+    )
+
+    parser.add_argument(
+        "--split-dataset",
+        choices=["neutral_hadron", "neutrino", "all"],
+        default="all",
+        help=(
+            "Dataset subset to process: "
+            "'neutral_hadron' = kaon + neutron, "
+            "'neutrino' = ve + vm neutrino samples, "
+            "'all' = all samples"
+        ),
+    )
+
+    parser.add_argument(
+        "--train-use-frac",
+        type=float,
+        default=0.1,
+        help="Fraction of selected train target to use.",
+    )
+
+    parser.add_argument(
+        "--val-use-frac",
+        type=float,
+        default=0.1,
+        help="Fraction of selected validation target to use.",
+    )
+
+    parser.add_argument(
+        "--test-use-frac",
+        type=float,
+        default=0.1,
+        help="Fraction of selected test target to use.",
+    )
+
+    parser.add_argument(
+        "--no-equal-size-train",
+        action="store_false",
+        dest="equal_size_train",
+        default=True,
+        help="Disable equal-size balancing for train split.",
+    )
+
+    parser.add_argument(
+        "--no-equal-size-val",
+        action="store_false",
+        dest="equal_size_val",
+        default=True,
+        help="Disable equal-size balancing for validation split.",
+    )
+
+    parser.add_argument(
+        "--no-equal-size-test",
+        action="store_false",
+        dest="equal_size_test",
+        default=True,
+        help="Disable equal-size balancing for test split.",
+    )
+
+    parser.add_argument(
+        "--background-to-signal-ratio",
+        type=float,
+        default=5.0,
+        help="Total background train event budget = ratio * train signal events",
+    )
+
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=0.5,
+        help=(
+            "Budget allocation mix for background train groups: "
+            "alpha * equal_share + (1-alpha) * proportional_share"
+        ),
+    )
+
+    args = parser.parse_args()
+    main(args)

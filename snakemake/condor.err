@@ -1,4 +1,4 @@
-host: b9p28p7318.cern.ch
+host: b9p19p9007.cern.ch
 Building DAG of jobs...
 Using shell: /usr/bin/bash
 Provided cores: 1 (use --cores to define parallelism)
@@ -6,129 +6,26 @@ Rules claiming more threads will be scaled down.
 Select jobs to execute...
 Execute 1 jobs...
 
-[Tue Mar 31 17:49:58 2026]
-localrule plot_nueAnalysis_hist:
-    output: /afs/cern.ch/work/z/zhibin/snd-ml/evaluation/nueAnalysis/hist/HAD_scale_factor_1.9__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10/qdc_us5avg_scifi_x - avg_scifi1_x__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10.done
+[Tue Apr 28 03:46:36 2026]
+localrule process_hits:
+    input: /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/neutrons/neu_90_100/Ntuples/328/sndLHC.PG_2112-TGeant4_digCPP.root, /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/neutrons/neu_90_100/Ntuples/328/geofile_full.PG_2112-TGeant4.root, /afs/cern.ch/work/z/zhibin/snd-ml/convertData/digi_2_hits3D.py, /eos/experiment/sndlhc/users/zhibin/MC_neutron/FTFP_BERT/neu_90_100/328/nueAnalysisFilter_MC_neutron_FTFP_BERT_neu_90_100_328.root
+    output: /eos/experiment/sndlhc/users/zhibin/MC_neutron/FTFP_BERT/neu_90_100/328/npz_hit_MC_neutron_FTFP_BERT_neu_90_100_328.npz
     jobid: 0
     reason: Forced execution
-    wildcards: HAD_scale_factor=1.9, base_cut_key=2_3_4_5_8_9_10, extra_cut_key=density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10, hist_name=qdc_us5avg_scifi_x - avg_scifi1_x
-    resources: tmpdir=/pool/condor/dir_2059572/tmp, disk_mb=2000, disk=2 GB, disk_mib=1908, mem_mb=2000, mem=2 GB, mem_mib=1908, runtime=1800, nvidia_gpu=0
-usage: plot_hist_nueAnalysis.py [-h]
-                                [--feature {density_scifi,density_scifi1,density_scifi2,density_scifi3,density_scifi4,density_scifi5,density_sndsw_scifi,count_scifi,count_scifi1,count_scifi2,count_scifi3,count_scifi4,count_scifi5,avg_scifi_x,avg_scifi1_x,avg_scifi2_x,avg_scifi3_x,avg_scifi4_x,avg_scifi5_x,avg_scifi_x - avg_scifi1_x,avg_scifi_x - avg_scifi2_x,avg_scifi_x - avg_scifi3_x,avg_scifi_x - avg_scifi4_x,avg_scifi_x - avg_scifi5_x,avg_scifi_y - avg_scifi1_y,avg_scifi_y - avg_scifi2_y,avg_scifi_y - avg_scifi3_y,avg_scifi_y - avg_scifi4_y,avg_scifi_y - avg_scifi5_y,avg_scifi_y,avg_scifi1_y,avg_scifi2_y,avg_scifi3_y,avg_scifi4_y,avg_scifi5_y,avg_ds_x,avg_ds1_x,avg_ds2_x,avg_ds3_x,avg_ds4_x,avg_ds_y,avg_ds1_y,avg_ds2_y,avg_ds3_y,avg_ds4_y,avg_us_y,avg_us1_y,avg_us2_y,avg_us3_y,avg_us4_y,avg_us5_y,count_us,count_us1,count_us2,count_us3,count_us4,count_us5,count_ds,count_ds1,count_ds2,count_ds3,count_ds4,qdc_scifi,qdc_scifi1,qdc_scifi2,qdc_scifi3,qdc_scifi4,qdc_scifi5,qdc_us,qdc_us1,qdc_us2,qdc_us3,qdc_us4,qdc_us5}]
-                                [--extra_cut EXTRA_CUT] [--base_cut BASE_CUT] [--tree TREE] [--outdir OUTDIR] [--title TITLE] [--fold-overflow] [--fold-underflow]
-                                [--had-scale-factor HAD_SCALE_FACTOR]
-                                [input_dir]
-plot_hist_nueAnalysis.py: error: argument --feature: invalid choice: 'qdc_us5avg_scifi_x - avg_scifi1_x' (choose from 'density_scifi', 'density_scifi1', 'density_scifi2', 'density_scifi3', 'density_scifi4', 'density_scifi5', 'density_sndsw_scifi', 'count_scifi', 'count_scifi1', 'count_scifi2', 'count_scifi3', 'count_scifi4', 'count_scifi5', 'avg_scifi_x', 'avg_scifi1_x', 'avg_scifi2_x', 'avg_scifi3_x', 'avg_scifi4_x', 'avg_scifi5_x', 'avg_scifi_x - avg_scifi1_x', 'avg_scifi_x - avg_scifi2_x', 'avg_scifi_x - avg_scifi3_x', 'avg_scifi_x - avg_scifi4_x', 'avg_scifi_x - avg_scifi5_x', 'avg_scifi_y - avg_scifi1_y', 'avg_scifi_y - avg_scifi2_y', 'avg_scifi_y - avg_scifi3_y', 'avg_scifi_y - avg_scifi4_y', 'avg_scifi_y - avg_scifi5_y', 'avg_scifi_y', 'avg_scifi1_y', 'avg_scifi2_y', 'avg_scifi3_y', 'avg_scifi4_y', 'avg_scifi5_y', 'avg_ds_x', 'avg_ds1_x', 'avg_ds2_x', 'avg_ds3_x', 'avg_ds4_x', 'avg_ds_y', 'avg_ds1_y', 'avg_ds2_y', 'avg_ds3_y', 'avg_ds4_y', 'avg_us_y', 'avg_us1_y', 'avg_us2_y', 'avg_us3_y', 'avg_us4_y', 'avg_us5_y', 'count_us', 'count_us1', 'count_us2', 'count_us3', 'count_us4', 'count_us5', 'count_ds', 'count_ds1', 'count_ds2', 'count_ds3', 'count_ds4', 'qdc_scifi', 'qdc_scifi1', 'qdc_scifi2', 'qdc_scifi3', 'qdc_scifi4', 'qdc_scifi5', 'qdc_us', 'qdc_us1', 'qdc_us2', 'qdc_us3', 'qdc_us4', 'qdc_us5')
-RuleException:
-CalledProcessError in file "/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/rules/evaluation.smk", line 130:
-Command 'set -euo pipefail;  
-        echo "plotting nueAnalysis hist"
-
-        set +u
-
-        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
-        export EOSSHIP=root://eosuser.cern.ch/
-
-        # Create temporary working directory
-        TMPDIR=$(mktemp -d)
-        echo "Using TMPDIR=$TMPDIR"
-
-        # Run script locally
-        python /afs/cern.ch/work/z/zhibin/snd-ml/evaluation/plot_hist_nueAnalysis.py \
-            --feature "qdc_us5avg_scifi_x - avg_scifi1_x" \
-            --base_cut "2 3 4 5 8 9 10" \
-            --extra_cut "density_sndsw_scifi > 1000 && (count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) && (count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) && (count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) && (count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) && (count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50)) &&(count_scifi1 <= 2 || (abs(avg_scifi_x - avg_scifi1_x) < 10) && (abs(avg_scifi_y - avg_scifi1_y) < 10)) && (count_scifi2 <= 2 || (abs(avg_scifi_x - avg_scifi2_x) < 10) && (abs(avg_scifi_y - avg_scifi2_y) < 10)) && (count_scifi3 <= 2 || (abs(avg_scifi_x - avg_scifi3_x) < 10) && (abs(avg_scifi_y - avg_scifi3_y) < 10)) && (count_scifi4 <= 2 || (abs(avg_scifi_x - avg_scifi4_x) < 10) && (abs(avg_scifi_y - avg_scifi4_y) < 10)) &&(count_scifi5 <= 2 || (abs(avg_scifi_x - avg_scifi5_x) < 10) && (abs(avg_scifi_y - avg_scifi5_y) < 10))" \
-            --had-scale-factor 1.9 \
-            --outdir "$TMPDIR"
-
-
-        # Copy PDFs to EOS
-        PDF=$(ls "$TMPDIR"/*.pdf)
-        xrdcp -f "$PDF" "/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/nueAnalysis/hist/HAD_scale_factor_1.9__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10/"
-
-        # Cleanup
-        rm -rf "$TMPDIR"
-
-        # Mark completion
-        touch "/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/nueAnalysis/hist/HAD_scale_factor_1.9__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10/qdc_us5avg_scifi_x - avg_scifi1_x__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10.done"' returned non-zero exit status 2.
-[Tue Mar 31 17:50:04 2026]
-Error in rule plot_nueAnalysis_hist:
-    message: None
-    jobid: 0
-    output: /afs/cern.ch/work/z/zhibin/snd-ml/evaluation/nueAnalysis/hist/HAD_scale_factor_1.9__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10/qdc_us5avg_scifi_x - avg_scifi1_x__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10.done
-    shell:
-        
-        echo "plotting nueAnalysis hist"
-
-        set +u
-
-        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
-        export EOSSHIP=root://eosuser.cern.ch/
-
-        # Create temporary working directory
-        TMPDIR=$(mktemp -d)
-        echo "Using TMPDIR=$TMPDIR"
-
-        # Run script locally
-        python /afs/cern.ch/work/z/zhibin/snd-ml/evaluation/plot_hist_nueAnalysis.py \
-            --feature "qdc_us5avg_scifi_x - avg_scifi1_x" \
-            --base_cut "2 3 4 5 8 9 10" \
-            --extra_cut "density_sndsw_scifi > 1000 && (count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) && (count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) && (count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) && (count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) && (count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50)) &&(count_scifi1 <= 2 || (abs(avg_scifi_x - avg_scifi1_x) < 10) && (abs(avg_scifi_y - avg_scifi1_y) < 10)) && (count_scifi2 <= 2 || (abs(avg_scifi_x - avg_scifi2_x) < 10) && (abs(avg_scifi_y - avg_scifi2_y) < 10)) && (count_scifi3 <= 2 || (abs(avg_scifi_x - avg_scifi3_x) < 10) && (abs(avg_scifi_y - avg_scifi3_y) < 10)) && (count_scifi4 <= 2 || (abs(avg_scifi_x - avg_scifi4_x) < 10) && (abs(avg_scifi_y - avg_scifi4_y) < 10)) &&(count_scifi5 <= 2 || (abs(avg_scifi_x - avg_scifi5_x) < 10) && (abs(avg_scifi_y - avg_scifi5_y) < 10))" \
-            --had-scale-factor 1.9 \
-            --outdir "$TMPDIR"
-
-
-        # Copy PDFs to EOS
-        PDF=$(ls "$TMPDIR"/*.pdf)
-        xrdcp -f "$PDF" "/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/nueAnalysis/hist/HAD_scale_factor_1.9__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10/"
-
-        # Cleanup
-        rm -rf "$TMPDIR"
-
-        # Mark completion
-        touch "/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/nueAnalysis/hist/HAD_scale_factor_1.9__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10/qdc_us5avg_scifi_x - avg_scifi1_x__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10.done"
-    
-        (command exited with non-zero exit code)
-Shutting down, this might take some time.
-Exiting because a job execution failed. Look below for error messages
-[Tue Mar 31 17:50:04 2026]
-Error in rule plot_nueAnalysis_hist:
-    message: None
-    jobid: 0
-    output: /afs/cern.ch/work/z/zhibin/snd-ml/evaluation/nueAnalysis/hist/HAD_scale_factor_1.9__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10/qdc_us5avg_scifi_x - avg_scifi1_x__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10.done
-    shell:
-        
-        echo "plotting nueAnalysis hist"
-
-        set +u
-
-        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
-        export EOSSHIP=root://eosuser.cern.ch/
-
-        # Create temporary working directory
-        TMPDIR=$(mktemp -d)
-        echo "Using TMPDIR=$TMPDIR"
-
-        # Run script locally
-        python /afs/cern.ch/work/z/zhibin/snd-ml/evaluation/plot_hist_nueAnalysis.py \
-            --feature "qdc_us5avg_scifi_x - avg_scifi1_x" \
-            --base_cut "2 3 4 5 8 9 10" \
-            --extra_cut "density_sndsw_scifi > 1000 && (count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) && (count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) && (count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) && (count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) && (count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50)) &&(count_scifi1 <= 2 || (abs(avg_scifi_x - avg_scifi1_x) < 10) && (abs(avg_scifi_y - avg_scifi1_y) < 10)) && (count_scifi2 <= 2 || (abs(avg_scifi_x - avg_scifi2_x) < 10) && (abs(avg_scifi_y - avg_scifi2_y) < 10)) && (count_scifi3 <= 2 || (abs(avg_scifi_x - avg_scifi3_x) < 10) && (abs(avg_scifi_y - avg_scifi3_y) < 10)) && (count_scifi4 <= 2 || (abs(avg_scifi_x - avg_scifi4_x) < 10) && (abs(avg_scifi_y - avg_scifi4_y) < 10)) &&(count_scifi5 <= 2 || (abs(avg_scifi_x - avg_scifi5_x) < 10) && (abs(avg_scifi_y - avg_scifi5_y) < 10))" \
-            --had-scale-factor 1.9 \
-            --outdir "$TMPDIR"
-
-
-        # Copy PDFs to EOS
-        PDF=$(ls "$TMPDIR"/*.pdf)
-        xrdcp -f "$PDF" "/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/nueAnalysis/hist/HAD_scale_factor_1.9__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10/"
-
-        # Cleanup
-        rm -rf "$TMPDIR"
-
-        # Mark completion
-        touch "/afs/cern.ch/work/z/zhibin/snd-ml/evaluation/nueAnalysis/hist/HAD_scale_factor_1.9__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10/qdc_us5avg_scifi_x - avg_scifi1_x__2_3_4_5_8_9_10__density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial__delta_hit_direction_lt_10.done"
-    
-        (command exited with non-zero exit code)
+    wildcards: npz_hit_path=/eos/experiment/sndlhc/users/zhibin/MC_neutron/FTFP_BERT/neu_90_100/328/npz_hit_MC_neutron_FTFP_BERT_neu_90_100_328.npz
+    resources: tmpdir=/pool/condor/dir_38898/tmp, disk_mb=2000, disk=2 GB, disk_mib=1908, mem_mb=2000, mem=2 GB, mem_mib=1908, runtime=3600, nvidia_gpu=0
+WARNING: not updating modulefiles
+Use alienv list to list loaded modules.
+Loading sndsw/latest-event_level_info_output-release
+  Loading requirement: BASE/1.0
+Info in <TGeoManager::CloseGeometry>: Geometry loaded from file...
+Info in <TGeoManager::SetTopVolume>: Top volume is cave. Master volume is cave
+Info in <TGeoNavigator::BuildCache>: --- Maximum geometry depth set to 100
+Info in <TGeoManager::Voxelize>: Voxelizing...
+Info in <TGeoManager::CountLevels>: max level = 7, max placements = 2829
+Info in <TGeoManager::CloseGeometry>: 342536 nodes/ 81 volume UID's in FAIR geometry
+Info in <TGeoManager::CloseGeometry>: ----------------modeler ready----------------
+[Tue Apr 28 03:53:00 2026]
+Finished jobid: 0 (Rule: process_hits)
+1 of 1 steps (100%) done
 Storing output in storage.
-WorkflowError:
-At least one job did not complete successfully.
