@@ -68,12 +68,17 @@ def classify_partition(partition):
     if partition in set(NEUTRINO_CATS):
         return partition
 
+    # MC kaon/neutron energy bins, optionally with _Max... suffix
     m = re.match(r"^(MC_(?:kaon|neutron)_\d+-\d+GeV)(?:_Max\d+-\d+)?$", partition)
     if m:
         return m.group(1)
 
-    return None
+    # MC_muonDIS_Max10-1, ..., MC_muonDIS_Max10-10
+    m = re.match(r"^(MC_muonDIS)(?:_Max\d+-\d+)?$", partition)
+    if m:
+        return m.group(1)
 
+    return None
 
 def is_valid_number(x):
     return math.isfinite(float(x))
@@ -220,7 +225,6 @@ def combine_categories(grouped_counts, categories, output_name, NutralHadScaleFa
         
     return combined
 
-
 def build_final_count_hists(args, grouped_counts):
     final_counts = {}
 
@@ -229,13 +233,31 @@ def build_final_count_hists(args, grouped_counts):
 
     final_counts["data"] = clone_hist(grouped_counts["real_data"], "count_data")
 
-    kaon = combine_categories(grouped_counts, KAON_BINS, "count_MC_kaon", NutralHadScaleFactor = args.had_scale_factor)
-    neutron = combine_categories(grouped_counts, NEUTRON_BINS, "count_MC_neutron", NutralHadScaleFactor = args.had_scale_factor)
+    kaon = combine_categories(
+        grouped_counts,
+        KAON_BINS,
+        "count_MC_kaon",
+        NutralHadScaleFactor=args.had_scale_factor,
+    )
+
+    neutron = combine_categories(
+        grouped_counts,
+        NEUTRON_BINS,
+        "count_MC_neutron",
+        NutralHadScaleFactor=args.had_scale_factor,
+    )
 
     if kaon is not None:
         final_counts["MC_kaon"] = kaon
+
     if neutron is not None:
         final_counts["MC_neutron"] = neutron
+
+    if "MC_muonDIS" in grouped_counts:
+        final_counts["MC_muonDIS"] = clone_hist(
+            grouped_counts["MC_muonDIS"],
+            "count_MC_muonDIS",
+        )
 
     for cat in NEUTRINO_CATS:
         if cat in grouped_counts:
@@ -374,6 +396,7 @@ def main(args):
         "MC_CC_numu",
         "MC_NC_nue",
         "MC_NC_numu",
+        "MC_muonDIS"
     ]
 
     category_rows = {}

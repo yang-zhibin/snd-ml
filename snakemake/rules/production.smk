@@ -150,6 +150,19 @@ def get_metadata_value(ref_name, ref_value, target_name, after_model=False):
 
     return f"{row['output_base_path'].rstrip('/')}/{value.lstrip('/')}"
 
+NUE_ANALYSIS_PIPELINE = "$SNDSW_ROOT/analysis/analyses/snd_analysis_2024_0mu/pipelines/nueFilterMoriondOrder_withEventLevelOutput.h"
+MUONDIS_NUE_ANALYSIS_PIPELINE = "$SNDSW_ROOT/analysis/analyses/snd_analysis_2024_0mu/pipelines/muonDISFilterMoriondOrder_withEventLevelOutput.h"
+NUE_ANALYSIS_PIPELINES_BY_DATA_TYPE = {
+    "MC_muonDIS": MUONDIS_NUE_ANALYSIS_PIPELINE,
+}
+
+def get_nue_analysis_pipeline(wildcards):
+    data_type = get_metadata_value(
+        "nueAnalysisFilter_path",
+        wildcards.nueAnalysisFilter_path,
+        "data_type",
+    )
+    return NUE_ANALYSIS_PIPELINES_BY_DATA_TYPE.get(data_type, NUE_ANALYSIS_PIPELINE)
 
 rule process_nueAnalysis:
     input:
@@ -159,7 +172,7 @@ rule process_nueAnalysis:
         
     params:
         data_type=lambda wildcards: get_metadata_value("nueAnalysisFilter_path", wildcards.nueAnalysisFilter_path, "data_type"),
-        pipeline = f"$SNDSW_ROOT/analysis/analyses/snd_analysis_2024_0mu/pipelines/nueFilterMoriondOrder_withEventLevelOutput.h"
+        pipeline=get_nue_analysis_pipeline
     output:
         nueAnalysisFilter_path="{nueAnalysisFilter_path}"
     threads:1
@@ -184,6 +197,7 @@ rule process_nueAnalysis:
         tmp_output="${{tmp_dir}}/${{filename}}"
 
         echo "Running sndEventFilter"
+        echo "Using sndEventFilter pipeline: {params.pipeline}"
         sndEventFilter \
             --input {input.digi} \
             --geofile {input.geo} \
@@ -350,3 +364,48 @@ rule process_muonDIS_features:
         echo "Cleaning up"
         rm -rf "${{tmp_dir}}"
         """
+
+rule process_muonDIS_digi:
+    input:
+        #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
+        digi=lambda wildcards: get_metadata_value(ref_name = "muonDISDigi_path", ref_value = wildcards.muonDISDigi_path, target_name = "digi_path",  after_model = False),
+        script = f"{PERSONAL_WORK_SPACE}/convertData/filter_muonDIS.py",
+    output:
+        muonDISDigi_path="{muonDISDigi_path}"
+    threads:1
+    resources:
+        runtime=1*60*60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        # Avoid conda/python conflicts
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        set +u  # Avoid unbound variable errors
+
+        echo "Source SNDSW environment script"
+        source {env_script_sndsw_nue}
+
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        tmp_dir=$(mktemp -d)
+        filename=$(basename "{output.muonDISDigi_path}")
+        tmp_output="${{tmp_dir}}/${{filename}}"
+
+        export PYTHONPATH="$SNDSW_ROOT:$PYTHONPATH"
+        echo "Running process_muonDIS_digi"
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
+            {input.script} \
+            -d {input.digi} \
+            -o "${{tmp_output}}" \
+
+
+        echo "Transferring output to EOS"
+        xrdcp -f "${{tmp_output}}" "{output.muonDISDigi_path}" || {{ echo "xrdcp failed"; exit 1; }}
+        echo "Cleaning up"
+        rm -rf "${{tmp_dir}}"
+        """
+
+
+

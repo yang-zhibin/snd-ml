@@ -8,6 +8,7 @@ import math
 from analysis.analyses.snd_analysis_2024_0mu.sciFiTools import selectHits, getSumDensity
 import numpy as np
 
+ROOT.TH1.AddDirectory(False)
 
 # ROOT.gInterpreter.Declare(r"""
 # #include <vector>
@@ -49,6 +50,209 @@ def open_root_file(file_path, tree_name='cbmsim', mode='read'):
     if not tree or not isinstance(tree, ROOT.TTree):
         raise RuntimeError(f"TTree '{tree_name}' not found in {file_path}")
     return file, tree
+
+
+def is_muonDIS_sample(args):
+    """Identify muonDIS jobs from the common path/type arguments."""
+    fields = ("out_path", "type", "digi_path", "preSelect_path")
+    return any("muondis" in str(getattr(args, field, "")).lower() for field in fields)
+
+
+def setup_event_deltat_alias(preSelect_tree):
+    """Make EventDeltat_m1_100 usable for trees with different sanitized names."""
+    alias_name = "EventDeltat_m1_100"
+    if preSelect_tree.GetBranch(alias_name) or preSelect_tree.GetLeaf(alias_name):
+        return alias_name
+
+    for candidate in ("EventDeltat_1_100", "EventDeltat_-1_100"):
+        if preSelect_tree.GetBranch(candidate) or preSelect_tree.GetLeaf(candidate):
+            preSelect_tree.SetAlias(alias_name, candidate)
+            return candidate
+
+    return None
+
+
+# muonDIS truth plan:
+#   1. Save primary MC tracks with mother_id == -1.
+#   2. Count all raw DIS secondaries with mother_id == 0 as nSecondaryRaw.
+#   3. Starting from valid SciFi digi hits, use Digi_ScifiHits2MCPoints to find
+#      linked ScifiPoint objects, then their MCTrack IDs. Save a secondary track
+#      only if it has mother_id == 0 and generated at least one SciFi digi hit.
+#      A set of track IDs avoids saving the same secondary once per hit.
+#   4. For each saved secondary, save one daughter MCTrack start position as a
+#      proxy for where that secondary first interacted/scattered in material.
+def make_track_vector_branches():
+    return {
+        "primary_pdg": ROOT.std.vector("int")(),
+        "primary_energy": ROOT.std.vector("double")(),
+        "primary_startX": ROOT.std.vector("double")(),
+        "primary_startY": ROOT.std.vector("double")(),
+        "primary_startZ": ROOT.std.vector("double")(),
+        "primary_px": ROOT.std.vector("double")(),
+        "primary_py": ROOT.std.vector("double")(),
+        "primary_pz": ROOT.std.vector("double")(),
+
+        "secondary_pdg": ROOT.std.vector("int")(),
+        "secondary_energy": ROOT.std.vector("double")(),
+        "secondary_startX": ROOT.std.vector("double")(),
+        "secondary_startY": ROOT.std.vector("double")(),
+        "secondary_startZ": ROOT.std.vector("double")(),
+        "secondary_px": ROOT.std.vector("double")(),
+        "secondary_py": ROOT.std.vector("double")(),
+        "secondary_pz": ROOT.std.vector("double")(),
+
+        "secondary_interactionChildTrackID": ROOT.std.vector("int")(),
+        "secondary_interactionChildPdg": ROOT.std.vector("int")(),
+        "secondary_interactionX": ROOT.std.vector("double")(),
+        "secondary_interactionY": ROOT.std.vector("double")(),
+        "secondary_interactionZ": ROOT.std.vector("double")(),
+    }
+
+
+def branch_vector_vars(tree, vector_branches):
+    for name, vec in vector_branches.items():
+        tree.Branch(name, vec)
+
+
+def reset_vector_branches(vector_branches):
+    for vec in vector_branches.values():
+        vec.clear()
+
+
+def fill_track_info(prefix, track, vector_branches):
+    vector_branches[f"{prefix}_pdg"].push_back(int(track.GetPdgCode()))
+    vector_branches[f"{prefix}_energy"].push_back(float(track.GetEnergy()))
+    vector_branches[f"{prefix}_startX"].push_back(float(track.GetStartX()))
+    vector_branches[f"{prefix}_startY"].push_back(float(track.GetStartY()))
+    vector_branches[f"{prefix}_startZ"].push_back(float(track.GetStartZ()))
+    vector_branches[f"{prefix}_px"].push_back(float(track.GetPx()))
+    vector_branches[f"{prefix}_py"].push_back(float(track.GetPy()))
+    vector_branches[f"{prefix}_pz"].push_back(float(track.GetPz()))
+
+
+def fill_secondary_interaction_info(child_track_id, child_track, vector_branches):
+    if child_track is None:
+        vector_branches["secondary_interactionChildTrackID"].push_back(-999)
+        vector_branches["secondary_interactionChildPdg"].push_back(-999)
+        vector_branches["secondary_interactionX"].push_back(-999.0)
+        vector_branches["secondary_interactionY"].push_back(-999.0)
+        vector_branches["secondary_interactionZ"].push_back(-999.0)
+        return
+
+    vector_branches["secondary_interactionChildTrackID"].push_back(int(child_track_id))
+    vector_branches["secondary_interactionChildPdg"].push_back(int(child_track.GetPdgCode()))
+    vector_branches["secondary_interactionX"].push_back(float(child_track.GetStartX()))
+    vector_branches["secondary_interactionY"].push_back(float(child_track.GetStartY()))
+    vector_branches["secondary_interactionZ"].push_back(float(child_track.GetStartZ()))
+
+
+def collect_first_child_by_mother(mc_tracks, mother_track_ids):
+    first_child_by_mother = {}
+    mother_track_ids = set(mother_track_ids)
+
+    for child_id in range(int(mc_tracks.GetEntriesFast())):
+        child = mc_tracks.At(child_id)
+        if child is None:
+            continue
+
+        mother_id = int(child.GetMotherId())
+        if mother_id in mother_track_ids and mother_id not in first_child_by_mother:
+            first_child_by_mother[mother_id] = (child_id, child)
+
+    return first_child_by_mother
+
+
+def get_scifi_hit2mc(event):
+    for name in ("Digi_ScifiHits2MCPoints", "Scifi_2_mcpoints", "Scifi_2_MCPoints"):
+        if not hasattr(event, name):
+            continue
+        links_array = getattr(event, name)
+        if links_array and links_array.GetEntriesFast() > 0:
+            return links_array[0]
+    return None
+
+
+def iter_linked_mcpoint_indices(hit2mc, key):
+    try:
+        links = hit2mc.wList(int(key))
+    except Exception:
+        return
+
+    for item in links:
+        try:
+            yield int(item[0])
+        except TypeError:
+            yield int(item)
+
+
+def collect_scifi_visible_secondary_track_ids(event):
+    if not all(hasattr(event, name) for name in ("Digi_ScifiHits", "ScifiPoint", "MCTrack")):
+        return set()
+
+    hit2mc = get_scifi_hit2mc(event)
+    if hit2mc is None:
+        return set()
+
+    secondary_track_ids = set()
+    scifi_points = event.ScifiPoint
+    mc_tracks = event.MCTrack
+
+    for hit_index, hit in enumerate(event.Digi_ScifiHits):
+        if not hit.isValid():
+            continue
+
+        point_ids = list(iter_linked_mcpoint_indices(hit2mc, hit.GetDetectorID()))
+        if not point_ids:
+            point_ids = list(iter_linked_mcpoint_indices(hit2mc, hit_index))
+
+        for point_id in point_ids:
+            if point_id < 0 or point_id >= scifi_points.GetEntriesFast():
+                continue
+            point = scifi_points.At(point_id)
+            if point is None:
+                continue
+
+            track_id = int(point.GetTrackID())
+            if track_id < 0 or track_id >= mc_tracks.GetEntriesFast():
+                continue
+            track = mc_tracks.At(track_id)
+            if track is None:
+                continue
+            if int(track.GetMotherId()) == 0:
+                secondary_track_ids.add(track_id)
+
+    return secondary_track_ids
+
+
+def process_muonDIS_tracks(event, vector_branches):
+    if not hasattr(event, "MCTrack"):
+        return 0, 0, 0
+
+    mc_tracks = event.MCTrack
+    visible_secondary_ids = collect_scifi_visible_secondary_track_ids(event)
+    first_child_by_mother = collect_first_child_by_mother(mc_tracks, visible_secondary_ids)
+    n_primary = 0
+    n_secondary_raw = 0
+    n_secondary = 0
+
+    for track_id in range(int(mc_tracks.GetEntriesFast())):
+        track = mc_tracks.At(track_id)
+        if track is None:
+            continue
+
+        mother_id = int(track.GetMotherId())
+        if mother_id == -1:
+            fill_track_info("primary", track, vector_branches)
+            n_primary += 1
+        elif mother_id == 0:
+            n_secondary_raw += 1
+            if track_id in visible_secondary_ids:
+                fill_track_info("secondary", track, vector_branches)
+                child_id, child_track = first_child_by_mother.get(track_id, (-999, None))
+                fill_secondary_interaction_info(child_id, child_track, vector_branches)
+                n_secondary += 1
+
+    return n_primary, n_secondary_raw, n_secondary
 
 
 def create_output_file(path, mode):
@@ -153,33 +357,27 @@ def process_count_and_qdc(SciFi_hits, MuFilter_hits, branch_vars):
     
 
  
-
 def process_vetoHitTime(MuFilter_hits, branch_vars):
-    # Filter veto hits (detType == 1)
     veto_hits = [h for h in MuFilter_hits if h["detType"] == 1]
 
-    # Compute earliest and latest per station
     per_station = {}
     for s in (1, 2, 3):
-        times = [h["hit_time"] for h in veto_hits if h["station"] == s]
+        times = [h["hitTimeCY"] for h in veto_hits if h["station"] == s]
         per_station[s] = {
-            "earliest": min(times) if times else -1,  # use -1 or 0 if no hit
-            "latest":   max(times) if times else -1,
+            "earliest": min(times) if times else -1,
+            "latest": max(times) if times else -1,
         }
 
-    # Compute overall earliest/latest
-    all_times = [h["hit_time"] for h in veto_hits]
+    all_times = [h["hitTimeCY"] for h in veto_hits]
     overall_earliest = min(all_times) if all_times else -1
-    overall_latest   = max(all_times) if all_times else -1
+    overall_latest = max(all_times) if all_times else -1
 
-    # Fill the branch variables
     branch_vars["vetoHitTime_earlist"][0] = overall_earliest
-    branch_vars["vetoHitTime_latest"][0]  = overall_latest
+    branch_vars["vetoHitTime_latest"][0] = overall_latest
 
     for s in (1, 2, 3):
         branch_vars[f"vetoHitTime_earlist_veto{s}"][0] = per_station[s]["earliest"]
-        branch_vars[f"vetoHitTime_latest_veto{s}"][0]  = per_station[s]["latest"]
-    
+        branch_vars[f"vetoHitTime_latest_veto{s}"][0] = per_station[s]["latest"]
     
     
 
@@ -429,9 +627,13 @@ def process_hits(args, event, vetoHits, snd_geo, branch_vars):
     Scifi = snd_geo.modules['Scifi']
     MuFilter = snd_geo.modules['MuFilter']
     A, B = ROOT.TVector3(), ROOT.TVector3()
+    is_muon_dis = is_muonDIS_sample(args)
     
 
-    sel_hits = selectHits(event, MC = (True if "MC" in args.type else False))  
+    if is_muon_dis:
+        sel_hits = [hit for hit in event.Digi_ScifiHits if hit.isValid()]
+    else:
+        sel_hits = selectHits(event, MC = (True if "MC" in args.type else False))  
     dens, dens2, dver, dhor = getSumDensity(sel_hits, return_2ndhighest=True, return_hv=True)
     branch_vars["density_sndsw_scifi"][0] = dens
     branch_vars["density_sndsw_scifi_second"][0] = dens2
@@ -478,35 +680,35 @@ def process_hits(args, event, vetoHits, snd_geo, branch_vars):
             continue
         
         # process veto hits
-        if aHit.GetSystem() == 1:
-            vh = vetoHits.ConstructedAt(n_veto_hit)
-            n_veto_hit += 1
+        # if aHit.GetSystem() == 1:
+            # vh = vetoHits.ConstructedAt(n_veto_hit)
+            # n_veto_hit += 1
             
-            total_energy_loss = 0
-            vh.mcPoints.clear()
-            for mc_point_i, mc_point_weight in linksToMCPoints:   
-                mc_point = event.MuFilterPoint[mc_point_i]
-                pdg = int(mc_point.PdgCode())
-                el  = float(mc_point.GetEnergyLoss())
-                x   = float(mc_point.GetX())
-                y   = float(mc_point.GetY())
-                z   = float(mc_point.GetZ())
+            # total_energy_loss = 0
+            # vh.mcPoints.clear()
+            # for mc_point_i, mc_point_weight in linksToMCPoints:   
+            #     mc_point = event.MuFilterPoint[mc_point_i]
+            #     pdg = int(mc_point.PdgCode())
+            #     el  = float(mc_point.GetEnergyLoss())
+            #     x   = float(mc_point.GetX())
+            #     y   = float(mc_point.GetY())
+            #     z   = float(mc_point.GetZ())
 
-                total_energy_loss += el
+            #     total_energy_loss += el
 
-                # Construct ScifiMiniPoint in-place, then fill its fields
-                vh.mcPoints.emplace_back()
-                p = vh.mcPoints.back()
-                p.pdg = pdg
-                p.energy_loss = el
-                p.x, p.y, p.z = x, y, z
-                p.weight = mc_point_weight
+            #     # Construct ScifiMiniPoint in-place, then fill its fields
+            #     vh.mcPoints.emplace_back()
+            #     p = vh.mcPoints.back()
+            #     p.pdg = pdg
+            #     p.energy_loss = el
+            #     p.x, p.y, p.z = x, y, z
+            #     p.weight = mc_point_weight
                 
-            # fill veto fields (note: you probably want station+1)
-            vh.hit_time   = hit_time
-            vh.veto_plane = int(station + 1)
-            vh.energy_loss = float(total_energy_loss)
-            vh.qdc = float(this_qdc)
+            # # fill veto fields (note: you probably want station+1)
+            # vh.hit_time   = hit_time
+            # vh.veto_plane = int(station + 1)
+            # vh.energy_loss = float(total_energy_loss)
+            # vh.qdc = float(this_qdc)
         
         detID = aHit.GetDetectorID()      
         MuFilter.GetPosition(detID, A, B)
@@ -534,12 +736,13 @@ def process_hits(args, event, vetoHits, snd_geo, branch_vars):
             "z":A.z(),
         })
     
-    #filter SciFi hits for real data
-    SciFi_hits, peak_by_group = filter_SciFiHits(
-            SciFi_hits,
-            lower_time_threshold=0.5,
-            upper_time_threshold=1.2
-        )
+    if not is_muon_dis:
+        # filter SciFi hits for samples using the standard time convention
+        SciFi_hits, peak_by_group = filter_SciFiHits(
+                SciFi_hits,
+                lower_time_threshold=0.5,
+                upper_time_threshold=1.2
+            )
     
     hitWeightDensity(SciFi_hits, branch_vars)
     
@@ -563,7 +766,7 @@ def main(args):
     snd_geo = setup_geometry(args.geo_path )
     raw_data, raw_tree = open_root_file(args.digi_path)
     preSelect_data, preSelect_tree = open_root_file(args.preSelect_path, tree_name='cutFlowSummary')
-    preSelect_tree.SetAlias("EventDeltat_m1_100", "EventDeltat_-1_100")
+    event_deltat_branch = setup_event_deltat_alias(preSelect_tree)
     
     out_file, new_tree = create_output_file(args.out_path, args.mode)
     
@@ -574,35 +777,55 @@ def main(args):
         selection = "AvgSFChan == 1 && NoVetoHits == 0"
     else:
         selection = "AvgSFChan == 1 && NoVetoHits == 1"
+    
+    if is_muonDIS_sample(args):
+        selection = ""
 
     if "MC" not in args.type:
-        selection = selection + "&& StableBeams==1 && IP1 == 1 && EventDeltat_m1_100 == 1"
+        if not event_deltat_branch:
+            raise RuntimeError("No EventDeltat cut branch found for real-data selection")
+        data_selection = "StableBeams == 1 && IP1 == 1 && EventDeltat_m1_100 == 1"
+
+        if selection:
+            selection = selection + " && " + data_selection
+        else:
+            selection = data_selection
+            
     if selection:
         print(f"Applying selection: {selection}")
         n_match = preSelect_tree.GetEntries(selection)
-        print(f"Entries matching selection: {n_match}")
-        if n_match == 0:
-            out_file.cd()
-            new_tree.Write()
-            cutflow_selected = preSelect_tree.CloneTree(0)
-            cutflow_selected.SetName("cutFlowSummary")
-            cutflow_selected.Write()
-            out_file.Close()
-            print("No entries matched the selection condition, saved empty sndData and cutFlowSummary trees")
-            return 0
+    else:
+        print("No selection applied")
+        n_match = preSelect_tree.GetEntries()
 
+    print(f"Entries matching selection: {n_match}")
+
+    if n_match == 0:
+        out_file.cd()
+        new_tree.Write()
+        cutflow_selected = preSelect_tree.CloneTree(0)
+        cutflow_selected.SetName("cutFlowSummary")
+        cutflow_selected.Write()
+        out_file.Close()
+        print("No entries matched, saved empty sndData and cutFlowSummary trees")
+        return 0
+
+    if selection:
         preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")
         elist = ROOT.gDirectory.Get(elist_name)
 
         if not elist or not isinstance(elist, ROOT.TEntryList):
             raise RuntimeError("Failed to create or retrieve TEntryList")
-        
+
         preSelect_tree.SetEntryList(elist)
     else:
-        raise ValueError("No selection condition determined from output file name.")
+        elist = ROOT.TEntryList("elist_all", "elist_all")
+        for j in range(preSelect_tree.GetEntries()):
+            elist.Enter(j)
 
     branches = [
         ("runId", 'i'), ("eventId", 'i'), ("pdgCode", 'i'), ("isMC", 'i'), ("eventIndex", 'i'),
+        ("nPrimary", 'i'), ("nSecondaryRaw", 'i'), ("nSecondary", 'i'),
         ("px", 'f'), ("py", 'f'), ("pz", 'f'),  # Floats
         ("x", 'f'), ("y", 'f'), ("z", 'f'),    # Floats
         
@@ -653,6 +876,9 @@ def main(args):
     for name, dtype in branches:
         branch_vars[name] = array.array(dtype, [-999])  # Initialize the array
         new_tree.Branch(name, branch_vars[name], f"{name}/{dtype.upper()}")
+
+    track_vector_branches = make_track_vector_branches()
+    branch_vector_vars(new_tree, track_vector_branches)
         
     #vetoHits = ROOT.std.vector('VetoHit')()
     
@@ -666,17 +892,24 @@ def main(args):
     
     for i in range(elist.GetN()):
         vetoHits.Clear()
+        reset_vector_branches(track_vector_branches)
         if i % 10000 == 0:
             print(f"processed {i} events")
         # Reset all branch variables before filling them
         for key in branch_vars:
             branch_vars[key][0] = -999
 
-        entry_number = elist.GetEntry(i)
-        raw_tree.GetEntry(entry_number)
-        preSelect_tree.GetEntry(entry_number)
+        cutflow_entry = elist.GetEntry(i)
+        preSelect_tree.GetEntry(cutflow_entry)
+
+        if hasattr(preSelect_tree, "entry"):
+            raw_entry = int(preSelect_tree.entry)
+        else:
+            raw_entry = cutflow_entry
+
+        raw_tree.GetEntry(raw_entry)
         
-        branch_vars["eventIndex"][0] = entry_number
+        branch_vars["eventIndex"][0] = raw_entry
         branch_vars["runId"][0] = raw_tree.EventHeader.GetRunId()
         
         
@@ -703,6 +936,12 @@ def main(args):
             branch_vars["px"][0] = raw_tree.MCTrack[0].GetPx()
             branch_vars["py"][0] = raw_tree.MCTrack[0].GetPy()
             branch_vars["pz"][0] = raw_tree.MCTrack[0].GetPz()
+
+            if is_muonDIS_sample(args):
+                n_primary, n_secondary_raw, n_secondary = process_muonDIS_tracks(raw_tree, track_vector_branches)
+                branch_vars["nPrimary"][0] = n_primary
+                branch_vars["nSecondaryRaw"][0] = n_secondary_raw
+                branch_vars["nSecondary"][0] = n_secondary
             
             
         
@@ -716,7 +955,10 @@ def main(args):
         new_tree.Fill()
     # Finalize the output file
     new_tree.Write()
-    cutflow_selected = preSelect_tree.CopyTree(selection)
+    if selection:
+        cutflow_selected = preSelect_tree.CopyTree(selection)
+    else:
+        cutflow_selected = preSelect_tree.CloneTree(-1)
     cutflow_selected.SetName("cutFlowSummary")
     cutflow_selected.Write()
     out_file.Close()

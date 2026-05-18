@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
 import argparse
+import ast
 import pandas as pd
 import ROOT
 from tqdm import tqdm
@@ -195,6 +198,19 @@ def parse_partition(partition: str) -> PartitionInfo:
             is_mc=True,
             category="muon",
         )
+    
+    m = re.fullmatch(r"MC_muonDIS_Max(\d+)-(\d+)", partition)
+    if m:
+        max_partitions = int(m.group(1))
+        partition_id = int(m.group(2))
+        return PartitionInfo(
+            raw=partition,
+            is_mc=True,
+            category="muonDIS",
+            partition_id=partition_id,
+            max_partitions=max_partitions,
+        )
+
 
     raise ValueError(f"Unrecognized partition format: {partition}")
 
@@ -213,6 +229,9 @@ def resolve_metadata_csv(info: PartitionInfo, metadata_dir: str | Path) -> Path:
 
     if info.category == "muon":
         return metadata_dir / "MC_muon_up_metadata.csv"
+    
+    if info.category == "muonDIS":
+        return metadata_dir / "MC_muonDIS_cvilela_metadata.csv"
 
     # neutrino samples
     if  "nue" in info.category:
@@ -288,7 +307,7 @@ def filter_metadata_rows(df: pd.DataFrame, info: PartitionInfo) -> pd.DataFrame:
     selected = df
 
     # Real data: split directly
-    if not info.is_mc:
+    if (not info.is_mc) or (info.category == "muonDIS"):
         if info.partition_id is None or info.max_partitions is None:
             raise ValueError(
                 f"Real-data partition must include MaxN-i format, got: {info.raw}"
@@ -345,6 +364,43 @@ def get_partition_info(partition: str, metadata_dir: str | Path) -> PartitionInf
     info.metadata_csv = str(resolve_metadata_csv(info, metadata_dir))
     return info
 
+
+def detect_event_tree_name(filepath):
+    root_file = ROOT.TFile.Open(filepath)
+    if not root_file or root_file.IsZombie():
+        raise RuntimeError(f"Could not open event source file: {filepath}")
+
+    for tree_name in ("cbmsim", "rawConv"):
+        tree = root_file.Get(tree_name)
+        if tree:
+            root_file.Close()
+            return tree_name
+
+    root_file.Close()
+    raise RuntimeError(f"Could not find rawConv or cbmsim tree in {filepath}")
+
+
+def save_filtered_event_tree(event_tree, outfile, tree_name):
+    print(f"\nSaving filtered event tree '{event_tree.GetName()}' as '{tree_name}'")
+    output_file = ROOT.TFile.Open(outfile, "UPDATE")
+    if not output_file or output_file.IsZombie():
+        raise RuntimeError(f"Could not reopen output file for filtered events: {outfile}")
+
+    output_file.cd()
+    passed_events = event_tree.CopyTree("")
+    if passed_events is None:
+        output_file.Close()
+        raise RuntimeError("Failed to copy filtered event tree")
+
+    n_entries = passed_events.GetEntries()
+    passed_events.SetName(tree_name)
+    passed_events.SetTitle("Filtered event tree entries from nueAnalysisFilter output")
+    passed_events.Write("", ROOT.TObject.kOverwrite)
+    output_file.Close()
+
+    print(f"Saved {n_entries} entries to tree '{tree_name}'")
+    return n_entries
+
 def build_tchain_and_lumi(
     info,
     df,
@@ -353,8 +409,8 @@ def build_tchain_and_lumi(
     lumi_col="lumi_per_file"
 ):
     chain = ROOT.TChain(tree_name)
-
-    neutrino_filter = build_neutrino_filter(info)
+    event_chain = None
+    event_tree_name = None
 
     lumi_per_file = {}
     total_lumi = 0.0
@@ -370,7 +426,18 @@ def build_tchain_and_lumi(
             n_missing += 1
             continue
 
+        this_event_tree_name = detect_event_tree_name(path)
+        if event_tree_name is None:
+            event_tree_name = this_event_tree_name
+            event_chain = ROOT.TChain(event_tree_name)
+        elif this_event_tree_name != event_tree_name:
+            raise RuntimeError(
+                "Mixed event tree names in one partition are not supported: "
+                f"got {this_event_tree_name} in {path}, expected {event_tree_name}"
+            )
+
         chain.Add(path)
+        event_chain.Add(path)
 
 
         lumi_val = 0.0
@@ -386,8 +453,13 @@ def build_tchain_and_lumi(
     print(f"\nFiles added to TChain: {len(lumi_per_file)}")
     print(f"Missing files: {n_missing}")
     print(f"Total luminosity: {total_lumi}")
+    print(f"Cutflow entries: {chain.GetEntries()}")
+    if event_chain is None:
+        raise RuntimeError("No event source files were added")
+    print(f"Event tree: {event_tree_name}")
+    print(f"Event entries: {event_chain.GetEntries()}")
 
-    return chain, lumi_per_file, total_lumi
+    return chain, event_chain, lumi_per_file, total_lumi
 
 def extract_info_from_partition(
     args,
@@ -403,6 +475,7 @@ def extract_info_from_partition(
     info : PartitionInfo
     df_selected : pandas.DataFrame
     chain : ROOT.TChain
+    event_chain : ROOT.TChain
     lumi_per_file : dict[str, float]
     total_lumi : float
     """
@@ -416,7 +489,7 @@ def extract_info_from_partition(
 
     print(f"Selected {len(df_selected)} rows from metadata for partition {info.raw}")
 
-    chain, lumi_per_file, total_lumi = build_tchain_and_lumi(
+    chain, event_chain, lumi_per_file, total_lumi = build_tchain_and_lumi(
         info,
         df_selected,
         tree_name=tree_name,
@@ -424,7 +497,7 @@ def extract_info_from_partition(
         lumi_col=lumi_col,
     )
 
-    return info, df_selected, chain, lumi_per_file, total_lumi
+    return info, df_selected, chain, event_chain, lumi_per_file, total_lumi
     
 
 
@@ -565,9 +638,21 @@ def process_efficiency(args, chain, total_lumi, info):
     ROOT.TNamed("flavor", str(getattr(info, "flavor", ""))).Write()
 
     fout.Close()
+
+    if args.save_filtered_events:
+        if args.event_tree is None:
+            raise RuntimeError("Cannot save filtered events: no event tree was built")
+
+        filtered_tree_name = args.filtered_tree_name or args.event_tree.GetName()
+        save_filtered_event_tree(
+            event_tree=args.event_tree,
+            outfile=outfile,
+            tree_name=filtered_tree_name,
+        )
     
 def main(args):
-    info, df_selected, chain, lumi_per_file, total_lumi = extract_info_from_partition(args)
+    info, df_selected, chain, event_chain, lumi_per_file, total_lumi = extract_info_from_partition(args)
+    args.event_tree = event_chain
     
     process_efficiency(args, chain, total_lumi, info)
 
@@ -584,7 +669,7 @@ if __name__ == "__main__":
         "-o", "--outdir",
         dest="outdir",
         help="output diretory",
-        default=None
+        default="."
     )
     parser.add_argument(
         "-p", "--partition",
@@ -598,6 +683,19 @@ if __name__ == "__main__":
         dest="metadata_dir",
         help="metadata directory",
         required=True
+    )
+    parser.add_argument(
+        "--no-save-filtered-events",
+        dest="save_filtered_events",
+        action="store_false",
+        default=True,
+        help="Do not save the filtered event tree from the nueAnalysisFilter output",
+    )
+    parser.add_argument(
+        "--filtered-tree-name",
+        dest="filtered_tree_name",
+        default=None,
+        help="Name of the output tree containing merged filtered events. Defaults to the source tree name.",
     )
     
     args = parser.parse_args()

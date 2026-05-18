@@ -50,6 +50,9 @@ NEUTRINO_CATS = [
     "MC_CC_numu",
 ]
 
+BACKGROUND_MODELS = ["neutral_hadrons", "muonDIS"]
+SCALE_FACTOR_TARGETS = ["fixed", "data"]
+
 
 def print_hist_summary(tag, hist):
     if hist is None:
@@ -92,6 +95,9 @@ def classify_partition(partition):
     m = re.match(r"^(MC_(?:kaon|neutron)_\d+-\d+GeV)(?:_Max\d+-\d+)?$", partition)
     if m:
         return m.group(1)
+
+    if re.match(r"^MC_muonDIS_Max\d+-\d+$", partition):
+        return "muonDIS"
 
     return None
 
@@ -343,7 +349,7 @@ def make_histograms(chains, feature, hist_cfg, base_cut="", extra_cut="" ,fold_u
         safe_cat = re.sub(r"[^A-Za-z0-9_]", "_", category)
         hname = f"h_{safe_cat}"
         
-        selection = get_category_selection(category, args.base_cut, args.extra_cut, cut_info)
+        selection = get_category_selection(category, base_cut, extra_cut, cut_info)
         
         #print(category, selection)
         
@@ -384,7 +390,24 @@ def make_histograms(chains, feature, hist_cfg, base_cut="", extra_cut="" ,fold_u
     return grouped_hists
 
 
-def scale_mc_to_data(grouped_hists, grouped_lumi, data_category="real_data"):
+def get_hist_config(feature, extra_cut_key=""):
+    hist_cfg = hist_info[feature]
+    override = hist_range_overrides.get(feature, {}).get(extra_cut_key)
+
+    if override is None:
+        return hist_cfg
+
+    bin_width, x_min, x_max = override
+    _, _, _, axis_title, logy = hist_cfg
+    print(
+        f"[hist config] override for feature={feature!r}, extra_cut_key={extra_cut_key!r}: "
+        f"bin_width={bin_width}, range=[{x_min}, {x_max}]"
+    )
+    return (bin_width, x_min, x_max, axis_title, logy)
+
+
+def scale_mc_to_data(grouped_hists, grouped_lumi, data_category="real_data", keep_unscaled_on_invalid_lumi=None):
+    keep_unscaled_on_invalid_lumi = set(keep_unscaled_on_invalid_lumi or [])
     data_lumi = grouped_lumi[data_category]
 
     if not math.isfinite(data_lumi) or data_lumi <= 0:
@@ -399,6 +422,9 @@ def scale_mc_to_data(grouped_hists, grouped_lumi, data_category="real_data"):
         mc_lumi = grouped_lumi.get(category, float("nan"))
 
         if not math.isfinite(mc_lumi) or mc_lumi <= 0:
+            if category in keep_unscaled_on_invalid_lumi:
+                print(f"[scale] {category:25s} : kept unscaled (invalid lumi = {mc_lumi})")
+                continue
             zero_hist(hist)
             print(f"[scale] {category:25s} : set to 0 (invalid lumi = {mc_lumi})")
             continue
@@ -441,6 +467,23 @@ def combine_categories(grouped_hists, categories, output_name, NutralHadScaleFac
     return combined
 
 
+def calculate_background_scale_factor(background_integral, data_integral, scale_factor_target, fixed_target=8.21):
+    if background_integral <= 0:
+        raise RuntimeError(
+            "Cannot calculate background scale factor: background integral is zero after selections. "
+            "Check whether the selected background has entries after base/extra cuts, whether the plotted "
+            "feature range catches those entries, and whether luminosity scaling zeroed the histogram."
+        )
+
+    if scale_factor_target == "fixed":
+        return fixed_target / background_integral, fixed_target, f"fixed {fixed_target}"
+
+    if scale_factor_target == "data":
+        return data_integral / background_integral, data_integral, "data integral"
+
+    raise ValueError(f"Unknown scale-factor target: {scale_factor_target}")
+
+
 def combine_backgrounds(args, grouped_hists):
     final_hists = {}
 
@@ -450,52 +493,84 @@ def combine_backgrounds(args, grouped_hists):
 
     final_hists["data"] = data_hist.Clone("h_data")
     final_hists["data"].SetDirectory(0)
-
-    kaon_hist = combine_categories(grouped_hists, KAON_BINS, "h_kaon", NutralHadScaleFactor= args.had_scale_factor)
-    neutron_hist = combine_categories(grouped_hists, NEUTRON_BINS, "h_neutron",NutralHadScaleFactor= args.had_scale_factor)
-    
-    kaon_integral = kaon_hist.Integral()
-    neutron_integral = neutron_hist.Integral()
     data_integral = final_hists["data"].Integral()
-    
-    NutralHadronTotal = 8.21
-    NutralHadron_integral = kaon_integral+neutron_integral
-    
-    Nutral_scale_factor = NutralHadronTotal/NutralHadron_integral
-    
-    print("=== Neutral Hadron Scaling Info ===")
-    print(f"NutralHadronTotal (90% CL Upper limit)                       = {NutralHadronTotal}")
-    print(f"MC Kaon total                                                = {kaon_integral}")
-    print(f"MC Neutron total                                             = {neutron_integral}")
-    print(f"MC Neutral total (MC Kaon + MC Neutron)                      = {NutralHadron_integral}")
-    print(f"Nutral_scale_factor = NutralHadronTotal/ MC Neutral total    = {Nutral_scale_factor}")
-    
-    # Nutral_scale_factor = data_integral/NutralHadron_integral
-    # print("=== Neutral Hadron Scaling Info ===")
-    # print(f"Data total (density range [1000, 6000]                       = {data_integral}")
-    # print(f"MC Kaon total                                                = {kaon_integral}")
-    # print(f"MC Neutron total                                             = {neutron_integral}")
-    # print(f"MC Neutral total (MC Kaon + MC Neutron)                      = {NutralHadron_integral}")
-    # print(f"Nutral_scale_factor = NutralHadronTotal/ MC Neutral total    = {Nutral_scale_factor}")
-    
-    if args.normalise:
-        kaon_hist.Scale(Nutral_scale_factor)
-        neutron_hist.Scale(Nutral_scale_factor)
-    
-    
-    
 
-    
+    background_scale_factor = None
+    scale_target_value = None
+    scale_target_label = ""
 
+    if args.background_model == "neutral_hadrons":
+        kaon_hist = combine_categories(grouped_hists, KAON_BINS, "h_kaon", NutralHadScaleFactor=args.had_scale_factor)
+        neutron_hist = combine_categories(grouped_hists, NEUTRON_BINS, "h_neutron", NutralHadScaleFactor=args.had_scale_factor)
 
-    
+        kaon_integral = kaon_hist.Integral() if kaon_hist is not None else 0.0
+        neutron_integral = neutron_hist.Integral() if neutron_hist is not None else 0.0
+        NutralHadron_integral = kaon_integral + neutron_integral
 
-    if kaon_hist is not None:
-        final_hists["kaon"] = kaon_hist
-        # print_hist_summary("final kaon", kaon_hist)
-    if neutron_hist is not None:
-        final_hists["neutron"] = neutron_hist
-        # print_hist_summary("final neutron", neutron_hist)
+        background_scale_factor, scale_target_value, scale_target_label = calculate_background_scale_factor(
+            background_integral=NutralHadron_integral,
+            data_integral=data_integral,
+            scale_factor_target=args.scale_factor_target,
+        )
+
+        print("=== Neutral Hadron Scaling Info ===")
+        print(f"Applied neutral hadron scale factor                          = {args.had_scale_factor}")
+        print(f"Scale factor target mode                                     = {args.scale_factor_target}")
+        print(f"Scale factor target ({scale_target_label})                   = {scale_target_value}")
+        print(f"Data total                                                   = {data_integral}")
+        print(f"MC Kaon total                                                = {kaon_integral}")
+        print(f"MC Neutron total                                             = {neutron_integral}")
+        print(f"MC Neutral total (MC Kaon + MC Neutron)                      = {NutralHadron_integral}")
+        print(f"background_scale_factor = target / MC Neutral total          = {background_scale_factor}")
+
+        if args.normalise:
+            if kaon_hist is not None:
+                kaon_hist.Scale(background_scale_factor)
+            if neutron_hist is not None:
+                neutron_hist.Scale(background_scale_factor)
+
+        if kaon_hist is not None:
+            final_hists["kaon"] = kaon_hist
+            # print_hist_summary("final kaon", kaon_hist)
+        if neutron_hist is not None:
+            final_hists["neutron"] = neutron_hist
+            # print_hist_summary("final neutron", neutron_hist)
+
+    elif args.background_model == "muonDIS":
+        muondis_hist = grouped_hists.get("muonDIS")
+        if muondis_hist is None:
+            raise RuntimeError(
+                "No muonDIS histograms found. Expected files like "
+                "hist_MC_muonDIS_Max10-1.root in the input directory."
+            )
+
+        muondis_hist = muondis_hist.Clone("h_muonDIS")
+        muondis_hist.SetDirectory(0)
+        sanitize_hist_bins(muondis_hist)
+
+        print_hist_summary("muonDIS before calculated scaling", muondis_hist)
+        muondis_integral = muondis_hist.Integral()
+        background_scale_factor, scale_target_value, scale_target_label = calculate_background_scale_factor(
+            background_integral=muondis_integral,
+            data_integral=data_integral,
+            scale_factor_target=args.scale_factor_target,
+        )
+
+        if args.normalise:
+            muondis_hist.Scale(background_scale_factor)
+
+        final_hists["muonDIS"] = muondis_hist
+
+        print("=== Muon DIS Scaling Info ===")
+        print(f"Scale factor target mode                                     = {args.scale_factor_target}")
+        print(f"Scale factor target ({scale_target_label})                   = {scale_target_value}")
+        print(f"Data total                                                   = {data_integral}")
+        print(f"MC muonDIS total before calculated scaling                   = {muondis_integral}")
+        print(f"background_scale_factor = target / MC muonDIS total          = {background_scale_factor}")
+        if args.normalise:
+            print(f"MC muonDIS total after calculated scaling                    = {muondis_hist.Integral()}")
+    else:
+        raise ValueError(f"Unknown background model: {args.background_model}")
 
     # print_hist_summary("final data", final_hists["data"])
     for cat in NEUTRINO_CATS:
@@ -509,21 +584,25 @@ def combine_backgrounds(args, grouped_hists):
         final_hists[cat] = cloned
         # print_hist_summary(f"final {cat}", cloned)
 
-    return final_hists, Nutral_scale_factor
+    return final_hists, background_scale_factor, scale_target_label
 
 
 def style_final_hists(final_hists):
     style_data_hist(final_hists.get("data"))
     style_hist(final_hists.get("kaon"), ROOT.kBlue + 2, fill=True)
     style_hist(final_hists.get("neutron"), ROOT.kBlue - 2, fill=True)
+    style_hist(final_hists.get("muonDIS"), ROOT.kMagenta + 2, fill=True)
     style_hist(final_hists.get("MC_CC_numu"), ROOT.kRed + 1, fill=True)
     style_hist(final_hists.get("MC_CC_nue"), ROOT.kYellow, fill=True)
     style_hist(final_hists.get("MC_NC_numu"), ROOT.kGreen + 3, fill=True)
     style_hist(final_hists.get("MC_NC_nue"), ROOT.kGreen - 5, fill=True)
 
 
-def build_stack_draw_hists(final_hists):
-    stack_order = ["kaon", "neutron", "MC_NC_nue", "MC_NC_numu", "MC_CC_nue", "MC_CC_numu"]
+def build_stack_draw_hists(final_hists, background_model):
+    if background_model == "muonDIS":
+        stack_order = ["muonDIS", "MC_NC_nue", "MC_NC_numu", "MC_CC_nue", "MC_CC_numu"]
+    else:
+        stack_order = ["kaon", "neutron", "MC_NC_nue", "MC_NC_numu", "MC_CC_nue", "MC_CC_numu"]
     draw_hists = []
 
     for cat in stack_order:
@@ -602,19 +681,20 @@ def get_ratio_range(ratio_hist, default_min=0.5, default_max=1.5, padding=0.15):
 
     return ymin, ymax
 
-def draw_plot(data_lumi, final_hists, feature, hist_cfg, outdir, Nutral_scale_factor, base_cut="", extra_cut="", title=""):
+def draw_plot(data_lumi, final_hists, feature, hist_cfg, outdir, background_model, background_scale_factor, scale_factor_target, scale_target_label="", base_cut="", extra_cut="", title=""):
     ROOT.gStyle.SetOptStat(0)
 
     bin_width, x_min, x_max, axis_title, logy = hist_cfg
     n_bins =int((x_max - x_min) / bin_width)
 
-    cut_tag = sanitize_cut(base_cut)
-    output_file = os.path.join(outdir, f"Had-sacle-factor-{Nutral_scale_factor}__{feature}__{cut_tag}__binWidth{(bin_width)}__range{x_min}-{x_max}__logy{logy}.pdf")
+    cut_tag = sanitize_cut(base_cut, extra_cut)
+    scale_tag = "none" if background_scale_factor is None else f"{background_scale_factor:.6g}"
+    output_file = os.path.join(outdir, f"{background_model}__target-{scale_factor_target}__scale-factor-{scale_tag}__{feature}__{cut_tag}__binWidth{(bin_width)}__range{x_min}-{x_max}__logy{logy}.pdf")
 
     # --------------------------------------------------
     # Build safe draw copies and keep them alive
     # --------------------------------------------------
-    raw_stack_hists = build_stack_draw_hists(final_hists)
+    raw_stack_hists = build_stack_draw_hists(final_hists, background_model)
 
     stack_draw_hists = []
     for i, (cat, hist) in enumerate(raw_stack_hists):
@@ -714,6 +794,7 @@ def draw_plot(data_lumi, final_hists, feature, hist_cfg, outdir, Nutral_scale_fa
     label_map = {
         "kaon": "MC kaon",
         "neutron": "MC neutron",
+        "muonDIS": "MC muonDIS",
         "MC_NC_nue": "MC NC #nu_{e}",
         "MC_NC_numu": "MC NC #nu_{#mu}",
         "MC_CC_nue": "MC CC #nu_{e}",
@@ -728,22 +809,37 @@ def draw_plot(data_lumi, final_hists, feature, hist_cfg, outdir, Nutral_scale_fa
     legend.Draw()
         
     y0 = 0.88      # starting height (top)
-    dy = 0.06      # vertical spacing
+    dy = 0.045     # vertical spacing
 
     text = ROOT.TLatex()
     text.SetNDC()
     text.SetTextAlign(13)   # left-align
-    text.SetTextSize(0.040)
+    text.SetTextSize(0.032)
 
-    # 1. Cut
-    text.DrawLatex(0.15, y0, f"#bf{{Cut}}: {cut_tag}")
+    # 1. Cuts
+    base_cut_text = base_cut.strip() if base_cut and base_cut.strip() else "none"
+    extra_cut_text = extra_cut.strip() if extra_cut and extra_cut.strip() else "none"
+    text.DrawLatex(0.15, y0, f"#bf{{Base cut}}: {base_cut_text}")
+    text.DrawLatex(0.15, y0 - dy, f"#bf{{Extra cut}}: {extra_cut_text}")
 
-    # 2. Neutral scale factor
-    text.DrawLatex(0.15, y0 - dy, f"Neutral scale factor = {Nutral_scale_factor:.3g}")
+    # 2. Background scale factor
+    if background_model == "neutral_hadrons":
+        scale_text = (
+            f"Neutral scale factor ({scale_target_label}) = {background_scale_factor:.3g}"
+            if background_scale_factor is not None else
+            "Neutral scale factor = n/a"
+        )
+    else:
+        scale_text = (
+            f"Muon DIS scale factor ({scale_target_label}) = {background_scale_factor:.3g}"
+            if background_scale_factor is not None else
+            "Muon DIS scale factor = n/a"
+        )
+    text.DrawLatex(0.15, y0 - 2*dy, scale_text)
 
     # 3. Luminosity
     if data_lumi is not None:
-        text.DrawLatex(0.15, y0 - 2*dy, f"#int #font[12]{{L}} dt = {data_lumi:.3f} fb^{{-1}}")
+        text.DrawLatex(0.15, y0 - 3*dy, f"#int #font[12]{{L}} dt = {data_lumi:.3f} fb^{{-1}}")
 
     # --------------------------------------------------
     # Bottom pad
@@ -819,7 +915,7 @@ def main(args):
         raise ValueError(f"{args.feature} not defined in hist_info")
 
     os.makedirs(args.outdir, exist_ok=True)
-    hist_cfg = hist_info[args.feature]
+    hist_cfg = get_hist_config(args.feature, args.extra_cut_key)
 
     category_files, grouped_lumi, open_files = collect_files_and_lumi(args.input_dir, args.tree)
     chains = build_chains(category_files, args.tree)
@@ -833,8 +929,17 @@ def main(args):
         fold_underflow=args.fold_underflow,
         fold_overflow=args.fold_overflow,
     )
-    scale_mc_to_data(grouped_hists, grouped_lumi, data_category="real_data")
-    final_hists, Nutral_scale_factor = combine_backgrounds(args, grouped_hists)
+    keep_unscaled_on_invalid_lumi = []
+    if args.background_model == "muonDIS":
+        keep_unscaled_on_invalid_lumi.append("muonDIS")
+
+    scale_mc_to_data(
+        grouped_hists,
+        grouped_lumi,
+        data_category="real_data",
+        keep_unscaled_on_invalid_lumi=keep_unscaled_on_invalid_lumi,
+    )
+    final_hists, background_scale_factor, scale_target_label = combine_backgrounds(args, grouped_hists)
     style_final_hists(final_hists)
     
     # for key in ["MC_NC_nue", "MC_NC_numu", "MC_CC_nue", "MC_CC_numu"]:
@@ -847,10 +952,13 @@ def main(args):
         feature=args.feature,
         hist_cfg=hist_cfg,
         outdir=args.outdir,
+        background_model=args.background_model,
+        scale_factor_target=args.scale_factor_target,
+        scale_target_label=scale_target_label,
         base_cut=args.base_cut, 
         extra_cut=args.extra_cut,
         title=args.title,
-        Nutral_scale_factor = Nutral_scale_factor
+        background_scale_factor=background_scale_factor
     )
 
     # keep ROOT files alive until the very end
@@ -919,6 +1027,16 @@ hist_info = {
     "qdc_us5":     (1000, 0, 2e4, "US5 QDC", True),
 }
 
+hist_range_overrides = {
+    "density_sndsw_scifi": {
+        "density_sndsw_scifi_gt_1000__density_sndsw_scifi_lt_6000": (250, 1000, 6000),
+        "density_sndsw_scifi_gt_2000__density_sndsw_scifi_lt_5000": (100, 2000, 5000),
+        "density_sndsw_scifi_gt_1000": (500, 1000, 40000),
+        "density_sndsw_scifi_gt_100": (500, 100, 40000),
+        "density_sndsw_scifi_gt_2000": (500, 2000, 40000),
+    },
+}
+
 cut_info = {
     2: ("StableBeams",           "cutFlowSummary_StableBeams == 1"),
     3: ("IP1BunchCrossing",      "cutFlowSummary_IP1 == 1"),
@@ -955,6 +1073,11 @@ if __name__ == "__main__":
         # density_sndsw_scifi > 11000 && density_sndsw_scifi_second > 20 
         #density_scifi > 10000 && consecutiveSciFiHits == 1 && SciFiContinuity==1 && SciFiHit35==1 && NoHitLastDS == 1
         help='Selection cut, e.g. "density_scifi>0.1 && count_us>2"',
+    )
+    parser.add_argument(
+        "--extra-cut-key",
+        default="",
+        help="Named extra cut key used to choose feature-specific plotting range overrides",
     )
     
     parser.add_argument(
@@ -995,7 +1118,7 @@ if __name__ == "__main__":
         "--normalise",
         action="store_true",
         default=False,
-        help="Normalise with the calculated had scale factor",
+        help="Apply the calculated background scale factor to the selected background model",
     )
     
     parser.add_argument(
@@ -1003,6 +1126,18 @@ if __name__ == "__main__":
         type=float,
         default=1,
         help="Neutral hadron background scale factor",
+    )
+    parser.add_argument(
+        "--background-model",
+        choices=BACKGROUND_MODELS,
+        default="neutral_hadrons",
+        help="Background model to draw: kaon+neutron neutral hadrons or muonDIS",
+    )
+    parser.add_argument(
+        "--scale-factor-target",
+        choices=SCALE_FACTOR_TARGETS,
+        default="fixed",
+        help="Target used to calculate background scale factor: fixed 8.21 or selected data integral",
     )
 
     args = parser.parse_args()

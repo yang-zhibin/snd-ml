@@ -10,6 +10,7 @@ wildcard_constraints:
     nueAnalysis_path=".*nueAnalysis.*.root",
     preCutEff_path=".*preCutEff.*.csv",
     muonDISFeature_path=".*muonDISFeature.*.root",
+    muonDISDigi_path=".*muonDISDigi.*.root",
     feature_path=".*feature.*.root",
     metadata_csv=".*metadata.*.csv",
     model_ckpt='.*ckpt.*',
@@ -30,7 +31,7 @@ raw_metadata_csv_list = [
     # "MC_muon_up_metadata.csv",#2024 crossing angle
 
     # "MC_muonDIS_sii_metadata.csv",
-    # "MC_muonDIS_cvilela_metadata.csv",
+    "MC_muonDIS_cvilela_metadata.csv",
 
     # "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
     # "MC_neutrino_volTarget_100fb-1_metadata.csv",
@@ -49,7 +50,7 @@ raw_metadata_csv_list = [
     # "real_data_2024_metadata.csv",
     # "real_data_2025_metadata.csv",
 
-    "Split_regression_v1_neutral_hadron.csv",
+    # "Split_regression_v1_neutral_hadron.csv",
 ]
 subset_metadata_csv_list = [
     # "MC_kaon_FTFP_BERT_metadata_subset.csv",
@@ -91,13 +92,14 @@ include: "rules/metadata.smk"
 include: "rules/production.smk"
 include: "rules/train.smk"
 
+
 ##### metadata
 rule metadata:
     input:
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/raw/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
-        # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
+        expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=subset_metadata_csv_list)
-        expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{train_split}}_{{split_dataset}}.csv", train_split=train_split, split_dataset = split_dataset)
+        # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{train_split}}_{{split_dataset}}.csv", train_split=train_split, split_dataset = split_dataset)
 
 # need another process before train split to add  preSelect_count
 
@@ -107,9 +109,12 @@ rule metadata:
 rule production:
     input:
         # expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),
-        # expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
-        expand("{npz_hit_path}", npz_hit_path=collect_metadata_targets("npz_hit_path", after_model = False)),
+        expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
+        # expand("{npz_hit_path}", npz_hit_path=collect_metadata_targets("npz_hit_path", after_model = False)),
         # expand("{muonDISFeature_path}", muonDISFeature_path=collect_metadata_targets("muonDISFeature_path", after_model = False)),
+        # expand("{muonDISDigi_path}", muonDISDigi_path=collect_metadata_targets("muonDISDigi_path", after_model = False)),
+        # expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),
+        # expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
         # expand("{model_output}", model_output=collect_metadata_targets('model_output', after_model = True)),
 
         # after model is train, add prediction process for test set (which match the feature files)
@@ -118,7 +123,7 @@ rule production:
 
 rule train:
     input:
-        expand(f"{EOS_Work_SPACE}/training_data/{{train_split}}_train.npz", train_split=train_split),
+        # expand(f"{EOS_Work_SPACE}/training_data/{{train_split}}_train.npz", train_split=train_split),
         # training
         # 
 ##### nueAnalysis
@@ -127,26 +132,30 @@ rule train:
 max_real_partitions = 100
 max_kaon_partitions = 20
 max_neutron_partitions = 20
+max_muonDIS_partitions = 10
 
 nueAnalysis_partitions = (
-    # [f"real_data_2024_Max{max_real_partitions}-{i}" for i in range(1, max_real_partitions + 1)] +
-    # [f"MC_kaon_5-10GeV_Max{max_kaon_partitions}-{i}" for i in range(1, max_kaon_partitions + 1)] +
-    # [f"MC_neutron_5-10GeV_Max{max_neutron_partitions}-{i}" for i in range(1, max_neutron_partitions + 1)] +
+    [f"real_data_2024_Max{max_real_partitions}-{i}" for i in range(1, max_real_partitions + 1)] +
+    [f"MC_kaon_5-10GeV_Max{max_kaon_partitions}-{i}" for i in range(1, max_kaon_partitions + 1)] +
+    [f"MC_muonDIS_Max{max_muonDIS_partitions}-{i}" for i in range(1, max_muonDIS_partitions + 1)] +
+    [f"MC_neutron_5-10GeV_Max{max_neutron_partitions}-{i}" for i in range(1, max_neutron_partitions + 1)] +
     [   
-        # 'MC_kaon_10-20GeV', 'MC_kaon_20-30GeV', 'MC_kaon_30-40GeV',
-        # 'MC_kaon_50-60GeV', 'MC_kaon_60-70GeV', 'MC_kaon_70-80GeV',
-        # 'MC_kaon_80-90GeV', 'MC_kaon_90-100GeV', 
+        'MC_kaon_10-20GeV', 'MC_kaon_20-30GeV', 'MC_kaon_30-40GeV',
+        'MC_kaon_50-60GeV', 'MC_kaon_60-70GeV', 'MC_kaon_70-80GeV',
+        'MC_kaon_80-90GeV', 'MC_kaon_90-100GeV', 
 
-        # 'MC_neutron_10-20GeV', 'MC_neutron_20-30GeV', 'MC_neutron_30-40GeV',
-        # 'MC_neutron_50-60GeV', 'MC_neutron_60-70GeV', 'MC_neutron_70-80GeV',
-        # 'MC_neutron_80-90GeV', 'MC_neutron_90-100GeV', 
+        'MC_neutron_10-20GeV', 'MC_neutron_20-30GeV', 'MC_neutron_30-40GeV',
+        'MC_neutron_50-60GeV', 'MC_neutron_60-70GeV', 'MC_neutron_70-80GeV',
+        'MC_neutron_80-90GeV', 'MC_neutron_90-100GeV', 
 
-        'MC_muon',
+        # 'MC_muon',
 
-        # 'MC_NC_nue',
-        # 'MC_NC_numu',
-        # 'MC_CC_nue',
-        # 'MC_CC_numu',
+
+
+        'MC_NC_nue',
+        'MC_NC_numu',
+        'MC_CC_nue',
+        'MC_CC_numu',
     ]
 )
 
@@ -168,16 +177,16 @@ rule nueAnalysis:
 
 
 hist_names = [
-    # 'density_sndsw_scifi',
+    'density_sndsw_scifi',
     # 'density_scifi1',
     # 'density_scifi2',
     # 'density_scifi3',
     # 'density_scifi4',
     # 'density_scifi5',
 
-    # 'count_scifi',
-    'count_scifi1',
-    'count_scifi2',
+    'count_scifi',
+    # 'count_scifi1',
+    # 'count_scifi2',
     # 'count_scifi3',
     # 'count_scifi4',
     # 'count_scifi5',
@@ -248,12 +257,15 @@ hist_names = [
     # "avg_scifi_y - avg_scifi3_y",
     # "avg_scifi_y - avg_scifi4_y",
     # "avg_scifi_y - avg_scifi5_y",
-
 ]          
 
+
+
 base_cut_map = {
-    "2_3_4_5_8_9_10": "2 3 4 5 8 9 10",
-    # "2_3_4_5_8": "2 3 4 5 8",
+    # "2_3_4_5_8_9_10": "2 3 4 5 8 9 10",
+    # "2_3_4": "2 3 4",
+    "2_3_4_8": "2 3 4 8",
+    "2_3_4_5_8": "2 3 4 5 8",
     # "2_3_4_5_6_7_8": "2 3 4 5 6 7 8",
     # "2_3_4_5_6_7_8_9": "2 3 4 5 6 7 8 9",
     # "2_3_4_5_6_7_8_9_10": "2 3 4 5 6 7 8 9 10",
@@ -264,10 +276,13 @@ base_cut_map = {
 }
 
 extra_cut_map = {
-    # "density_sndsw_scifi_gt_1000__density_sndsw_scifi_lt_6000": "density_sndsw_scifi > 1000 && density_sndsw_scifi < 6000",
+    "density_sndsw_scifi_gt_1000__density_sndsw_scifi_lt_6000": "density_sndsw_scifi > 1000 && density_sndsw_scifi < 6000",
     # "density_sndsw_scifi_gt_2000__density_sndsw_scifi_lt_5000": "density_sndsw_scifi > 2000 && density_sndsw_scifi < 5000",
-    "density_sndsw_scifi_gt_1000" : "density_sndsw_scifi > 1000",
-    # "density_sndsw_scifi_gt_100" : "density_sndsw_scifi > 100",
+    # "density_sndsw_scifi_gt_2000__density_sndsw_scifi_lt_5000__inverted_veto": "density_sndsw_scifi > 2000 && density_sndsw_scifi < 5000 && count_veto > 0",
+    # "density_sndsw_scifi_gt_1000" : "density_sndsw_scifi > 1000",
+    # "inverted_veto" : "count_veto > 0",
+    "density_sndsw_scifi_gt_100" : "density_sndsw_scifi > 100",
+    "density_sndsw_scifi_gt_0" : "density_sndsw_scifi > 0",
     # "density_sndsw_scifi_gt_2000" : "density_sndsw_scifi > 2000",
     # "density_sndsw_scifi_second_gt_20__density_sndsw_scifi_gt_11000" : "density_sndsw_scifi_second > 20 && density_sndsw_scifi > 11000",
     # "density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial":
@@ -291,17 +306,72 @@ extra_cut_map = {
     #     "(count_scifi5 <= 2 || (abs(avg_scifi_x - avg_scifi5_x) < 10) && (abs(avg_scifi_y - avg_scifi5_y) < 10))"
 
 }
+
 HAD_scale_factor = [
-        2.9 #0.638, 0.29 #2.8 #2.9 #5.2 #7.1
+        1 #2.9 #0.638, 0.29 #2.8 #2.9 #5.2 #7.1
 ]
+
+background_models = ["muonDIS", "neutral_hadrons"]  # choices: "neutral_hadrons", "muonDIS"
+scale_factor_targets = ["data", "fixed"]  # choices: "fixed", "data"
+scale_applications = ["apply_scale", "no_apply_scale"]  # choices: "apply_scale", "no_apply_scale"
+
+compare_references = [ "data"]  # choices: "kaon", "neutron", "data"
+compare_muondis_secondaries_by_reference = {
+    "neutron": ["neutron_all", "all"],
+    "kaon": ["neutral_kaon", "all"],
+    "data": ["all"],
+}
+compare_hist_names_by_reference = {
+    "neutron": hist_names + ["secondary_pdg"],
+    "kaon": hist_names + ["secondary_pdg"],
+    "data": hist_names,
+}
+compare_reference_secondary_pairs = [
+    (reference, muondis_secondary)
+    for reference in compare_references
+    for muondis_secondary in compare_muondis_secondaries_by_reference[reference]
+]
+compare_hist_names = sorted(
+    set(
+        hist_name
+        for reference in compare_references
+        for hist_name in compare_hist_names_by_reference[reference]
+    )
+)
+compare_hadron_muondis_pattern = (
+    f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/hist/"
+    "compare_hadron_muondis__{reference}__{muondis_secondary}__{base_cut_key}__{extra_cut_key}/"
+    "{hist_name}__{base_cut_key}__{extra_cut_key}.done"
+)
+compare_hadron_muondis_targets = [
+    target
+    for reference, muondis_secondary in compare_reference_secondary_pairs
+    for target in expand(
+        compare_hadron_muondis_pattern,
+        reference=[reference],
+        muondis_secondary=[muondis_secondary],
+        hist_name=compare_hist_names_by_reference[reference],
+        base_cut_key=base_cut_map.keys(),
+        extra_cut_key=extra_cut_map.keys(),
+    )
+]
+
+saved_event_display_target = (
+    f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/event_display/saved_event_displays.done"
+)
+
+
 include: "rules/evaluation.smk"
 rule plot:
     input:
         # expand(
-        #     f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/hist/find_HAD_scale_factor_with_differnt_cuts__{{extra_cut_key}}/{{base_cut_key}}.done",
+        #     f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/hist/find_HAD_scale_factor_with_differnt_cuts__{{background_model}}__{{scale_factor_target}}__{{scale_application}}__{{extra_cut_key}}/{{base_cut_key}}.done",
+        #     background_model=background_models,
+        #     scale_factor_target=scale_factor_targets,
+        #     scale_application=scale_applications,
         #     base_cut_key=base_cut_map.keys(),
         #     extra_cut_key=extra_cut_map.keys(),
-        # )
+        # ),
         # expand(
         #     f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/hist/HAD_scale_factor_{{HAD_scale_factor}}__step_cut/{{hist_name}}__{{base_cut_key}}__{{extra_cut_key}}.done",
         #     HAD_scale_factor=HAD_scale_factor,
@@ -309,16 +379,18 @@ rule plot:
         #     base_cut_key=base_cut_map.keys(),
         #     extra_cut_key=extra_cut_map.keys(),
         # ),
-        expand(
-            f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/hist/HAD_scale_factor_{{HAD_scale_factor}}__{{base_cut_key}}__{{extra_cut_key}}/{{hist_name}}__{{base_cut_key}}__{{extra_cut_key}}.done",
-            HAD_scale_factor=HAD_scale_factor,
-            hist_name=hist_names,
-            base_cut_key=base_cut_map.keys(),
-            extra_cut_key=extra_cut_map.keys(),
-        ),
+        # expand(
+        #     f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/hist/HAD_scale_factor_{{HAD_scale_factor}}__{{base_cut_key}}__{{extra_cut_key}}/{{hist_name}}__{{base_cut_key}}__{{extra_cut_key}}.done",
+        #     HAD_scale_factor=HAD_scale_factor,
+        #     hist_name=hist_names,
+        #     base_cut_key=base_cut_map.keys(),
+        #     extra_cut_key=extra_cut_map.keys(),
+        # ),
+        compare_hadron_muondis_targets,
+        # saved_event_display_target,
+
 
 
 ##### ML Training
 
 ##### ML Analysis
-

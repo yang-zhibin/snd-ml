@@ -301,6 +301,8 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
             df['lumi_per_file'] =15
     elif (data_type == "MC_muon" ):
         df = process_muon_path(df)
+    elif (data_type == "MC_muonDIS" and subfolder == "cvilela"):
+        df['lumi_per_file'] = 20.0/len(df)
 
     
     df["output_base_path"] = df.apply(
@@ -319,6 +321,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     df = add_new_path(f"preCutEff", "csv", df, csv_input, eos_root_path, seperate_veto=False)
     
     df = add_new_path(f"muonDISFeature", "root", df, csv_input, eos_root_path, seperate_veto=False)
+    df = add_new_path(f"muonDISDigi", "root", df, csv_input, eos_root_path, seperate_veto=False)
     
     # hit path
     df = add_new_path("hit","root", df, csv_input,  eos_root_path, seperate_veto=False)

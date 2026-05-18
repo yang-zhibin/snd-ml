@@ -296,6 +296,7 @@ def shower_id_legend_handles():
         ("EM shower (11)",          shower_color(11)),
         ("Muon (13)",               shower_color(13)),
         ("Tau shower (15)",         shower_color(15)),
+        ("Muon from tau (1315)",     shower_color(1315)),
         ("NC shower (112/114/116)", shower_color(112)),
         ("Hadronic shower (0)",     shower_color(0)),
         ("Combine (-1)",            shower_color(-1)),
@@ -311,6 +312,7 @@ def shower_color(sid: int):
         11  -> blue   (EM shower)
         13  -> red    (muon)
         15  -> orange (Tau shower)
+        1315 -> cyan   (muon from primary tau)
         112/114/116 -> green (NC shower)
         0   -> purple (Hadronic shower)
         -1  -> grey   (combine)
@@ -325,6 +327,8 @@ def shower_color(sid: int):
         return mcolors.to_rgba("tab:red")
     if sid == 15:
         return mcolors.to_rgba("tab:orange")
+    if abs(sid) == 1315:
+        return mcolors.to_rgba("tab:cyan")
     if sid == 0:
         return mcolors.to_rgba("tab:purple")
     if sid == -1:
@@ -686,6 +690,29 @@ def _categorize_seed_shower_id(track, event_level_pdg):
         return int(math.copysign(100 + apdg, pdg)) if is_nc_event else pdg
     return 0  # hadronic/other
 
+def _is_muon_from_primary_tau(track_id, event):
+    """
+    Return True for tau-neutrino CC topology tracks:
+        primary neutrino/scattering track -> tau -> muon
+
+    The code's shower seeding convention treats tracks with MotherId == 0 as
+    direct daughters of the neutrino interaction, so the tau must be one of
+    those primary daughters.
+    """
+    track = event.MCTrack[track_id]
+    if abs(int(track.GetPdgCode())) != 13:
+        return False
+
+    tau_id = track.GetMotherId()
+    if tau_id < 0 or tau_id >= event.MCTrack.GetEntries():
+        return False
+
+    tau = event.MCTrack[tau_id]
+    if abs(int(tau.GetPdgCode())) != 15:
+        return False
+
+    return tau.GetMotherId() == 0
+
 def _assign_shower_ids(event, m2d, event_level_pdg):
     """
     Build dict: trackId -> showerId, seeding on tracks with motherId==0
@@ -710,6 +737,21 @@ def _assign_shower_ids(event, m2d, event_level_pdg):
             if t in shower:
                 continue
             shower[t] = shower_id
+            stack.extend(m2d.get(t, []))
+
+    # A muon from a primary tau decay is a distinct branch inside the tau
+    # shower. Re-label the muon and all of its descendants after the normal
+    # shower propagation, so hits linked to muon secondaries keep this identity.
+    for i in range(n):
+        if not _is_muon_from_primary_tau(i, event):
+            continue
+
+        muon_pdg = int(event.MCTrack[i].GetPdgCode())
+        muon_from_tau_id = 1315 if muon_pdg > 0 else -1315
+        stack = [i]
+        while stack:
+            t = stack.pop()
+            shower[t] = muon_from_tau_id
             stack.extend(m2d.get(t, []))
 
     # Any leftover tracks (not reachable from seeds) -> hadron(0) by default
@@ -1012,6 +1054,9 @@ def process_hits(event, snd_geo, event_dict, det_layout, args, pdf):
     return 
 
 def main(args):
+    if args.only_tau_neutrino and "MC" not in args.type:
+        raise ValueError("--only-tau-neutrino can only be used with MC samples")
+
     snd_geo = setup_geometry(args.geo_path )
     print("getting geo layout")
     if args.beam == "TI18":
@@ -1078,6 +1123,9 @@ def main(args):
                 #print(dir(raw_tree.MCTrack[0]))
                 event_dict["energy"] = raw_tree.MCTrack[0].GetEnergy()
 
+                if args.only_tau_neutrino and abs(event_dict["pdgCode"]) not in (16, 116):
+                    continue
+
 
             elif('real' in  args.type):
                 event_dict["isMC"] = 0
@@ -1101,9 +1149,14 @@ if __name__ == "__main__":
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
     parser.add_argument("-b", "--beam", dest='beam', help='testbeam or TI18', default="TI18")
-    parser.add_argument("-n", "--nEvent", dest='n_event', help='max number of events', default=50)
+    parser.add_argument("-n", "--nEvent", dest='n_event', help='max number of events', type=int, default=50)
     
-    parser.add_argument("-s", "--n_scifi", dest='n_scifi', help='scifi count threshold', default=1)
+    parser.add_argument("-s", "--n_scifi", dest='n_scifi', help='scifi count threshold', type=int, default=1)
+    parser.add_argument(
+        "--only-tau-neutrino",
+        action="store_true",
+        help="Only plot MC tau-neutrino events, accepting event pdgCode +/-16 and NC-like +/-116.",
+    )
 
     args = parser.parse_args()
 
@@ -1116,4 +1169,3 @@ if __name__ == "__main__":
 # python event_display.py -d /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/K_5_10/Ntuples/1/sndLHC.PG_130-TGeant4_digCPP.root -g /eos/experiment/sndlhc/MonteCarlo/NeutralHadrons/FTFP_BERT/kaons/K_5_10/Ntuples/1/geofile_full.PG_130-TGeant4.root -t MC_kaon
 # python event_display.py -d ./test_data/filtered_data_2024_run8285.root -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -t real_data 
 # python event_display.py -d ./test_data/filtered_data_2024_run8285_n=10.root -g /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root -t real_data 
-

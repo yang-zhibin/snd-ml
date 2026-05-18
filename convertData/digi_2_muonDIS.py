@@ -550,3 +550,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
+    
+# script 1: select at least one DigiMuFilter Hits or DigiScifiHits
+# script 2 (run nue analysis on outfile from script 1)
+# script 3 (run digi 2 feature)
+# script 4 (check muonDIS background origin)

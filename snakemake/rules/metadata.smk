@@ -107,6 +107,8 @@ rule generate_train_metadata:
         metadata_dir = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated",
         split_dataset = split_dataset
     threads:1
+    wildcard_constraints:
+        split_dataset = r"neutral_hadron|neutrino|all"
     resources:
         runtime=45*60,
         mem_mb=2000,

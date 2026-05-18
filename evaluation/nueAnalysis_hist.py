@@ -185,6 +185,19 @@ def parse_partition(partition: str) -> PartitionInfo:
             flavor=flavor,
         )
 
+    m = re.fullmatch(r"MC_muonDIS_Max(\d+)-(\d+)", partition)
+    if m:
+        max_partitions = int(m.group(1))
+        partition_id = int(m.group(2))
+        return PartitionInfo(
+            raw=partition,
+            is_mc=True,
+            category="muonDIS",
+            partition_id=partition_id,
+            max_partitions=max_partitions,
+        )
+
+
     raise ValueError(f"Unrecognized partition format: {partition}")
 
 def resolve_metadata_csv(info: PartitionInfo, metadata_dir: str | Path) -> Path:
@@ -208,6 +221,10 @@ def resolve_metadata_csv(info: PartitionInfo, metadata_dir: str | Path) -> Path:
         return metadata_dir / "MC_neutrino_2024_ve_metadata.csv"
     if "numu" in info.category:
         return metadata_dir / "MC_neutrino_2024_vm_metadata.csv"
+    
+    if info.category == "muonDIS":
+        return metadata_dir / "MC_muonDIS_cvilela_metadata.csv"
+
 
     raise ValueError(f"Could not resolve metadata CSV for: {info}")
 
@@ -277,7 +294,7 @@ def filter_metadata_rows(df: pd.DataFrame, info: PartitionInfo) -> pd.DataFrame:
     selected = df
 
     # Real data: split directly
-    if not info.is_mc:
+    if (not info.is_mc) or (info.category == "muonDIS"):
         if info.partition_id is None or info.max_partitions is None:
             raise ValueError(
                 f"Real-data partition must include MaxN-i format, got: {info.raw}"

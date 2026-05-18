@@ -1049,5 +1049,6 @@ if __name__ == "__main__":
         help="Selection used for selected histograms"
     )
     # && avg_scifi_ver_x >= -40.9989 && avg_scifi_ver_x <= -15.5431 && avg_scifi_hor_y >= 21.9541 && avg_scifi_hor_y <= 48.6972
+    # avg_scifi_x >= -40.9989 && avg_scifi_x <= -15.5431 && avg_scifi_y >= 21.9541 && avg_scifi_y <= 48.6972
     args = parser.parse_args()
     main(args)
