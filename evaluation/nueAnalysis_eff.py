@@ -380,6 +380,93 @@ def detect_event_tree_name(filepath):
     raise RuntimeError(f"Could not find rawConv or cbmsim tree in {filepath}")
 
 
+def tree_has_branch(tree_or_chain, branch_name):
+    return bool(tree_or_chain.GetListOfBranches().FindObject(branch_name))
+
+
+def first_existing_branch(tree_or_chain, candidates, label):
+    for branch_name in candidates:
+        if tree_has_branch(tree_or_chain, branch_name):
+            return branch_name
+    raise RuntimeError(
+        f"Could not find a branch for {label}. Tried: {', '.join(candidates)}"
+    )
+
+
+def equality_cut(tree_or_chain, label, candidates):
+    branch_name = first_existing_branch(tree_or_chain, candidates, label)
+    return f"{branch_name} == 1"
+
+
+def build_analysis_cut_exprs(chain, info):
+    """
+    Build cut expressions for either the original cutFlowSummary tree or the
+    feature sndData tree. The feature tree stores cutFlowSummary branches with
+    a prefix, while the original cutFlowSummary tree uses the short names.
+    """
+
+    event_cuts = [
+        ("avgScifiFiducial", equality_cut(chain, "AvgSFChan", ["AvgSFChan", "cutFlowSummary_AvgSFChan"])),
+        (
+            "USBarsVeto_Top",
+            equality_cut(
+                chain,
+                "USBarsVeto_Top",
+                [
+                    "USBarsVeto_0_2_000000_1_2_000000",
+                    "cutFlowSummary_USBarsVeto_0_2_000000_1_2_000000",
+                ],
+            ),
+        ),
+        (
+            "USBarsVeto_Bottom",
+            equality_cut(
+                chain,
+                "USBarsVeto_Bottom",
+                [
+                    "USBarsVeto_0_8_000000_1_8_000000",
+                    "cutFlowSummary_USBarsVeto_0_8_000000_1_8_000000",
+                ],
+            ),
+        ),
+        ("noVetoHit", equality_cut(chain, "NoVetoHits", ["NoVetoHits", "cutFlowSummary_NoVetoHits"])),
+        (
+            "consecutiveSciFiHits",
+            equality_cut(
+                chain,
+                "At_least_two_consecutive_SciFi_planes",
+                [
+                    "At_least_two_consecutive_SciFi_planes",
+                    "cutFlowSummary_At_least_two_consecutive_SciFi_planes",
+                ],
+            ),
+        ),
+        ("SciFiContinuity", equality_cut(chain, "SciFiContinuity", ["SciFiContinuity", "cutFlowSummary_SciFiContinuity"])),
+        ("USPlaneHit_0_1", equality_cut(chain, "USPlanesHit", ["USPlanesHit", "cutFlowSummary_USPlanesHit"])),
+        ("SciFiHit35", equality_cut(chain, "SciFiMinHits", ["SciFiMinHits", "cutFlowSummary_SciFiMinHits"])),
+        ("USQDC_700MC_600Data", equality_cut(chain, "USQDC", ["USQDC", "cutFlowSummary_USQDC"])),
+        ("NoHitLastDS", equality_cut(chain, "DSVetoCut", ["DSVetoCut", "cutFlowSummary_DSVetoCut"])),
+    ]
+
+    if info.is_mc:
+        return event_cuts
+
+    data_quality = [
+        ("StableBeams", equality_cut(chain, "StableBeams", ["StableBeams", "cutFlowSummary_StableBeams"])),
+        ("IP1BunchCrossing", equality_cut(chain, "IP1", ["IP1", "cutFlowSummary_IP1"])),
+        (
+            "PreEvtClockCycle100",
+            equality_cut(
+                chain,
+                "EventDeltat",
+                ["EventDeltat_1_100", "EventDeltat_-1_100", "cutFlowSummary_EventDeltat_1_100"],
+            ),
+        ),
+    ]
+
+    return data_quality + event_cuts
+
+
 def save_filtered_event_tree(event_tree, outfile, tree_name):
     print(f"\nSaving filtered event tree '{event_tree.GetName()}' as '{tree_name}'")
     output_file = ROOT.TFile.Open(outfile, "UPDATE")
@@ -406,9 +493,13 @@ def build_tchain_and_lumi(
     df,
     tree_name="cutFlowSummary",
     input_col="nueAnalysisFilter_path",
-    lumi_col="lumi_per_file"
+    lumi_col="lumi_per_file",
+    event_input_col="nueAnalysisFilter_path",
+    friend_tree_name=None,
+    friend_input_col=None,
 ):
     chain = ROOT.TChain(tree_name)
+    friend_chain = ROOT.TChain(friend_tree_name) if friend_tree_name else None
     event_chain = None
     event_tree_name = None
 
@@ -426,18 +517,32 @@ def build_tchain_and_lumi(
             n_missing += 1
             continue
 
-        this_event_tree_name = detect_event_tree_name(path)
-        if event_tree_name is None:
-            event_tree_name = this_event_tree_name
-            event_chain = ROOT.TChain(event_tree_name)
-        elif this_event_tree_name != event_tree_name:
-            raise RuntimeError(
-                "Mixed event tree names in one partition are not supported: "
-                f"got {this_event_tree_name} in {path}, expected {event_tree_name}"
-            )
-
         chain.Add(path)
-        event_chain.Add(path)
+
+        if friend_chain is not None:
+            friend_rel = str(row[friend_input_col or input_col]).lstrip("/")
+            friend_path = f"{base}/{friend_rel}"
+            if not os.path.exists(friend_path):
+                print(f"[WARNING] Friend file not found: {friend_path}")
+            else:
+                friend_chain.Add(friend_path)
+
+        if event_input_col and event_input_col in df.columns:
+            event_rel = str(row[event_input_col]).lstrip("/")
+            event_path = f"{base}/{event_rel}"
+            if os.path.exists(event_path):
+                this_event_tree_name = detect_event_tree_name(event_path)
+                if event_tree_name is None:
+                    event_tree_name = this_event_tree_name
+                    event_chain = ROOT.TChain(event_tree_name)
+                elif this_event_tree_name != event_tree_name:
+                    raise RuntimeError(
+                        "Mixed event tree names in one partition are not supported: "
+                        f"got {this_event_tree_name} in {event_path}, expected {event_tree_name}"
+                    )
+                event_chain.Add(event_path)
+            else:
+                print(f"[WARNING] Event source file not found: {event_path}")
 
 
         lumi_val = 0.0
@@ -453,11 +558,24 @@ def build_tchain_and_lumi(
     print(f"\nFiles added to TChain: {len(lumi_per_file)}")
     print(f"Missing files: {n_missing}")
     print(f"Total luminosity: {total_lumi}")
-    print(f"Cutflow entries: {chain.GetEntries()}")
+    print(f"Analysis tree: {tree_name}")
+    print(f"Analysis entries: {chain.GetEntries()}")
+    if friend_chain is not None:
+        if friend_chain.GetEntries() != chain.GetEntries():
+            raise RuntimeError(
+                "MuonDIS friend tree entry mismatch: "
+                f"{friend_tree_name} has {friend_chain.GetEntries()} entries, "
+                f"{tree_name} has {chain.GetEntries()} entries"
+            )
+        chain.AddFriend(friend_chain, friend_tree_name)
+        chain._sndml_friend_chain = friend_chain
+        print(f"Friend tree: {friend_tree_name}")
+        print(f"Friend entries: {friend_chain.GetEntries()}")
     if event_chain is None:
-        raise RuntimeError("No event source files were added")
-    print(f"Event tree: {event_tree_name}")
-    print(f"Event entries: {event_chain.GetEntries()}")
+        print("[WARNING] No event source files were added")
+    else:
+        print(f"Event tree: {event_tree_name}")
+        print(f"Event entries: {event_chain.GetEntries()}")
 
     return chain, event_chain, lumi_per_file, total_lumi
 
@@ -489,12 +607,25 @@ def extract_info_from_partition(
 
     print(f"Selected {len(df_selected)} rows from metadata for partition {info.raw}")
 
+    event_input_col = input_col
+    friend_tree_name = None
+    friend_input_col = None
+    if info.category == "muonDIS":
+        tree_name = "cutFlowSummary"
+        input_col = "feature_path"
+        friend_tree_name = "sndData"
+        friend_input_col = "feature_path"
+        event_input_col = "nueAnalysisFilter_path"
+
     chain, event_chain, lumi_per_file, total_lumi = build_tchain_and_lumi(
         info,
         df_selected,
         tree_name=tree_name,
         input_col=input_col,
         lumi_col=lumi_col,
+        event_input_col=event_input_col,
+        friend_tree_name=friend_tree_name,
+        friend_input_col=friend_input_col,
     )
 
     return info, df_selected, chain, event_chain, lumi_per_file, total_lumi
@@ -517,6 +648,9 @@ def process_efficiency(args, chain, total_lumi, info):
         df = df.Define("pdgCode", "species")
         df = df.Filter(neutrino_filter, "neutrino_filter")
 
+    if info.category == "muonDIS":
+        df = df.Filter("count_scifi > 0", "muonDIS_count_scifi_gt_0")
+
     total_events = int(df.Count().GetValue())
 
     # Full ordered list of cuts for display
@@ -538,37 +672,9 @@ def process_efficiency(args, chain, total_lumi, info):
         "NoHitLastDS",
     ]
 
-    # Real filters to apply
-    # For MC, skip the first three cuts but keep them in the printed/output table as pass-all
-    if info.is_mc:
-        cut_exprs = [
-            ("avgScifiFiducial", "AvgSFChan == 1"),
-            ("USBarsVeto_Top", "USBarsVeto_0_2_000000_1_2_000000 == 1"),
-            ("USBarsVeto_Bottom", "USBarsVeto_0_8_000000_1_8_000000 == 1"),
-            ("noVetoHit", "NoVetoHits == 1"),
-            ("consecutiveSciFiHits", "At_least_two_consecutive_SciFi_planes == 1"),
-            ("SciFiContinuity", "SciFiContinuity == 1"),
-            ("USPlaneHit_0_1", "USPlanesHit == 1"),
-            ("SciFiHit35", "SciFiMinHits == 1"),
-            ("USQDC_700MC_600Data", "USQDC == 1"),
-            ("NoHitLastDS", "DSVetoCut == 1"),
-        ]
-    else:
-        cut_exprs = [
-            ("StableBeams", "StableBeams == 1"),
-            ("IP1BunchCrossing", "IP1 == 1"),
-            ("PreEvtClockCycle100", "EventDeltat_1_100 == 1"),
-            ("avgScifiFiducial", "AvgSFChan == 1"),
-            ("USBarsVeto_Top", "USBarsVeto_0_2_000000_1_2_000000 == 1"),
-            ("USBarsVeto_Bottom", "USBarsVeto_0_8_000000_1_8_000000 == 1"),
-            ("noVetoHit", "NoVetoHits == 1"),
-            ("consecutiveSciFiHits", "At_least_two_consecutive_SciFi_planes == 1"),
-            ("SciFiContinuity", "SciFiContinuity == 1"),
-            ("USPlaneHit_0_1", "USPlanesHit == 1"),
-            ("SciFiHit35", "SciFiMinHits == 1"),
-            ("USQDC_700MC_600Data", "USQDC == 1"),
-            ("NoHitLastDS", "DSVetoCut == 1"),
-        ]
+    # Real filters to apply. For MC, skip the first three data-quality cuts
+    # but keep them in the printed/output table as pass-all placeholders.
+    cut_exprs = build_analysis_cut_exprs(chain, info)
 
     # Book real stepwise counts
     count_map = {}
@@ -641,7 +747,8 @@ def process_efficiency(args, chain, total_lumi, info):
 
     if args.save_filtered_events:
         if args.event_tree is None:
-            raise RuntimeError("Cannot save filtered events: no event tree was built")
+            print("[WARNING] Cannot save filtered events: no event tree was built")
+            return
 
         filtered_tree_name = args.filtered_tree_name or args.event_tree.GetName()
         save_filtered_event_tree(

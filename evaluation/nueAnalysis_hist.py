@@ -197,6 +197,13 @@ def parse_partition(partition: str) -> PartitionInfo:
             max_partitions=max_partitions,
         )
 
+    if partition == "MC_muon":
+        return PartitionInfo(
+            raw=partition,
+            is_mc=True,
+            category="muon",
+        )
+
 
     raise ValueError(f"Unrecognized partition format: {partition}")
 

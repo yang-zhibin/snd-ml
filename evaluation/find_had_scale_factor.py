@@ -99,6 +99,9 @@ def classify_partition(partition):
     if re.match(r"^MC_muonDIS_Max\d+-\d+$", partition):
         return "muonDIS"
 
+    if re.match(r"^MC_muon(?:_Max\d+-\d+)?$", partition):
+        return "muon"
+
     return None
 
 def sanitize_expr(expr):

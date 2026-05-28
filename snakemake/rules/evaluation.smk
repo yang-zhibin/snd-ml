@@ -315,6 +315,119 @@ rule compare_hadron_muondis:
         '''
 
 
+rule compare_sideband_regions:
+    output:
+        comparison_path = f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/hist/sideband_compare__{{sideband_key}}__{{normalization}}__{{base_cut_key}}__{{extra_cut_key}}/{{hist_name}}__{{base_cut_key}}__{{extra_cut_key}}.done"
+    params:
+        script=f"{PERSONAL_WORK_SPACE}/evaluation/compare_sideband_regions.py",
+        input_dir=f"{EOS_Work_SPACE}/nueAnalysis",
+        outdir=lambda wc, output: os.path.dirname(output.comparison_path),
+        base_cut=lambda wc: base_cut_map[wc.base_cut_key],
+        extra_cut=lambda wc: extra_cut_map[wc.extra_cut_key],
+        sideband_cut=lambda wc: sideband_cut_map[wc.sideband_key],
+        extra_cut_key=lambda wc: wc.extra_cut_key,
+    wildcard_constraints:
+        hist_name="|".join(sideband_features),
+        sideband_key="|".join(sideband_cut_map.keys()),
+        normalization="|".join(sideband_normalizations),
+        base_cut_key="|".join(base_cut_map.keys()),
+        extra_cut_key="|".join(extra_cut_map.keys()),
+    threads: 1
+    resources:
+        runtime=45*60,
+        mem_mb=3000,
+        disk_mb=3000,
+        nvidia_gpu=0,
+    shell:
+        r'''
+        echo "comparing sideband regions"
+
+        set +u
+
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        TMPDIR=$(mktemp -d)
+        echo "Using TMPDIR=$TMPDIR"
+
+        python {params.script} \
+            "{params.input_dir}" \
+            --feature "{wildcards.hist_name}" \
+            --base-cut "{params.base_cut}" \
+            --extra-cut "{params.extra_cut}" \
+            --extra-cut-key "{params.extra_cut_key}" \
+            --sideband-key "{wildcards.sideband_key}" \
+            --sideband-cut "{params.sideband_cut}" \
+            --normalization "{wildcards.normalization}" \
+            --outdir "$TMPDIR"
+
+        OUTPUTS=$(find "$TMPDIR" -maxdepth 1 -type f \( -name "*.pdf" -o -name "*.txt" \))
+        mkdir -p "{params.outdir}"
+        for output_file in $OUTPUTS; do
+            xrdcp -f "$output_file" "{params.outdir}/"
+        done
+
+        rm -rf "$TMPDIR"
+
+        touch "{output.comparison_path}"
+        '''
+
+
+rule inspect_muondis_secondaries:
+    input:
+        script=f"{PERSONAL_WORK_SPACE}/evaluation/inspect_muondis_secondaries.py",
+        muondis_files=expand(
+            f"{EOS_Work_SPACE}/nueAnalysis/hist_MC_muonDIS_Max{max_muonDIS_partitions}-{{partition}}.root",
+            partition=range(1, max_muonDIS_partitions + 1),
+        ),
+    output:
+        done=muondis_secondary_pattern,
+    params:
+        input_dir=f"{EOS_Work_SPACE}/nueAnalysis",
+        outdir=lambda wc, output: os.path.dirname(output.done),
+        base_cut=lambda wc: muondis_secondary_cut_map[wc.base_cut_key],
+        extra_cut=lambda wc: extra_cut_map[wc.extra_cut_key],
+        extra_cut_key=lambda wc: wc.extra_cut_key,
+    wildcard_constraints:
+        base_cut_key="|".join(muondis_secondary_cut_map.keys()),
+        extra_cut_key="|".join(extra_cut_map.keys()),
+    threads: 1
+    resources:
+        runtime=60*60,
+        mem_mb=4000,
+        disk_mb=4000,
+        nvidia_gpu=0,
+    shell:
+        r'''
+        echo "inspecting muonDIS secondaries"
+
+        set +u
+
+        source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_107 x86_64-el9-gcc11-opt
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        TMPDIR=$(mktemp -d)
+        echo "Using TMPDIR=$TMPDIR"
+
+        python {input.script} \
+            "{params.input_dir}" \
+            --base_cut "{params.base_cut}" \
+            --extra_cut "{params.extra_cut}" \
+            --extra-cut-key "{params.extra_cut_key}" \
+            --outdir "$TMPDIR"
+
+        OUTPUTS=$(find "$TMPDIR" -maxdepth 1 -type f \( -name "*.txt" -o -name "*.csv" -o -name "*.pdf" \))
+        mkdir -p "{params.outdir}"
+        for output_file in $OUTPUTS; do
+            xrdcp -f "$output_file" "{params.outdir}/"
+        done
+
+        rm -rf "$TMPDIR"
+
+        touch "{output.done}"
+        '''
+
+
 rule plot_saved_event_displays:
     input:
         script=f"{PERSONAL_WORK_SPACE}/evaluation/plot_saved_events.py",

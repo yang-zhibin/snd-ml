@@ -10,32 +10,6 @@ import numpy as np
 
 ROOT.TH1.AddDirectory(False)
 
-# ROOT.gInterpreter.Declare(r"""
-# #include <vector>
-
-# struct scifi_point {
-#   double pdg = -999;
-#   double energy_loss = -999;
-# };
-
-# struct VetoHit {
-#   double hit_time = -999;
-#   double energy_loss = -999;
-#   int    veto_plane = -999;
-#   double qdc = -999;
-#   std::vector<scifi_point> scifiPoints; // nested, variable length
-# };
-
-# #ifdef __CLING__
-# #pragma link C++ class ScifiPoint+;
-# #pragma link C++ class VetoHit+;
-# #pragma link C++ class std::vector<ScifiPoint>+;
-# #pragma link C++ class std::vector<VetoHit>+;
-# #endif
-# """)
-
-
-
 def setup_geometry(geo_file):
     """Initialize and return the geometry configurations."""
     snd_geo = SndlhcGeo.GeoInterface(geo_file)
@@ -43,6 +17,12 @@ def setup_geometry(geo_file):
     lsOfGlobals.Add(snd_geo.modules['Scifi'])
     lsOfGlobals.Add(snd_geo.modules['MuFilter'])
     return snd_geo
+
+
+def init_event_geometry(snd_geo, event_header):
+    snd_geo.modules["Scifi"].InitEvent(event_header)
+    snd_geo.modules["MuFilter"].InitEvent(event_header)
+
 
 def open_root_file(file_path, tree_name='cbmsim', mode='read'):
     file = ROOT.TFile(file_path, mode)
@@ -70,6 +50,38 @@ def setup_event_deltat_alias(preSelect_tree):
             return candidate
 
     return None
+
+
+def safe_fraction(num, den):
+    return float(num) / float(den) if den else 0.0
+
+
+def non_negative_float(value):
+    try:
+        return max(float(value), 0.0)
+    except Exception:
+        return 0.0
+
+
+def weighted_mean_and_std(values, weights):
+    total_weight = sum(weights)
+    if total_weight <= 0:
+        return -999.0, -999.0
+
+    mean = sum(value * weight for value, weight in zip(values, weights)) / total_weight
+    variance = sum(weight * (value - mean) ** 2 for value, weight in zip(values, weights)) / total_weight
+    if variance < 0:
+        variance = 0.0
+    return mean, math.sqrt(variance)
+
+
+def std_or_sentinel(values):
+    if len(values) < 2:
+        return -999.0
+
+    mean = sum(values) / len(values)
+    variance = sum((value - mean) ** 2 for value in values) / len(values)
+    return math.sqrt(variance)
 
 
 # muonDIS truth plan:
@@ -272,11 +284,8 @@ def process_count_and_qdc(SciFi_hits, MuFilter_hits, branch_vars):
     def qdc_value(x):
         # x can be float/int or dict-like (e.g. GetAllSignals())
         if isinstance(x, dict):
-            return float(sum(x.values()))
-        try:
-            return float(x)
-        except Exception:
-            return 0.0
+            return sum(non_negative_float(value) for value in x.values())
+        return non_negative_float(x)
 
     # ---------- init counters ----------
     scifi_counts = [0] * 5
@@ -472,8 +481,37 @@ def process_avgPos(SciFi_hits, MuFilter_hits, branch_vars):
 
     
 
+def build_scifi_hit_dict(hit, Scifi):
+    detID = hit.GetDetectorID()
+    station = hit.GetStation()
+    hit_time = hit.GetTime()
+    clock_cycle = hit_time / 6.25
+    qdc = non_negative_float(hit.GetSignal(0))
+    mat = hit.GetMat()
+    sipm = hit.GetSiPM()
+    channel = hit.GetSiPMChan()
+    layer_channel = channel + sipm * 128 + mat * 4 * 128
+
+    A, B = ROOT.TVector3(), ROOT.TVector3()
+    Scifi.GetSiPMPosition(detID, A, B)
+
+    return {
+        "detType": 0,
+        "station": station,
+        "isVertical": hit.isVertical(),
+        "layer_channel": layer_channel,
+        "qdc": qdc,
+        "x": A.x(),
+        "y": A.y(),
+        "z": A.z(),
+        "hitTimeCY": clock_cycle,
+    }
+
+
 def filter_SciFiHits(SciFi_hits, lower_time_threshold=0.5, upper_time_threshold=2.3, bin_width=0.25):
     """
+    Legacy/debug-only local filter. Production features use SND selectHits.
+
     Filter SciFi hits around MPV of hit time (per station + orientation).
 
     Inputs:
@@ -553,8 +591,10 @@ def fill_mycode_density(branch_vars):
             second_idx = i
             second_sum = s
 
+    second_density = station_min[second_idx] if second_idx >= 0 else 0.0
     branch_vars["density_mycode_scifi"][0] = station_min[best_idx]
-    branch_vars["density_mycodescifi_second"][0] = station_min[second_idx] if second_idx >= 0 else 0.0
+    branch_vars["density_mycodescifi_second"][0] = second_density
+    branch_vars["density_mycode_scifi_second"][0] = second_density
     branch_vars["density_mycode_scifi_hor"][0] = station_y[best_idx]
     branch_vars["density_mycode_scifi_ver"][0] = station_x[best_idx]
 
@@ -620,7 +660,76 @@ def hitWeightDensity(SciFi_hits, branch_vars):
 
     return branch_vars
 
-def process_hits(args, event, vetoHits, snd_geo, branch_vars):
+
+def process_scifi_topology_features(SciFi_hits, branch_vars):
+    stations = [1, 2, 3, 4, 5]
+    counts = [0] * 5
+    qdcs = [0.0] * 5
+    x_counts = [0] * 5
+    y_counts = [0] * 5
+    station_x_positions = [[] for _ in stations]
+    station_y_positions = [[] for _ in stations]
+    all_x_positions = []
+    all_y_positions = []
+
+    for hit in SciFi_hits:
+        station = int(hit.get("station", 0))
+        if station < 1 or station > 5:
+            continue
+
+        idx = station - 1
+        qdc = non_negative_float(hit.get("qdc", 0.0))
+        counts[idx] += 1
+        qdcs[idx] += qdc
+
+        if hit.get("isVertical", False):
+            x_counts[idx] += 1
+            x = float(hit.get("x", 0.0))
+            station_x_positions[idx].append(x)
+            all_x_positions.append(x)
+        else:
+            y_counts[idx] += 1
+            y = float(hit.get("y", 0.0))
+            station_y_positions[idx].append(y)
+            all_y_positions.append(y)
+
+    total_count = sum(counts)
+    total_qdc = sum(qdcs)
+    active_stations = [station for station, count in zip(stations, counts) if count > 0]
+
+    branch_vars["scifi_first_station"][0] = min(active_stations) if active_stations else -999
+    branch_vars["scifi_last_station"][0] = max(active_stations) if active_stations else -999
+    branch_vars["scifi_n_active_stations"][0] = len(active_stations)
+    branch_vars["scifi_n_active_stations_xy"][0] = sum(
+        1 for x_count, y_count in zip(x_counts, y_counts) if x_count > 0 and y_count > 0
+    )
+
+    branch_vars["scifi_max_count_station"][0] = (
+        max(range(5), key=lambda idx: counts[idx]) + 1 if total_count > 0 else -999
+    )
+    branch_vars["scifi_max_qdc_station"][0] = (
+        max(range(5), key=lambda idx: qdcs[idx]) + 1 if total_qdc > 0 else -999
+    )
+    branch_vars["scifi_count_peak_fraction"][0] = safe_fraction(max(counts), total_count)
+    branch_vars["scifi_qdc_peak_fraction"][0] = safe_fraction(max(qdcs), total_qdc)
+
+    for idx, station in enumerate(stations):
+        branch_vars[f"scifi_count_frac{station}"][0] = safe_fraction(counts[idx], total_count)
+        branch_vars[f"scifi_qdc_frac{station}"][0] = safe_fraction(qdcs[idx], total_qdc)
+        branch_vars[f"scifi{station}_std_x"][0] = std_or_sentinel(station_x_positions[idx])
+        branch_vars[f"scifi{station}_std_y"][0] = std_or_sentinel(station_y_positions[idx])
+
+    count_mean, count_std = weighted_mean_and_std(stations, counts)
+    qdc_mean, qdc_std = weighted_mean_and_std(stations, qdcs)
+    branch_vars["scifi_count_mean_station"][0] = count_mean
+    branch_vars["scifi_count_std_station"][0] = count_std
+    branch_vars["scifi_qdc_mean_station"][0] = qdc_mean
+    branch_vars["scifi_qdc_std_station"][0] = qdc_std
+    branch_vars["scifi_std_x"][0] = std_or_sentinel(all_x_positions)
+    branch_vars["scifi_std_y"][0] = std_or_sentinel(all_y_positions)
+
+
+def process_hits(args, event, snd_geo, branch_vars):
     """Process all hits in the event and update hits array and averages."""
     eventId = branch_vars["eventId"][0]
     MC = args.type
@@ -631,85 +740,28 @@ def process_hits(args, event, vetoHits, snd_geo, branch_vars):
     
 
     if is_muon_dis:
-        sel_hits = [hit for hit in event.Digi_ScifiHits if hit.isValid()]
+        selected_scifi_hits = [hit for hit in event.Digi_ScifiHits if hit.isValid()]
     else:
-        sel_hits = selectHits(event, MC = (True if "MC" in args.type else False))  
-    dens, dens2, dver, dhor = getSumDensity(sel_hits, return_2ndhighest=True, return_hv=True)
+        selected_scifi_hits = selectHits(event, MC=("MC" in args.type))
+
+    dens, dens2, dver, dhor = getSumDensity(selected_scifi_hits, return_2ndhighest=True, return_hv=True)
     branch_vars["density_sndsw_scifi"][0] = dens
     branch_vars["density_sndsw_scifi_second"][0] = dens2
     branch_vars["density_sndsw_scifi_ver"][0] = dver
     branch_vars["density_sndsw_scifi_hor"][0] = dhor
-    
 
-        
-    
-    SciFi_hits = []
-    # Process SciFi hits
-    for aHit in event.Digi_ScifiHits:
-        if not aHit.isValid():
-            continue
-        detID = aHit.GetDetectorID()
-        station = detID // 1000000
-        hitTime = aHit.GetTime()
-        clock_cycle = hitTime/6.25
-        qdc = aHit.GetSignal(0)
-        mat = aHit.GetMat()
-        sipm = aHit.GetSiPM()
-        channel = aHit.GetSiPMChan()
-        layer_channel = channel + sipm*128 + mat*4*128
-        
-        Scifi.GetSiPMPosition(detID, A, B)
-        
-        SciFi_hits.append({
-            "detType": 0,
-            "station": station,
-            "isVertical": aHit.isVertical(),
-            "layer_channel": layer_channel,
-            "qdc":qdc,
-            "x":A.x(),
-            "y":A.y(),
-            "z":A.z(),
-            "hitTimeCY": clock_cycle
-        })
+    SciFi_hits = [
+        build_scifi_hit_dict(aHit, Scifi)
+        for aHit in selected_scifi_hits
+        if aHit.isValid()
+    ]
 
     # Process MuFilter hits
     MuFilter_hits = []
-    n_veto_hit = 0
     for aHit in event.Digi_MuFilterHits:
         if not aHit.isValid():
             continue
-        
-        # process veto hits
-        # if aHit.GetSystem() == 1:
-            # vh = vetoHits.ConstructedAt(n_veto_hit)
-            # n_veto_hit += 1
-            
-            # total_energy_loss = 0
-            # vh.mcPoints.clear()
-            # for mc_point_i, mc_point_weight in linksToMCPoints:   
-            #     mc_point = event.MuFilterPoint[mc_point_i]
-            #     pdg = int(mc_point.PdgCode())
-            #     el  = float(mc_point.GetEnergyLoss())
-            #     x   = float(mc_point.GetX())
-            #     y   = float(mc_point.GetY())
-            #     z   = float(mc_point.GetZ())
 
-            #     total_energy_loss += el
-
-            #     # Construct ScifiMiniPoint in-place, then fill its fields
-            #     vh.mcPoints.emplace_back()
-            #     p = vh.mcPoints.back()
-            #     p.pdg = pdg
-            #     p.energy_loss = el
-            #     p.x, p.y, p.z = x, y, z
-            #     p.weight = mc_point_weight
-                
-            # # fill veto fields (note: you probably want station+1)
-            # vh.hit_time   = hit_time
-            # vh.veto_plane = int(station + 1)
-            # vh.energy_loss = float(total_energy_loss)
-            # vh.qdc = float(this_qdc)
-        
         detID = aHit.GetDetectorID()      
         MuFilter.GetPosition(detID, A, B)
         detType = aHit.GetSystem()
@@ -721,7 +773,7 @@ def process_hits(args, event, vetoHits, snd_geo, branch_vars):
         
         qdc = 0.0
         for key, value in aHit.GetAllSignals():
-            qdc += value
+            qdc += non_negative_float(value)
         
         
         MuFilter_hits.append({
@@ -736,19 +788,13 @@ def process_hits(args, event, vetoHits, snd_geo, branch_vars):
             "z":A.z(),
         })
     
-    if not is_muon_dis:
-        # filter SciFi hits for samples using the standard time convention
-        SciFi_hits, peak_by_group = filter_SciFiHits(
-                SciFi_hits,
-                lower_time_threshold=0.5,
-                upper_time_threshold=1.2
-            )
-    
     hitWeightDensity(SciFi_hits, branch_vars)
     
     process_count_and_qdc(SciFi_hits, MuFilter_hits, branch_vars)
     
     process_avgPos(SciFi_hits, MuFilter_hits, branch_vars)
+
+    process_scifi_topology_features(SciFi_hits, branch_vars)
     
     fill_mycode_density(branch_vars)
     
@@ -773,14 +819,7 @@ def main(args):
     elist_name = "elist"
 
 
-    if "veto_" in args.out_path:
-        selection = "AvgSFChan == 1 && NoVetoHits == 0"
-    else:
-        selection = "AvgSFChan == 1 && NoVetoHits == 1"
-    
-    if is_muonDIS_sample(args):
-        selection = ""
-
+    selection = "SciFiMinHits == 1"
     if "MC" not in args.type:
         if not event_deltat_branch:
             raise RuntimeError("No EventDeltat cut branch found for real-data selection")
@@ -801,16 +840,8 @@ def main(args):
     print(f"Entries matching selection: {n_match}")
 
     if n_match == 0:
-        out_file.cd()
-        new_tree.Write()
-        cutflow_selected = preSelect_tree.CloneTree(0)
-        cutflow_selected.SetName("cutFlowSummary")
-        cutflow_selected.Write()
-        out_file.Close()
-        print("No entries matched, saved empty sndData and cutFlowSummary trees")
-        return 0
-
-    if selection:
+        elist = ROOT.TEntryList("elist_empty", "elist_empty")
+    elif selection:
         preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")
         elist = ROOT.gDirectory.Get(elist_name)
 
@@ -856,17 +887,31 @@ def main(args):
         ("density_scifi1_x", 'd'), ("density_scifi2_x", 'd'), ("density_scifi3_x", 'd'), ("density_scifi4_x", 'd'), ("density_scifi5_x", 'd'), ("density_scifi_x", 'd'),
         ("density_scifi1_y", 'd'), ("density_scifi2_y", 'd'), ("density_scifi3_y", 'd'), ("density_scifi4_y", 'd'), ("density_scifi5_y", 'd'), ("density_scifi_y", 'd'),
         
-        ("density_mycode_scifi", 'd'), ("density_mycodescifi_second", 'd'), ("density_mycode_scifi_hor", 'd'), ("density_mycode_scifi_ver", 'd'), 
+        ("density_mycode_scifi", 'd'), ("density_mycodescifi_second", 'd'), ("density_mycode_scifi_second", 'd'), ("density_mycode_scifi_hor", 'd'), ("density_mycode_scifi_ver", 'd'), 
         
         ("density_sndsw_scifi", 'd'), ("density_sndsw_scifi_second", 'd'), ("density_sndsw_scifi_hor", 'd'), ("density_sndsw_scifi_ver", 'd'), 
+
+        ("scifi_first_station", 'i'), ("scifi_last_station", 'i'),
+        ("scifi_n_active_stations", 'i'), ("scifi_n_active_stations_xy", 'i'),
+        ("scifi_max_count_station", 'i'), ("scifi_max_qdc_station", 'i'),
+
+        ("scifi_count_peak_fraction", 'd'), ("scifi_qdc_peak_fraction", 'd'),
+        ("scifi_count_frac1", 'd'), ("scifi_count_frac2", 'd'), ("scifi_count_frac3", 'd'), ("scifi_count_frac4", 'd'), ("scifi_count_frac5", 'd'),
+        ("scifi_qdc_frac1", 'd'), ("scifi_qdc_frac2", 'd'), ("scifi_qdc_frac3", 'd'), ("scifi_qdc_frac4", 'd'), ("scifi_qdc_frac5", 'd'),
+        ("scifi_count_mean_station", 'd'), ("scifi_count_std_station", 'd'),
+        ("scifi_qdc_mean_station", 'd'), ("scifi_qdc_std_station", 'd'),
+        ("scifi_std_x", 'd'), ("scifi_std_y", 'd'),
+        ("scifi1_std_x", 'd'), ("scifi1_std_y", 'd'),
+        ("scifi2_std_x", 'd'), ("scifi2_std_y", 'd'),
+        ("scifi3_std_x", 'd'), ("scifi3_std_y", 'd'),
+        ("scifi4_std_x", 'd'), ("scifi4_std_y", 'd'),
+        ("scifi5_std_x", 'd'), ("scifi5_std_y", 'd'),
         
 
         ("vetoHitTime_earlist", 'd'), ("vetoHitTime_latest", 'd'),
         ("vetoHitTime_earlist_veto1", 'd'), ("vetoHitTime_latest_veto1", 'd'),
         ("vetoHitTime_earlist_veto2", 'd'), ("vetoHitTime_latest_veto2", 'd'),
         ("vetoHitTime_earlist_veto3", 'd'), ("vetoHitTime_latest_veto3", 'd'),
-        
-        ("start_z", 'd'),
     ]
 
     # Dictionary to hold branch variables
@@ -879,22 +924,14 @@ def main(args):
 
     track_vector_branches = make_track_vector_branches()
     branch_vector_vars(new_tree, track_vector_branches)
-        
-    #vetoHits = ROOT.std.vector('VetoHit')()
-    
-    
-    if not ROOT.TClass.GetClass("VetoHit"):
-        ROOT.gROOT.ProcessLine('.L /afs/cern.ch/user/z/zhibin/work/snd-ml/convertData/EventClass.h+')
-
-    vetoHits = ROOT.TClonesArray("VetoHit")
-    new_tree.Branch("vetoHits", vetoHits)
 
     
-    for i in range(elist.GetN()):
-        vetoHits.Clear()
+    n_selected_entries = elist.GetN()
+    for i in range(n_selected_entries):
         reset_vector_branches(track_vector_branches)
         if i % 10000 == 0:
-            print(f"processed {i} events")
+            progress = 100.0 * i / n_selected_entries if n_selected_entries else 100.0
+            print(f"processed {i}/{n_selected_entries} events ({progress:.2f}%)")
         # Reset all branch variables before filling them
         for key in branch_vars:
             branch_vars[key][0] = -999
@@ -908,6 +945,7 @@ def main(args):
             raw_entry = cutflow_entry
 
         raw_tree.GetEntry(raw_entry)
+        init_event_geometry(snd_geo, raw_tree.EventHeader)
         
         branch_vars["eventIndex"][0] = raw_entry
         branch_vars["runId"][0] = raw_tree.EventHeader.GetRunId()
@@ -920,22 +958,28 @@ def main(args):
             except Exception:
                 branch_vars["eventId"][0] = raw_tree.EventHeader.GetMCEntryNumber()
                 
-            event_pdg0 = raw_tree.MCTrack[0].GetPdgCode()
-            event_pdg1 = raw_tree.MCTrack[1].GetPdgCode()
-
+            mc_tracks = raw_tree.MCTrack
+            n_mc_tracks = int(mc_tracks.GetEntriesFast())
             neutrino_pdgCode = [12, -12, 14, -14, 16, -16]
-            if (event_pdg0 == event_pdg1) and (event_pdg0 in neutrino_pdgCode):
-                branch_vars["pdgCode"][0] = event_pdg0 - 100 if event_pdg0 < 0 else event_pdg0 + 100
-            else:
-                branch_vars["pdgCode"][0] = event_pdg0
-                
-            branch_vars["x"][0]= raw_tree.MCTrack[1].GetStartX()
-            branch_vars["y"][0]= raw_tree.MCTrack[1].GetStartY()
-            branch_vars["z"][0]= raw_tree.MCTrack[1].GetStartZ()
 
-            branch_vars["px"][0] = raw_tree.MCTrack[0].GetPx()
-            branch_vars["py"][0] = raw_tree.MCTrack[0].GetPy()
-            branch_vars["pz"][0] = raw_tree.MCTrack[0].GetPz()
+            if n_mc_tracks >= 1:
+                track0 = mc_tracks[0]
+                event_pdg0 = track0.GetPdgCode()
+                branch_vars["pdgCode"][0] = event_pdg0
+                branch_vars["px"][0] = track0.GetPx()
+                branch_vars["py"][0] = track0.GetPy()
+                branch_vars["pz"][0] = track0.GetPz()
+
+                if n_mc_tracks >= 2:
+                    track1 = mc_tracks[1]
+                    event_pdg1 = track1.GetPdgCode()
+
+                    if (event_pdg0 == event_pdg1) and (event_pdg0 in neutrino_pdgCode):
+                        branch_vars["pdgCode"][0] = event_pdg0 - 100 if event_pdg0 < 0 else event_pdg0 + 100
+
+                    branch_vars["x"][0] = track1.GetStartX()
+                    branch_vars["y"][0] = track1.GetStartY()
+                    branch_vars["z"][0] = track1.GetStartZ()
 
             if is_muonDIS_sample(args):
                 n_primary, n_secondary_raw, n_secondary = process_muonDIS_tracks(raw_tree, track_vector_branches)
@@ -949,7 +993,7 @@ def main(args):
             branch_vars["isMC"][0] = 0
             branch_vars["pdgCode"][0] = 0
             branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
-        process_hits(args, raw_tree, vetoHits, snd_geo, branch_vars)
+        process_hits(args, raw_tree, snd_geo, branch_vars)
         #if i>2:
         #    break
         new_tree.Fill()

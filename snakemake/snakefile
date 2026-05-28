@@ -31,7 +31,7 @@ raw_metadata_csv_list = [
     # "MC_muon_up_metadata.csv",#2024 crossing angle
 
     # "MC_muonDIS_sii_metadata.csv",
-    "MC_muonDIS_cvilela_metadata.csv",
+    # "MC_muonDIS_cvilela_metadata.csv",
 
     # "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
     # "MC_neutrino_volTarget_100fb-1_metadata.csv",
@@ -56,7 +56,7 @@ subset_metadata_csv_list = [
     # "MC_kaon_FTFP_BERT_metadata_subset.csv",
     # "MC_neutron_FTFP_BERT_metadata_subset.csv",
 
-    # "real_data_2024_skim_runs_metadata.csv",
+    "real_data_2024_skim_runs_metadata.csv",
     # "real_data_2024_skim_runs_metadata_subset.csv",
     # "Split_v3.csv",
 ]
@@ -79,7 +79,7 @@ env_script_sndsw_nue = f"{PERSONAL_WORK_SPACE}/snakemake/envs/env_sndsw_nue.sh"
 env_script_sndsw_master = f"{PERSONAL_WORK_SPACE}/snakemake/envs/env_sndsw_master.sh"
 
 
-process_veto = False
+process_veto = True
 
 process_model = ['GravNet_v4']
 
@@ -135,27 +135,27 @@ max_neutron_partitions = 20
 max_muonDIS_partitions = 10
 
 nueAnalysis_partitions = (
-    [f"real_data_2024_Max{max_real_partitions}-{i}" for i in range(1, max_real_partitions + 1)] +
-    [f"MC_kaon_5-10GeV_Max{max_kaon_partitions}-{i}" for i in range(1, max_kaon_partitions + 1)] +
+    # [f"real_data_2024_Max{max_real_partitions}-{i}" for i in range(1, max_real_partitions + 1)] +
+    # [f"MC_kaon_5-10GeV_Max{max_kaon_partitions}-{i}" for i in range(1, max_kaon_partitions + 1)] +
     [f"MC_muonDIS_Max{max_muonDIS_partitions}-{i}" for i in range(1, max_muonDIS_partitions + 1)] +
-    [f"MC_neutron_5-10GeV_Max{max_neutron_partitions}-{i}" for i in range(1, max_neutron_partitions + 1)] +
+    # [f"MC_neutron_5-10GeV_Max{max_neutron_partitions}-{i}" for i in range(1, max_neutron_partitions + 1)] +
     [   
-        'MC_kaon_10-20GeV', 'MC_kaon_20-30GeV', 'MC_kaon_30-40GeV',
-        'MC_kaon_50-60GeV', 'MC_kaon_60-70GeV', 'MC_kaon_70-80GeV',
-        'MC_kaon_80-90GeV', 'MC_kaon_90-100GeV', 
+        # 'MC_kaon_10-20GeV', 'MC_kaon_20-30GeV', 'MC_kaon_30-40GeV',
+        # 'MC_kaon_50-60GeV', 'MC_kaon_60-70GeV', 'MC_kaon_70-80GeV',
+        # 'MC_kaon_80-90GeV', 'MC_kaon_90-100GeV', 
 
-        'MC_neutron_10-20GeV', 'MC_neutron_20-30GeV', 'MC_neutron_30-40GeV',
-        'MC_neutron_50-60GeV', 'MC_neutron_60-70GeV', 'MC_neutron_70-80GeV',
-        'MC_neutron_80-90GeV', 'MC_neutron_90-100GeV', 
+        # 'MC_neutron_10-20GeV', 'MC_neutron_20-30GeV', 'MC_neutron_30-40GeV',
+        # 'MC_neutron_50-60GeV', 'MC_neutron_60-70GeV', 'MC_neutron_70-80GeV',
+        # 'MC_neutron_80-90GeV', 'MC_neutron_90-100GeV', 
 
         # 'MC_muon',
 
 
 
-        'MC_NC_nue',
-        'MC_NC_numu',
-        'MC_CC_nue',
-        'MC_CC_numu',
+        # 'MC_NC_nue',
+        # 'MC_NC_numu',
+        # 'MC_CC_nue',
+        # 'MC_CC_numu',
     ]
 )
 
@@ -178,73 +178,73 @@ rule nueAnalysis:
 
 hist_names = [
     'density_sndsw_scifi',
-    # 'density_scifi1',
-    # 'density_scifi2',
-    # 'density_scifi3',
-    # 'density_scifi4',
-    # 'density_scifi5',
+    'density_scifi1',
+    'density_scifi2',
+    'density_scifi3',
+    'density_scifi4',
+    'density_scifi5',
 
     'count_scifi',
-    # 'count_scifi1',
-    # 'count_scifi2',
-    # 'count_scifi3',
-    # 'count_scifi4',
-    # 'count_scifi5',
-    # 'avg_scifi_x',
-    # 'avg_scifi1_x',
-    # 'avg_scifi2_x',
-    # 'avg_scifi3_x',
-    # 'avg_scifi4_x',
-    # 'avg_scifi5_x',
-    # 'avg_scifi_y',
-    # 'avg_scifi1_y',
-    # 'avg_scifi2_y',
-    # 'avg_scifi3_y',
-    # 'avg_scifi4_y',
-    # 'avg_scifi5_y',
+    'count_scifi1',
+    'count_scifi2',
+    'count_scifi3',
+    'count_scifi4',
+    'count_scifi5',
+    'avg_scifi_x',
+    'avg_scifi1_x',
+    'avg_scifi2_x',
+    'avg_scifi3_x',
+    'avg_scifi4_x',
+    'avg_scifi5_x',
+    'avg_scifi_y',
+    'avg_scifi1_y',
+    'avg_scifi2_y',
+    'avg_scifi3_y',
+    'avg_scifi4_y',
+    'avg_scifi5_y',
 
-    # "avg_ds_x",
-    # "avg_ds1_x",
-    # "avg_ds2_x",
-    # "avg_ds3_x",
-    # "avg_ds4_x",
+    "avg_ds_x",
+    "avg_ds1_x",
+    "avg_ds2_x",
+    "avg_ds3_x",
+    "avg_ds4_x",
 
-    # "avg_ds_y",
-    # "avg_ds1_y",
-    # "avg_ds2_y",
-    # "avg_ds3_y",
-    # "avg_ds4_y",
+    "avg_ds_y",
+    "avg_ds1_y",
+    "avg_ds2_y",
+    "avg_ds3_y",
+    "avg_ds4_y",
 
-    # "avg_us_y",
-    # "avg_us1_y",
-    # "avg_us2_y",
-    # "avg_us3_y",
-    # "avg_us4_y",
-    # "avg_us5_y",
+    "avg_us_y",
+    "avg_us1_y",
+    "avg_us2_y",
+    "avg_us3_y",
+    "avg_us4_y",
+    "avg_us5_y",
 
-    # 'count_us',
-    # 'count_us1',
-    # 'count_us2',
-    # 'count_us3',
-    # 'count_us4',
-    # 'count_us5',
-    # 'count_ds',
-    # 'count_ds1',
-    # 'count_ds2',
-    # 'count_ds3',
-    # 'count_ds4',
-    # 'qdc_scifi',
-    # 'qdc_scifi1',
-    # 'qdc_scifi2',
-    # 'qdc_scifi3',
-    # 'qdc_scifi4',
-    # 'qdc_scifi5',
-    # 'qdc_us',
-    # 'qdc_us1',
-    # 'qdc_us2',
-    # 'qdc_us3',
-    # 'qdc_us4',
-    # 'qdc_us5',
+    'count_us',
+    'count_us1',
+    'count_us2',
+    'count_us3',
+    'count_us4',
+    'count_us5',
+    'count_ds',
+    'count_ds1',
+    'count_ds2',
+    'count_ds3',
+    'count_ds4',
+    'qdc_scifi',
+    'qdc_scifi1',
+    'qdc_scifi2',
+    'qdc_scifi3',
+    'qdc_scifi4',
+    'qdc_scifi5',
+    'qdc_us',
+    'qdc_us1',
+    'qdc_us2',
+    'qdc_us3',
+    'qdc_us4',
+    'qdc_us5',
 
     # "avg_scifi_x - avg_scifi1_x",
     # "avg_scifi_x - avg_scifi2_x",
@@ -265,7 +265,7 @@ base_cut_map = {
     # "2_3_4_5_8_9_10": "2 3 4 5 8 9 10",
     # "2_3_4": "2 3 4",
     "2_3_4_8": "2 3 4 8",
-    "2_3_4_5_8": "2 3 4 5 8",
+    # "2_3_4_5_8": "2 3 4 5 8",
     # "2_3_4_5_6_7_8": "2 3 4 5 6 7 8",
     # "2_3_4_5_6_7_8_9": "2 3 4 5 6 7 8 9",
     # "2_3_4_5_6_7_8_9_10": "2 3 4 5 6 7 8 9 10",
@@ -276,13 +276,14 @@ base_cut_map = {
 }
 
 extra_cut_map = {
-    "density_sndsw_scifi_gt_1000__density_sndsw_scifi_lt_6000": "density_sndsw_scifi > 1000 && density_sndsw_scifi < 6000",
+    # "density_sndsw_scifi_gt_1000__density_sndsw_scifi_lt_6000": "density_sndsw_scifi > 1000 && density_sndsw_scifi < 6000",
     # "density_sndsw_scifi_gt_2000__density_sndsw_scifi_lt_5000": "density_sndsw_scifi > 2000 && density_sndsw_scifi < 5000",
     # "density_sndsw_scifi_gt_2000__density_sndsw_scifi_lt_5000__inverted_veto": "density_sndsw_scifi > 2000 && density_sndsw_scifi < 5000 && count_veto > 0",
     # "density_sndsw_scifi_gt_1000" : "density_sndsw_scifi > 1000",
     # "inverted_veto" : "count_veto > 0",
-    "density_sndsw_scifi_gt_100" : "density_sndsw_scifi > 100",
-    "density_sndsw_scifi_gt_0" : "density_sndsw_scifi > 0",
+    # "density_sndsw_scifi_gt_100" : "density_sndsw_scifi > 100",
+    # "density_sndsw_scifi_gt_0" : "density_sndsw_scifi > 0",
+        "count_scifi_gt_0" : "count_scifi > 0",
     # "density_sndsw_scifi_gt_2000" : "density_sndsw_scifi > 2000",
     # "density_sndsw_scifi_second_gt_20__density_sndsw_scifi_gt_11000" : "density_sndsw_scifi_second > 20 && density_sndsw_scifi > 11000",
     # "density_sndsw_scifi_gt_1000__separate_scifi_plane_fiducial":
@@ -356,6 +357,44 @@ compare_hadron_muondis_targets = [
     )
 ]
 
+sideband_cut_map = {
+    "count_us1_gt_0": "count_us1 > 0",
+    "scifi_fiducial": "cutFlowSummary_AvgSFChan == 1",
+}
+sideband_features = hist_names
+sideband_normalizations = ["lumi"]
+sideband_compare_pattern = (
+    f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/hist/"
+    "sideband_compare__{sideband_key}__{normalization}__{base_cut_key}__{extra_cut_key}/"
+    "{hist_name}__{base_cut_key}__{extra_cut_key}.done"
+)
+sideband_compare_targets = expand(
+    sideband_compare_pattern,
+    sideband_key=sideband_cut_map.keys(),
+    normalization=sideband_normalizations,
+    hist_name=sideband_features,
+    base_cut_key=base_cut_map.keys(),
+    extra_cut_key=extra_cut_map.keys(),
+)
+
+muondis_secondary_cut_map = {
+    "2_3_4": "2 3 4",
+    "2_3_4_5_8": "2 3 4 5 8",
+    "2_3_4_8": "2 3 4 8",
+    # "2_3_4_5_8_9_10": "2 3 4 5 8 9 10",
+    # "2_3_4_5_8_9_10_11_12_13_14": "2 3 4 5 8 9 10 11 12 13 14",
+}
+muondis_secondary_pattern = (
+    f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/hist/"
+    "muondis_secondaries__{base_cut_key}__{extra_cut_key}/"
+    "secondary_summary.done"
+)
+muondis_secondary_targets = expand(
+    muondis_secondary_pattern,
+    base_cut_key=muondis_secondary_cut_map.keys(),
+    extra_cut_key=extra_cut_map.keys(),
+)
+
 saved_event_display_target = (
     f"{PERSONAL_WORK_SPACE}/evaluation/nueAnalysis/event_display/saved_event_displays.done"
 )
@@ -386,7 +425,9 @@ rule plot:
         #     base_cut_key=base_cut_map.keys(),
         #     extra_cut_key=extra_cut_map.keys(),
         # ),
-        compare_hadron_muondis_targets,
+        # compare_hadron_muondis_targets,
+        # sideband_compare_targets,
+        muondis_secondary_targets,
         # saved_event_display_target,
 
 
