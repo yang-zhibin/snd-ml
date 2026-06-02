@@ -325,6 +325,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     
     # hit path
     df = add_new_path("hit","root", df, csv_input,  eos_root_path, seperate_veto=False)
+    df = add_new_path("hit3d","root", df, csv_input,  eos_root_path, seperate_veto=False)
     # feature path
     df = add_new_path("feature","root", df, csv_input, eos_root_path, seperate_veto=False)
     # pt hit path
@@ -386,4 +387,3 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--lumi", dest="lumi", help="lumi record file path", default='/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/SND_lumi_with_ineff.csv')
     args = parser.parse_args()
     main(args)
-

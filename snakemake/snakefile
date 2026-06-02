@@ -1,6 +1,9 @@
 import pandas as pd
 import glob
+import os
+import re
 import yaml
+from pathlib import Path
 
 wildcard_constraints:
     hit_path=".*hit.*.root",
@@ -17,6 +20,7 @@ wildcard_constraints:
     pt_hit_path = '.*pt_hit.*.pt.gz',
     pkl_hit_path = '.*pkl_hit.*.pkl.gz',
     npz_hit_path = '.*npz_hit.*.npz',
+    hit3d_path = '.*hit3d.*.root',
     model_output='.*prediction.*.root',
     eval_output = '.*eval.*.root',
     model_3d_output = '.*prediction.*.pkl.gz',
@@ -31,13 +35,13 @@ raw_metadata_csv_list = [
     # "MC_muon_up_metadata.csv",#2024 crossing angle
 
     # "MC_muonDIS_sii_metadata.csv",
-    # "MC_muonDIS_cvilela_metadata.csv",
+    "MC_muonDIS_cvilela_metadata.csv",
 
     # "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
     # "MC_neutrino_volTarget_100fb-1_metadata.csv",
     
-    # "MC_neutrino_2024_vm_metadata.csv",
-    # "MC_neutrino_2024_ve_metadata.csv",
+    "MC_neutrino_2024_vm_metadata.csv",
+    "MC_neutrino_2024_ve_metadata.csv",
 
     # "MC_kaon_FTFP_BERT_metadata.csv",
     # "MC_neutron_FTFP_BERT_metadata.csv",
@@ -90,6 +94,7 @@ train_model = 'CNN3D_v1'
 
 include: "rules/metadata.smk"
 include: "rules/production.smk"
+include: "rules/region_partitions.smk"
 include: "rules/train.smk"
 
 
@@ -98,7 +103,7 @@ rule metadata:
     input:
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/raw/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
         expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
-        # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=subset_metadata_csv_list)
+        expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=subset_metadata_csv_list)
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{train_split}}_{{split_dataset}}.csv", train_split=train_split, split_dataset = split_dataset)
 
 # need another process before train split to add  preSelect_count
@@ -110,7 +115,7 @@ rule production:
     input:
         # expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),
         expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
-        # expand("{npz_hit_path}", npz_hit_path=collect_metadata_targets("npz_hit_path", after_model = False)),
+        expand("{hit3d_path}", hit3d_path=collect_metadata_targets("hit3d_path", after_model = False)),
         # expand("{muonDISFeature_path}", muonDISFeature_path=collect_metadata_targets("muonDISFeature_path", after_model = False)),
         # expand("{muonDISDigi_path}", muonDISDigi_path=collect_metadata_targets("muonDISDigi_path", after_model = False)),
         # expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),

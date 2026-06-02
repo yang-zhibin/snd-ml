@@ -264,18 +264,17 @@ rule process_features:
         """
 
 
-rule process_hits:
+rule process_hit3d:
     input:
         #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
-        digi=lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "digi_path",  after_model = False),
-        geo=lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "geo_path",  after_model = False),
+        digi=lambda wildcards: get_metadata_value(ref_name = "hit3d_path", ref_value = wildcards.hit3d_path, target_name = "digi_path",  after_model = False),
+        geo=lambda wildcards: get_metadata_value(ref_name = "hit3d_path", ref_value = wildcards.hit3d_path, target_name = "geo_path",  after_model = False),
         script = f"{PERSONAL_WORK_SPACE}/convertData/digi_2_hits3D.py",
-        nueAnalysisFilter_path=lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "nueAnalysisFilter_path",  after_model = False),
+        nueAnalysisFilter_path=lambda wildcards: get_metadata_value(ref_name = "hit3d_path", ref_value = wildcards.hit3d_path, target_name = "nueAnalysisFilter_path",  after_model = False),
     params:
-        data_type=lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "data_type",  after_model = False),
-        split = lambda wildcards: get_metadata_value(ref_name = "npz_hit_path", ref_value = wildcards.npz_hit_path, target_name = "split",  after_model = False),
+        data_type=lambda wildcards: get_metadata_value(ref_name = "hit3d_path", ref_value = wildcards.hit3d_path, target_name = "data_type",  after_model = False),
     output:
-        npz_hit_path="{npz_hit_path}"
+        hit3d_path="{hit3d_path}"
     threads:1
     resources:
         runtime=60*60,
@@ -297,22 +296,21 @@ rule process_hits:
 
         # Create a unique temporary directory
         tmp_dir=$(mktemp -d)
-        filename=$(basename "{output.npz_hit_path}")
+        filename=$(basename "{output.hit3d_path}")
         tmp_output="${{tmp_dir}}/${{filename}}"
 
         export PYTHONPATH="$SNDSW_ROOT:$PYTHONPATH"
-        echo "Running hit generation script"
+        echo "Running hit3D ROOT generation script"
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
             {input.script} \
             -p {input.nueAnalysisFilter_path}\
             -d {input.digi} \
             -g {input.geo} \
             -o "${{tmp_output}}" \
-            -t {params.data_type} \
-            --dataset-split {params.split}
+            -t {params.data_type}
 
         echo "Copying result to final location"
-        xrdcp -f "${{tmp_output}}" "{output.npz_hit_path}" || {{ echo "xrdcp failed"; exit 1; }}
+        xrdcp -f "${{tmp_output}}" "{output.hit3d_path}" || {{ echo "xrdcp failed"; exit 1; }}
 
         echo "Cleaning up"
         rm -rf "${{tmp_dir}}"
@@ -406,6 +404,3 @@ rule process_muonDIS_digi:
         echo "Cleaning up"
         rm -rf "${{tmp_dir}}"
         """
-
-
-

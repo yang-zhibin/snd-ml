@@ -1,13 +1,51 @@
 import ROOT
+import array
 import os
+import time
 from argparse import ArgumentParser
 import SndlhcGeo
 from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from tqdm import tqdm
 
-from analysis.analyses.snd_analysis_2024_0mu.sciFiTools import selectHits, getSumDensity
+from analysis.analyses.snd_analysis_2024_0mu.sciFiTools import selectHits
+
+ROOT.TH1.AddDirectory(False)
+
+
+TIMING_KEYS = [
+    "entry_load",
+    "metadata",
+    "scifi_select",
+    "scifi_build",
+    "mufilter_build",
+    "scifi_cross",
+    "ds_cross",
+    "us_ds4_voxel",
+    "merge_hits",
+    "root_fill",
+    "root_write",
+]
+
+
+def add_timing(timings, key, elapsed):
+    if timings is not None:
+        timings[key] += elapsed
+
+
+def print_timing_summary(timings, n_events):
+    if not timings or n_events <= 0:
+        return
+
+    print("Timing summary:")
+    total = sum(timings.values())
+    for key in TIMING_KEYS:
+        seconds = timings.get(key, 0.0)
+        ms_per_event = 1000.0 * seconds / n_events
+        print(f"  {key:16s}: {seconds:9.3f} s  ({ms_per_event:8.3f} ms/event)")
+    print(f"  {'measured_total':16s}: {total:9.3f} s  ({1000.0 * total / n_events:8.3f} ms/event)")
 
 
 # ==========================================================
@@ -25,18 +63,6 @@ particle_to_target = {
     0: 6,
 }
 
-particle_mapping = {
-    12: "ve", -12: "ve",
-    14: "vm", -14: "vm",
-    16: "vt", -16: "vt",
-    112: "NC", -112: "NC", 114: "NC", -114: "NC", 116: "NC", -116: "NC",
-    130: "kaon", 310: "kaon",
-    2112: "neutron",
-    13: "muon", -13: "muon",
-    0: "data",
-}
-
-
 # ==========================================================
 # I/O and setup
 # ==========================================================
@@ -48,6 +74,11 @@ def setup_geometry(geo_file):
     lsOfGlobals.Add(snd_geo.modules["Scifi"])
     lsOfGlobals.Add(snd_geo.modules["MuFilter"])
     return snd_geo
+
+
+def init_event_geometry(snd_geo, event_header):
+    snd_geo.modules["Scifi"].InitEvent(event_header)
+    snd_geo.modules["MuFilter"].InitEvent(event_header)
 
 
 def open_root_file(file_path, tree_name="cbmsim", mode="read"):
@@ -63,171 +94,45 @@ def open_root_file(file_path, tree_name="cbmsim", mode="read"):
     return root_file, tree
 
 
-def save_dataset(obj, path):
-    """
-    Save nested object as compressed NPZ.
-
-    Note: because events is a list of dictionaries containing arrays,
-    loading needs allow_pickle=True.
-    """
-    np.savez_compressed(path, **obj)
+def is_muonDIS_sample(args):
+    """Identify muonDIS jobs from the common path/type arguments."""
+    fields = ("out_path", "type", "digi_path", "preSelect_path")
+    return any("muondis" in str(getattr(args, field, "")).lower() for field in fields)
 
 
-def build_selection(args):
-    """
-    Build event selection.
+def non_negative_float(value):
+    try:
+        return max(float(value), 0.0)
+    except Exception:
+        return 0.0
 
-    train/val:
-        strict cuts for training-quality samples.
 
-    test:
-        looser cuts matching feature-file production, useful for later
-        comparison and evaluation.
-    """
-    is_veto_sample = "veto_" in os.path.basename(args.out_path)
+def setup_event_deltat_alias(preSelect_tree):
+    """Make EventDeltat_m1_100 usable for trees with different sanitized names."""
+    alias_name = "EventDeltat_m1_100"
+    if preSelect_tree.GetBranch(alias_name) or preSelect_tree.GetLeaf(alias_name):
+        return alias_name
 
-    if args.dataset_split in ("train", "val"):
-        if is_veto_sample:
-            selection = (
-                "AvgSFChan == 1 && "
-                "NoVetoHits == 0 && "
-                "At_least_two_consecutive_SciFi_planes == 1 && "
-                "SciFiContinuity == 1"
-            )
-        else:
-            selection = (
-                "AvgSFChan == 1 && "
-                "NoVetoHits == 1 && "
-                "At_least_two_consecutive_SciFi_planes == 1 && "
-                "SciFiContinuity == 1"
-            )
+    for candidate in ("EventDeltat_1_100", "EventDeltat_-1_100"):
+        if preSelect_tree.GetBranch(candidate) or preSelect_tree.GetLeaf(candidate):
+            preSelect_tree.SetAlias(alias_name, candidate)
+            return candidate
 
-    elif args.dataset_split == "test":
-        if is_veto_sample:
-            selection = "AvgSFChan == 1 && NoVetoHits == 0"
-        else:
-            selection = "AvgSFChan == 1 && NoVetoHits == 1"
+    return None
 
-    else:
-        raise ValueError(f"Unknown dataset_split: {args.dataset_split}")
 
+def build_selection(args, preSelect_tree):
+    """Build the same broad event selection used by digi_2_features.py."""
+    selection = "SciFiMinHits == 1"
     if "MC" not in args.type:
-        selection += " && StableBeams==1 && IP1 == 1 && EventDeltat_m1_100 == 1"
+        event_deltat_branch = setup_event_deltat_alias(preSelect_tree)
+        if not event_deltat_branch:
+            raise RuntimeError("No EventDeltat cut branch found for real-data selection")
+
+        data_selection = "StableBeams == 1 && IP1 == 1 && EventDeltat_m1_100 == 1"
+        selection = selection + " && " + data_selection
 
     return selection
-
-
-# ==========================================================
-# Filtering
-# ==========================================================
-
-def filter_SciFiHits_qdc(SciFi_hits, mode="mean", verbose=False):
-    """Filter SciFi hits by QDC threshold."""
-    if not SciFi_hits:
-        stats = {
-            "n_before": 0,
-            "thresholds": {
-                "mean": None,
-                "median": None,
-                "half_maxQDC": None,
-            },
-            "counts_after": {
-                "mean": 0,
-                "median": 0,
-                "half_maxQDC": 0,
-            },
-            "selected_mode": mode,
-            "selected_threshold": None,
-            "n_after_selected": 0,
-        }
-        if verbose:
-            print("[SciFi QDC filter] no hits")
-        return [], stats
-
-    qdcs = np.array([float(h["qdc"]) for h in SciFi_hits], dtype=float)
-
-    thresholds = {
-        "mean": float(np.mean(qdcs)),
-        "median": float(np.median(qdcs)),
-        "half_maxQDC": 0.5 * float(np.max(qdcs)),
-    }
-
-    if mode not in thresholds:
-        raise ValueError(f"Invalid mode '{mode}'. Choose from: {list(thresholds.keys())}")
-
-    counts_after = {
-        key: sum(1 for h in SciFi_hits if float(h["qdc"]) >= thr)
-        for key, thr in thresholds.items()
-    }
-
-    if verbose:
-        n_before = len(SciFi_hits)
-        print(
-            f"[SciFi QDC filter] before={n_before} | "
-            f"mean_thr={thresholds['mean']:.4f}, after={counts_after['mean']} "
-            f"({100.0 * counts_after['mean'] / n_before:.1f}%) | "
-            f"median_thr={thresholds['median']:.4f}, after={counts_after['median']} "
-            f"({100.0 * counts_after['median'] / n_before:.1f}%) | "
-            f"half_maxQDC_thr={thresholds['half_maxQDC']:.4f}, after={counts_after['half_maxQDC']} "
-            f"({100.0 * counts_after['half_maxQDC'] / n_before:.1f}%)"
-        )
-
-    selected_threshold = thresholds[mode]
-    filtered_hits = [h for h in SciFi_hits if float(h["qdc"]) >= selected_threshold]
-
-    stats = {
-        "n_before": len(SciFi_hits),
-        "thresholds": thresholds,
-        "counts_after": counts_after,
-        "selected_mode": mode,
-        "selected_threshold": selected_threshold,
-        "n_after_selected": len(filtered_hits),
-    }
-
-    return filtered_hits, stats
-
-
-def filter_SciFiHits_time(
-    SciFi_hits,
-    lower_time_threshold=0.5,
-    upper_time_threshold=2.3,
-    bin_width=0.25,
-):
-    """Filter SciFi hits around MPV of hit time per station and orientation."""
-    if not SciFi_hits:
-        return [], {}
-
-    groups = defaultdict(list)
-    for h in SciFi_hits:
-        groups[(h["station"], h["isVertical"])].append(h)
-
-    filtered = []
-    peak_by_group = {}
-    max_bins = 2000
-
-    for key, hits in groups.items():
-        times = np.array([h["hitTimeCY"] for h in hits], dtype=float)
-        tmin, tmax = float(times.min()), float(times.max())
-
-        if tmax <= tmin:
-            peak = tmin
-        else:
-            width = tmax - tmin
-            nbins = int(np.ceil(width / bin_width))
-            nbins = max(10, min(nbins, max_bins))
-            hist, edges = np.histogram(times, bins=nbins, range=(tmin, tmax))
-            i_max = int(np.argmax(hist))
-            peak = 0.5 * (edges[i_max] + edges[i_max + 1])
-
-        peak_by_group[key] = peak
-        lo = peak - lower_time_threshold
-        hi = peak + upper_time_threshold
-
-        for h in hits:
-            if lo <= h["hitTimeCY"] <= hi:
-                filtered.append(h)
-
-    return filtered, peak_by_group
 
 
 # ==========================================================
@@ -249,12 +154,12 @@ def concatenate_hit_dicts(hit_dicts, keys, dtypes):
     }
 
 
-def combine_station_hits_to_3d(vertical_hits, horizontal_hits, vertical_id_key, horizontal_id_key):
+def combine_station_hits_to_3d(vertical_hits, horizontal_hits):
     """Combine one station's vertical and horizontal hits into crossed 3D hits."""
     if not vertical_hits or not horizontal_hits:
         return empty_hit_arrays(
-            ["station", "x", "y", "z", "qdc", "vertical_id", "horizontal_id"],
-            [np.int16, np.float32, np.float32, np.float32, np.float32, np.int32, np.int32],
+            ["station", "x", "y", "z", "qdc"],
+            [np.int16, np.float32, np.float32, np.float32, np.float32],
         )
 
     station = vertical_hits[0]["station"]
@@ -262,12 +167,10 @@ def combine_station_hits_to_3d(vertical_hits, horizontal_hits, vertical_id_key, 
     vx = np.array([h["x_mid"] for h in vertical_hits], dtype=np.float32)
     vz = np.array([h["z_mid"] for h in vertical_hits], dtype=np.float32)
     vq = np.array([h["qdc"] for h in vertical_hits], dtype=np.float32)
-    vid = np.array([h[vertical_id_key] for h in vertical_hits], dtype=np.int32)
 
     hy = np.array([h["y_mid"] for h in horizontal_hits], dtype=np.float32)
     hz = np.array([h["z_mid"] for h in horizontal_hits], dtype=np.float32)
     hq = np.array([h["qdc"] for h in horizontal_hits], dtype=np.float32)
-    hid = np.array([h[horizontal_id_key] for h in horizontal_hits], dtype=np.int32)
 
     nv = len(vertical_hits)
     nh = len(horizontal_hits)
@@ -283,9 +186,28 @@ def combine_station_hits_to_3d(vertical_hits, horizontal_hits, vertical_id_key, 
         "y": y,
         "z": z,
         "qdc": qdc,
-        "vertical_id": np.repeat(vid, nh),
-        "horizontal_id": np.tile(hid, nv),
     }
+
+
+def make_centered_box_offsets(dim, voxel_size):
+    """Build reusable voxel step grids for the centered-box formulation."""
+    sx, sy, sz = dim
+    dx, dy, dz = voxel_size
+
+    nx = max(1, int(round(sx / dx)))
+    ny = max(1, int(round(sy / dy)))
+    nz = max(1, int(round(sz / dz)))
+
+    half_x = 0.5 * nx * dx
+    half_y = 0.5 * ny * dy
+    half_z = 0.5 * nz * dz
+
+    xs = (np.arange(nx, dtype=np.float32) + 0.5) * dx
+    ys = (np.arange(ny, dtype=np.float32) + 0.5) * dy
+    zs = (np.arange(nz, dtype=np.float32) + 0.5) * dz
+
+    X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")
+    return X.ravel(), Y.ravel(), Z.ravel(), half_x, half_y, half_z
 
 
 def build_centered_boxes_for_us_ds4(
@@ -295,59 +217,38 @@ def build_centered_boxes_for_us_ds4(
     ds4_dim=(1.0, 63.5, 1.0),
 ):
     """Build voxelized 3D hits distributed inside US and DS4 bars."""
-    dx, dy, dz = voxel_size
+    us_offsets = make_centered_box_offsets(us_dim, voxel_size)
+    ds4_offsets = make_centered_box_offsets(ds4_dim, voxel_size)
 
     selected_hits = []
-    dims = []
+    offset_sets = []
 
     for h in MuFilter_hits:
         if h["detType"] == 2:
             selected_hits.append(h)
-            dims.append(us_dim)
+            offset_sets.append(us_offsets)
         elif h["detType"] == 3 and h["station"] == 4:
             selected_hits.append(h)
-            dims.append(ds4_dim)
+            offset_sets.append(ds4_offsets)
 
     if not selected_hits:
         return empty_hit_arrays(
-            ["x", "y", "z", "qdc", "station", "detType", "barIndex", "source_hit"],
-            [np.float32, np.float32, np.float32, np.float32, np.int16, np.int16, np.int32, np.int32],
+            ["x", "y", "z", "qdc", "station"],
+            [np.float32, np.float32, np.float32, np.float32, np.int16],
         )
 
     x_all, y_all, z_all = [], [], []
-    qdc_all, station_all, detType_all = [], [], []
-    barIndex_all, source_hit_all = [], []
+    qdc_all, station_all = [], []
 
-    for i, (h, dim) in enumerate(zip(selected_hits, dims)):
-        sx, sy, sz = dim
+    for i, (h, voxel_grid) in enumerate(zip(selected_hits, offset_sets)):
+        step_x, step_y, step_z, half_x, half_y, half_z = voxel_grid
+        nvox = len(step_x)
 
-        nx = max(1, int(round(sx / dx)))
-        ny = max(1, int(round(sy / dy)))
-        nz = max(1, int(round(sz / dz)))
-
-        sx_eff = nx * dx
-        sy_eff = ny * dy
-        sz_eff = nz * dz
-
-        x0 = h["x_mid"] - 0.5 * sx_eff
-        y0 = h["y_mid"] - 0.5 * sy_eff
-        z0 = h["z_mid"] - 0.5 * sz_eff
-
-        xs = x0 + (np.arange(nx, dtype=np.float32) + 0.5) * dx
-        ys = y0 + (np.arange(ny, dtype=np.float32) + 0.5) * dy
-        zs = z0 + (np.arange(nz, dtype=np.float32) + 0.5) * dz
-
-        X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")
-        nvox = nx * ny * nz
-
-        x_all.append(X.ravel())
-        y_all.append(Y.ravel())
-        z_all.append(Z.ravel())
+        x_all.append((h["x_mid"] - half_x) + step_x)
+        y_all.append((h["y_mid"] - half_y) + step_y)
+        z_all.append((h["z_mid"] - half_z) + step_z)
         qdc_all.append(np.full(nvox, float(h["qdc"]) / nvox, dtype=np.float32))
         station_all.append(np.full(nvox, h["station"], dtype=np.int16))
-        detType_all.append(np.full(nvox, h["detType"], dtype=np.int16))
-        barIndex_all.append(np.full(nvox, h["barIndex"], dtype=np.int32))
-        source_hit_all.append(np.full(nvox, i, dtype=np.int32))
 
     return {
         "x": np.concatenate(x_all),
@@ -355,9 +256,6 @@ def build_centered_boxes_for_us_ds4(
         "z": np.concatenate(z_all),
         "qdc": np.concatenate(qdc_all),
         "station": np.concatenate(station_all),
-        "detType": np.concatenate(detType_all),
-        "barIndex": np.concatenate(barIndex_all),
-        "source_hit": np.concatenate(source_hit_all),
     }
 
 
@@ -396,6 +294,101 @@ def build_all_3dHits(SciFi_3D_hits, DS_3D_hits, US_DS4_voxel_hits):
 
 
 # ==========================================================
+# ROOT output helpers
+# ==========================================================
+
+def create_output_root(path, mode, compression_level=9):
+    dir_name = os.path.dirname(path)
+    if dir_name and not path.startswith("root://"):
+        os.makedirs(dir_name, exist_ok=True)
+
+    out_file = ROOT.TFile(path, mode, "", compression_level)
+    if not out_file or out_file.IsZombie():
+        raise RuntimeError(f"Could not create ROOT file: {path}")
+    out_file.SetCompressionLevel(compression_level)
+
+    tree = ROOT.TTree("hit3D", "converted SND 3D hits tree")
+    tree.SetDirectory(out_file)
+
+    branch_vars = {
+        "runId": array.array("i", [-999]),
+        "eventId": array.array("i", [-999]),
+        "eventIndex": array.array("i", [-999]),
+        "pdgCode": array.array("i", [-999]),
+        "isMC": array.array("i", [-999]),
+        "label": array.array("i", [-999]),
+        "energy": array.array("d", [-999.0]),
+    }
+
+    for name, value in branch_vars.items():
+        dtype = "D" if value.typecode == "d" else "I"
+        tree.Branch(name, value, f"{name}/{dtype}")
+
+    vector_vars = {
+        "hit_x": ROOT.std.vector("float")(),
+        "hit_y": ROOT.std.vector("float")(),
+        "hit_z": ROOT.std.vector("float")(),
+        "hit_qdc": ROOT.std.vector("float")(),
+        "hit_station": ROOT.std.vector("short")(),
+        "hit_detType": ROOT.std.vector("short")(),
+    }
+
+    for name, vec in vector_vars.items():
+        tree.Branch(name, vec)
+
+    return out_file, tree, branch_vars, vector_vars
+
+
+def reset_output_branches(branch_vars, vector_vars):
+    for value in branch_vars.values():
+        value[0] = -999.0 if value.typecode == "d" else -999
+
+    for vec in vector_vars.values():
+        vec.clear()
+
+
+def fill_event_branches(event, branch_vars):
+    branch_vars["runId"][0] = int(event.get("runId", -999))
+    branch_vars["eventId"][0] = int(event.get("eventId", -999))
+    branch_vars["eventIndex"][0] = int(event.get("eventIndex", -999))
+    branch_vars["pdgCode"][0] = int(event.get("pdgCode", -999))
+    branch_vars["isMC"][0] = int(event.get("isMC", -999))
+    branch_vars["label"][0] = int(event.get("label", -999))
+    branch_vars["energy"][0] = float(event.get("energy", -999.0))
+
+
+def assign_vector(vec, values):
+    vec.clear()
+    vec.assign(values)
+
+
+def fill_hit_vectors(all_3dHits, vector_vars):
+    x = np.asarray(all_3dHits.get("x", []), dtype=np.float32)
+    y = np.asarray(all_3dHits.get("y", []), dtype=np.float32)
+    z = np.asarray(all_3dHits.get("z", []), dtype=np.float32)
+    qdc = np.asarray(all_3dHits.get("qdc", []), dtype=np.float32)
+    station = np.asarray(all_3dHits.get("station", []), dtype=np.int16)
+    det_type = np.asarray(all_3dHits.get("detType", []), dtype=np.int16)
+
+    lengths = {len(x), len(y), len(z), len(qdc), len(station), len(det_type)}
+    if len(lengths) != 1:
+        raise RuntimeError(f"Inconsistent hit3D array lengths: {sorted(lengths)}")
+
+    assign_vector(vector_vars["hit_x"], x)
+    assign_vector(vector_vars["hit_y"], y)
+    assign_vector(vector_vars["hit_z"], z)
+    assign_vector(vector_vars["hit_qdc"], qdc)
+    assign_vector(vector_vars["hit_station"], station)
+    assign_vector(vector_vars["hit_detType"], det_type)
+
+
+def write_metadata_objects(out_file, metadata):
+    out_file.cd()
+    for key, value in metadata.items():
+        ROOT.TNamed(f"metadata_{key}", str(value)).Write()
+
+
+# ==========================================================
 # Main hit processing
 # ==========================================================
 
@@ -406,26 +399,29 @@ def process_hits_numpy(
     voxel_size=(1.0, 1.0, 1.0),
     us_dim=(83.5, 6.0, 1.0),
     ds4_dim=(1.0, 63.5, 1.0),
+    timings=None,
 ):
     Scifi = snd_geo.modules["Scifi"]
     MuFilter = snd_geo.modules["MuFilter"]
     A, B = ROOT.TVector3(), ROOT.TVector3()
 
+    t0 = time.perf_counter()
+    if is_muonDIS_sample(args):
+        selected_scifi_hits = [hit for hit in event.Digi_ScifiHits if hit.isValid()]
+    else:
+        selected_scifi_hits = selectHits(event, MC=("MC" in args.type))
+    add_timing(timings, "scifi_select", time.perf_counter() - t0)
+
+    t0 = time.perf_counter()
     SciFi_hits = []
 
-    for aHit in event.Digi_ScifiHits:
+    for aHit in selected_scifi_hits:
         if not aHit.isValid():
             continue
 
         detID = aHit.GetDetectorID()
-        station = int(detID // 1000000)
-        hitTimeCY = float(aHit.GetTime() / 6.25)
-        qdc = float(aHit.GetSignal(0))
-
-        mat = aHit.GetMat()
-        sipm = aHit.GetSiPM()
-        channel = aHit.GetSiPMChan()
-        layer_channel = int(channel + sipm * 128 + mat * 4 * 128)
+        station = int(aHit.GetStation())
+        qdc = non_negative_float(aHit.GetSignal(0))
 
         Scifi.GetSiPMPosition(detID, A, B)
         Ax, Ay, Az = A.x(), A.y(), A.z()
@@ -434,14 +430,14 @@ def process_hits_numpy(
         SciFi_hits.append({
             "station": station,
             "isVertical": bool(aHit.isVertical()),
-            "layer_channel": layer_channel,
             "qdc": qdc,
-            "hitTimeCY": hitTimeCY,
             "x_mid": 0.5 * (Ax + Bx),
             "y_mid": 0.5 * (Ay + By),
             "z_mid": 0.5 * (Az + Bz),
         })
+    add_timing(timings, "scifi_build", time.perf_counter() - t0)
 
+    t0 = time.perf_counter()
     MuFilter_hits = []
 
     for aHit in event.Digi_MuFilterHits:
@@ -453,12 +449,10 @@ def process_hits_numpy(
 
         detType = int(aHit.GetSystem())
         station = int((detID // 1000) % 10 + 1)
-        hitTimeCY = float(aHit.GetTime() / 6.25)
-        barIndex = int(detID % 100)
 
         qdc = 0.0
         for _, value in aHit.GetAllSignals():
-            qdc += float(value)
+            qdc += non_negative_float(value)
 
         Ax, Ay, Az = A.x(), A.y(), A.z()
         Bx, By, Bz = B.x(), B.y(), B.z()
@@ -467,28 +461,15 @@ def process_hits_numpy(
             "detType": detType,
             "station": station,
             "isVertical": bool(aHit.isVertical()),
-            "barIndex": barIndex,
             "qdc": qdc,
-            "hitTimeCY": hitTimeCY,
             "x_mid": 0.5 * (Ax + Bx),
             "y_mid": 0.5 * (Ay + By),
             "z_mid": 0.5 * (Az + Bz),
         })
-
-    SciFi_hits, time_stats = filter_SciFiHits_time(
-        SciFi_hits,
-        lower_time_threshold=args.scifi_time_lower,
-        upper_time_threshold=args.scifi_time_upper,
-        bin_width=args.scifi_time_bin_width,
-    )
-
-    SciFi_hits, qdc_stats = filter_SciFiHits_qdc(
-        SciFi_hits,
-        mode=args.scifi_qdc_mode,
-        verbose=args.verbose_qdc_filter,
-    )
+    add_timing(timings, "mufilter_build", time.perf_counter() - t0)
 
     # SciFi 3D hits
+    t0 = time.perf_counter()
     scifi_by_station = defaultdict(list)
     for h in SciFi_hits:
         scifi_by_station[h["station"]].append(h)
@@ -501,8 +482,6 @@ def process_hits_numpy(
         arr = combine_station_hits_to_3d(
             vertical_hits,
             horizontal_hits,
-            vertical_id_key="layer_channel",
-            horizontal_id_key="layer_channel",
         )
         if len(arr["x"]) > 0:
             scifi_station_arrays.append(arr)
@@ -514,16 +493,16 @@ def process_hits_numpy(
             "y": np.concatenate([a["y"] for a in scifi_station_arrays]),
             "z": np.concatenate([a["z"] for a in scifi_station_arrays]),
             "qdc": np.concatenate([a["qdc"] for a in scifi_station_arrays]),
-            "vertical_layer_channel": np.concatenate([a["vertical_id"] for a in scifi_station_arrays]),
-            "horizontal_layer_channel": np.concatenate([a["horizontal_id"] for a in scifi_station_arrays]),
         }
     else:
         SciFi_3D_hits = empty_hit_arrays(
-            ["station", "x", "y", "z", "qdc", "vertical_layer_channel", "horizontal_layer_channel"],
-            [np.int16, np.float32, np.float32, np.float32, np.float32, np.int32, np.int32],
+            ["station", "x", "y", "z", "qdc"],
+            [np.int16, np.float32, np.float32, np.float32, np.float32],
         )
+    add_timing(timings, "scifi_cross", time.perf_counter() - t0)
 
     # DS1/2/3 3D hits
+    t0 = time.perf_counter()
     ds_hits = [h for h in MuFilter_hits if h["detType"] == 3 and h["station"] in (1, 2, 3)]
     ds_by_station = defaultdict(list)
     for h in ds_hits:
@@ -537,8 +516,6 @@ def process_hits_numpy(
         arr = combine_station_hits_to_3d(
             vertical_hits,
             horizontal_hits,
-            vertical_id_key="barIndex",
-            horizontal_id_key="barIndex",
         )
         if len(arr["x"]) > 0:
             ds_station_arrays.append(arr)
@@ -550,27 +527,30 @@ def process_hits_numpy(
             "y": np.concatenate([a["y"] for a in ds_station_arrays]),
             "z": np.concatenate([a["z"] for a in ds_station_arrays]),
             "qdc": np.concatenate([a["qdc"] for a in ds_station_arrays]),
-            "vertical_barIndex": np.concatenate([a["vertical_id"] for a in ds_station_arrays]),
-            "horizontal_barIndex": np.concatenate([a["horizontal_id"] for a in ds_station_arrays]),
         }
     else:
         DS_3D_hits = empty_hit_arrays(
-            ["station", "x", "y", "z", "qdc", "vertical_barIndex", "horizontal_barIndex"],
-            [np.int16, np.float32, np.float32, np.float32, np.float32, np.int32, np.int32],
+            ["station", "x", "y", "z", "qdc"],
+            [np.int16, np.float32, np.float32, np.float32, np.float32],
         )
+    add_timing(timings, "ds_cross", time.perf_counter() - t0)
 
+    t0 = time.perf_counter()
     US_DS4_voxel_hits = build_centered_boxes_for_us_ds4(
         MuFilter_hits,
         voxel_size=voxel_size,
         us_dim=us_dim,
         ds4_dim=ds4_dim,
     )
+    add_timing(timings, "us_ds4_voxel", time.perf_counter() - t0)
 
+    t0 = time.perf_counter()
     all_3dHits = build_all_3dHits(
         SciFi_3D_hits,
         DS_3D_hits,
         US_DS4_voxel_hits,
     )
+    add_timing(timings, "merge_hits", time.perf_counter() - t0)
 
     return all_3dHits
 
@@ -739,14 +719,10 @@ def make_metadata(args, selection, n_selected):
         "n_selected": int(n_selected),
         "type": args.type,
         "mode": args.mode,
-        "dataset_split": args.dataset_split,
-        "scifi_qdc_mode": args.scifi_qdc_mode,
-        "scifi_time_lower": args.scifi_time_lower,
-        "scifi_time_upper": args.scifi_time_upper,
-        "scifi_time_bin_width": args.scifi_time_bin_width,
         "digi_path": args.digi_path,
         "preSelect_path": args.preSelect_path,
         "geo_path": args.geo_path,
+        "compression_level": args.compression_level,
     }
 
 
@@ -756,26 +732,27 @@ def main(args):
     snd_geo = setup_geometry(args.geo_path)
     raw_data, raw_tree = open_root_file(args.digi_path)
     preSelect_data, preSelect_tree = open_root_file(args.preSelect_path, tree_name="cutFlowSummary")
+    out_file, hit_tree, branch_vars, vector_vars = create_output_root(
+        args.out_path,
+        args.mode,
+        compression_level=args.compression_level,
+    )
 
-    preSelect_tree.SetAlias("EventDeltat_m1_100", "EventDeltat_-1_100")
+    selection = build_selection(args, preSelect_tree)
 
-    selection = build_selection(args)
-
-    print(f"Dataset split: {args.dataset_split}")
+    print("Using feature-aligned hit3D event selection")
     print(f"Applying selection: {selection}")
 
     n_match = preSelect_tree.GetEntries(selection)
     print(f"Entries matching selection: {n_match}")
 
     if n_match == 0:
-        output = {
-            "events": [],
-            "metadata": make_metadata(args, selection, 0),
-        }
-        save_dataset(output, args.out_path)
-        print("No entries matched the selection condition, saved empty dataset")
+        hit_tree.Write()
+        write_metadata_objects(out_file, make_metadata(args, selection, 0))
+        out_file.Close()
         raw_data.Close()
         preSelect_data.Close()
+        print("No entries matched the selection condition, saved empty hit3D tree")
         return 0
 
     elist_name = "elist"
@@ -786,36 +763,47 @@ def main(args):
         raise RuntimeError("Failed to create or retrieve TEntryList")
 
     preSelect_tree.SetEntryList(elist)
+    n_selected = int(elist.GetN())
+    timings = {key: 0.0 for key in TIMING_KEYS}
 
-    events = []
+    for i in tqdm(range(n_selected), desc="processing hit3D events", mininterval=30):
+        t0 = time.perf_counter()
+        cutflow_entry = elist.GetEntry(i)
+        preSelect_tree.GetEntry(cutflow_entry)
 
-    for i in range(elist.GetN()):
-        if i % args.progress_every == 0:
-            print(f"processed {i} / {elist.GetN()} events")
+        if hasattr(preSelect_tree, "entry"):
+            raw_entry = int(preSelect_tree.entry)
+        else:
+            raw_entry = cutflow_entry
 
-        entry_number = elist.GetEntry(i)
-        raw_tree.GetEntry(entry_number)
-        preSelect_tree.GetEntry(entry_number)
+        raw_tree.GetEntry(raw_entry)
+        init_event_geometry(snd_geo, raw_tree.EventHeader)
+        add_timing(timings, "entry_load", time.perf_counter() - t0)
 
-        event = extract_event_metadata(args, raw_tree, entry_number)
-        all_3dHits = process_hits_numpy(args, raw_tree, snd_geo)
-
-        event["all_3dHits"] = all_3dHits
+        t0 = time.perf_counter()
+        event = extract_event_metadata(args, raw_tree, raw_entry)
         event["label"] = particle_to_target.get(event["pdgCode"], -1)
-        event["particle_name"] = particle_mapping.get(event["pdgCode"], "unknown")
-        events.append(event)
+        add_timing(timings, "metadata", time.perf_counter() - t0)
 
-    output = {
-        "events": events,
-        "metadata": make_metadata(args, selection, len(events)),
-    }
+        all_3dHits = process_hits_numpy(args, raw_tree, snd_geo, timings=timings)
 
-    save_dataset(output, args.out_path)
+        t0 = time.perf_counter()
+        reset_output_branches(branch_vars, vector_vars)
+        fill_event_branches(event, branch_vars)
+        fill_hit_vectors(all_3dHits, vector_vars)
+        hit_tree.Fill()
+        add_timing(timings, "root_fill", time.perf_counter() - t0)
 
+    t0 = time.perf_counter()
+    hit_tree.Write()
+    write_metadata_objects(out_file, make_metadata(args, selection, n_selected))
+    add_timing(timings, "root_write", time.perf_counter() - t0)
+    out_file.Close()
     raw_data.Close()
     preSelect_data.Close()
 
-    print(f"finish processing digi to hits3D, saved {len(events)} events to {args.out_path}")
+    print_timing_summary(timings, n_selected)
+    print(f"finish processing digi to hits3D, saved {n_selected} events to {args.out_path}")
     return 0
 
 
@@ -825,44 +813,18 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--preSelectPath", dest="preSelect_path", help="pre selection data file path", required=True)
     parser.add_argument("-d", "--digiPath", dest="digi_path", help="digitized data file path", required=True)
     parser.add_argument("-g", "--geoPath", dest="geo_path", help="geo path", required=True)
-    parser.add_argument("-o", "--outPath", dest="out_path", help="output path", required=True)
+    parser.add_argument("-o", "--outPath", dest="out_path", help="output ROOT path", required=True)
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default="RECREATE")
     parser.add_argument("-t", "--type", dest="type", help="data type, e.g. MC or real", required=True)
-
     parser.add_argument(
-        "--dataset-split",
-        dest="dataset_split",
-        choices=["train", "val", "test"],
-        default="train",
-        help="Dataset split. train/val use strict cuts; test uses looser feature-file cuts.",
-    )
-
-    parser.add_argument(
-        "--scifi-qdc-mode",
-        dest="scifi_qdc_mode",
-        choices=["mean", "median", "half_maxQDC"],
-        default="mean",
-        help="QDC threshold mode for SciFi hit filtering.",
-    )
-
-    parser.add_argument("--scifi-time-lower", dest="scifi_time_lower", type=float, default=0.5)
-    parser.add_argument("--scifi-time-upper", dest="scifi_time_upper", type=float, default=2.3)
-    parser.add_argument("--scifi-time-bin-width", dest="scifi_time_bin_width", type=float, default=0.25)
-
-    parser.add_argument(
-        "--verbose-qdc-filter",
-        dest="verbose_qdc_filter",
-        action="store_true",
-        help="Print QDC filter stats for every event. This can be very verbose.",
-    )
-
-    parser.add_argument(
-        "--progress-every",
-        dest="progress_every",
+        "--compression-level",
+        dest="compression_level",
         type=int,
-        default=10000,
-        help="Print progress every N selected events.",
+        default=9,
+        help="ROOT compression level for the output file.",
     )
 
     args = parser.parse_args()
+    if not 0 <= args.compression_level <= 9:
+        parser.error("--compression-level must be between 0 and 9")
     raise SystemExit(main(args))

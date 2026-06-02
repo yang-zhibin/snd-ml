@@ -1,0 +1,325 @@
+partition_version: partition_v1
+description: >
+  Region/particle partition policy for aligned feature.root and hit3d.root
+  products. Partitions are written in source order without shuffling. Training
+  data builders may shuffle later when materializing tensors or NPZ files.
+
+seed: null
+shuffle: false
+split_method: contiguous_chunks_in_source_order
+fraction_selection: first_n_in_source_order
+
+input:
+  feature_tree: sndData
+  hit3d_tree: hit3D
+
+alignment:
+  mode: entrywise
+  description: >
+    These keys validate that one feature ROOT file and its matching hit3d ROOT
+    file contain the same event at the same local entry. They are not assumed
+    to be globally unique across MC files.
+  keys:
+    - runId
+    - eventId
+    - eventIndex
+  require_same_entries: true
+  fail_on_mismatch: true
+
+event_identity:
+  description: >
+    MC files can reuse runId and eventId, so global traceability must include
+    the source file or metadata row plus the original local entry.
+  event_uid_template: "{source_metadata_file}:{source_feature_path}:{original_entry}"
+  unique_keys:
+    - source_metadata_file
+    - source_feature_path
+    - original_entry
+    - runId
+    - eventId
+    - eventIndex
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/region_partitions
+  metadata_csv: snakemake/metadata/region_partitions/partition_v1_region_v1.csv
+  feature_prefix: feature
+  hit3d_prefix: hit3d
+  compression_level: 1
+  write_only_non_empty_partitions: true
+  copy_event_identity_branches: true
+  hit3d_branches:
+    - runId
+    - eventId
+    - eventIndex
+    - pdgCode
+    - isMC
+    - label
+    - energy
+    - hit_x
+    - hit_y
+    - hit_z
+    - hit_qdc
+    - hit_station
+    - hit_detType
+  added_event_branches:
+    - event_uid
+    - original_entry
+    - source_file_index
+    - particle_group
+    - particle_id
+
+performance:
+  rdf_threads: 4
+
+validation:
+  skip_missing_files: true
+  check_entry_counts: false
+
+grouping:
+  group_by:
+    - region
+    - particle_group
+  output_partition_id_template: "{region}__{particle_group}__part{part_index:03d}"
+
+defaults:
+  process: true
+  n_partitions: 10
+  fraction: 1.0
+  max_events: null
+
+classification:
+  particle_id_branch: particle_id
+  particle_group_branch: particle_group
+  labels:
+    real_data: 0
+    CC_nue: 1
+    CC_numu: 2
+    NC_nue: 3
+    NC_numu: 4
+    kaon: 5
+    neutron: 6
+    muon: 7
+    muonDIS: 8
+
+particle_group_rules:
+  real_data:
+    process: true
+    source_data_type: real_data
+    particle_id: 0
+    particle_family: real_data
+    n_partitions: 10
+    fraction: 0.20
+    max_events: null
+
+  CC_nue:
+    process: true
+    source_data_type: MC_neutrino
+    source_subfolders:
+      - 2024_ve
+    particle_id: 1
+    particle_family: neutrino
+    interaction: CC
+    flavor: nue
+    event_filter: "(pdgCode == 12 || pdgCode == -12)"
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  CC_numu:
+    process: true
+    source_data_type: MC_neutrino
+    source_subfolders:
+      - 2024_vm
+    particle_id: 2
+    particle_family: neutrino
+    interaction: CC
+    flavor: numu
+    event_filter: "(pdgCode == 14 || pdgCode == -14)"
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  NC_nue:
+    process: true
+    source_data_type: MC_neutrino
+    source_subfolders:
+      - 2024_ve
+    particle_id: 3
+    particle_family: neutrino
+    interaction: NC
+    flavor: nue
+    event_filter: "(pdgCode == 112 || pdgCode == -112)"
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  NC_numu:
+    process: true
+    source_data_type: MC_neutrino
+    source_subfolders:
+      - 2024_vm
+    particle_id: 4
+    particle_family: neutrino
+    interaction: NC
+    flavor: numu
+    event_filter: "(pdgCode == 114 || pdgCode == -114)"
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  kaon_by_energy:
+    process: true
+    source_data_type: MC_kaon
+    particle_id: 5
+    particle_family: kaon
+    derive_particle_group: "{particle_family}_{energy_min}_{energy_max}GeV"
+    energy_column: energy_range
+    energy_range_parser: tuple_or_range_string
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  neutron_by_energy:
+    process: true
+    source_data_type: MC_neutron
+    particle_id: 6
+    particle_family: neutron
+    derive_particle_group: "{particle_family}_{energy_min}_{energy_max}GeV"
+    energy_column: energy_range
+    energy_range_parser: tuple_or_range_string
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  muon:
+    process: true
+    source_data_type: MC_muon
+    particle_id: 7
+    particle_family: muon
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  muonDIS:
+    process: true
+    source_data_type: MC_muonDIS
+    particle_id: 8
+    particle_family: muonDIS
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+regions:
+  signal_no_veto_has_us_fiducial_inside:
+    process: true
+
+  sideband_no_veto_no_us_fiducial_inside:
+    process: true
+
+  sideband_no_veto_has_us_fiducial_outside:
+    process: true
+
+  sideband_no_veto_no_us_fiducial_outside:
+    process: true
+
+  sideband_has_veto_has_us_fiducial_inside:
+    process: true
+
+  sideband_has_veto_no_us_fiducial_inside:
+    process: true
+
+  sideband_has_veto_has_us_fiducial_outside:
+    process: true
+
+  sideband_has_veto_no_us_fiducial_outside:
+    process: true
+
+overrides:
+  signal_no_veto_has_us_fiducial_inside:
+    real_data:
+      n_partitions: 100
+      fraction: 1.0
+      max_events: null
+
+  sideband_no_veto_no_us_fiducial_inside:
+    real_data:
+      n_partitions: 100
+      fraction: 1.0
+      max_events: null
+
+  sideband_no_veto_has_us_fiducial_outside:
+    real_data:
+      n_partitions: 100
+      fraction: 1.0
+      max_events: null
+
+  sideband_no_veto_no_us_fiducial_outside:
+    real_data:
+      n_partitions: 100
+      fraction: 1.0
+      max_events: null
+
+  sideband_has_veto_has_us_fiducial_inside:
+    real_data:
+      n_partitions: 100
+      fraction: 0.1
+      max_events: null
+
+  sideband_has_veto_no_us_fiducial_inside:
+    real_data:
+      n_partitions: 100
+      fraction: 0.1
+      max_events: null
+
+  sideband_has_veto_has_us_fiducial_outside:
+    real_data:
+      n_partitions: 100
+      fraction: 0.1
+      max_events: null
+
+  sideband_has_veto_no_us_fiducial_outside:
+    real_data:
+      n_partitions: 100
+      fraction: 0.1
+      max_events: null
+
+metadata_columns:
+  required:
+    - data_type
+    - subfolder
+    - partition
+    - output_base_path
+    - feature_path
+    - hit3d_path
+  optional:
+    - lumi_per_file
+    - energy_range
+    - source_metadata_file
+
+metadata_output_columns:
+  - partition_version
+  - region_version
+  - region
+  - particle_group
+  - particle_family
+  - particle_id
+  - partition_id
+  - feature_partition_path
+  - hit3d_partition_path
+  - n_events
+  - lumi_per_partition
+  - fraction
+  - max_events
+  - n_partitions_requested
+  - n_partitions_written
+  - selection_expression
+  - particle_filter_expression
+  - source_metadata_csv
+  - source_feature_paths
+  - source_hit3d_paths
+  - source_file_indices
+  - first_original_entry
+  - last_original_entry
+  - shuffle
+  - split_method
+  - seed

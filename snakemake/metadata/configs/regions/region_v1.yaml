@@ -1,0 +1,136 @@
+region_version: region_v1
+description: >
+  Orthogonal region definitions for the region/particle partition workflow.
+  Regions are defined from three axes: veto activity, upstream MuFilter
+  activity, and separate-plane SciFi fiducial containment. Expressions are
+  evaluated on branches from feature.root:sndData.
+
+common_cuts:
+  base_scifi_count:
+    expression: "count_scifi > 35"
+
+  no_veto:
+    expression: "count_veto == 0"
+
+  has_veto:
+    expression: "count_veto > 0"
+
+  no_us:
+    expression: "count_us == 0"
+
+  has_us:
+    expression: "count_us > 0"
+
+  scifi_fiducial_inside:
+    expression: >
+      (count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) &&
+      (count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) &&
+      (count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) &&
+      (count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) &&
+      (count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50))
+
+region_axes:
+  veto:
+    no_veto: "count_veto == 0"
+    has_veto: "count_veto > 0"
+  us:
+    no_us: "count_us == 0"
+    has_us: "count_us > 0"
+  scifi_fiducial:
+    inside: "scifi_fiducial_inside"
+    outside: "!scifi_fiducial_inside"
+
+regions:
+  signal_no_veto_has_us_fiducial_inside:
+    priority: 10
+    category: signal
+    process_default: true
+    expression: >
+      count_scifi > 35 &&
+      count_veto == 0 &&
+      count_us > 0 &&
+      __SCIFI_FIDUCIAL_INSIDE__
+
+  sideband_no_veto_no_us_fiducial_inside:
+    priority: 20
+    category: sideband
+    process_default: true
+    expression: >
+      count_scifi > 35 &&
+      count_veto == 0 &&
+      count_us == 0 &&
+      __SCIFI_FIDUCIAL_INSIDE__
+
+  sideband_no_veto_has_us_fiducial_outside:
+    priority: 30
+    category: sideband
+    process_default: true
+    expression: >
+      count_scifi > 35 &&
+      count_veto == 0 &&
+      count_us > 0 &&
+      !__SCIFI_FIDUCIAL_INSIDE__
+
+  sideband_no_veto_no_us_fiducial_outside:
+    priority: 40
+    category: sideband
+    process_default: true
+    expression: >
+      count_scifi > 35 &&
+      count_veto == 0 &&
+      count_us == 0 &&
+      !__SCIFI_FIDUCIAL_INSIDE__
+
+  sideband_has_veto_has_us_fiducial_inside:
+    priority: 50
+    category: sideband
+    process_default: true
+    expression: >
+      count_scifi > 35 &&
+      count_veto > 0 &&
+      count_us > 0 &&
+      __SCIFI_FIDUCIAL_INSIDE__
+
+  sideband_has_veto_no_us_fiducial_inside:
+    priority: 60
+    category: sideband
+    process_default: true
+    expression: >
+      count_scifi > 35 &&
+      count_veto > 0 &&
+      count_us == 0 &&
+      __SCIFI_FIDUCIAL_INSIDE__
+
+  sideband_has_veto_has_us_fiducial_outside:
+    priority: 70
+    category: sideband
+    process_default: true
+    expression: >
+      count_scifi > 35 &&
+      count_veto > 0 &&
+      count_us > 0 &&
+      !__SCIFI_FIDUCIAL_INSIDE__
+
+  sideband_has_veto_no_us_fiducial_outside:
+    priority: 80
+    category: sideband
+    process_default: true
+    expression: >
+      count_scifi > 35 &&
+      count_veto > 0 &&
+      count_us == 0 &&
+      !__SCIFI_FIDUCIAL_INSIDE__
+
+expression_macros:
+  __SCIFI_FIDUCIAL_INSIDE__: >
+    (
+      (count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) &&
+      (count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) &&
+      (count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) &&
+      (count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) &&
+      (count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50))
+    )
+
+unmatched_events:
+  action: skip
+  reason: "Events with count_scifi <= 35 are outside this region version."
