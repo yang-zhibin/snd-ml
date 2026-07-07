@@ -1,0 +1,1069 @@
+version: hist_features_v1
+description: >
+  Histogram feature definitions for the region-partition evaluation workflow.
+  These settings are based on the old nueAnalysis evaluation histogram ranges,
+  with room for newer feature branches from the region-partition feature files.
+
+defaults:
+  fold_underflow: false
+  fold_overflow: false
+  feature_cut: ""
+
+features:
+  density_scifi:
+    expression: density_scifi
+    x_min: 1000
+    x_max: 100000
+    bin_width: 5000
+    axis_title: Sum of SciFi Density Weight
+    logy: true
+
+  density_scifi1:
+    expression: density_scifi1
+    x_min: 0
+    x_max: 40000
+    bin_width: 1000
+    axis_title: Plane 1 Sum of SciFi Density Weight
+    logy: true
+
+  density_scifi2:
+    expression: density_scifi2
+    x_min: 0
+    x_max: 40000
+    bin_width: 1000
+    axis_title: Plane 2 Sum of SciFi Density Weight
+    logy: true
+
+  density_scifi3:
+    expression: density_scifi3
+    x_min: 0
+    x_max: 40000
+    bin_width: 1000
+    axis_title: Plane 3 Sum of SciFi Density Weight
+    logy: true
+
+  density_scifi4:
+    expression: density_scifi4
+    x_min: 0
+    x_max: 40000
+    bin_width: 1000
+    axis_title: Plane 4 Sum of SciFi Density Weight
+    logy: true
+
+  density_scifi5:
+    expression: density_scifi5
+    x_min: 0
+    x_max: 40000
+    bin_width: 1000
+    axis_title: Plane 5 Sum of SciFi Density Weight
+    logy: true
+
+  density_sndsw_scifi:
+    expression: density_sndsw_scifi
+    x_min: 100
+    x_max: 40000
+    bin_width: 500
+    axis_title: Sum of SciFi Density Weight (SNDSW)
+    logy: true
+
+  density_sndsw_scifi_second:
+    expression: density_sndsw_scifi_second
+    x_min: 0
+    x_max: 5000
+    bin_width: 100
+    axis_title: Second-Largest SciFi Density Weight (SNDSW)
+    logy: true
+
+  count_scifi:
+    expression: count_scifi
+    x_min: 0
+    x_max: 800
+    bin_width: 10
+    axis_title: SciFi Hit Total Count
+    logy: true
+
+  count_scifi1:
+    expression: count_scifi1
+    x_min: 0
+    x_max: 500
+    bin_width: 10
+    axis_title: Plane 1 SciFi Hit Count
+    logy: true
+
+  count_scifi2:
+    expression: count_scifi2
+    x_min: 0
+    x_max: 500
+    bin_width: 10
+    axis_title: Plane 2 SciFi Hit Count
+    logy: true
+
+  count_scifi3:
+    expression: count_scifi3
+    x_min: 0
+    x_max: 500
+    bin_width: 10
+    axis_title: Plane 3 SciFi Hit Count
+    logy: true
+
+  count_scifi4:
+    expression: count_scifi4
+    x_min: 0
+    x_max: 500
+    bin_width: 10
+    axis_title: Plane 4 SciFi Hit Count
+    logy: true
+
+  count_scifi5:
+    expression: count_scifi5
+    x_min: 0
+    x_max: 500
+    bin_width: 10
+    axis_title: Plane 5 SciFi Hit Count
+    logy: true
+
+  avg_scifi_x:
+    expression: avg_scifi_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Average SciFi X Position
+    logy: true
+
+  avg_scifi_y:
+    expression: avg_scifi_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Average SciFi Y Position
+    logy: true
+
+  avg_scifi1_x:
+    expression: avg_scifi1_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 1 Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi1 > 2
+
+  avg_scifi2_x:
+    expression: avg_scifi2_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 2 Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi2 > 2
+
+  avg_scifi3_x:
+    expression: avg_scifi3_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 3 Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi3 > 2
+
+  avg_scifi4_x:
+    expression: avg_scifi4_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 4 Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi4 > 2
+
+  avg_scifi5_x:
+    expression: avg_scifi5_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 5 Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi5 > 2
+
+  avg_scifi1_y:
+    expression: avg_scifi1_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 1 Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi1 > 2
+
+  avg_scifi2_y:
+    expression: avg_scifi2_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 2 Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi2 > 2
+
+  avg_scifi3_y:
+    expression: avg_scifi3_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 3 Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi3 > 2
+
+  avg_scifi4_y:
+    expression: avg_scifi4_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 4 Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi4 > 2
+
+  avg_scifi5_y:
+    expression: avg_scifi5_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 5 Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi5 > 2
+
+  avg_scifi_x_minus_avg_scifi1_x:
+    expression: avg_scifi_x - avg_scifi1_x
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi X minus Plane 1 Average SciFi X
+    logy: false
+    feature_cut: count_scifi1 > 2
+
+  avg_scifi_x_minus_avg_scifi2_x:
+    expression: avg_scifi_x - avg_scifi2_x
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi X minus Plane 2 Average SciFi X
+    logy: false
+    feature_cut: count_scifi2 > 2
+
+  avg_scifi_x_minus_avg_scifi3_x:
+    expression: avg_scifi_x - avg_scifi3_x
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi X minus Plane 3 Average SciFi X
+    logy: false
+    feature_cut: count_scifi3 > 2
+
+  avg_scifi_x_minus_avg_scifi4_x:
+    expression: avg_scifi_x - avg_scifi4_x
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi X minus Plane 4 Average SciFi X
+    logy: false
+    feature_cut: count_scifi4 > 2
+
+  avg_scifi_x_minus_avg_scifi5_x:
+    expression: avg_scifi_x - avg_scifi5_x
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi X minus Plane 5 Average SciFi X
+    logy: false
+    feature_cut: count_scifi5 > 2
+
+  avg_scifi_y_minus_avg_scifi1_y:
+    expression: avg_scifi_y - avg_scifi1_y
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi Y minus Plane 1 Average SciFi Y
+    logy: false
+    feature_cut: count_scifi1 > 2
+
+  avg_scifi_y_minus_avg_scifi2_y:
+    expression: avg_scifi_y - avg_scifi2_y
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi Y minus Plane 2 Average SciFi Y
+    logy: false
+    feature_cut: count_scifi2 > 2
+
+  avg_scifi_y_minus_avg_scifi3_y:
+    expression: avg_scifi_y - avg_scifi3_y
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi Y minus Plane 3 Average SciFi Y
+    logy: false
+    feature_cut: count_scifi3 > 2
+
+  avg_scifi_y_minus_avg_scifi4_y:
+    expression: avg_scifi_y - avg_scifi4_y
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi Y minus Plane 4 Average SciFi Y
+    logy: false
+    feature_cut: count_scifi4 > 2
+
+  avg_scifi_y_minus_avg_scifi5_y:
+    expression: avg_scifi_y - avg_scifi5_y
+    x_min: -30
+    x_max: 30
+    bin_width: 1
+    axis_title: Average SciFi Y minus Plane 5 Average SciFi Y
+    logy: false
+    feature_cut: count_scifi5 > 2
+
+  count_us:
+    expression: count_us
+    x_min: 0
+    x_max: 52
+    bin_width: 1
+    axis_title: US Hit Count
+    logy: true
+
+  count_us1:
+    expression: count_us1
+    x_min: 0
+    x_max: 12
+    bin_width: 1
+    axis_title: US1 Hit Count
+    logy: true
+
+  count_us2:
+    expression: count_us2
+    x_min: 0
+    x_max: 12
+    bin_width: 1
+    axis_title: US2 Hit Count
+    logy: true
+
+  count_us3:
+    expression: count_us3
+    x_min: 0
+    x_max: 12
+    bin_width: 1
+    axis_title: US3 Hit Count
+    logy: true
+
+  count_us4:
+    expression: count_us4
+    x_min: 0
+    x_max: 12
+    bin_width: 1
+    axis_title: US4 Hit Count
+    logy: true
+
+  count_us5:
+    expression: count_us5
+    x_min: 0
+    x_max: 12
+    bin_width: 1
+    axis_title: US5 Hit Count
+    logy: true
+
+  avg_us_y:
+    expression: avg_us_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: Average US Y Position
+    logy: true
+
+  avg_us1_y:
+    expression: avg_us1_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: US1 Average Y Position
+    logy: true
+    feature_cut: count_us1 > 2
+
+  avg_us2_y:
+    expression: avg_us2_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: US2 Average Y Position
+    logy: true
+    feature_cut: count_us2 > 2
+
+  avg_us3_y:
+    expression: avg_us3_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: US3 Average Y Position
+    logy: true
+    feature_cut: count_us3 > 2
+
+  avg_us4_y:
+    expression: avg_us4_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: US4 Average Y Position
+    logy: true
+    feature_cut: count_us4 > 2
+
+  avg_us5_y:
+    expression: avg_us5_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: US5 Average Y Position
+    logy: true
+    feature_cut: count_us5 > 2
+
+  count_ds:
+    expression: count_ds
+    x_min: 0
+    x_max: 40
+    bin_width: 1
+    axis_title: DS Hit Count
+    logy: true
+
+  count_ds1:
+    expression: count_ds1
+    x_min: 0
+    x_max: 40
+    bin_width: 1
+    axis_title: DS1 Hit Count
+    logy: true
+
+  count_ds2:
+    expression: count_ds2
+    x_min: 0
+    x_max: 40
+    bin_width: 1
+    axis_title: DS2 Hit Count
+    logy: true
+
+  count_ds3:
+    expression: count_ds3
+    x_min: 0
+    x_max: 40
+    bin_width: 1
+    axis_title: DS3 Hit Count
+    logy: true
+
+  count_ds4:
+    expression: count_ds4
+    x_min: 0
+    x_max: 40
+    bin_width: 1
+    axis_title: DS4 Hit Count
+    logy: true
+
+  avg_ds_x:
+    expression: avg_ds_x
+    x_min: -60
+    x_max: 15
+    bin_width: 1
+    axis_title: Average DS X Position
+    logy: true
+
+  avg_ds_y:
+    expression: avg_ds_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: Average DS Y Position
+    logy: true
+
+  avg_ds1_x:
+    expression: avg_ds1_x
+    x_min: -60
+    x_max: 15
+    bin_width: 1
+    axis_title: DS1 Average X Position
+    logy: true
+    feature_cut: count_ds1 > 2
+
+  avg_ds2_x:
+    expression: avg_ds2_x
+    x_min: -60
+    x_max: 15
+    bin_width: 1
+    axis_title: DS2 Average X Position
+    logy: true
+    feature_cut: count_ds2 > 2
+
+  avg_ds3_x:
+    expression: avg_ds3_x
+    x_min: -60
+    x_max: 15
+    bin_width: 1
+    axis_title: DS3 Average X Position
+    logy: true
+    feature_cut: count_ds3 > 2
+
+  avg_ds4_x:
+    expression: avg_ds4_x
+    x_min: -60
+    x_max: 15
+    bin_width: 1
+    axis_title: DS4 Average X Position
+    logy: true
+    feature_cut: count_ds4 > 2
+
+  avg_ds1_y:
+    expression: avg_ds1_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: DS1 Average Y Position
+    logy: true
+    feature_cut: count_ds1 > 2
+
+  avg_ds2_y:
+    expression: avg_ds2_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: DS2 Average Y Position
+    logy: true
+    feature_cut: count_ds2 > 2
+
+  avg_ds3_y:
+    expression: avg_ds3_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: DS3 Average Y Position
+    logy: true
+    feature_cut: count_ds3 > 2
+
+  avg_ds4_y:
+    expression: avg_ds4_y
+    x_min: -5
+    x_max: 80
+    bin_width: 1
+    axis_title: DS4 Average Y Position
+    logy: true
+    feature_cut: count_ds4 > 2
+
+  count_veto:
+    expression: count_veto
+    x_min: 0
+    x_max: 20
+    bin_width: 1
+    axis_title: Veto Hit Count
+    logy: true
+
+  count_veto1:
+    expression: count_veto1
+    x_min: 0
+    x_max: 20
+    bin_width: 1
+    axis_title: Veto 1 Hit Count
+    logy: true
+
+  count_veto2:
+    expression: count_veto2
+    x_min: 0
+    x_max: 20
+    bin_width: 1
+    axis_title: Veto 2 Hit Count
+    logy: true
+
+  qdc_scifi:
+    expression: qdc_scifi
+    x_min: 0
+    x_max: 15000
+    bin_width: 500
+    axis_title: Sum of SciFi QDC
+    logy: true
+
+  qdc_scifi1:
+    expression: qdc_scifi1
+    x_min: 0
+    x_max: 10000
+    bin_width: 500
+    axis_title: Plane 1 Sum of SciFi QDC
+    logy: true
+
+  qdc_scifi2:
+    expression: qdc_scifi2
+    x_min: 0
+    x_max: 20000
+    bin_width: 500
+    axis_title: Plane 2 Sum of SciFi QDC
+    logy: true
+
+  qdc_scifi3:
+    expression: qdc_scifi3
+    x_min: 0
+    x_max: 30000
+    bin_width: 500
+    axis_title: Plane 3 Sum of SciFi QDC
+    logy: true
+
+  qdc_scifi4:
+    expression: qdc_scifi4
+    x_min: 0
+    x_max: 40000
+    bin_width: 500
+    axis_title: Plane 4 Sum of SciFi QDC
+    logy: true
+
+  qdc_scifi5:
+    expression: qdc_scifi5
+    x_min: 0
+    x_max: 50000
+    bin_width: 500
+    axis_title: Plane 5 Sum of SciFi QDC
+    logy: true
+
+  qdc_us:
+    expression: qdc_us
+    x_min: 0
+    x_max: 40000
+    bin_width: 1000
+    axis_title: Sum of US QDC
+    logy: true
+
+  qdc_us1:
+    expression: qdc_us1
+    x_min: 0
+    x_max: 20000
+    bin_width: 1000
+    axis_title: US1 QDC
+    logy: true
+
+  qdc_us2:
+    expression: qdc_us2
+    x_min: 0
+    x_max: 20000
+    bin_width: 1000
+    axis_title: US2 QDC
+    logy: true
+
+  qdc_us3:
+    expression: qdc_us3
+    x_min: 0
+    x_max: 20000
+    bin_width: 1000
+    axis_title: US3 QDC
+    logy: true
+
+  qdc_us4:
+    expression: qdc_us4
+    x_min: 0
+    x_max: 20000
+    bin_width: 1000
+    axis_title: US4 QDC
+    logy: true
+
+  qdc_us5:
+    expression: qdc_us5
+    x_min: 0
+    x_max: 20000
+    bin_width: 1000
+    axis_title: US5 QDC
+    logy: true
+
+  qdc_veto:
+    expression: qdc_veto
+    x_min: 0
+    x_max: 20000
+    bin_width: 500
+    axis_title: Sum of Veto QDC
+    logy: true
+
+  qdcAvg_scifi_x:
+    expression: qdcAvg_scifi_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: QDC-weighted Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi > 2
+
+  qdcAvg_scifi_y:
+    expression: qdcAvg_scifi_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: QDC-weighted Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi > 2
+
+  qdcAvg_scifi1_x:
+    expression: qdcAvg_scifi1_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 1 QDC-weighted Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi1 > 2
+
+  qdcAvg_scifi2_x:
+    expression: qdcAvg_scifi2_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 2 QDC-weighted Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi2 > 2
+
+  qdcAvg_scifi3_x:
+    expression: qdcAvg_scifi3_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 3 QDC-weighted Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi3 > 2
+
+  qdcAvg_scifi4_x:
+    expression: qdcAvg_scifi4_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 4 QDC-weighted Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi4 > 2
+
+  qdcAvg_scifi5_x:
+    expression: qdcAvg_scifi5_x
+    x_min: -60
+    x_max: 0
+    bin_width: 1
+    axis_title: Plane 5 QDC-weighted Average SciFi X Position
+    logy: true
+    feature_cut: count_scifi5 > 2
+
+  qdcAvg_scifi1_y:
+    expression: qdcAvg_scifi1_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 1 QDC-weighted Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi1 > 2
+
+  qdcAvg_scifi2_y:
+    expression: qdcAvg_scifi2_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 2 QDC-weighted Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi2 > 2
+
+  qdcAvg_scifi3_y:
+    expression: qdcAvg_scifi3_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 3 QDC-weighted Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi3 > 2
+
+  qdcAvg_scifi4_y:
+    expression: qdcAvg_scifi4_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 4 QDC-weighted Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi4 > 2
+
+
+  qdcAvg_scifi5_y:
+    expression: qdcAvg_scifi5_y
+    x_min: 0
+    x_max: 60
+    bin_width: 1
+    axis_title: Plane 5 QDC-weighted Average SciFi Y Position
+    logy: true
+    feature_cut: count_scifi5 > 2
+
+  qdcAvg_scifi_x_minus_avg_scifi_x:
+    expression: qdcAvg_scifi_x - avg_scifi_x
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: QDC-weighted SciFi X minus Average SciFi X
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi > 2
+
+  qdcAvg_scifi_y_minus_avg_scifi_y:
+    expression: qdcAvg_scifi_y - avg_scifi_y
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: QDC-weighted SciFi Y minus Average SciFi Y
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi > 2
+
+  qdcAvg_scifi1_x_minus_avg_scifi1_x:
+    expression: qdcAvg_scifi1_x - avg_scifi1_x
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 1 QDC-weighted SciFi X minus Average SciFi X
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi1 > 2
+
+  qdcAvg_scifi2_x_minus_avg_scifi2_x:
+    expression: qdcAvg_scifi2_x - avg_scifi2_x
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 2 QDC-weighted SciFi X minus Average SciFi X
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi2 > 2
+
+  qdcAvg_scifi3_x_minus_avg_scifi3_x:
+    expression: qdcAvg_scifi3_x - avg_scifi3_x
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 3 QDC-weighted SciFi X minus Average SciFi X
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi3 > 2
+
+  qdcAvg_scifi4_x_minus_avg_scifi4_x:
+    expression: qdcAvg_scifi4_x - avg_scifi4_x
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 4 QDC-weighted SciFi X minus Average SciFi X
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi4 > 2
+
+  qdcAvg_scifi5_x_minus_avg_scifi5_x:
+    expression: qdcAvg_scifi5_x - avg_scifi5_x
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 5 QDC-weighted SciFi X minus Average SciFi X
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi5 > 2
+
+  qdcAvg_scifi1_y_minus_avg_scifi1_y:
+    expression: qdcAvg_scifi1_y - avg_scifi1_y
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 1 QDC-weighted SciFi Y minus Average SciFi Y
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi1 > 2
+
+  qdcAvg_scifi2_y_minus_avg_scifi2_y:
+    expression: qdcAvg_scifi2_y - avg_scifi2_y
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 2 QDC-weighted SciFi Y minus Average SciFi Y
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi2 > 2
+
+  qdcAvg_scifi3_y_minus_avg_scifi3_y:
+    expression: qdcAvg_scifi3_y - avg_scifi3_y
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 3 QDC-weighted SciFi Y minus Average SciFi Y
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi3 > 2
+
+  qdcAvg_scifi4_y_minus_avg_scifi4_y:
+    expression: qdcAvg_scifi4_y - avg_scifi4_y
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 4 QDC-weighted SciFi Y minus Average SciFi Y
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi4 > 2
+
+  qdcAvg_scifi5_y_minus_avg_scifi5_y:
+    expression: qdcAvg_scifi5_y - avg_scifi5_y
+    x_min: -3
+    x_max: 3
+    bin_width: 0.1
+    axis_title: Plane 5 QDC-weighted SciFi Y minus Average SciFi Y
+    logy: false
+    y_max: 0.4
+    plot_normalization: unit_area
+    feature_cut: count_scifi5 > 2
+
+  vetoHitTime_earlist:
+    expression: vetoHitTime_earlist
+    x_min: -2
+    x_max: 25
+    bin_width: 0.2
+    axis_title: Earliest Veto Hit Time
+    logy: true
+    feature_cut: count_veto > 0
+
+  vetoHitTime_latest:
+    expression: vetoHitTime_latest
+    x_min: -2
+    x_max: 25
+    bin_width: 0.2
+    axis_title: Latest Veto Hit Time
+    logy: true
+    feature_cut: count_veto > 0
+
+  vetoHitTime_earlist_veto1:
+    expression: vetoHitTime_earlist_veto1
+    x_min: -2
+    x_max: 25
+    bin_width: 0.2
+    axis_title: Earliest Veto 1 Hit Time
+    logy: true
+    feature_cut: count_veto1 > 0
+
+  vetoHitTime_latest_veto1:
+    expression: vetoHitTime_latest_veto1
+    x_min: -2
+    x_max: 25
+    bin_width: 0.2
+    axis_title: Latest Veto 1 Hit Time
+    logy: true
+    feature_cut: count_veto1 > 0
+
+  vetoHitTime_earlist_veto2:
+    expression: vetoHitTime_earlist_veto2
+    x_min: -2
+    x_max: 25
+    bin_width: 0.2
+    axis_title: Earliest Veto 2 Hit Time
+    logy: true
+    feature_cut: count_veto2 > 0
+
+  vetoHitTime_latest_veto2:
+    expression: vetoHitTime_latest_veto2
+    x_min: -2
+    x_max: 25
+    bin_width: 0.2
+    axis_title: Latest Veto 2 Hit Time
+    logy: true
+    feature_cut: count_veto2 > 0
+
+  vetoHitTime_earlist_veto3:
+    expression: vetoHitTime_earlist_veto3
+    x_min: -2
+    x_max: 25
+    bin_width: 0.2
+    axis_title: Earliest Veto 3 Hit Time
+    logy: true
+    feature_cut: count_veto3 > 0
+
+  vetoHitTime_latest_veto3:
+    expression: vetoHitTime_latest_veto3
+    x_min: -2
+    x_max: 25
+    bin_width: 0.2
+    axis_title: Latest Veto 3 Hit Time
+    logy: true
+    feature_cut: count_veto3 > 0
+
+  vetoHitTime_earlist_ns:
+    expression: vetoHitTime_earlist * 6.25
+    real_data_expression: vetoHitTime_earlist * 6.25 * 6.25
+    x_min: 0
+    x_max: 50
+    bin_width: 1.0
+    axis_title: Earliest Veto Hit Time [ns]
+    logy: true
+    feature_cut: count_veto > 0
+
+  vetoHitTime_latest_ns:
+    expression: vetoHitTime_latest * 6.25
+    real_data_expression: vetoHitTime_latest * 6.25 * 6.25
+    x_min: 0
+    x_max: 50
+    bin_width: 1.0
+    axis_title: Latest Veto Hit Time [ns]
+    logy: true
+    feature_cut: count_veto > 0
+
+  vetoHitTime_earlist_veto1_ns:
+    expression: vetoHitTime_earlist_veto1 * 6.25
+    real_data_expression: vetoHitTime_earlist_veto1 * 6.25 * 6.25
+    x_min: 0
+    x_max: 50
+    bin_width: 1.0
+    axis_title: Earliest Veto 1 Hit Time [ns]
+    logy: true
+    feature_cut: count_veto1 > 0
+
+  vetoHitTime_latest_veto1_ns:
+    expression: vetoHitTime_latest_veto1 * 6.25
+    real_data_expression: vetoHitTime_latest_veto1 * 6.25 * 6.25
+    x_min: 0
+    x_max: 50
+    bin_width: 1.0
+    axis_title: Latest Veto 1 Hit Time [ns]
+    logy: true
+    feature_cut: count_veto1 > 0
+
+  vetoHitTime_earlist_veto2_ns:
+    expression: vetoHitTime_earlist_veto2 * 6.25
+    real_data_expression: vetoHitTime_earlist_veto2 * 6.25 * 6.25
+    x_min: 0
+    x_max: 50
+    bin_width: 1.0
+    axis_title: Earliest Veto 2 Hit Time [ns]
+    logy: true
+    feature_cut: count_veto2 > 0
+
+  vetoHitTime_latest_veto2_ns:
+    expression: vetoHitTime_latest_veto2 * 6.25
+    real_data_expression: vetoHitTime_latest_veto2 * 6.25 * 6.25
+    x_min: 0
+    x_max: 50
+    bin_width: 1.0
+    axis_title: Latest Veto 2 Hit Time [ns]
+    logy: true
+    feature_cut: count_veto2 > 0
+
+  vetoHitTime_earlist_veto3_ns:
+    expression: vetoHitTime_earlist_veto3 * 6.25
+    real_data_expression: vetoHitTime_earlist_veto3 * 6.25 * 6.25
+    x_min: 0
+    x_max: 50
+    bin_width: 1.0
+    axis_title: Earliest Veto 3 Hit Time [ns]
+    logy: true
+    feature_cut: count_veto3 > 0
+
+  vetoHitTime_latest_veto3_ns:
+    expression: vetoHitTime_latest_veto3 * 6.25
+    real_data_expression: vetoHitTime_latest_veto3 * 6.25 * 6.25
+    x_min: 0
+    x_max: 50
+    bin_width: 1.0
+    axis_title: Latest Veto 3 Hit Time [ns]
+    logy: true
+    feature_cut: count_veto3 > 0

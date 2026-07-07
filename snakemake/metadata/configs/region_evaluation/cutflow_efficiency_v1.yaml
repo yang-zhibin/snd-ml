@@ -1,0 +1,170 @@
+version: cutflow_efficiency_v1
+description: >
+  Cutflow efficiency studies for region-partition evaluation. The cumulative
+  efficiency is the efficiency of all cuts up to the current step, normalized
+  to the denominator. The relative efficiency is the efficiency of the current
+  cut alone, also normalized to the same denominator.
+
+metadata:
+  tree_name: sndData
+  friend_tree_name: cutFlowSummary
+
+selection:
+  use_region_evaluation_comparisons: true
+
+defaults:
+  denominator:
+    name: region_events
+    expression: "1"
+  aggregation_modes:
+    - per_region_particle
+    - overall_particle
+
+cuts:
+  definitions:
+    stable_beams:
+      expression: StableBeams == 1
+      applies_to: real_data_only
+      label: Stable beams
+
+    ip1_bunch_crossing:
+      expression: IP1 == 1
+      applies_to: real_data_only
+      label: IP1 bunch crossing
+
+    pre_evt_clock_cycle_100:
+      expression: EventDeltat_1_100 == 1
+      applies_to: real_data_only
+      label: Pre-event clock cycle 100
+
+    avg_scifi_fiducial:
+      expression: AvgSFChan == 1
+      applies_to: all
+      label: Average SciFi fiducial
+
+    us_bars_veto_top:
+      expression: USBarsVeto_0_2_000000_1_2_000000 == 1
+      applies_to: all
+      label: US bars veto top
+
+    us_bars_veto_bottom:
+      expression: USBarsVeto_0_8_000000_1_8_000000 == 1
+      applies_to: all
+      label: US bars veto bottom
+
+    no_veto_hit:
+      expression: NoVetoHits == 1
+      applies_to: all
+      label: No veto hit
+
+    consecutive_scifi_hits:
+      expression: At_least_two_consecutive_SciFi_planes == 1
+      applies_to: all
+      label: Consecutive SciFi hits
+
+    scifi_continuity:
+      expression: SciFiContinuity == 1
+      applies_to: all
+      label: SciFi continuity
+
+    us_plane_hit_0_1:
+      expression: USPlanesHit == 1
+      applies_to: all
+      label: US plane hit 0/1
+
+    scifi_hit_35:
+      expression: SciFiMinHits == 1
+      applies_to: all
+      label: SciFi hit 35
+
+    us_qdc_700mc_600data:
+      expression: USQDC == 1
+      applies_to: all
+      label: US QDC 700 MC / 600 data
+
+    no_hit_last_ds:
+      expression: DSVetoCut == 1
+      applies_to: all
+      label: No hit last DS
+
+    separate_plane_fiducial:
+      expression: >
+        (count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) &&
+        (count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) &&
+        (count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) &&
+        (count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) &&
+        (count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50))
+      applies_to: all
+      label: Separate-plane SciFi fiducial
+
+    qdcAvg_scifi_fiducial:
+      expression: >
+        (count_scifi1 <= 2 || (qdcAvg_scifi1_x > -44 && qdcAvg_scifi1_x < -10 && qdcAvg_scifi1_y > 18 && qdcAvg_scifi1_y < 52)) &&
+        (count_scifi2 <= 2 || (qdcAvg_scifi2_x > -44 && qdcAvg_scifi2_x < -10 && qdcAvg_scifi2_y > 18 && qdcAvg_scifi2_y < 52)) &&
+        (count_scifi3 <= 2 || (qdcAvg_scifi3_x > -42 && qdcAvg_scifi3_x < -12 && qdcAvg_scifi3_y > 20 && qdcAvg_scifi3_y < 50)) &&
+        (count_scifi4 <= 2 || (qdcAvg_scifi4_x > -42 && qdcAvg_scifi4_x < -12 && qdcAvg_scifi4_y > 20 && qdcAvg_scifi4_y < 50)) &&
+        (count_scifi5 <= 2 || (qdcAvg_scifi5_x > -42 && qdcAvg_scifi5_x < -12 && qdcAvg_scifi5_y > 20 && qdcAvg_scifi5_y < 50))
+      applies_to: all
+      label: QDC-weighted separate-plane SciFi fiducial
+
+outputs:
+  convenience_studies:
+    - fiducial_cut_comparison
+
+studies:
+  fiducial_cut_comparison:
+    enabled: true
+    mode: independent_cuts
+    description: >
+      Compare three SciFi fiducial definitions after data-quality cuts. The
+      cuts are evaluated independently against the same denominator rather than
+      as a sequential cutflow.
+    denominator:
+      name: data_quality_region_events
+      expression: "1"
+      cuts:
+        - stable_beams
+        - ip1_bunch_crossing
+        - pre_evt_clock_cycle_100
+    aggregation_modes:
+      - per_region_particle
+      - overall_particle
+      - veto_category_particle
+      - us_category_particle
+    cuts:
+      - avg_scifi_fiducial
+      - separate_plane_fiducial
+      - qdcAvg_scifi_fiducial
+
+  signal_cutflow:
+    enabled: true
+    mode: sequential_cutflow
+    description: >
+      Standard nueAnalysis-style signal cutflow inside each configured
+      region/particle group.
+    cuts:
+      - avg_scifi_fiducial
+      - no_veto_hit
+      - consecutive_scifi_hits
+      - scifi_continuity
+      - us_plane_hit_0_1
+      - scifi_hit_35
+      - us_qdc_700mc_600data
+      - no_hit_last_ds
+
+  signal_cutflow_with_separate_plane_fiducial:
+    enabled: true
+    mode: sequential_cutflow
+    description: >
+      Standard signal cutflow with the separate-plane fiducial cut added as a
+      region-evaluation cut.
+    cuts:
+      - avg_scifi_fiducial
+      - separate_plane_fiducial
+      - no_veto_hit
+      - consecutive_scifi_hits
+      - scifi_continuity
+      - us_plane_hit_0_1
+      - scifi_hit_35
+      - us_qdc_700mc_600data
+      - no_hit_last_ds

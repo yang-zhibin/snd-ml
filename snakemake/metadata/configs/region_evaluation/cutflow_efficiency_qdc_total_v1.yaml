@@ -1,0 +1,134 @@
+version: cutflow_efficiency_qdc_total_v1
+description: >
+  Fiducial cut comparison with total QDC-weighted SciFi position cuts. This
+  config keeps the original cutflow_efficiency_v1 output unchanged and writes
+  a separate comparison version.
+
+metadata:
+  tree_name: sndData
+  friend_tree_name: cutFlowSummary
+
+selection:
+  use_region_evaluation_comparisons: true
+
+defaults:
+  denominator:
+    name: region_events
+    expression: "1"
+  aggregation_modes:
+    - fiducial_merged_region_particle
+    - overall_particle
+
+cuts:
+  definitions:
+    stable_beams:
+      expression: StableBeams == 1
+      applies_to: real_data_only
+      label: Stable beams
+
+    ip1_bunch_crossing:
+      expression: IP1 == 1
+      applies_to: real_data_only
+      label: IP1 bunch crossing
+
+    pre_evt_clock_cycle_100:
+      expression: EventDeltat_1_100 == 1
+      applies_to: real_data_only
+      label: Pre-event clock cycle 100
+
+    avg_scifi_fiducial:
+      expression: AvgSFChan == 1
+      applies_to: all
+      label: Average SciFi fiducial
+
+    separate_plane_fiducial:
+      expression: >
+        (count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) &&
+        (count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) &&
+        (count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) &&
+        (count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) &&
+        (count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50))
+      applies_to: all
+      label: Separate-plane SciFi fiducial
+
+    qdcAvg_scifi_fiducial:
+      expression: >
+        (count_scifi1 <= 2 || (qdcAvg_scifi1_x > -44 && qdcAvg_scifi1_x < -10 && qdcAvg_scifi1_y > 18 && qdcAvg_scifi1_y < 52)) &&
+        (count_scifi2 <= 2 || (qdcAvg_scifi2_x > -44 && qdcAvg_scifi2_x < -10 && qdcAvg_scifi2_y > 18 && qdcAvg_scifi2_y < 52)) &&
+        (count_scifi3 <= 2 || (qdcAvg_scifi3_x > -42 && qdcAvg_scifi3_x < -12 && qdcAvg_scifi3_y > 20 && qdcAvg_scifi3_y < 50)) &&
+        (count_scifi4 <= 2 || (qdcAvg_scifi4_x > -42 && qdcAvg_scifi4_x < -12 && qdcAvg_scifi4_y > 20 && qdcAvg_scifi4_y < 50)) &&
+        (count_scifi5 <= 2 || (qdcAvg_scifi5_x > -42 && qdcAvg_scifi5_x < -12 && qdcAvg_scifi5_y > 20 && qdcAvg_scifi5_y < 50))
+      applies_to: all
+      label: QDC-weighted separate-plane SciFi fiducial
+
+    qdc_total_fiducial_avg_area:
+      expression: >
+        qdcAvg_scifi_x > -40.999 &&
+        qdcAvg_scifi_x < -15.543 &&
+        qdcAvg_scifi_y > 21.954 &&
+        qdcAvg_scifi_y < 48.697
+      applies_to: all
+      label: QDC total fiducial AvgSFChan area
+
+    qdc_total_fiducial_a_loose:
+      expression: >
+        qdcAvg_scifi_x > -44 &&
+        qdcAvg_scifi_x < -10 &&
+        qdcAvg_scifi_y > 18 &&
+        qdcAvg_scifi_y < 52
+      applies_to: all
+      label: QDC total fiducial A (loose)
+
+    qdc_total_fiducial_b_tight:
+      expression: >
+        qdcAvg_scifi_x > -42 &&
+        qdcAvg_scifi_x < -12 &&
+        qdcAvg_scifi_y > 20 &&
+        qdcAvg_scifi_y < 50
+      applies_to: all
+      label: QDC total fiducial B (tight)
+
+outputs:
+  convenience_studies:
+    - fiducial_cut_comparison
+
+studies:
+  fiducial_cut_comparison:
+    enabled: true
+    mode: independent_cuts
+    description: >
+      Compare standard SciFi fiducial definitions with total QDC-weighted
+      SciFi position fiducial boxes. The cuts are evaluated independently
+      against the same data-quality denominator.
+    denominator:
+      name: data_quality_region_events
+      expression: "1"
+      cuts:
+        - stable_beams
+        - ip1_bunch_crossing
+        - pre_evt_clock_cycle_100
+    aggregation_modes:
+      - fiducial_merged_region_particle
+      - overall_particle
+      - veto_category_particle
+      - us_category_particle
+    cuts:
+      - avg_scifi_fiducial
+      - separate_plane_fiducial
+      - qdcAvg_scifi_fiducial
+      - qdc_total_fiducial_avg_area
+      - qdc_total_fiducial_a_loose
+      - qdc_total_fiducial_b_tight
+
+  signal_cutflow:
+    enabled: false
+    mode: sequential_cutflow
+    cuts:
+      - avg_scifi_fiducial
+
+  signal_cutflow_with_separate_plane_fiducial:
+    enabled: false
+    mode: sequential_cutflow
+    cuts:
+      - avg_scifi_fiducial
+      - separate_plane_fiducial

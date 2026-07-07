@@ -197,7 +197,60 @@ horizontal plane -> useful coordinate is y
 
 If there are no hits for a given average, the value remains `-999`.
 
-### 7. SciFi Density Features
+### 7. QDC-Weighted Average Position Features
+
+SciFi:
+
+```text
+qdcAvg_scifi1_x
+qdcAvg_scifi1_y
+...
+qdcAvg_scifi5_x
+qdcAvg_scifi5_y
+qdcAvg_scifi_x
+qdcAvg_scifi_y
+```
+
+Veto:
+
+```text
+qdcAvg_veto1_y
+qdcAvg_veto2_y
+qdcAvg_veto3_x
+qdcAvg_veto_x
+qdcAvg_veto_y
+```
+
+Upstream MuFilter:
+
+```text
+qdcAvg_us1_y ... qdcAvg_us5_y
+qdcAvg_us_y
+```
+
+Downstream MuFilter:
+
+```text
+qdcAvg_ds1_x
+qdcAvg_ds1_y
+...
+qdcAvg_ds4_x
+qdcAvg_ds4_y
+qdcAvg_ds_x
+qdcAvg_ds_y
+```
+
+These describe the QDC-weighted detector-hit position:
+
+```text
+qdcAvg = sum(position_i * qdc_i) / sum(qdc_i)
+```
+
+The detector view convention is the same as for `avg_*`: vertical planes use
+`x`, and horizontal planes use `y`. QDC values are clamped to be non-negative.
+If the selected hits have zero total QDC, the value remains `-999`.
+
+### 8. SciFi Density Features
 
 Local density features:
 
@@ -240,7 +293,7 @@ These summarize the local Python density in a way similar to the SND density.
 `density_mycode_scifi_second` is the correctly spelled alias with the same
 value.
 
-### 8. Veto Timing Features
+### 9. Veto Timing Features
 
 ```text
 vetoHitTime_earlist
@@ -264,7 +317,7 @@ If no veto hit exists, the value is `-1`.
 Note: the branch name is spelled `earlist`, not `earliest`, because that is the
 existing output schema.
 
-### 9. SciFi Station Profile Features
+### 10. SciFi Station Profile Features
 
 ```text
 scifi_first_station
@@ -298,7 +351,7 @@ populated station.
 `scifi_qdc_peak_fraction`: fraction of all SciFi QDC contained in the
 highest-QDC station.
 
-### 10. Longitudinal Shower Shape Features
+### 11. Longitudinal Shower Shape Features
 
 ```text
 scifi_count_frac1 ... scifi_count_frac5
@@ -325,7 +378,7 @@ These describe the shower development along SciFi stations 1 to 5.
 
 `scifi_qdc_std_station`: QDC-weighted longitudinal spread.
 
-### 11. Hit-Position Spread Features
+### 12. Hit-Position Spread Features
 
 ```text
 scifi_std_x
@@ -507,7 +560,32 @@ vertical   -> x
 horizontal -> y
 ```
 
-### 7. SciFi Density Implementation
+### 7. QDC-Weighted Average Position Implementation
+
+Function:
+
+```python
+process_qdcAvgPos(SciFi_hits, MuFilter_hits, branch_vars)
+```
+
+Logic:
+
+1. Combine SciFi and MuFilter hit dictionaries.
+2. For each hit, choose coordinate based on detector/view.
+3. Clamp QDC to be non-negative.
+4. Accumulate weighted coordinate sums and QDC sums.
+5. Fill weighted average as:
+
+```python
+qdcAvg = sum(position * qdc) / sum(qdc)
+```
+
+If `sum(qdc) == 0`, fill `-999`.
+
+The detector/view mapping is identical to `process_avgPos`, so `avg_*` and
+`qdcAvg_*` can be compared directly.
+
+### 8. SciFi Density Implementation
 
 Function:
 
@@ -549,7 +627,7 @@ SND density is computed separately using:
 getSumDensity(selected_scifi_hits)
 ```
 
-### 8. Veto Timing Implementation
+### 9. Veto Timing Implementation
 
 Function:
 
@@ -566,7 +644,7 @@ Logic:
 
 If no veto hits exist, fill `-1`.
 
-### 9. SciFi Station Profile Implementation
+### 10. SciFi Station Profile Implementation
 
 Function:
 
@@ -637,7 +715,7 @@ max(qdcs) / sum(qdcs)
 
 If undefined, station branches use `-999`, and fractions use `0.0`.
 
-### 10. Longitudinal Shower Shape Implementation
+### 11. Longitudinal Shower Shape Implementation
 
 The station number is treated as the longitudinal coordinate:
 
@@ -682,7 +760,7 @@ mean = -999
 std  = -999
 ```
 
-### 11. Hit-Position Spread Implementation
+### 12. Hit-Position Spread Implementation
 
 Position spread uses:
 
@@ -716,7 +794,7 @@ std = -999
 
 This is because one hit does not define a physical width.
 
-### 12. Output Schema Logic
+### 13. Output Schema Logic
 
 All branches are declared before the event loop.
 

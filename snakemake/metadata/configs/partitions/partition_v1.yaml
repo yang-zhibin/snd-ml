@@ -9,8 +9,17 @@ shuffle: false
 split_method: contiguous_chunks_in_source_order
 fraction_selection: first_n_in_source_order
 
+products:
+  feature:
+    enabled: true
+    default_process: true
+  hit3d:
+    enabled: false
+    default_process: false
+
 input:
   feature_tree: sndData
+  cutflow_tree: cutFlowSummary
   hit3d_tree: hit3D
 
 alignment:
@@ -61,6 +70,15 @@ output:
     - hit_qdc
     - hit_station
     - hit_detType
+    - hit_ix
+    - hit_iy
+    - hit_iz
+    - hit_index_valid
+    - hit_index_type
+    - hit_v_channel
+    - hit_h_channel
+    - hit_v_qdc
+    - hit_h_qdc
   added_event_branches:
     - event_uid
     - original_entry
@@ -83,6 +101,8 @@ grouping:
 
 defaults:
   process: true
+  produce_feature: true
+  produce_hit3d: true
   n_partitions: 10
   fraction: 1.0
   max_events: null
@@ -100,10 +120,16 @@ classification:
     neutron: 6
     muon: 7
     muonDIS: 8
+    CC_nue_EventBuilder: 101
+    CC_numu_EventBuilder: 102
+    NC_nue_EventBuilder: 103
+    NC_numu_EventBuilder: 104
 
 particle_group_rules:
   real_data:
     process: true
+    produce_feature: true
+    produce_hit3d: false
     source_data_type: real_data
     particle_id: 0
     particle_family: real_data
@@ -160,6 +186,62 @@ particle_group_rules:
       - 2024_vm
     particle_id: 4
     particle_family: neutrino
+    interaction: NC
+    flavor: numu
+    event_filter: "(pdgCode == 114 || pdgCode == -114)"
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  CC_nue_EventBuilder:
+    process: true
+    source_data_type: MC_neutrino
+    source_subfolders:
+      - 2024_ve_EventBuilder
+    particle_id: 101
+    particle_family: neutrino_eventbuilder
+    interaction: CC
+    flavor: nue
+    event_filter: "(pdgCode == 12 || pdgCode == -12)"
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  CC_numu_EventBuilder:
+    process: true
+    source_data_type: MC_neutrino
+    source_subfolders:
+      - 2024_vm_EventBuilder
+    particle_id: 102
+    particle_family: neutrino_eventbuilder
+    interaction: CC
+    flavor: numu
+    event_filter: "(pdgCode == 14 || pdgCode == -14)"
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  NC_nue_EventBuilder:
+    process: true
+    source_data_type: MC_neutrino
+    source_subfolders:
+      - 2024_ve_EventBuilder
+    particle_id: 103
+    particle_family: neutrino_eventbuilder
+    interaction: NC
+    flavor: nue
+    event_filter: "(pdgCode == 112 || pdgCode == -112)"
+    n_partitions: 10
+    fraction: 1.0
+    max_events: null
+
+  NC_numu_EventBuilder:
+    process: true
+    source_data_type: MC_neutrino
+    source_subfolders:
+      - 2024_vm_EventBuilder
+    particle_id: 104
+    particle_family: neutrino_eventbuilder
     interaction: NC
     flavor: numu
     event_filter: "(pdgCode == 114 || pdgCode == -114)"
@@ -262,25 +344,25 @@ overrides:
   sideband_has_veto_has_us_fiducial_inside:
     real_data:
       n_partitions: 100
-      fraction: 0.1
+      fraction: 0.10
       max_events: null
 
   sideband_has_veto_no_us_fiducial_inside:
     real_data:
       n_partitions: 100
-      fraction: 0.1
+      fraction: 0.10
       max_events: null
 
   sideband_has_veto_has_us_fiducial_outside:
     real_data:
       n_partitions: 100
-      fraction: 0.1
+      fraction: 0.10
       max_events: null
 
   sideband_has_veto_no_us_fiducial_outside:
     real_data:
       n_partitions: 100
-      fraction: 0.1
+      fraction: 0.10
       max_events: null
 
 metadata_columns:
@@ -306,6 +388,10 @@ metadata_output_columns:
   - partition_id
   - feature_partition_path
   - hit3d_partition_path
+  - feature_available
+  - hit3d_available
+  - hit3d_required
+  - products_written
   - n_events
   - lumi_per_partition
   - fraction

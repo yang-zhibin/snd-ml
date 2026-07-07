@@ -29,7 +29,7 @@ rule update_metadata:
     output:
         updated_metadata = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}"
     wildcard_constraints:
-        metadata_csv=r"(?!.*_subset\.csv$)(?!.*_skim_runs_metadata.*\.csv$).*\.csv$" #aviod ambiguous with generate subset metadata
+        metadata_csv=r"(?!.*_subset\.csv$)(?!.*_skim_runs_metadata.*\.csv$)(?!.*_EventBuilder_metadata\.csv$).*\.csv$" #aviod ambiguous with generate subset metadata
     threads:1
     resources:
         runtime=45*60,
@@ -43,6 +43,40 @@ rule update_metadata:
         set +u 
         source {env_script_lcg}
         python {input.script} -i {input.raw_metadata} -o {output.updated_metadata}
+        """
+
+
+rule make_eventbuilder_metadata:
+    input:
+        source_metadata=(
+            f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/"
+            "MC_neutrino_2024_{neutrino_flavor}_metadata.csv"
+        ),
+        script=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/make_eventbuilder_metadata.py",
+    output:
+        eventbuilder_metadata=(
+            f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/"
+            "MC_neutrino_2024_{neutrino_flavor}_EventBuilder_metadata.csv"
+        )
+    wildcard_constraints:
+        neutrino_flavor="ve|vm"
+    threads: 1
+    resources:
+        runtime=15 * 60,
+        mem_mb=2000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        """
+        echo "Creating EventBuilder metadata for MC neutrino 2024 {wildcards.neutrino_flavor}"
+        set +u
+        source {env_script_lcg}
+        python {input.script} \
+            --input {input.source_metadata} \
+            --output {output.eventbuilder_metadata} \
+            --output-root {EOS_Work_SPACE} \
+            --dataset-dir MC_neutrino_EventBuilder \
+            --tag EventBuilder
         """
 
 rule skim_real_data_2024:

@@ -1,0 +1,185 @@
+split_version: split_v1
+description: >
+  First post-partition ML split. Train a five-class classifier using one
+  real-data no-veto/no-US sideband proxy class and the four neutrino truth
+  classes. The ML input view uses SciFi hits only.
+
+seed: 123
+split_strategy: two_fold_cross_fit_by_partition_rows
+
+fractions:
+  train: 0.40
+  val: 0.10
+  test: 0.50
+
+cross_validation:
+  enabled: true
+  strategy: two_fold_cross_fit
+  n_folds: 2
+  test_fraction_per_fold: 0.50
+  val_fraction_within_train_pool: 0.20
+
+group_by:
+  - region
+  - particle_group
+
+default_unassigned:
+  split: test
+  usage: test
+
+real_data_default:
+  split: test
+  usage: inference
+
+exclude:
+  regions: []
+  particle_groups: []
+
+training_selection:
+  include_regions:
+    # Real-data sideband: no veto and no US, both fiducial categories.
+    - sideband_no_veto_no_us_fiducial_inside
+    - sideband_no_veto_no_us_fiducial_outside
+
+    # Neutrino training region.
+    - signal_no_veto_has_us_fiducial_inside
+
+  include_particle_groups:
+    - real_data
+    - CC_nue
+    - CC_numu
+    - NC_nue
+    - NC_numu
+
+  allow_real_data_training: true
+
+classification:
+  task: particle_classification
+  n_classes: 5
+  classes:
+    - class_id: 0
+      class_name: real_data_no_veto_no_us_sideband
+      class_source: proxy_label
+      particle_groups:
+        - real_data
+      regions:
+        - sideband_no_veto_no_us_fiducial_inside
+        - sideband_no_veto_no_us_fiducial_outside
+
+    - class_id: 1
+      class_name: CC_nue
+      class_source: truth_label
+      particle_groups:
+        - CC_nue
+      regions:
+        - signal_no_veto_has_us_fiducial_inside
+
+    - class_id: 2
+      class_name: CC_numu
+      class_source: truth_label
+      particle_groups:
+        - CC_numu
+      regions:
+        - signal_no_veto_has_us_fiducial_inside
+
+    - class_id: 3
+      class_name: NC_nue
+      class_source: truth_label
+      particle_groups:
+        - NC_nue
+      regions:
+        - signal_no_veto_has_us_fiducial_inside
+
+    - class_id: 4
+      class_name: NC_numu
+      class_source: truth_label
+      particle_groups:
+        - NC_numu
+      regions:
+        - signal_no_veto_has_us_fiducial_inside
+
+input_view:
+  name: scifi_only
+  version: v2
+  tensor_format: dense_cnn
+  output_format: npz
+  grid_mode: raw_index
+  allowed_detType:
+    - 1
+  selected_hit_features:
+    - hit_qdc
+    - hit_station
+    - hit_detType
+    - hit_ix
+    - hit_iy
+    - hit_iz
+    - hit_index_valid
+    - hit_index_type
+    - hit_v_channel
+    - hit_h_channel
+    - hit_v_qdc
+    - hit_h_qdc
+  required_hit_branches:
+    - hit_qdc
+    - hit_station
+    - hit_detType
+    - hit_ix
+    - hit_iy
+    - hit_iz
+    - hit_index_valid
+    - hit_index_type
+    - hit_v_channel
+    - hit_h_channel
+    - hit_v_qdc
+    - hit_h_qdc
+  coordinate_branches:
+    - hit_x
+    - hit_y
+    - hit_z
+  detectors:
+    scifi:
+      enabled: true
+      detType: 1
+      index_types:
+        - 1
+      require_index_valid: true
+      axes:
+        x: hit_ix
+        y: hit_iy
+        station: hit_iz
+      feature_planes:
+        - qdc_sum
+        - v_qdc
+        - h_qdc
+        - occupancy
+      aggregation:
+        qdc_sum: sum
+        v_qdc: sum
+        h_qdc: sum
+        occupancy: count
+  one_orientation_hits:
+    index_types:
+      - 5
+      - 6
+    policy: keep_out_of_main_grid
+    note: >
+      SciFi one-orientation hits have one missing transverse index. They are
+      not filled into the main crossed-hit CNN grid, but can be used later as
+      projection or auxiliary tensors.
+  validation:
+    strict: true
+    require_non_negative_indices: true
+    fail_on_out_of_bounds: true
+    require_equal_hit_vector_lengths: true
+
+output:
+  metadata_csv: snakemake/metadata/region_partitions/partition_v1_region_v1_split_v1.csv
+  summary_csv: snakemake/metadata/region_partitions/partition_v1_region_v1_split_v1_summary.csv
+
+validation:
+  require_unique_partition_id: true
+  require_class_for_train_eligible: true
+  require_hit3d_for_train_eligible: true
+  require_input_view_for_usable: true
+  require_all_rows_assigned: true
+  allow_empty_groups: false

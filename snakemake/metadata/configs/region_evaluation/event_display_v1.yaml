@@ -1,0 +1,59 @@
+version: event_display_v1
+description: >
+  Small-test SNDSW event-display configuration for region partition evaluation.
+
+input:
+  metadata_csv: snakemake/metadata/region_partitions/partition_v1_region_v1.csv
+  eval_config: snakemake/metadata/configs/region_evaluation/evaluation_options_v1.yaml
+  feature_tree: sndData
+  event_tree_candidates:
+    - cbmsim
+    - rawConv
+  event_source_columns:
+    - digi_path
+    - nueAnalysisFilter_path
+
+filters:
+  regions:
+    - sideband_has_veto_no_us_fiducial_inside
+  particles:
+    - real_data
+    # - CC_nue
+    # - NC_nue
+    # - NC_numu
+    # - CC_numu
+
+selection:
+  label: "density_sndsw_scifi > 20000"
+  expression: "density_sndsw_scifi > 20000"
+
+limits:
+  default_max_events_per_region_particle: 10
+  per_particle:
+    real_data: 20
+
+display:
+  output_mode: vector_pdf
+  disable_logo_for_vector_pdf: true
+  canvas_width: 1600
+  canvas_height: 1000
+  geofile: ""
+  sndsw_display_script: ""
+
+annotations:
+  features:
+    - density_sndsw_scifi
+    - count_scifi
+  max_lines: 8
+
+outputs:
+  outdir: evaluation_region_partitions/event_display
+  summary_csv: summary.csv
+
+follow_event:
+  enabled: false
+  summary_csv: evaluation_region_partitions/event_display/summary.csv
+  runId: 8315
+  eventId: 327646362
+  n_following: 2
+  output_summary_csv: follow_summary.csv

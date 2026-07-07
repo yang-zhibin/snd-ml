@@ -63,6 +63,53 @@ particle_to_target = {
     0: 6,
 }
 
+
+INDEX_UNKNOWN = 0
+INDEX_SCIFI_CROSSED = 1
+INDEX_US_VOXEL = 2
+INDEX_DS_CROSSED = 3
+INDEX_DS_SINGLE_ORIENTATION_VOXEL = 4
+INDEX_SCIFI_VERTICAL_ONLY = 5
+INDEX_SCIFI_HORIZONTAL_ONLY = 6
+INDEX_DS_VERTICAL_ONLY = 7
+INDEX_DS_HORIZONTAL_ONLY = 8
+
+
+HIT_KEYS = [
+    "station",
+    "x",
+    "y",
+    "z",
+    "qdc",
+    "detType",
+    "ix",
+    "iy",
+    "iz",
+    "index_valid",
+    "index_type",
+    "v_channel",
+    "h_channel",
+    "v_qdc",
+    "h_qdc",
+]
+HIT_DTYPES = [
+    np.int16,
+    np.float32,
+    np.float32,
+    np.float32,
+    np.float32,
+    np.int16,
+    np.int32,
+    np.int32,
+    np.int32,
+    np.int16,
+    np.int16,
+    np.int32,
+    np.int32,
+    np.float32,
+    np.float32,
+]
+
 # ==========================================================
 # I/O and setup
 # ==========================================================
@@ -98,6 +145,34 @@ def is_muonDIS_sample(args):
     """Identify muonDIS jobs from the common path/type arguments."""
     fields = ("out_path", "type", "digi_path", "preSelect_path")
     return any("muondis" in str(getattr(args, field, "")).lower() for field in fields)
+
+
+def has_veto_and_us_hits(event):
+    has_veto = False
+    has_us = False
+
+    for hit in event.Digi_MuFilterHits:
+        if not hit.isValid():
+            continue
+
+        system = int(hit.GetSystem())
+        if system == 1:
+            has_veto = True
+        elif system == 2:
+            has_us = True
+
+        if has_veto and has_us:
+            return True
+
+    return False
+
+
+def should_drop_real_has_veto_has_us(args, event):
+    return (
+        bool(getattr(args, "drop_real_has_veto_has_us", False))
+        and "real" in str(args.type)
+        and has_veto_and_us_hits(event)
+    )
 
 
 def non_negative_float(value):
@@ -154,38 +229,106 @@ def concatenate_hit_dicts(hit_dicts, keys, dtypes):
     }
 
 
-def combine_station_hits_to_3d(vertical_hits, horizontal_hits):
+def scifi_channel_info(hit):
+    mat = int(hit.GetMat())
+    sipm = int(hit.GetSiPM())
+    sipm_channel = int(hit.GetSiPMChan())
+    layer_channel = sipm_channel + sipm * 128 + mat * 4 * 128
+    return mat, sipm, sipm_channel, layer_channel
+
+
+def mufilter_channel_info(det_id):
+    return int(det_id % 1000)
+
+
+def empty_3d_hits():
+    return empty_hit_arrays(HIT_KEYS, HIT_DTYPES)
+
+
+def combine_station_hits_to_3d(vertical_hits, horizontal_hits, det_type, index_type):
     """Combine one station's vertical and horizontal hits into crossed 3D hits."""
     if not vertical_hits or not horizontal_hits:
-        return empty_hit_arrays(
-            ["station", "x", "y", "z", "qdc"],
-            [np.int16, np.float32, np.float32, np.float32, np.float32],
-        )
+        return empty_3d_hits()
 
     station = vertical_hits[0]["station"]
 
     vx = np.array([h["x_mid"] for h in vertical_hits], dtype=np.float32)
     vz = np.array([h["z_mid"] for h in vertical_hits], dtype=np.float32)
     vq = np.array([h["qdc"] for h in vertical_hits], dtype=np.float32)
+    vc = np.array([h["channel"] for h in vertical_hits], dtype=np.int32)
 
     hy = np.array([h["y_mid"] for h in horizontal_hits], dtype=np.float32)
     hz = np.array([h["z_mid"] for h in horizontal_hits], dtype=np.float32)
     hq = np.array([h["qdc"] for h in horizontal_hits], dtype=np.float32)
+    hc = np.array([h["channel"] for h in horizontal_hits], dtype=np.int32)
 
     nv = len(vertical_hits)
     nh = len(horizontal_hits)
+    n_crossed = nv * nh
 
     x = np.repeat(vx, nh)
     y = np.tile(hy, nv)
     z = 0.5 * (np.repeat(vz, nh) + np.tile(hz, nv))
-    qdc = np.repeat(vq, nh) + np.tile(hq, nv)
+    v_qdc = np.repeat(vq, nh)
+    h_qdc = np.tile(hq, nv)
+    qdc = v_qdc + h_qdc
+    v_channel = np.repeat(vc, nh)
+    h_channel = np.tile(hc, nv)
 
     return {
-        "station": np.full(nv * nh, station, dtype=np.int16),
+        "station": np.full(n_crossed, station, dtype=np.int16),
         "x": x,
         "y": y,
         "z": z,
         "qdc": qdc,
+        "detType": np.full(n_crossed, det_type, dtype=np.int16),
+        "ix": v_channel.astype(np.int32, copy=False),
+        "iy": h_channel.astype(np.int32, copy=False),
+        "iz": np.full(n_crossed, int(station) - 1, dtype=np.int32),
+        "index_valid": np.ones(n_crossed, dtype=np.int16),
+        "index_type": np.full(n_crossed, index_type, dtype=np.int16),
+        "v_channel": v_channel.astype(np.int32, copy=False),
+        "h_channel": h_channel.astype(np.int32, copy=False),
+        "v_qdc": v_qdc.astype(np.float32, copy=False),
+        "h_qdc": h_qdc.astype(np.float32, copy=False),
+    }
+
+
+def build_one_orientation_hits(hits, det_type, index_type, known_axis):
+    """Preserve hits with only one measured orientation as projection-like sparse hits."""
+    if not hits:
+        return empty_3d_hits()
+    if known_axis not in {"x", "y"}:
+        raise ValueError(f"known_axis must be 'x' or 'y', got {known_axis}")
+
+    n_hits = len(hits)
+    station = np.array([h["station"] for h in hits], dtype=np.int16)
+    channel = np.array([h["channel"] for h in hits], dtype=np.int32)
+    qdc = np.array([h["qdc"] for h in hits], dtype=np.float32)
+
+    ix = channel.copy() if known_axis == "x" else np.full(n_hits, -1, dtype=np.int32)
+    iy = channel.copy() if known_axis == "y" else np.full(n_hits, -1, dtype=np.int32)
+    v_channel = channel.copy() if known_axis == "x" else np.full(n_hits, -1, dtype=np.int32)
+    h_channel = channel.copy() if known_axis == "y" else np.full(n_hits, -1, dtype=np.int32)
+    v_qdc = qdc.copy() if known_axis == "x" else np.zeros(n_hits, dtype=np.float32)
+    h_qdc = qdc.copy() if known_axis == "y" else np.zeros(n_hits, dtype=np.float32)
+
+    return {
+        "station": station,
+        "x": np.array([h["x_mid"] for h in hits], dtype=np.float32),
+        "y": np.array([h["y_mid"] for h in hits], dtype=np.float32),
+        "z": np.array([h["z_mid"] for h in hits], dtype=np.float32),
+        "qdc": qdc,
+        "detType": np.full(n_hits, det_type, dtype=np.int16),
+        "ix": ix,
+        "iy": iy,
+        "iz": station.astype(np.int32) - 1,
+        "index_valid": np.zeros(n_hits, dtype=np.int16),
+        "index_type": np.full(n_hits, index_type, dtype=np.int16),
+        "v_channel": v_channel,
+        "h_channel": h_channel,
+        "v_qdc": v_qdc,
+        "h_qdc": h_qdc,
     }
 
 
@@ -207,7 +350,23 @@ def make_centered_box_offsets(dim, voxel_size):
     zs = (np.arange(nz, dtype=np.float32) + 0.5) * dz
 
     X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")
-    return X.ravel(), Y.ravel(), Z.ravel(), half_x, half_y, half_z
+    IX, IY, IZ = np.meshgrid(
+        np.arange(nx, dtype=np.int32),
+        np.arange(ny, dtype=np.int32),
+        np.arange(nz, dtype=np.int32),
+        indexing="ij",
+    )
+    return (
+        X.ravel(),
+        Y.ravel(),
+        Z.ravel(),
+        IX.ravel(),
+        IY.ravel(),
+        IZ.ravel(),
+        half_x,
+        half_y,
+        half_z,
+    )
 
 
 def build_centered_boxes_for_us_ds4(
@@ -226,71 +385,71 @@ def build_centered_boxes_for_us_ds4(
     for h in MuFilter_hits:
         if h["detType"] == 2:
             selected_hits.append(h)
-            offset_sets.append(us_offsets)
+            offset_sets.append((us_offsets, INDEX_US_VOXEL))
         elif h["detType"] == 3 and h["station"] == 4:
             selected_hits.append(h)
-            offset_sets.append(ds4_offsets)
+            offset_sets.append((ds4_offsets, INDEX_DS_SINGLE_ORIENTATION_VOXEL))
 
     if not selected_hits:
-        return empty_hit_arrays(
-            ["x", "y", "z", "qdc", "station"],
-            [np.float32, np.float32, np.float32, np.float32, np.int16],
-        )
+        return empty_3d_hits()
 
     x_all, y_all, z_all = [], [], []
-    qdc_all, station_all = [], []
+    qdc_all, station_all, det_type_all = [], [], []
+    ix_all, iy_all, iz_all = [], [], []
+    index_valid_all, index_type_all = [], []
+    v_channel_all, h_channel_all = [], []
+    v_qdc_all, h_qdc_all = [], []
 
-    for i, (h, voxel_grid) in enumerate(zip(selected_hits, offset_sets)):
-        step_x, step_y, step_z, half_x, half_y, half_z = voxel_grid
+    for h, (voxel_grid, index_type) in zip(selected_hits, offset_sets):
+        step_x, step_y, step_z, ix, iy, iz, half_x, half_y, half_z = voxel_grid
         nvox = len(step_x)
+        channel = int(h.get("channel", -1))
+        v_channel = channel if h.get("isVertical", False) else -1
+        h_channel = -1 if h.get("isVertical", False) else channel
+        v_qdc = float(h["qdc"]) if h.get("isVertical", False) else 0.0
+        h_qdc = 0.0 if h.get("isVertical", False) else float(h["qdc"])
 
         x_all.append((h["x_mid"] - half_x) + step_x)
         y_all.append((h["y_mid"] - half_y) + step_y)
         z_all.append((h["z_mid"] - half_z) + step_z)
         qdc_all.append(np.full(nvox, float(h["qdc"]) / nvox, dtype=np.float32))
         station_all.append(np.full(nvox, h["station"], dtype=np.int16))
+        det_type_all.append(np.full(nvox, h["detType"], dtype=np.int16))
+        ix_all.append(ix.astype(np.int32, copy=False))
+        iy_all.append(iy.astype(np.int32, copy=False))
+        iz_all.append(iz.astype(np.int32, copy=False))
+        index_valid_all.append(np.ones(nvox, dtype=np.int16))
+        index_type_all.append(np.full(nvox, index_type, dtype=np.int16))
+        v_channel_all.append(np.full(nvox, v_channel, dtype=np.int32))
+        h_channel_all.append(np.full(nvox, h_channel, dtype=np.int32))
+        v_qdc_all.append(np.full(nvox, v_qdc / nvox, dtype=np.float32))
+        h_qdc_all.append(np.full(nvox, h_qdc / nvox, dtype=np.float32))
 
     return {
+        "station": np.concatenate(station_all),
         "x": np.concatenate(x_all),
         "y": np.concatenate(y_all),
         "z": np.concatenate(z_all),
         "qdc": np.concatenate(qdc_all),
-        "station": np.concatenate(station_all),
+        "detType": np.concatenate(det_type_all),
+        "ix": np.concatenate(ix_all),
+        "iy": np.concatenate(iy_all),
+        "iz": np.concatenate(iz_all),
+        "index_valid": np.concatenate(index_valid_all),
+        "index_type": np.concatenate(index_type_all),
+        "v_channel": np.concatenate(v_channel_all),
+        "h_channel": np.concatenate(h_channel_all),
+        "v_qdc": np.concatenate(v_qdc_all),
+        "h_qdc": np.concatenate(h_qdc_all),
     }
 
 
 def build_all_3dHits(SciFi_3D_hits, DS_3D_hits, US_DS4_voxel_hits):
-    keys = ["station", "x", "y", "z", "qdc", "detType"]
-    dtypes = [np.int16, np.float32, np.float32, np.float32, np.float32, np.int16]
-
-    scifi_block = {
-        "station": SciFi_3D_hits["station"].astype(np.int16, copy=False),
-        "x": SciFi_3D_hits["x"].astype(np.float32, copy=False),
-        "y": SciFi_3D_hits["y"].astype(np.float32, copy=False),
-        "z": SciFi_3D_hits["z"].astype(np.float32, copy=False),
-        "qdc": SciFi_3D_hits["qdc"].astype(np.float32, copy=False),
-        "detType": np.full(len(SciFi_3D_hits["x"]), 1, dtype=np.int16),
-    }
-
-    ds_block = {
-        "station": DS_3D_hits["station"].astype(np.int16, copy=False),
-        "x": DS_3D_hits["x"].astype(np.float32, copy=False),
-        "y": DS_3D_hits["y"].astype(np.float32, copy=False),
-        "z": DS_3D_hits["z"].astype(np.float32, copy=False),
-        "qdc": DS_3D_hits["qdc"].astype(np.float32, copy=False),
-        "detType": np.full(len(DS_3D_hits["x"]), 2, dtype=np.int16),
-    }
-
-    us_ds4_block = {
-        "station": US_DS4_voxel_hits["station"].astype(np.int16, copy=False),
-        "x": US_DS4_voxel_hits["x"].astype(np.float32, copy=False),
-        "y": US_DS4_voxel_hits["y"].astype(np.float32, copy=False),
-        "z": US_DS4_voxel_hits["z"].astype(np.float32, copy=False),
-        "qdc": US_DS4_voxel_hits["qdc"].astype(np.float32, copy=False),
-        "detType": np.full(len(US_DS4_voxel_hits["x"]), 3, dtype=np.int16),
-    }
-
-    return concatenate_hit_dicts([scifi_block, ds_block, us_ds4_block], keys, dtypes)
+    return concatenate_hit_dicts(
+        [SciFi_3D_hits, DS_3D_hits, US_DS4_voxel_hits],
+        HIT_KEYS,
+        HIT_DTYPES,
+    )
 
 
 # ==========================================================
@@ -331,6 +490,15 @@ def create_output_root(path, mode, compression_level=9):
         "hit_qdc": ROOT.std.vector("float")(),
         "hit_station": ROOT.std.vector("short")(),
         "hit_detType": ROOT.std.vector("short")(),
+        "hit_ix": ROOT.std.vector("int")(),
+        "hit_iy": ROOT.std.vector("int")(),
+        "hit_iz": ROOT.std.vector("int")(),
+        "hit_index_valid": ROOT.std.vector("short")(),
+        "hit_index_type": ROOT.std.vector("short")(),
+        "hit_v_channel": ROOT.std.vector("int")(),
+        "hit_h_channel": ROOT.std.vector("int")(),
+        "hit_v_qdc": ROOT.std.vector("float")(),
+        "hit_h_qdc": ROOT.std.vector("float")(),
     }
 
     for name, vec in vector_vars.items():
@@ -369,8 +537,33 @@ def fill_hit_vectors(all_3dHits, vector_vars):
     qdc = np.asarray(all_3dHits.get("qdc", []), dtype=np.float32)
     station = np.asarray(all_3dHits.get("station", []), dtype=np.int16)
     det_type = np.asarray(all_3dHits.get("detType", []), dtype=np.int16)
+    ix = np.asarray(all_3dHits.get("ix", []), dtype=np.int32)
+    iy = np.asarray(all_3dHits.get("iy", []), dtype=np.int32)
+    iz = np.asarray(all_3dHits.get("iz", []), dtype=np.int32)
+    index_valid = np.asarray(all_3dHits.get("index_valid", []), dtype=np.int16)
+    index_type = np.asarray(all_3dHits.get("index_type", []), dtype=np.int16)
+    v_channel = np.asarray(all_3dHits.get("v_channel", []), dtype=np.int32)
+    h_channel = np.asarray(all_3dHits.get("h_channel", []), dtype=np.int32)
+    v_qdc = np.asarray(all_3dHits.get("v_qdc", []), dtype=np.float32)
+    h_qdc = np.asarray(all_3dHits.get("h_qdc", []), dtype=np.float32)
 
-    lengths = {len(x), len(y), len(z), len(qdc), len(station), len(det_type)}
+    lengths = {
+        len(x),
+        len(y),
+        len(z),
+        len(qdc),
+        len(station),
+        len(det_type),
+        len(ix),
+        len(iy),
+        len(iz),
+        len(index_valid),
+        len(index_type),
+        len(v_channel),
+        len(h_channel),
+        len(v_qdc),
+        len(h_qdc),
+    }
     if len(lengths) != 1:
         raise RuntimeError(f"Inconsistent hit3D array lengths: {sorted(lengths)}")
 
@@ -380,6 +573,15 @@ def fill_hit_vectors(all_3dHits, vector_vars):
     assign_vector(vector_vars["hit_qdc"], qdc)
     assign_vector(vector_vars["hit_station"], station)
     assign_vector(vector_vars["hit_detType"], det_type)
+    assign_vector(vector_vars["hit_ix"], ix)
+    assign_vector(vector_vars["hit_iy"], iy)
+    assign_vector(vector_vars["hit_iz"], iz)
+    assign_vector(vector_vars["hit_index_valid"], index_valid)
+    assign_vector(vector_vars["hit_index_type"], index_type)
+    assign_vector(vector_vars["hit_v_channel"], v_channel)
+    assign_vector(vector_vars["hit_h_channel"], h_channel)
+    assign_vector(vector_vars["hit_v_qdc"], v_qdc)
+    assign_vector(vector_vars["hit_h_qdc"], h_qdc)
 
 
 def write_metadata_objects(out_file, metadata):
@@ -422,6 +624,7 @@ def process_hits_numpy(
         detID = aHit.GetDetectorID()
         station = int(aHit.GetStation())
         qdc = non_negative_float(aHit.GetSignal(0))
+        mat, sipm, sipm_channel, layer_channel = scifi_channel_info(aHit)
 
         Scifi.GetSiPMPosition(detID, A, B)
         Ax, Ay, Az = A.x(), A.y(), A.z()
@@ -434,6 +637,10 @@ def process_hits_numpy(
             "x_mid": 0.5 * (Ax + Bx),
             "y_mid": 0.5 * (Ay + By),
             "z_mid": 0.5 * (Az + Bz),
+            "mat": mat,
+            "sipm": sipm,
+            "sipm_channel": sipm_channel,
+            "channel": layer_channel,
         })
     add_timing(timings, "scifi_build", time.perf_counter() - t0)
 
@@ -449,6 +656,7 @@ def process_hits_numpy(
 
         detType = int(aHit.GetSystem())
         station = int((detID // 1000) % 10 + 1)
+        channel = mufilter_channel_info(detID)
 
         qdc = 0.0
         for _, value in aHit.GetAllSignals():
@@ -465,6 +673,7 @@ def process_hits_numpy(
             "x_mid": 0.5 * (Ax + Bx),
             "y_mid": 0.5 * (Ay + By),
             "z_mid": 0.5 * (Az + Bz),
+            "channel": channel,
         })
     add_timing(timings, "mufilter_build", time.perf_counter() - t0)
 
@@ -482,23 +691,32 @@ def process_hits_numpy(
         arr = combine_station_hits_to_3d(
             vertical_hits,
             horizontal_hits,
+            det_type=1,
+            index_type=INDEX_SCIFI_CROSSED,
         )
         if len(arr["x"]) > 0:
             scifi_station_arrays.append(arr)
+        scifi_station_arrays.append(
+            build_one_orientation_hits(
+                vertical_hits if not horizontal_hits else [],
+                det_type=1,
+                index_type=INDEX_SCIFI_VERTICAL_ONLY,
+                known_axis="x",
+            )
+        )
+        scifi_station_arrays.append(
+            build_one_orientation_hits(
+                horizontal_hits if not vertical_hits else [],
+                det_type=1,
+                index_type=INDEX_SCIFI_HORIZONTAL_ONLY,
+                known_axis="y",
+            )
+        )
 
     if scifi_station_arrays:
-        SciFi_3D_hits = {
-            "station": np.concatenate([a["station"] for a in scifi_station_arrays]),
-            "x": np.concatenate([a["x"] for a in scifi_station_arrays]),
-            "y": np.concatenate([a["y"] for a in scifi_station_arrays]),
-            "z": np.concatenate([a["z"] for a in scifi_station_arrays]),
-            "qdc": np.concatenate([a["qdc"] for a in scifi_station_arrays]),
-        }
+        SciFi_3D_hits = concatenate_hit_dicts(scifi_station_arrays, HIT_KEYS, HIT_DTYPES)
     else:
-        SciFi_3D_hits = empty_hit_arrays(
-            ["station", "x", "y", "z", "qdc"],
-            [np.int16, np.float32, np.float32, np.float32, np.float32],
-        )
+        SciFi_3D_hits = empty_3d_hits()
     add_timing(timings, "scifi_cross", time.perf_counter() - t0)
 
     # DS1/2/3 3D hits
@@ -516,23 +734,32 @@ def process_hits_numpy(
         arr = combine_station_hits_to_3d(
             vertical_hits,
             horizontal_hits,
+            det_type=3,
+            index_type=INDEX_DS_CROSSED,
         )
         if len(arr["x"]) > 0:
             ds_station_arrays.append(arr)
+        ds_station_arrays.append(
+            build_one_orientation_hits(
+                vertical_hits if not horizontal_hits else [],
+                det_type=3,
+                index_type=INDEX_DS_VERTICAL_ONLY,
+                known_axis="x",
+            )
+        )
+        ds_station_arrays.append(
+            build_one_orientation_hits(
+                horizontal_hits if not vertical_hits else [],
+                det_type=3,
+                index_type=INDEX_DS_HORIZONTAL_ONLY,
+                known_axis="y",
+            )
+        )
 
     if ds_station_arrays:
-        DS_3D_hits = {
-            "station": np.concatenate([a["station"] for a in ds_station_arrays]),
-            "x": np.concatenate([a["x"] for a in ds_station_arrays]),
-            "y": np.concatenate([a["y"] for a in ds_station_arrays]),
-            "z": np.concatenate([a["z"] for a in ds_station_arrays]),
-            "qdc": np.concatenate([a["qdc"] for a in ds_station_arrays]),
-        }
+        DS_3D_hits = concatenate_hit_dicts(ds_station_arrays, HIT_KEYS, HIT_DTYPES)
     else:
-        DS_3D_hits = empty_hit_arrays(
-            ["station", "x", "y", "z", "qdc"],
-            [np.int16, np.float32, np.float32, np.float32, np.float32],
-        )
+        DS_3D_hits = empty_3d_hits()
     add_timing(timings, "ds_cross", time.perf_counter() - t0)
 
     t0 = time.perf_counter()
@@ -764,6 +991,8 @@ def main(args):
 
     preSelect_tree.SetEntryList(elist)
     n_selected = int(elist.GetN())
+    n_written = 0
+    n_dropped_has_veto_has_us = 0
     timings = {key: 0.0 for key in TIMING_KEYS}
 
     for i in tqdm(range(n_selected), desc="processing hit3D events", mininterval=30):
@@ -780,6 +1009,10 @@ def main(args):
         init_event_geometry(snd_geo, raw_tree.EventHeader)
         add_timing(timings, "entry_load", time.perf_counter() - t0)
 
+        if should_drop_real_has_veto_has_us(args, raw_tree):
+            n_dropped_has_veto_has_us += 1
+            continue
+
         t0 = time.perf_counter()
         event = extract_event_metadata(args, raw_tree, raw_entry)
         event["label"] = particle_to_target.get(event["pdgCode"], -1)
@@ -792,18 +1025,24 @@ def main(args):
         fill_event_branches(event, branch_vars)
         fill_hit_vectors(all_3dHits, vector_vars)
         hit_tree.Fill()
+        n_written += 1
         add_timing(timings, "root_fill", time.perf_counter() - t0)
 
     t0 = time.perf_counter()
     hit_tree.Write()
-    write_metadata_objects(out_file, make_metadata(args, selection, n_selected))
+    write_metadata_objects(out_file, make_metadata(args, selection, n_written))
     add_timing(timings, "root_write", time.perf_counter() - t0)
     out_file.Close()
     raw_data.Close()
     preSelect_data.Close()
 
-    print_timing_summary(timings, n_selected)
-    print(f"finish processing digi to hits3D, saved {n_selected} events to {args.out_path}")
+    print_timing_summary(timings, n_written)
+    if args.drop_real_has_veto_has_us:
+        print(
+            "Dropped real-data events with both veto and US hits: "
+            f"{n_dropped_has_veto_has_us}"
+        )
+    print(f"finish processing digi to hits3D, saved {n_written} events to {args.out_path}")
     return 0
 
 
@@ -820,8 +1059,14 @@ if __name__ == "__main__":
         "--compression-level",
         dest="compression_level",
         type=int,
-        default=9,
+        default=4,
         help="ROOT compression level for the output file.",
+    )
+    parser.add_argument(
+        "--drop-real-has-veto-has-us",
+        dest="drop_real_has_veto_has_us",
+        action="store_true",
+        help="For real data, skip events with both valid veto and upstream MuFilter hits.",
     )
 
     args = parser.parse_args()

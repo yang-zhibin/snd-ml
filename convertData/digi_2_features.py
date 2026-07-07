@@ -5,10 +5,45 @@ import SndlhcGeo
 import array
 from collections import defaultdict
 import math
+import time
 from analysis.analyses.snd_analysis_2024_0mu.sciFiTools import selectHits, getSumDensity
 import numpy as np
 
 ROOT.TH1.AddDirectory(False)
+
+
+def record_timing(timing, timing_counts, name, start_time):
+    if timing is None or timing_counts is None:
+        return
+
+    timing[name] += time.perf_counter() - start_time
+    timing_counts[name] += 1
+
+
+def print_timing_summary(timing, timing_counts, total_elapsed, n_selected_entries, n_written_entries):
+    print("Timing summary:")
+    print(f"  total.job                                {total_elapsed:10.3f} s")
+    print(f"  selected entries                         {n_selected_entries:10d}")
+    print(f"  written entries                          {n_written_entries:10d}")
+
+    if not timing:
+        return
+
+    name_width = max(len(name) for name in timing)
+    header_name = "section"
+    print(
+        f"  {header_name:<{name_width}} "
+        f"{'total [s]':>10} {'calls':>10} {'avg/call [ms]':>14} {'job [%]':>9}"
+    )
+
+    for name, elapsed in sorted(timing.items(), key=lambda item: item[1], reverse=True):
+        calls = timing_counts.get(name, 0)
+        avg_ms = 1000.0 * elapsed / calls if calls else 0.0
+        percent = 100.0 * elapsed / total_elapsed if total_elapsed > 0 else 0.0
+        print(
+            f"  {name:<{name_width}} "
+            f"{elapsed:10.3f} {calls:10d} {avg_ms:14.3f} {percent:9.2f}"
+        )
 
 def setup_geometry(geo_file):
     """Initialize and return the geometry configurations."""
@@ -36,6 +71,34 @@ def is_muonDIS_sample(args):
     """Identify muonDIS jobs from the common path/type arguments."""
     fields = ("out_path", "type", "digi_path", "preSelect_path")
     return any("muondis" in str(getattr(args, field, "")).lower() for field in fields)
+
+
+def has_veto_and_us_hits(event):
+    has_veto = False
+    has_us = False
+
+    for hit in event.Digi_MuFilterHits:
+        if not hit.isValid():
+            continue
+
+        system = int(hit.GetSystem())
+        if system == 1:
+            has_veto = True
+        elif system == 2:
+            has_us = True
+
+        if has_veto and has_us:
+            return True
+
+    return False
+
+
+def should_drop_real_has_veto_has_us(args, event):
+    return (
+        bool(getattr(args, "drop_real_has_veto_has_us", False))
+        and "real" in str(args.type)
+        and has_veto_and_us_hits(event)
+    )
 
 
 def setup_event_deltat_alias(preSelect_tree):
@@ -479,6 +542,72 @@ def process_avgPos(SciFi_hits, MuFilter_hits, branch_vars):
         if key.startswith("avg_"):
             branch_vars[key][0] = sums[key] / counts[key] if counts[key] > 0 else -999.
 
+
+def process_qdcAvgPos(SciFi_hits, MuFilter_hits, branch_vars):
+    """
+    Compute QDC-weighted average hit positions using the same detector/view
+    convention as process_avgPos.
+    """
+    weighted_sums = defaultdict(float)
+    weight_sums = defaultdict(float)
+
+    def add_weighted_position(key, position, qdc):
+        weight = non_negative_float(qdc)
+        if weight <= 0:
+            return
+        weighted_sums[key] += float(position) * weight
+        weight_sums[key] += weight
+
+    # combine both hit collections
+    all_hits = SciFi_hits + MuFilter_hits
+
+    for hit in all_hits:
+        detType = hit["detType"]
+        station = hit["station"]
+        isVertical = hit["isVertical"]
+        qdc = hit.get("qdc", 0.0)
+
+        if detType == 1:  # Veto
+            if station in [1, 2] and not isVertical:
+                add_weighted_position(f"qdcAvg_veto{station}_y", hit["y"], qdc)
+                add_weighted_position("qdcAvg_veto_y", hit["y"], qdc)
+
+            elif station == 3 and isVertical:
+                add_weighted_position("qdcAvg_veto3_x", hit["x"], qdc)
+                add_weighted_position("qdcAvg_veto_x", hit["x"], qdc)
+
+        elif detType == 0:  # SciFi
+            if 1 <= station <= 5:
+                if isVertical:
+                    add_weighted_position(f"qdcAvg_scifi{station}_x", hit["x"], qdc)
+                    add_weighted_position("qdcAvg_scifi_x", hit["x"], qdc)
+                else:
+                    add_weighted_position(f"qdcAvg_scifi{station}_y", hit["y"], qdc)
+                    add_weighted_position("qdcAvg_scifi_y", hit["y"], qdc)
+
+        elif detType == 2:  # Upstream
+            if 1 <= station <= 5 and not isVertical:
+                add_weighted_position(f"qdcAvg_us{station}_y", hit["y"], qdc)
+                add_weighted_position("qdcAvg_us_y", hit["y"], qdc)
+
+        elif detType == 3:  # Downstream
+            if 1 <= station <= 4:
+                if isVertical:
+                    add_weighted_position(f"qdcAvg_ds{station}_x", hit["x"], qdc)
+                    add_weighted_position("qdcAvg_ds_x", hit["x"], qdc)
+                else:
+                    add_weighted_position(f"qdcAvg_ds{station}_y", hit["y"], qdc)
+                    add_weighted_position("qdcAvg_ds_y", hit["y"], qdc)
+
+    # Fill all requested branch_vars safely
+    for key in branch_vars:
+        if key.startswith("qdcAvg_"):
+            branch_vars[key][0] = (
+                weighted_sums[key] / weight_sums[key]
+                if weight_sums[key] > 0
+                else -999.
+            )
+
     
 
 def build_scifi_hit_dict(hit, Scifi):
@@ -729,8 +858,9 @@ def process_scifi_topology_features(SciFi_hits, branch_vars):
     branch_vars["scifi_std_y"][0] = std_or_sentinel(all_y_positions)
 
 
-def process_hits(args, event, snd_geo, branch_vars):
+def process_hits(args, event, snd_geo, branch_vars, timing=None, timing_counts=None):
     """Process all hits in the event and update hits array and averages."""
+    process_start = time.perf_counter()
     eventId = branch_vars["eventId"][0]
     MC = args.type
     Scifi = snd_geo.modules['Scifi']
@@ -739,24 +869,31 @@ def process_hits(args, event, snd_geo, branch_vars):
     is_muon_dis = is_muonDIS_sample(args)
     
 
+    step_start = time.perf_counter()
     if is_muon_dis:
         selected_scifi_hits = [hit for hit in event.Digi_ScifiHits if hit.isValid()]
     else:
         selected_scifi_hits = selectHits(event, MC=("MC" in args.type))
+    record_timing(timing, timing_counts, "process_hits.select_scifi", step_start)
 
+    step_start = time.perf_counter()
     dens, dens2, dver, dhor = getSumDensity(selected_scifi_hits, return_2ndhighest=True, return_hv=True)
     branch_vars["density_sndsw_scifi"][0] = dens
     branch_vars["density_sndsw_scifi_second"][0] = dens2
     branch_vars["density_sndsw_scifi_ver"][0] = dver
     branch_vars["density_sndsw_scifi_hor"][0] = dhor
+    record_timing(timing, timing_counts, "process_hits.sndsw_density", step_start)
 
+    step_start = time.perf_counter()
     SciFi_hits = [
         build_scifi_hit_dict(aHit, Scifi)
         for aHit in selected_scifi_hits
         if aHit.isValid()
     ]
+    record_timing(timing, timing_counts, "process_hits.build_scifi_dicts", step_start)
 
     # Process MuFilter hits
+    step_start = time.perf_counter()
     MuFilter_hits = []
     for aHit in event.Digi_MuFilterHits:
         if not aHit.isValid():
@@ -787,18 +924,37 @@ def process_hits(args, event, snd_geo, branch_vars):
             "y":A.y(),
             "z":A.z(),
         })
+    record_timing(timing, timing_counts, "process_hits.build_mufilter_dicts", step_start)
     
+    step_start = time.perf_counter()
     hitWeightDensity(SciFi_hits, branch_vars)
+    record_timing(timing, timing_counts, "process_hits.hitWeightDensity", step_start)
     
+    step_start = time.perf_counter()
     process_count_and_qdc(SciFi_hits, MuFilter_hits, branch_vars)
+    record_timing(timing, timing_counts, "process_hits.count_qdc", step_start)
     
+    step_start = time.perf_counter()
     process_avgPos(SciFi_hits, MuFilter_hits, branch_vars)
+    record_timing(timing, timing_counts, "process_hits.avg_pos", step_start)
 
+    step_start = time.perf_counter()
+    process_qdcAvgPos(SciFi_hits, MuFilter_hits, branch_vars)
+    record_timing(timing, timing_counts, "process_hits.qdc_avg_pos", step_start)
+
+    step_start = time.perf_counter()
     process_scifi_topology_features(SciFi_hits, branch_vars)
+    record_timing(timing, timing_counts, "process_hits.scifi_topology", step_start)
     
+    step_start = time.perf_counter()
     fill_mycode_density(branch_vars)
+    record_timing(timing, timing_counts, "process_hits.mycode_density", step_start)
     
+    step_start = time.perf_counter()
     process_vetoHitTime(MuFilter_hits, branch_vars)
+    record_timing(timing, timing_counts, "process_hits.veto_time", step_start)
+
+    record_timing(timing, timing_counts, "process_hits.total", process_start)
 
     return 
 
@@ -808,17 +964,28 @@ def process_hits(args, event, snd_geo, branch_vars):
 
 def main(args):
     print("start processing digi to features")
+    job_start = time.perf_counter()
+    timing = defaultdict(float)
+    timing_counts = defaultdict(int)
     
+    step_start = time.perf_counter()
     snd_geo = setup_geometry(args.geo_path )
+    record_timing(timing, timing_counts, "setup.geometry", step_start)
+
+    step_start = time.perf_counter()
     raw_data, raw_tree = open_root_file(args.digi_path)
     preSelect_data, preSelect_tree = open_root_file(args.preSelect_path, tree_name='cutFlowSummary')
     event_deltat_branch = setup_event_deltat_alias(preSelect_tree)
+    record_timing(timing, timing_counts, "setup.open_files", step_start)
     
+    step_start = time.perf_counter()
     out_file, new_tree = create_output_file(args.out_path, args.mode)
+    record_timing(timing, timing_counts, "setup.output_file", step_start)
     
     elist_name = "elist"
 
 
+    step_start = time.perf_counter()
     selection = "SciFiMinHits == 1"
     if "MC" not in args.type:
         if not event_deltat_branch:
@@ -853,7 +1020,9 @@ def main(args):
         elist = ROOT.TEntryList("elist_all", "elist_all")
         for j in range(preSelect_tree.GetEntries()):
             elist.Enter(j)
+    record_timing(timing, timing_counts, "setup.selection", step_start)
 
+    step_start = time.perf_counter()
     branches = [
         ("runId", 'i'), ("eventId", 'i'), ("pdgCode", 'i'), ("isMC", 'i'), ("eventIndex", 'i'),
         ("nPrimary", 'i'), ("nSecondaryRaw", 'i'), ("nSecondary", 'i'),
@@ -881,6 +1050,18 @@ def main(args):
         ("avg_ds2_x", 'd'), ("avg_ds2_y", 'd'),
         ("avg_ds3_x", 'd'), ("avg_ds3_y", 'd'),
         ("avg_ds4_x", 'd'), ("avg_ds4_y", 'd'), ("avg_ds_x", 'd'), ("avg_ds_y", 'd'),
+
+        ("qdcAvg_veto1_y", 'd'), ("qdcAvg_veto2_y", 'd'), ("qdcAvg_veto3_x", 'd'), ("qdcAvg_veto_x", 'd'), ("qdcAvg_veto_y", 'd'),
+        ("qdcAvg_scifi1_x", 'd'), ("qdcAvg_scifi1_y", 'd'),
+        ("qdcAvg_scifi2_x", 'd'), ("qdcAvg_scifi2_y", 'd'),
+        ("qdcAvg_scifi3_x", 'd'), ("qdcAvg_scifi3_y", 'd'),
+        ("qdcAvg_scifi4_x", 'd'), ("qdcAvg_scifi4_y", 'd'),
+        ("qdcAvg_scifi5_x", 'd'), ("qdcAvg_scifi5_y", 'd'), ("qdcAvg_scifi_y", 'd'), ("qdcAvg_scifi_x", 'd'),
+        ("qdcAvg_us1_y", 'd'), ("qdcAvg_us2_y", 'd'), ("qdcAvg_us3_y", 'd'), ("qdcAvg_us4_y", 'd'), ("qdcAvg_us5_y", 'd'), ("qdcAvg_us_y", 'd'),
+        ("qdcAvg_ds1_x", 'd'), ("qdcAvg_ds1_y", 'd'),
+        ("qdcAvg_ds2_x", 'd'), ("qdcAvg_ds2_y", 'd'),
+        ("qdcAvg_ds3_x", 'd'), ("qdcAvg_ds3_y", 'd'),
+        ("qdcAvg_ds4_x", 'd'), ("qdcAvg_ds4_y", 'd'), ("qdcAvg_ds_x", 'd'), ("qdcAvg_ds_y", 'd'),
         
         # Hit density sums per plane
         ("density_scifi1", 'd'), ("density_scifi2", 'd'), ("density_scifi3", 'd'), ("density_scifi4", 'd'), ("density_scifi5", 'd'), ("density_scifi", 'd'),
@@ -924,10 +1105,15 @@ def main(args):
 
     track_vector_branches = make_track_vector_branches()
     branch_vector_vars(new_tree, track_vector_branches)
+    record_timing(timing, timing_counts, "setup.branches", step_start)
 
     
     n_selected_entries = elist.GetN()
+    n_written_entries = 0
+    kept_cutflow_entries = ROOT.TEntryList("elist_kept", "elist_kept")
+    n_dropped_has_veto_has_us = 0
     for i in range(n_selected_entries):
+        step_start = time.perf_counter()
         reset_vector_branches(track_vector_branches)
         if i % 10000 == 0:
             progress = 100.0 * i / n_selected_entries if n_selected_entries else 100.0
@@ -935,7 +1121,9 @@ def main(args):
         # Reset all branch variables before filling them
         for key in branch_vars:
             branch_vars[key][0] = -999
+        record_timing(timing, timing_counts, "event.reset_branches", step_start)
 
+        step_start = time.perf_counter()
         cutflow_entry = elist.GetEntry(i)
         preSelect_tree.GetEntry(cutflow_entry)
 
@@ -943,15 +1131,33 @@ def main(args):
             raw_entry = int(preSelect_tree.entry)
         else:
             raw_entry = cutflow_entry
+        record_timing(timing, timing_counts, "event.read_preselect", step_start)
 
+        step_start = time.perf_counter()
         raw_tree.GetEntry(raw_entry)
+        record_timing(timing, timing_counts, "event.read_raw", step_start)
+
+        step_start = time.perf_counter()
         init_event_geometry(snd_geo, raw_tree.EventHeader)
+        record_timing(timing, timing_counts, "event.init_geometry", step_start)
+
+        step_start = time.perf_counter()
+        drop_event = should_drop_real_has_veto_has_us(args, raw_tree)
+        record_timing(timing, timing_counts, "event.drop_real_has_veto_has_us", step_start)
+        if drop_event:
+            n_dropped_has_veto_has_us += 1
+            continue
+
+        step_start = time.perf_counter()
+        kept_cutflow_entries.Enter(cutflow_entry)
         
         branch_vars["eventIndex"][0] = raw_entry
         branch_vars["runId"][0] = raw_tree.EventHeader.GetRunId()
+        record_timing(timing, timing_counts, "event.metadata_base", step_start)
         
         
         if ('MC' in  args.type):
+            step_start = time.perf_counter()
             branch_vars["isMC"][0] = 1
             try:
                 branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
@@ -980,32 +1186,63 @@ def main(args):
                     branch_vars["x"][0] = track1.GetStartX()
                     branch_vars["y"][0] = track1.GetStartY()
                     branch_vars["z"][0] = track1.GetStartZ()
+            record_timing(timing, timing_counts, "event.mc_metadata", step_start)
 
             if is_muonDIS_sample(args):
+                step_start = time.perf_counter()
                 n_primary, n_secondary_raw, n_secondary = process_muonDIS_tracks(raw_tree, track_vector_branches)
                 branch_vars["nPrimary"][0] = n_primary
                 branch_vars["nSecondaryRaw"][0] = n_secondary_raw
                 branch_vars["nSecondary"][0] = n_secondary
+                record_timing(timing, timing_counts, "event.muonDIS_truth", step_start)
             
             
         
         elif('real' in  args.type):
+            step_start = time.perf_counter()
             branch_vars["isMC"][0] = 0
             branch_vars["pdgCode"][0] = 0
             branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
-        process_hits(args, raw_tree, snd_geo, branch_vars)
+            record_timing(timing, timing_counts, "event.real_metadata", step_start)
+
+        process_hits(args, raw_tree, snd_geo, branch_vars, timing, timing_counts)
         #if i>2:
         #    break
+        step_start = time.perf_counter()
         new_tree.Fill()
+        n_written_entries += 1
+        record_timing(timing, timing_counts, "event.output_fill", step_start)
     # Finalize the output file
+    step_start = time.perf_counter()
     new_tree.Write()
-    if selection:
-        cutflow_selected = preSelect_tree.CopyTree(selection)
+    record_timing(timing, timing_counts, "finalize.write_sndData", step_start)
+
+    step_start = time.perf_counter()
+    if kept_cutflow_entries.GetN() > 0:
+        preSelect_tree.SetEntryList(kept_cutflow_entries)
+        cutflow_selected = preSelect_tree.CopyTree("")
     else:
-        cutflow_selected = preSelect_tree.CloneTree(-1)
+        preSelect_tree.SetEntryList(0)
+        cutflow_selected = preSelect_tree.CopyTree("0")
     cutflow_selected.SetName("cutFlowSummary")
     cutflow_selected.Write()
+    record_timing(timing, timing_counts, "finalize.write_cutFlowSummary", step_start)
+
+    step_start = time.perf_counter()
     out_file.Close()
+    record_timing(timing, timing_counts, "finalize.close_file", step_start)
+    if args.drop_real_has_veto_has_us:
+        print(
+            "Dropped real-data events with both veto and US hits: "
+            f"{n_dropped_has_veto_has_us}"
+        )
+    print_timing_summary(
+        timing,
+        timing_counts,
+        time.perf_counter() - job_start,
+        n_selected_entries,
+        n_written_entries,
+    )
     print("finish processing digi to feature")
 
 if __name__ == "__main__":
@@ -1016,6 +1253,12 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--outPath", dest="out_path", help="output path", required=True)
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
+    parser.add_argument(
+        "--drop-real-has-veto-has-us",
+        dest="drop_real_has_veto_has_us",
+        action="store_true",
+        help="For real data, skip events with both valid veto and upstream MuFilter hits.",
+    )
 
     args = parser.parse_args()
 

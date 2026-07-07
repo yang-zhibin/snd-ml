@@ -33,7 +33,7 @@ sub = htcondor.Submit(
         "error": "condor.err", #join(jobDir, "condor.err"), "condor.err", 
         "should_transfer_files": "NO",
         "getenv": "True",
-#        "request_cpus": str(job_properties["threads"]),
+        "request_cpus": "1",#        "request_cpus": str(job_properties["threads"]),
         "+MaxRuntime": job_properties["resources"]["runtime"],
         # Add your custom HTCondor settings
         "+AccountingGroup": '"group_u_SNDLHC.users"',
@@ -46,13 +46,13 @@ if "nvidia_gpu" in job_properties["resources"] and job_properties["resources"]["
     sub["request_GPUs"] = str(job_properties["resources"]["nvidia_gpu"])
 
 
-request_memory = job_properties["resources"].get("mem_mb", None)
-if request_memory is not None:
-    sub["request_memory"] = str(request_memory)
+# request_memory = job_properties["resources"].get("mem_mb", None)
+# if request_memory is not None:
+#     sub["request_memory"] = str(request_memory)
 
-request_disk = job_properties["resources"].get("disk_mb", None)
-if request_disk is not None:
-    sub["request_disk"] = str(request_disk)
+# request_disk = job_properties["resources"].get("disk_mb", None)
+# if request_disk is not None:
+#     sub["request_disk"] = str(request_disk)
 
 # Add kerberos credentials
 # c.f. https://batchdocs.web.cern.ch/local/pythonapi.html

@@ -298,7 +298,13 @@ def select_lumi_metadata_rows(metadata_paths, region, particle_group, part_index
     return dict(allowed), settings
 
 
-def metadata_paths_to_rows(metadata_paths, allowed_metadata_rows=None, skip_missing_files=False):
+def metadata_paths_to_rows(
+    metadata_paths,
+    allowed_metadata_rows=None,
+    skip_missing_files=False,
+    require_feature=True,
+    require_hit3d=True,
+):
     rows = []
     skipped_missing = []
     for metadata_path in metadata_paths:
@@ -316,8 +322,8 @@ def metadata_paths_to_rows(metadata_paths, allowed_metadata_rows=None, skip_miss
             hit3d_path = resolve_path(row["output_base_path"], row["hit3d_path"])
             missing_paths = [
                 path
-                for path in (feature_path, hit3d_path)
-                if path.startswith("/") and not os.path.exists(path)
+                for path, required in ((feature_path, require_feature), (hit3d_path, require_hit3d))
+                if required and path.startswith("/") and not os.path.exists(path)
             ]
             if missing_paths:
                 if skip_missing_files:
@@ -343,7 +349,7 @@ def metadata_paths_to_rows(metadata_paths, allowed_metadata_rows=None, skip_miss
             )
 
     if skipped_missing:
-        log(f"Skipped {format_count(len(skipped_missing))} selected metadata rows with missing feature/hit3D files")
+        log(f"Skipped {format_count(len(skipped_missing))} selected metadata rows with missing required files")
         for item in skipped_missing[:5]:
             log(
                 "  missing file example: "
@@ -481,13 +487,14 @@ def require_local_output_path(output_path):
         )
 
 
-def snapshot_rdf(rdf, tree_name, output_path, columns, compression_level=None):
+def snapshot_rdf(rdf, tree_name, output_path, columns, compression_level=None, mode="RECREATE"):
     import ROOT
 
     require_local_output_path(output_path)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     log(f"Snapshot {tree_name}: {output_path}")
     options = ROOT.RDF.RSnapshotOptions()
+    options.fMode = str(mode)
     if compression_level is not None:
         options.fCompressionLevel = int(compression_level)
         log(f"  compression level: {int(compression_level)}")
@@ -550,6 +557,10 @@ def write_rdf_metadata_row(
     hit3d_output,
     metadata_rows,
     part_index,
+    product_mode,
+    feature_available,
+    hit3d_available,
+    hit3d_required,
 ):
     output_metadata = Path(output_metadata)
     output_metadata.parent.mkdir(parents=True, exist_ok=True)
@@ -569,6 +580,10 @@ def write_rdf_metadata_row(
         "partition_id": partition_id,
         "feature_partition_path": feature_output,
         "hit3d_partition_path": hit3d_output,
+        "feature_available": bool(feature_available),
+        "hit3d_available": bool(hit3d_available),
+        "hit3d_required": bool(hit3d_required),
+        "products_written": product_mode,
         "n_events": n_events,
         "lumi_per_partition": lumi_per_partition,
         "fraction": settings.get("fraction"),
@@ -579,7 +594,11 @@ def write_rdf_metadata_row(
         "particle_filter_expression": particle_rule.get("event_filter", ""),
         "source_metadata_csv": ";".join(sorted({item["metadata_path"] for item in metadata_rows})),
         "source_feature_paths": ";".join(sorted({item["feature_path"] for item in metadata_rows})),
-        "source_hit3d_paths": ";".join(sorted({item["hit3d_path"] for item in metadata_rows})),
+        "source_hit3d_paths": (
+            ";".join(sorted({item["hit3d_path"] for item in metadata_rows}))
+            if hit3d_required or hit3d_available
+            else ""
+        ),
         "source_file_indices": "",
         "first_original_entry": "",
         "last_original_entry": "",
@@ -612,6 +631,7 @@ def run_rdf_partition(
     skip_missing_files=False,
     check_entry_counts_enabled=False,
     rdf_threads=0,
+    product_mode="both",
 ):
     if not only_regions or len(only_regions) != 1:
         raise ValueError("Exactly one --only-regions value is required")
@@ -619,6 +639,8 @@ def run_rdf_partition(
         raise ValueError("Exactly one --only-particles value is required")
     if part_index is None:
         raise ValueError("--only-part-index is required")
+    if product_mode not in {"feature", "hit3d", "both"}:
+        raise ValueError(f"--product must be one of feature, hit3d, both; got {product_mode}")
 
     import ROOT
     if rdf_threads and int(rdf_threads) > 0:
@@ -627,7 +649,12 @@ def run_rdf_partition(
 
     region = next(iter(only_regions))
     particle_group = next(iter(only_particles))
-    log(f"Using ROOT RDataFrame for {region} / {particle_group} / part {part_index:03d}")
+    log(
+        f"Using ROOT RDataFrame for {region} / {particle_group} / "
+        f"part {part_index:03d} / product {product_mode}"
+    )
+    need_feature_output = product_mode in {"feature", "both"}
+    need_hit3d_output = product_mode in {"hit3d", "both"}
 
     allowed_metadata_rows, lumi_settings = select_lumi_metadata_rows(
         metadata_paths=metadata_paths,
@@ -641,6 +668,8 @@ def run_rdf_partition(
         metadata_paths=metadata_paths,
         allowed_metadata_rows=allowed_metadata_rows,
         skip_missing_files=skip_missing_files,
+        require_feature=True,
+        require_hit3d=need_hit3d_output,
     )
     log(f"RDF job will use {format_count(len(metadata_rows))} metadata rows")
 
@@ -681,19 +710,21 @@ def run_rdf_partition(
     )
     feature_output = feature_output or str(base_dir / f"{partition_config['output']['feature_prefix']}_{partition_id}.root")
     hit3d_output = hit3d_output or str(base_dir / f"{partition_config['output']['hit3d_prefix']}_{partition_id}.root")
-    metadata_feature_output = metadata_feature_output or feature_output
-    metadata_hit3d_output = metadata_hit3d_output or hit3d_output
+    metadata_feature_output = metadata_feature_output or (feature_output if need_feature_output else "")
+    metadata_hit3d_output = metadata_hit3d_output or (hit3d_output if need_hit3d_output else "")
 
     feature_paths = [item["feature_path"] for item in metadata_rows]
-    hit3d_paths = [item["hit3d_path"] for item in metadata_rows]
+    hit3d_paths = [item["hit3d_path"] for item in metadata_rows] if need_hit3d_output else []
     feature_tree_name = partition_config["input"]["feature_tree"]
+    cutflow_tree_name = partition_config["input"].get("cutflow_tree", "cutFlowSummary")
     hit3d_tree_name = partition_config["input"]["hit3d_tree"]
 
-    if check_entry_counts_enabled:
+    if check_entry_counts_enabled and need_hit3d_output:
         check_entry_counts(metadata_rows, feature_tree_name, hit3d_tree_name)
 
     feature_chain = build_tchain(feature_tree_name, feature_paths, "feature")
-    hit3d_chain = build_tchain(hit3d_tree_name, hit3d_paths, "hit3D")
+    cutflow_chain = build_tchain(cutflow_tree_name, feature_paths, "cutflow")
+    hit3d_chain = build_tchain(hit3d_tree_name, hit3d_paths, "hit3D") if need_hit3d_output else None
 
     region_expr = root_region_expression(region_config, region)
     particle_expr = particle_rule.get("event_filter", "")
@@ -701,7 +732,7 @@ def run_rdf_partition(
     log(f"RDF selection: {selection_expr}")
 
     feature_columns = get_tree_branch_names(feature_paths[0], feature_tree_name)
-    hit3d_columns = get_tree_branch_names(hit3d_paths[0], hit3d_tree_name)
+    cutflow_columns = get_tree_branch_names(feature_paths[0], cutflow_tree_name)
     added_columns = partition_config["output"].get(
         "added_event_branches",
         ["event_uid", "original_entry", "source_file_index", "particle_group", "particle_id"],
@@ -712,50 +743,85 @@ def run_rdf_partition(
         added_columns,
         "feature",
     )
-    hit3d_snapshot_columns = configured_snapshot_columns(
-        partition_config["output"].get("hit3d_branches"),
-        hit3d_columns,
+    cutflow_snapshot_columns = configured_snapshot_columns(
+        partition_config["output"].get("cutflow_branches"),
+        cutflow_columns,
         added_columns,
-        "hit3D",
+        "cutflow",
     )
-    log(
-        f"Snapshot columns: feature={format_count(len(feature_snapshot_columns))}, "
-        f"hit3D={format_count(len(hit3d_snapshot_columns))}"
-    )
+    if need_hit3d_output:
+        hit3d_columns = get_tree_branch_names(hit3d_paths[0], hit3d_tree_name)
+        hit3d_snapshot_columns = configured_snapshot_columns(
+            partition_config["output"].get("hit3d_branches"),
+            hit3d_columns,
+            added_columns,
+            "hit3D",
+        )
+        log(
+            f"Snapshot columns: feature={format_count(len(feature_snapshot_columns))}, "
+            f"hit3D={format_count(len(hit3d_snapshot_columns))}"
+        )
+    else:
+        hit3d_columns = []
+        hit3d_snapshot_columns = []
+        log(f"Snapshot columns: feature={format_count(len(feature_snapshot_columns))}, hit3D=disabled")
 
     feature_rdf = ROOT.RDataFrame(feature_chain).Filter(selection_expr)
     feature_rdf = apply_metadata_defines(feature_rdf, feature_columns, particle_group, particle_id)
 
-    hit3d_chain.AddFriend(feature_chain, "feat")
-    hit_selection_expr, hit_aliases = alias_expression_identifiers(selection_expr)
-    hit3d_rdf = ROOT.RDataFrame(hit3d_chain)
-    for alias_name, target_name in hit_aliases.items():
-        hit3d_rdf = hit3d_rdf.Alias(alias_name, target_name)
-    hit3d_rdf = hit3d_rdf.Filter(hit_selection_expr)
-    hit3d_rdf = apply_metadata_defines(hit3d_rdf, hit3d_columns, particle_group, particle_id)
+    cutflow_chain.AddFriend(feature_chain, "feat")
+    cutflow_selection_expr, cutflow_aliases = alias_expression_identifiers(selection_expr)
+    cutflow_rdf = ROOT.RDataFrame(cutflow_chain)
+    for alias_name, target_name in cutflow_aliases.items():
+        cutflow_rdf = cutflow_rdf.Alias(alias_name, target_name)
+    cutflow_rdf = cutflow_rdf.Filter(cutflow_selection_expr)
+    cutflow_rdf = apply_metadata_defines(cutflow_rdf, cutflow_columns, particle_group, particle_id)
+
+    if need_hit3d_output:
+        hit3d_chain.AddFriend(feature_chain, "feat")
+        hit_selection_expr, hit_aliases = alias_expression_identifiers(selection_expr)
+        hit3d_rdf = ROOT.RDataFrame(hit3d_chain)
+        for alias_name, target_name in hit_aliases.items():
+            hit3d_rdf = hit3d_rdf.Alias(alias_name, target_name)
+        hit3d_rdf = hit3d_rdf.Filter(hit_selection_expr)
+        hit3d_rdf = apply_metadata_defines(hit3d_rdf, hit3d_columns, particle_group, particle_id)
+    else:
+        hit3d_rdf = None
 
     n_events = int(feature_rdf.Count().GetValue())
     log(f"RDF selected events in this whole-file lumi partition: {format_count(n_events)}")
     lumi_per_partition = sum(item["lumi_per_file"] for item in metadata_rows)
     feature_out_rdf = feature_rdf
+    cutflow_out_rdf = cutflow_rdf
     hit3d_out_rdf = hit3d_rdf
 
     if n_events > 0:
         compression_level = partition_config["output"].get("compression_level")
-        snapshot_rdf(
-            feature_out_rdf,
-            feature_tree_name,
-            feature_output,
-            feature_snapshot_columns,
-            compression_level=compression_level,
-        )
-        snapshot_rdf(
-            hit3d_out_rdf,
-            hit3d_tree_name,
-            hit3d_output,
-            hit3d_snapshot_columns,
-            compression_level=compression_level,
-        )
+        if need_feature_output:
+            snapshot_rdf(
+                feature_out_rdf,
+                feature_tree_name,
+                feature_output,
+                feature_snapshot_columns,
+                compression_level=compression_level,
+                mode="RECREATE",
+            )
+            snapshot_rdf(
+                cutflow_out_rdf,
+                cutflow_tree_name,
+                feature_output,
+                cutflow_snapshot_columns,
+                compression_level=compression_level,
+                mode="UPDATE",
+            )
+        if need_hit3d_output:
+            snapshot_rdf(
+                hit3d_out_rdf,
+                hit3d_tree_name,
+                hit3d_output,
+                hit3d_snapshot_columns,
+                compression_level=compression_level,
+            )
     else:
         log("RDF partition has zero selected events; writing metadata header only")
 
@@ -775,6 +841,10 @@ def run_rdf_partition(
         hit3d_output=metadata_hit3d_output,
         metadata_rows=metadata_rows,
         part_index=part_index,
+        product_mode=product_mode,
+        feature_available=need_feature_output and n_events > 0,
+        hit3d_available=need_hit3d_output and n_events > 0,
+        hit3d_required=need_hit3d_output,
     )
 
 
@@ -813,6 +883,12 @@ def main():
         default=0,
         help="Enable ROOT implicit multithreading with this many threads; 0 keeps ROOT single-threaded",
     )
+    parser.add_argument(
+        "--product",
+        choices=["feature", "hit3d", "both"],
+        default="both",
+        help="Which partition product to write. Feature mode does not require source hit3D files.",
+    )
     args = parser.parse_args()
 
     log("Starting build_region_partitions.py")
@@ -850,6 +926,7 @@ def main():
         skip_missing_files=args.skip_missing_files,
         check_entry_counts_enabled=args.check_entry_counts,
         rdf_threads=args.rdf_threads,
+        product_mode=args.product,
     )
     log(
         f"Finished build_region_partitions.py in {format_duration(time.time() - script_start)}; "

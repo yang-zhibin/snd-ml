@@ -6,6 +6,32 @@ import yaml
 from argparse import ArgumentParser
 import re
 
+REAL_DATA_2024_SKIM_RUNS = {
+    8285, 8315, 8320, 8323, 8638, 8724, 9015, 9094, 9258, 9262, 9288,
+    9361, 9411, 9436, 9562, 9569, 9622, 9685, 9715, 9880, 9885, 9913,
+}
+
+
+def add_production_profile(df, data_type):
+    if data_type != "real_data":
+        df["production_profile"] = "mc_default"
+        return df
+
+    df["production_profile"] = "real_data_default"
+    if "run" in df.columns:
+        run_values = pd.to_numeric(df["run"], errors="coerce")
+    else:
+        run_values = pd.to_numeric(
+            df["partition"].astype(str).str.extract(r"run_(\d+)", expand=False),
+            errors="coerce",
+        )
+
+    df.loc[run_values.isin(REAL_DATA_2024_SKIM_RUNS), "production_profile"] = (
+        "real_data_2024_skim_run"
+    )
+    return df
+
+
 def generate_full_name(row, index, path_name, suffix, csv_input, eos_root_path):
     
     base = f"{path_name}_{row['data_type']}_{row['subfolder'].replace('/', '_')}_{row['partition']}"
@@ -304,6 +330,7 @@ def update_csv_file(args, data_type, root_path, subfolder, csv_output, csv_input
     elif (data_type == "MC_muonDIS" and subfolder == "cvilela"):
         df['lumi_per_file'] = 20.0/len(df)
 
+    df = add_production_profile(df, data_type)
     
     df["output_base_path"] = df.apply(
         lambda row: f"{eos_root_path}/{row['data_type']}/{row['subfolder']}/{row['partition']}",

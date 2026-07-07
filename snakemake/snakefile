@@ -14,7 +14,7 @@ wildcard_constraints:
     preCutEff_path=".*preCutEff.*.csv",
     muonDISFeature_path=".*muonDISFeature.*.root",
     muonDISDigi_path=".*muonDISDigi.*.root",
-    feature_path=".*feature.*.root",
+    feature_path=".*feature_[^/]*\\.root",
     metadata_csv=".*metadata.*.csv",
     model_ckpt='.*ckpt.*',
     pt_hit_path = '.*pt_hit.*.pt.gz',
@@ -31,11 +31,11 @@ wildcard_constraints:
 raw_metadata_csv_list = [
 
     # "MC_muon_down_metadata.csv",
-    # "MC_muon_horizontal_metadata.csv",
+    # # "MC_muon_horizontal_metadata.csv",
     # "MC_muon_up_metadata.csv",#2024 crossing angle
 
     # "MC_muonDIS_sii_metadata.csv",
-    "MC_muonDIS_cvilela_metadata.csv",
+    # "MC_muonDIS_cvilela_metadata.csv",
 
     # "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
     # "MC_neutrino_volTarget_100fb-1_metadata.csv",
@@ -63,6 +63,12 @@ subset_metadata_csv_list = [
     "real_data_2024_skim_runs_metadata.csv",
     # "real_data_2024_skim_runs_metadata_subset.csv",
     # "Split_v3.csv",
+    # "real_data_2024_test.csv"
+]
+
+eventbuilder_metadata_csv_list = [
+     "MC_neutrino_2024_ve_EventBuilder_metadata.csv",
+     "MC_neutrino_2024_vm_EventBuilder_metadata.csv",
 ]
 
 train_metadata_csv_list = [
@@ -71,7 +77,6 @@ train_metadata_csv_list = [
     "MC_muon_up_metadata.csv",
     "MC_kaon_FTFP_BERT_metadata.csv",
     "MC_neutron_FTFP_BERT_metadata.csv",
-
 ]
 
 PERSONAL_WORK_SPACE = "/afs/cern.ch/work/z/zhibin/snd-ml"
@@ -81,7 +86,7 @@ env_script_pyroot = f"{PERSONAL_WORK_SPACE}/snakemake/envs/env_pyroot.sh"
 env_script_lcg = f"{PERSONAL_WORK_SPACE}/snakemake/envs/env_lcg.sh"
 env_script_sndsw_nue = f"{PERSONAL_WORK_SPACE}/snakemake/envs/env_sndsw_nue.sh"
 env_script_sndsw_master = f"{PERSONAL_WORK_SPACE}/snakemake/envs/env_sndsw_master.sh"
-
+env_script_sndsw_eventbuilder = f"{PERSONAL_WORK_SPACE}/snakemake/envs/env_sndsw_MCEventBuilder.sh"
 
 process_veto = True
 
@@ -95,7 +100,9 @@ train_model = 'CNN3D_v1'
 include: "rules/metadata.smk"
 include: "rules/production.smk"
 include: "rules/region_partitions.smk"
+include: "rules/post_partition_ml.smk"
 include: "rules/train.smk"
+include: "rules/region_evaluation.smk"
 
 
 ##### metadata
@@ -103,7 +110,8 @@ rule metadata:
     input:
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/raw/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
         expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
-        expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=subset_metadata_csv_list)
+        expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=subset_metadata_csv_list),
+        expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=eventbuilder_metadata_csv_list),
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{train_split}}_{{split_dataset}}.csv", train_split=train_split, split_dataset = split_dataset)
 
 # need another process before train split to add  preSelect_count
@@ -113,9 +121,9 @@ rule metadata:
 ##### production
 rule production:
     input:
-        # expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),
-        expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
-        expand("{hit3d_path}", hit3d_path=collect_metadata_targets("hit3d_path", after_model = False)),
+        expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),
+        # expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
+        # expand("{hit3d_path}", hit3d_path=collect_metadata_targets("hit3d_path", after_model = False)),
         # expand("{muonDISFeature_path}", muonDISFeature_path=collect_metadata_targets("muonDISFeature_path", after_model = False)),
         # expand("{muonDISDigi_path}", muonDISDigi_path=collect_metadata_targets("muonDISDigi_path", after_model = False)),
         # expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),
@@ -124,6 +132,41 @@ rule production:
 
         # after model is train, add prediction process for test set (which match the feature files)
         # 
+
+
+rule eventbuilder_metadata:
+    input:
+        expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=eventbuilder_metadata_csv_list)
+
+
+rule eventbuilder_newRaw:
+    input:
+        lambda wildcards: expand(
+            "{newRaw_path}",
+            newRaw_path=collect_eventbuilder_targets("newRaw_path"),
+        )
+
+
+rule eventbuilder_newDigi:
+    input:
+        lambda wildcards: expand(
+            "{newDigi_path}",
+            newDigi_path=collect_eventbuilder_targets("newDigi_path"),
+        )
+
+
+rule eventbuilder_production:
+    input:
+        lambda wildcards: (
+            expand(
+                "{feature_path}",
+                feature_path=collect_eventbuilder_targets("feature_path"),
+            )
+            + expand(
+                "{hit3d_path}",
+                hit3d_path=collect_eventbuilder_targets("hit3d_path"),
+            )
+        )
 
 
 rule train:
