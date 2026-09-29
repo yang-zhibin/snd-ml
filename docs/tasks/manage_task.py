@@ -2,7 +2,7 @@
 """Create or resume an snd-ml Codex task from one editable request file."""
 
 import argparse
-import configparser
+import json
 import re
 import shutil
 import subprocess
@@ -31,33 +31,41 @@ def git_output(repo, *args):
     return result.stdout.strip()
 
 
-def multiline(config, key):
-    return config.get(key, "").strip()
+def text_value(task, key, default=""):
+    value = task.get(key, default)
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a JSON string")
+    return value.strip()
 
 
 def validate_request(path):
-    parser = configparser.ConfigParser(interpolation=None)
     if not path.is_file():
         raise ValueError(
             f"Request file does not exist: {path}\n"
-            "Copy TASK_REQUEST.example.ini to TASK_REQUEST.txt and edit it."
+            "Copy TASK_REQUEST.example.json to TASK_REQUEST.json and edit it."
         )
-    parser.read(path)
-    if "task" not in parser:
-        raise ValueError("Request file needs a [task] section")
-    task = parser["task"]
-    action = task.get("action", "").strip().lower()
+    try:
+        task = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"Invalid JSON at line {error.lineno}, column {error.colno}: {error.msg}"
+        ) from error
+    if not isinstance(task, dict):
+        raise ValueError("The request must be one JSON object")
+
+    action = text_value(task, "action").lower()
     if action not in {"start", "resume"}:
         raise ValueError("action must be start or resume")
-    name = task.get("name", "").strip()
+    name = text_value(task, "name")
     if not TASK_RE.fullmatch(name):
         raise ValueError(
             "name must start with a lowercase letter or number and contain only "
             "lowercase letters, numbers, periods, underscores, or hyphens"
         )
+
     required = {
-        "goal": multiline(task, "goal"),
-        "next_action": multiline(task, "next_action"),
+        "goal": text_value(task, "goal"),
+        "next_action": text_value(task, "next_action"),
     }
     if action == "start":
         missing = [key for key, value in required.items() if not value]
@@ -66,11 +74,11 @@ def validate_request(path):
         combined = "\n".join(required.values())
         if any(marker in combined for marker in PLACEHOLDERS):
             raise ValueError("Replace all instructional placeholder text first")
-    try:
-        open_vscode = task.getboolean("open_vscode", fallback=True)
-    except ValueError as error:
-        raise ValueError("open_vscode must be yes or no") from error
-    return parser, task, action, name, required, open_vscode
+
+    open_vscode = task.get("open_vscode", True)
+    if not isinstance(open_vscode, bool):
+        raise ValueError("open_vscode must be true or false")
+    return task, action, name, required, open_vscode
 
 
 def render_task(name, branch, worktree, start_commit, values):
@@ -186,7 +194,7 @@ def open_in_vscode(worktree, files):
 def main():
     script_path = Path(__file__).resolve()
     repo = script_path.parents[2]
-    default_request = script_path.with_name("TASK_REQUEST.txt")
+    default_request = script_path.with_name("TASK_REQUEST.json")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--request", type=Path, default=default_request)
     parser.add_argument(
@@ -195,7 +203,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        _, task, action, name, values, open_vscode = validate_request(
+        task, action, name, values, open_vscode = validate_request(
             args.request.expanduser().resolve()
         )
         repo_root = Path(git_output(repo, "rev-parse", "--show-toplevel")).resolve()
@@ -203,9 +211,9 @@ def main():
             raise ValueError(f"Script is not inside the expected Git root: {repo_root}")
 
         worktree_root = Path(
-            task.get(
-                "worktree_root", "/afs/cern.ch/user/z/zhibin/worktrees"
-            ).strip()
+            text_value(
+                task, "worktree_root", "/afs/cern.ch/user/z/zhibin/worktrees"
+            )
         ).expanduser()
         destination = (worktree_root / f"snd-ml-{name}").resolve()
         branch = f"task/{name}"
@@ -218,7 +226,7 @@ def main():
             return 0
 
         if action == "start":
-            base_ref = task.get("base_ref", "develop").strip()
+            base_ref = text_value(task, "base_ref", "develop")
             start_commit = git_output(repo, "rev-parse", "--verify", f"{base_ref}^{{commit}}")
             branch_exists = run(
                 ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],

@@ -1,0 +1,10 @@
+{
+  "_instructions": "Set action to start or resume. Replace the task name and goal. The default next_action is suitable for exploratory work.",
+  "action": "start",
+  "name": "replace-with-task-name",
+  "base_ref": "develop",
+  "worktree_root": "/afs/cern.ch/user/z/zhibin/worktrees",
+  "open_vscode": true,
+  "goal": "Describe what you want to investigate, understand, change, or produce.",
+  "next_action": "Inspect the current code and workflow, identify the relevant components, and record the discovered scope in the task file."
+}

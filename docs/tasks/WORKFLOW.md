@@ -4,7 +4,7 @@ The repository is the durable record; a long chat transcript is not.
 
 ## One-command start or resume
 
-Edit `docs/tasks/TASK_REQUEST.txt` in the main checkout. Set `action = start`
+Edit `docs/tasks/TASK_REQUEST.json` in the main checkout. Set `action = start`
 or `action = resume`, fill in the task information, and run:
 
 ```bash

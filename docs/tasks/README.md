@@ -6,7 +6,7 @@ status, findings, results, evidence, changed files, validation, blockers, and
 next actions. Move durable knowledge into a reference document when work
 completes.
 
-Use the normal one-command path by editing `TASK_REQUEST.txt` and running
+Use the normal one-command path by editing `TASK_REQUEST.json` and running
 `./docs/tasks/manage_task.py`. The launcher creates or resumes the worktree,
 task record, and ready-to-copy prompts.
 
