@@ -49,17 +49,18 @@ below remain available as a fallback.
    cp docs/tasks/TASK_TEMPLATE.md docs/tasks/active/<name>.md
    ```
 
-5. Fill in its goal, acceptance criteria, location, scope, and first action.
+5. Fill in its goal, location, and first action. The chat discovers scope and
+   task-specific constraints by inspecting the repository.
 6. Start a new Codex chat with:
 
    ```text
    Start docs/tasks/active/<name>.md. Read AGENTS.md and the task file first.
-   Verify the worktree, branch, starting commit, git status, and relevant files.
-   Correct stale task state before implementation. Execute the exact next
-   action and keep the task record current with evidence and validation.
+   Inspect the current code and workflow, then record the discovered scope and
+   constraints. Verify Git and current files, execute the exact next action,
+   and continue until concrete results are ready for user review.
    ```
 
-Use `/goal` only when the acceptance criteria are precise.
+Use `/goal` when the goal is clear enough for several autonomous steps.
 
 ## Checkpoint and rotate
 
@@ -93,8 +94,9 @@ long or after a major stage completes.
    ```text
    Resume docs/tasks/active/<name>.md. Read AGENTS.md and the task file first.
    Treat the task record, Git state, current code, outputs, tests, and scheduler
-   state as authoritative. Verify completed checkpoints and running jobs, then
-   execute the exact next action. Keep the task record current.
+   state as authoritative. Verify scope, constraints, results, checkpoints, and
+   running jobs, then execute the exact next action and continue toward results
+   for user review.
    ```
 
 CLI session recovery is optional:
@@ -112,8 +114,8 @@ status command before disconnecting.
 
 ## Complete
 
-Run validation, mark every acceptance criterion, record the final commit and
-results, move durable knowledge into the appropriate documentation, then:
+Run validation, record the current results and final commit, move durable
+knowledge into the appropriate documentation, then:
 
 ```bash
 mkdir -p docs/tasks/completed

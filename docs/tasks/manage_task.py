@@ -12,7 +12,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 TASK_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
-PLACEHOLDERS = ("replace-with-", "Replace this", "List relevant", "Write the")
+PLACEHOLDERS = ("replace-with-", "Describe what")
 
 
 def run(command, cwd=None, check=True, capture=False):
@@ -33,16 +33,6 @@ def git_output(repo, *args):
 
 def multiline(config, key):
     return config.get(key, "").strip()
-
-
-def bullet_lines(value, checkbox=False):
-    result = []
-    for raw in value.splitlines():
-        item = raw.strip()
-        if not item:
-            continue
-        result.append(("- [ ] " if checkbox else "- ") + item)
-    return result
 
 
 def validate_request(path):
@@ -67,9 +57,6 @@ def validate_request(path):
         )
     required = {
         "goal": multiline(task, "goal"),
-        "acceptance_criteria": multiline(task, "acceptance_criteria"),
-        "scope": multiline(task, "scope"),
-        "constraints": multiline(task, "constraints"),
         "next_action": multiline(task, "next_action"),
     }
     if action == "start":
@@ -90,9 +77,6 @@ def render_task(name, branch, worktree, start_commit, values):
     timestamp = datetime.now(ZoneInfo("Europe/Zurich")).strftime(
         "%Y-%m-%d %H:%M Europe/Zurich"
     )
-    criteria = "\n".join(bullet_lines(values["acceptance_criteria"], checkbox=True))
-    scope = "\n".join(bullet_lines(values["scope"]))
-    constraints = "\n".join(bullet_lines(values["constraints"]))
     return f"""# Task: {name}
 
 Status: active
@@ -102,10 +86,6 @@ Last updated: {timestamp}
 
 {values["goal"]}
 
-## Acceptance criteria
-
-{criteria}
-
 ## Work location
 
 - Worktree: `{worktree}`
@@ -113,15 +93,13 @@ Last updated: {timestamp}
 - Starting commit: `{start_commit}`
 - Chat/session ID: `not recorded`
 
-## Scope and constraints
+## Discovered scope
 
-### Scope
+- To be determined by inspecting the current code and workflow.
 
-{scope}
+## Task-specific constraints
 
-### Constraints
-
-{constraints}
+- None provided initially. Record constraints discovered during the work.
 
 ## Completed checkpoints
 
@@ -130,6 +108,10 @@ Last updated: {timestamp}
 ## Findings and decisions
 
 - None yet.
+
+## Results and evidence
+
+- No results yet. Continue until concrete results are ready for user review.
 
 ## Modified files
 
@@ -155,14 +137,19 @@ Last updated: {timestamp}
 
 def prompts(name):
     start = f"""Start docs/tasks/active/{name}.md. Read AGENTS.md and the task file
-first. Verify the worktree, branch, starting commit, git status, and relevant
-files. Correct stale task state before implementation. Execute the exact next
-action and keep the task record current with evidence and validation.
+first. Inspect the current code and workflow to discover the relevant scope and
+any task-specific constraints, and record them in the task file. Verify the
+worktree, branch, starting commit, git status, and relevant files. Correct stale
+task state before implementation. Execute the exact next action and work
+iteratively until concrete results are ready for user review. Keep the task
+record current with evidence and validation.
 """
     resume = f"""Resume docs/tasks/active/{name}.md. Read AGENTS.md and the task
 file first. Treat the task record, Git state, current code, outputs, tests, and
-scheduler state as authoritative. Verify completed checkpoints and running
-jobs, then execute the exact next action. Keep the task record current.
+scheduler state as authoritative. Verify completed checkpoints, discovered
+scope, constraints, results, and running jobs, then execute the exact next
+action. Continue until concrete results are ready for user review and keep the
+task record current.
 """
     checkpoint = f"""Checkpoint docs/tasks/active/{name}.md before stopping.
 Record verified findings, decisions, modified files, commands and results,
