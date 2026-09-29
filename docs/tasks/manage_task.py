@@ -145,22 +145,22 @@ Last updated: {timestamp}
 
 def prompts(name):
     start = f"""Start docs/tasks/active/{name}.md. Read AGENTS.md and the task file
-first. Inspect the current code and workflow to discover the relevant scope and
-any task-specific constraints, and record them in the task file. Verify the
-worktree, branch, starting commit, git status, and relevant files. Correct stale
-task state before implementation. Execute only the exact next action recorded
-in the task file. When that action is complete, report the findings and wait
-for the user's next instruction. Do not begin follow-up implementation or the
-next action without a new user instruction. Keep the task record current with
-evidence and validation.
+first. Inspect the current code and workflow to understand the relevant scope
+and task-specific constraints. Verify the worktree, branch, starting commit,
+git status, and relevant files. Execute only the exact next action recorded in
+the task file. Do not modify files, create commits, or run jobs unless that
+exact action or a new user instruction explicitly authorizes it. When the
+action is complete, report the findings and wait for the user's next
+instruction. Do not begin follow-up implementation or another action.
 """
     resume = f"""Resume docs/tasks/active/{name}.md. Read AGENTS.md and the task
 file first. Treat the task record, Git state, current code, outputs, tests, and
 scheduler state as authoritative. Verify completed checkpoints, discovered
-scope, constraints, results, and running jobs, then execute the exact next
-action. Execute only that action, report the result, and wait for the user's
-next instruction. Do not begin follow-up implementation or another action
-without a new user instruction. Keep the task record current.
+scope, constraints, results, and running jobs, then execute only the exact next
+action. Do not modify files, create commits, or run jobs unless that exact
+action or a new user instruction explicitly authorizes it. Report the result
+and wait for the user's next instruction. Do not begin follow-up implementation
+or another action.
 """
     checkpoint = f"""Checkpoint docs/tasks/active/{name}.md before stopping.
 Record verified findings, decisions, modified files, commands and results,
