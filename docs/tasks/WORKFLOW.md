@@ -2,6 +2,30 @@
 
 The repository is the durable record; a long chat transcript is not.
 
+## One-command start or resume
+
+Edit `docs/tasks/TASK_REQUEST.txt` in the main checkout. Set `action = start`
+or `action = resume`, fill in the task information, and run:
+
+```bash
+./docs/tasks/manage_task.py
+```
+
+The launcher validates the request, creates or locates the task worktree,
+writes the task record, generates ready-to-copy start/resume/checkpoint prompt
+files, prints the appropriate prompt, and opens the worktree and relevant files
+in a new VS Code window when `open_vscode = yes`.
+
+Validate the request without making changes with:
+
+```bash
+./docs/tasks/manage_task.py --check
+```
+
+Generated prompt files live beside the active task record and end in `.txt`,
+so the existing repository ignore rule keeps them out of Git. The manual steps
+below remain available as a fallback.
+
 ## Start new work
 
 1. Choose a committed starting point. If the task depends on uncommitted work,
