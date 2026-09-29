@@ -71,8 +71,8 @@ remain available as a fallback.
    ```text
    Start docs/tasks/active/<name>.md. Read AGENTS.md and the task file first.
    Inspect the current code and workflow, then record the discovered scope and
-   constraints. Verify Git and current files, execute the exact next action,
-   and continue until concrete results are ready for user review.
+   constraints. Verify Git and current files, execute only the exact next
+   action, report the result, and wait for the user's next instruction.
    ```
 
 Use `/goal` when the goal is clear enough for several autonomous steps.
@@ -110,8 +110,8 @@ long or after a major stage completes.
    Resume docs/tasks/active/<name>.md. Read AGENTS.md and the task file first.
    Treat the task record, Git state, current code, outputs, tests, and scheduler
    state as authoritative. Verify scope, constraints, results, checkpoints, and
-   running jobs, then execute the exact next action and continue toward results
-   for user review.
+   running jobs, then execute only the exact next action, report the result,
+   and wait for the user's next instruction.
    ```
 
 CLI session recovery is optional:

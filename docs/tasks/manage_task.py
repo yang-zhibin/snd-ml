@@ -119,7 +119,7 @@ Last updated: {timestamp}
 
 ## Results and evidence
 
-- No results yet. Continue until concrete results are ready for user review.
+- No results yet.
 
 ## Modified files
 
@@ -148,16 +148,19 @@ def prompts(name):
 first. Inspect the current code and workflow to discover the relevant scope and
 any task-specific constraints, and record them in the task file. Verify the
 worktree, branch, starting commit, git status, and relevant files. Correct stale
-task state before implementation. Execute the exact next action and work
-iteratively until concrete results are ready for user review. Keep the task
-record current with evidence and validation.
+task state before implementation. Execute only the exact next action recorded
+in the task file. When that action is complete, report the findings and wait
+for the user's next instruction. Do not begin follow-up implementation or the
+next action without a new user instruction. Keep the task record current with
+evidence and validation.
 """
     resume = f"""Resume docs/tasks/active/{name}.md. Read AGENTS.md and the task
 file first. Treat the task record, Git state, current code, outputs, tests, and
 scheduler state as authoritative. Verify completed checkpoints, discovered
 scope, constraints, results, and running jobs, then execute the exact next
-action. Continue until concrete results are ready for user review and keep the
-task record current.
+action. Execute only that action, report the result, and wait for the user's
+next instruction. Do not begin follow-up implementation or another action
+without a new user instruction. Keep the task record current.
 """
     checkpoint = f"""Checkpoint docs/tasks/active/{name}.md before stopping.
 Record verified findings, decisions, modified files, commands and results,
