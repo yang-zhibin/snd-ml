@@ -53,9 +53,9 @@ def validate_request(path):
     if not isinstance(task, dict):
         raise ValueError("The request must be one JSON object")
 
-    action = text_value(task, "action").lower()
-    if action not in {"start", "resume"}:
-        raise ValueError("action must be start or resume")
+    action = text_value(task, "action", "auto").lower()
+    if action not in {"auto", "start", "resume"}:
+        raise ValueError("action must be auto, start, or resume")
     name = text_value(task, "name")
     if not TASK_RE.fullmatch(name):
         raise ValueError(
@@ -195,17 +195,38 @@ def main():
     script_path = Path(__file__).resolve()
     repo = script_path.parents[2]
     default_request = script_path.with_name("TASK_REQUEST.json")
+    requests_dir = script_path.with_name("requests")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--request", type=Path, default=default_request)
+    request_group = parser.add_mutually_exclusive_group()
+    request_group.add_argument(
+        "-t", "--task", help="use docs/tasks/requests/<name>.json"
+    )
+    request_group.add_argument("--request", type=Path, help="use an explicit request file")
     parser.add_argument(
         "--check", action="store_true", help="validate without creating or opening anything"
     )
     args = parser.parse_args()
 
     try:
+        if args.task:
+            if not TASK_RE.fullmatch(args.task):
+                raise ValueError(
+                    "task must start with a lowercase letter or number and contain only "
+                    "lowercase letters, numbers, periods, underscores, or hyphens"
+                )
+            request_path = requests_dir / f"{args.task}.json"
+        elif args.request:
+            request_path = args.request.expanduser()
+        else:
+            request_path = default_request
+
         task, action, name, values, open_vscode = validate_request(
-            args.request.expanduser().resolve()
+            request_path.resolve()
         )
+        if args.task and name != args.task:
+            raise ValueError(
+                f"Task file name {args.task!r} does not match JSON name {name!r}"
+            )
         repo_root = Path(git_output(repo, "rev-parse", "--show-toplevel")).resolve()
         if repo_root != repo.resolve():
             raise ValueError(f"Script is not inside the expected Git root: {repo_root}")
@@ -218,9 +239,36 @@ def main():
         destination = (worktree_root / f"snd-ml-{name}").resolve()
         branch = f"task/{name}"
         task_file = destination / "docs" / "tasks" / "active" / f"{name}.md"
+        branch_exists = run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=repo,
+            check=False,
+        ).returncode == 0
+        worktree_exists = destination.exists()
+
+        if action == "auto":
+            if branch_exists and worktree_exists:
+                action = "resume"
+            elif not branch_exists and not worktree_exists:
+                action = "start"
+            else:
+                raise ValueError(
+                    "Cannot resolve action automatically: branch and worktree state "
+                    f"do not match (branch_exists={branch_exists}, "
+                    f"worktree_exists={worktree_exists})"
+                )
+
+        if action == "start":
+            missing = [key for key, value in values.items() if not value]
+            if missing:
+                raise ValueError("Missing values for new task: " + ", ".join(missing))
+            combined = "\n".join(values.values())
+            if any(marker in combined for marker in PLACEHOLDERS):
+                raise ValueError("Replace all instructional placeholder text first")
 
         if args.check:
             print(f"Request valid: action={action} task={name}")
+            print(f"Request: {request_path.resolve()}")
             print(f"Worktree: {destination}")
             print(f"Branch: {branch}")
             return 0
@@ -228,11 +276,6 @@ def main():
         if action == "start":
             base_ref = text_value(task, "base_ref", "develop")
             start_commit = git_output(repo, "rev-parse", "--verify", f"{base_ref}^{{commit}}")
-            branch_exists = run(
-                ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
-                cwd=repo,
-                check=False,
-            ).returncode == 0
             if branch_exists:
                 raise ValueError(
                     f"Branch already exists: {branch}. Use action = resume if appropriate."

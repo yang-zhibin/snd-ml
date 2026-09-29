@@ -4,27 +4,42 @@ The repository is the durable record; a long chat transcript is not.
 
 ## One-command start or resume
 
-Edit `docs/tasks/TASK_REQUEST.json` in the main checkout. Set `action = start`
-or `action = resume`, fill in the task information, and run:
+Keep one reusable request file per task:
 
-```bash
-./docs/tasks/manage_task.py
+```text
+docs/tasks/requests/<task-name>.json
 ```
 
-The launcher validates the request, creates or locates the task worktree,
-writes the task record, generates ready-to-copy start/resume/checkpoint prompt
-files, prints the appropriate prompt, and opens the worktree and relevant files
-in a new VS Code window when `open_vscode = yes`.
-
-Validate the request without making changes with:
+Set `action` to `auto` and run:
 
 ```bash
-./docs/tasks/manage_task.py --check
+./docs/tasks/manage_task.py --task <task-name>
 ```
+
+For example:
+
+```bash
+./docs/tasks/manage_task.py --task 3d-cnn-testbeam
+```
+
+The first run creates the branch, worktree, task record, and prompt files.
+Later runs detect the existing branch and worktree and resume the task. The
+request filename, its JSON `name`, the `task/<name>` branch, and the
+`snd-ml-<name>` worktree must agree.
+
+Validate without creating or opening anything:
+
+```bash
+./docs/tasks/manage_task.py --task <task-name> --check
+```
+
+The older single-file interface remains available through
+`docs/tasks/TASK_REQUEST.json`, and an arbitrary request can be selected with
+`--request <path>`.
 
 Generated prompt files live beside the active task record and end in `.txt`,
-so the existing repository ignore rule keeps them out of Git. The manual steps
-below remain available as a fallback.
+so the repository ignore rule keeps them out of Git. The manual steps below
+remain available as a fallback.
 
 ## Start new work
 

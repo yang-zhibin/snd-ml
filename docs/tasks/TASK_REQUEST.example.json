@@ -1,6 +1,6 @@
 {
-  "_instructions": "Set action to start or resume. Replace the task name and goal. The default next_action is suitable for exploratory work.",
-  "action": "start",
+  "_instructions": "Copy this file to requests/<task-name>.json and keep action set to auto. Replace the task name and goal. The default next_action is suitable for exploratory work.",
+  "action": "auto",
   "name": "replace-with-task-name",
   "base_ref": "develop",
   "worktree_root": "/afs/cern.ch/user/z/zhibin/worktrees",
