@@ -6,4 +6,6 @@ max-status-checks-per-second: 50
 restart-times: 1
 local-cores: 10
 jobs: 400
+resources:
+  - metadata_io=10
 verbose: false

@@ -1,0 +1,151 @@
+dataset_version: data_driven_3d_cnn_v1
+description: >-
+  Natural eight-class 3D-hit dataset with V7 detector-only muon proxy labels,
+  source-grouped five-fold cross-validation, and training-only uniform SciFi
+  density-bin sampling for the muon-DIS class.
+
+trees:
+  feature: sndData
+  hit3d: hit3D
+
+availability_workers: 32
+
+real_data_subset:
+  input_metadata: snakemake/metadata/updated/real_data_2024_skim_runs_metadata.csv
+  files_per_run: 50
+  seed: 20240915
+  expected_runs: 22
+  summary: snakemake/metadata/ml_dataset/data_driven_3d_cnn_v1/real_data_ml50_summary.csv
+
+classes:
+  CC_numu: {class_id: 0, class_source: truth}
+  CC_nue: {class_id: 1, class_source: truth}
+  CC_nutau: {class_id: 2, class_source: truth, required: false}
+  NC: {class_id: 3, class_source: truth}
+  neutral_kaon: {class_id: 4, class_source: truth}
+  neutron: {class_id: 5, class_source: truth}
+  passing_muon: {class_id: 6, class_source: v7_loose_proxy}
+  muon_DIS: {class_id: 7, class_source: v7_loose_failure_proxy}
+
+muon_selection:
+  study_config: snakemake/metadata/configs/region_evaluation/passing_muon_binary_region_study_v7.yaml
+  working_point: coverage_loose
+  pass_class: passing_muon
+  fail_class: muon_DIS
+  copy_density_to_hit3d: true
+  require_equal_entries: true
+  require_identity_match: true
+  identity_branches: [runId, eventId, eventIndex]
+  use_v7_mc_baseline: true
+  data_blinding:
+    enabled: true
+    signal_region_expression: "count_veto == 0"
+    training_parent_expression: "count_veto > 0"
+
+neutrino_partition:
+  version: truth_pdg_partition_v1
+  require_complete: true
+  identity_branches: [runId, eventId, eventIndex]
+  classes:
+    CC_numu: [14, -14]
+    CC_nue: [12, -12]
+    CC_nutau: [16, -16]
+    NC: [112, -112, 114, -114, 116, -116]
+
+source_datasets:
+  real_data_2024_skim:
+    enabled: true
+    metadata: snakemake/metadata/updated/real_data_2024_skim_runs_metadata_ml50.csv
+    role: muon_split
+    domain: data
+    class_mode: v7_loose_split
+    fold_group: run
+    run_column: run
+
+  mc_muon_up:
+    enabled: true
+    metadata: snakemake/metadata/updated/MC_muon_up_metadata.csv
+    role: muon_split
+    domain: mc
+    class_mode: v7_loose_split
+    fold_group: source
+    production_column: partition
+
+  mc_neutrino_ve:
+    enabled: true
+    metadata: snakemake/metadata/updated/MC_neutrino_2024_ve_metadata.csv
+    role: neutrino_split
+    domain: mc
+    class_mode: physical_pdg_split
+    fold_group: source
+    pdg_class_map: {"12": CC_nue, "-12": CC_nue, "112": NC, "-112": NC}
+
+  mc_neutrino_vm:
+    enabled: true
+    metadata: snakemake/metadata/updated/MC_neutrino_2024_vm_metadata.csv
+    role: neutrino_split
+    domain: mc
+    class_mode: physical_pdg_split
+    fold_group: source
+    pdg_class_map: {"14": CC_numu, "-14": CC_numu, "114": NC, "-114": NC}
+
+  mc_neutral_kaon_ftfp_bert:
+    enabled: true
+    metadata: snakemake/metadata/updated/MC_kaon_FTFP_BERT_metadata.csv
+    role: prepared_physics
+    domain: mc
+    class_mode: direct
+    direct_class: neutral_kaon
+    fold_group: source
+    energy_column: energy_range
+
+  mc_neutron_ftfp_bert:
+    enabled: true
+    metadata: snakemake/metadata/updated/MC_neutron_FTFP_BERT_metadata.csv
+    role: prepared_physics
+    domain: mc
+    class_mode: direct
+    direct_class: neutron
+    fold_group: source
+    energy_column: energy_range
+
+density_sampling:
+  variable: density_sndsw_scifi
+  strategy: uniform_populated_bins
+  training_with_replacement: true
+  domain_balance: deferred
+  validation_strategy: natural
+  invalid_policy: retain_for_audit_exclude_from_uniform_sampling
+  bins:
+    - {name: density_0_500, low: 0, high: 500}
+    - {name: density_500_2000, low: 500, high: 2000}
+    - {name: density_2000_5000, low: 2000, high: 5000}
+    - {name: density_5000_10000, low: 5000, high: 10000}
+    - {name: density_ge10000, low: 10000, high: null}
+
+sampling_pilot:
+  data_run: 8329
+  v7_density_hist: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/histograms/loose_event_display_scifi_density_categories.root
+  v7_selection_hist: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/histograms/detector_selection_combined.root
+
+cross_validation:
+  n_folds: 5
+  seed: 123
+  data_grouping: run
+  mc_grouping: source
+  held_out_distribution: natural
+  source_independence_is_hard_constraint: true
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/data_driven_3d_cnn/data_driven_3d_cnn_v1
+  metadata_dir: snakemake/metadata/ml_dataset/data_driven_3d_cnn_v1
+  source_catalog: source_catalog.csv
+  muon_audit: muon_loose_audit.csv
+  neutrino_audit: neutrino_class_audit.csv
+  density_sampling_pilot: muon_DIS_density_sampling_run8329_vs_mc.csv
+  dataset_catalog: dataset_catalog.csv
+  folded_catalog: dataset_catalog_five_fold.csv
+  fold_summary: five_fold_summary.csv
+  density_index_manifest: density_index_manifest.csv
+  fold_views: five_fold_train_validation_views.csv
+  validation_report: validation_report.json

@@ -1,0 +1,50 @@
+version: passing_muon_scifi_edge_transform_v1
+description: >-
+  Continuous-coordinate SciFi edge-transform validation on veto-tagged Run
+  8329 Muon-DIS candidates. This product does not rewrite digis or detector IDs.
+run: 8329
+
+input:
+  source_manifest: /afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage/selected_events.csv
+  source_categories:
+    - run8329__failure__veto_lt3
+    - run8329__failure__veto_eq3
+    - run8329__failure__veto_gt3
+  event_tree_candidates: [rawConv, cbmsim]
+  track_input_pattern: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/track_inputs/passingMuonDQ_flat_v2_run008329_source{source_file_index:03d}.root
+  track_tree: sndData
+
+selection:
+  population: muon_dis_candidate
+  count_veto_expression: count_veto > 0
+  sample_size: 10
+
+track:
+  type_priority: [11, 1, 15]
+  require_flag: true
+  min_ndf: 1
+  min_scifi_planes_per_projection: 2
+
+transform:
+  lock_side_per_orientation: true
+  inward_margin_cm: 0.0
+  residual_tolerance_cm: 1.0e-9
+  track_edge_tolerance_cm: 1.0e-8
+
+display:
+  page_types: [overview, full_event_transform_comparison, scifi_horizontal_comparison, scifi_vertical_comparison]
+  output_mode: vector_pdf
+  canvas_width: 1600
+  canvas_height: 1000
+  plane_page_width: 30
+  sndsw_display_script: ""
+
+output:
+  directory: evaluation_region_partitions/passing_muon_scifi_edge_transform_v1
+  selected_events: selected_events.csv
+  rejected_events: rejected_events.csv
+  comparison_pdf: comparison.pdf
+  rendered_pages: rendered_pages.csv
+  audit_csv: transform_audit.csv
+  audit_json: transform_audit.json
+  validation_marker: validation.ok

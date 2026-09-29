@@ -1,0 +1,93 @@
+model_version: clustered_pyg_gravnet_canary_v1
+task: classification
+dataset_version: data_driven_3d_cnn_v1
+num_classes: 7
+class_names: [CC_numu, CC_nue, NC, neutral_kaon, neutron, passing_muon, muon_DIS]
+excluded_classes: [CC_nutau]
+
+data:
+  fold_views: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/ml_dataset/data_driven_3d_cnn_v1/five_fold_train_validation_views.csv
+  validation_report: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/ml_dataset/data_driven_3d_cnn_v1/validation_report.json
+  scifi_metadata_root: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/metadata/scifi_xyz_qdc_dettype_metadata_v2
+  metadata_local_cache: auto
+  cv_fold: 0
+  n_folds: 5
+  epoch_size: 2000
+  class_probabilities: uniform
+  domain_probabilities: null
+  muondis_density_probabilities: uniform
+  validation_sampling: natural
+  allowed_detector_types: [1]
+  raw_input_fields: [hit_x, hit_y, hit_z, hit_qdc, hit_detType, hit_station]
+  tree_name: hit3D
+  reader_backend: pyroot
+  max_open_files: 8
+  num_workers: 0
+  persistent_workers: false
+  prefetch_factor: 2
+  pin_memory: true
+  max_events_per_batch: 16
+  max_nodes_per_batch: 20000
+
+representation:
+  version: scifi_xyz_qdc_dettype_station_partition_v1
+  metadata_version: scifi_xyz_qdc_dettype_v1
+  qdc_transform: log1p
+  voxel_size: [1.0, 1.0, 1.0]
+  coordinate_min: null
+  coordinate_max: null
+  include_station: false
+  include_occupancy_as_input: false
+  include_time: false
+  gravnet_nodes: candidate_crossings
+  partition:
+    algorithm: station_xy_recursive_bisection
+    max_cluster_nodes: 8192
+    cluster_by_station: true
+    partition_axes: [0, 1]
+    halo: null
+
+model:
+  family: clustered_pyg_gravnet
+  in_channels: 5
+  hidden_channels: 64
+  blocks: 3
+  space_dimensions: 4
+  propagate_dimensions: 64
+  k: 16
+  dropout: 0.1
+  max_cluster_nodes: 8192
+  max_nodes_per_forward: 8192
+  activation_checkpointing: true
+
+optim: {lr: 0.0003, weight_decay: 0.0001}
+objective: {name: cross_entropy, class_weights: null}
+
+trainer:
+  max_epochs: 1
+  accelerator: gpu
+  devices: 1
+  precision: 32-true
+  accumulate_grad_batches: 1
+  log_every_n_steps: 10
+  limit_val_batches: 50
+  num_sanity_val_steps: 0
+  profiler: simple
+
+checkpoint: {monitor: val/macro_f1, mode: max, save_top_k: 1, save_last: true}
+early_stopping: {patience: 2}
+
+wandb:
+  project: snd-ml-data-driven-3d
+  entity: null
+  group: clustered_pyg_gravnet_canary_v1
+  job_type: benchmark
+  mode: disabled
+  save_dir: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/test_outputs/clustered_gravnet_canary_v1/wandb
+  log_model: false
+  watch_model: false
+  prediction_table_max_rows: 100
+  diagnostic_table_every_n_epochs: 1
+  tags: [canary, fold_0, seven_class, clustered_pyg_gravnet, cluster_gcn_inspired]
+
+runtime: {seed: 42}

@@ -1,0 +1,35 @@
+version: passing_muon_detid_channel_shift_v5
+description: >-
+  Equal-weight straight-line fit through every active SciFi plane-average
+  position, compared event by event with the accepted frozen-track v4
+  transform for Run 8329.
+
+input:
+  event_tree_candidates: [rawConv, cbmsim]
+
+transform:
+  axis_policy: all_active_scifi_plane_averages_linear_fit
+  average_policy: unweighted_arithmetic_mean_matching_avg_scifi_station_xy
+  active_plane_policy: every_nonempty_station_orientation
+  fit_policy: equal_weight_ordinary_least_squares_of_plane_averages
+  min_abs_slope: 0.0
+  min_axis_dominance_ratio: 1.0
+  ambiguous_axis_policy: reject_exact_tie
+  direction:
+    use_track_pz: false
+    assumed_pz_sign: 1
+  reference_plane_policy: earliest_selected_view_plane_with_hits
+  edge_policy: closest_within_threshold_else_slope
+  near_edge_threshold_cm: 5.0
+
+validation:
+  track_edge_tolerance_cm: 1.0e-8
+
+display:
+  with_track: 0
+  with_hough_track: 0
+  minimum_tracks: 0
+  track_verbose: 0
+
+output:
+  directory: evaluation_region_partitions/passing_muon_detid_channel_shift_v5

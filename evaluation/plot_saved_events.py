@@ -55,7 +55,7 @@ NEUTRINO_CATS = [
 ]
 
 ORDERED_CATEGORIES = (
-    ["real_data", "MC_muonDIS"]
+    ["real_data", "passing_muon_real_data", "MC_muonDIS"]
     + KAON_BINS
     + NEUTRON_BINS
     + NEUTRINO_CATS
@@ -68,6 +68,8 @@ def partition_from_filename(filepath: str) -> str | None:
 
 
 def classify_partition(partition: str) -> str | None:
+    if partition.startswith("passing_muon_real_data"):
+        return "passing_muon_real_data"
     if partition.startswith("real_data"):
         return "real_data"
 

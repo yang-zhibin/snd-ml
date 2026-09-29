@@ -1,0 +1,49 @@
+dataset:
+  data_type: passing_muon_real_data
+  subfolder: "2024"
+  year: 2024
+  beam_type: proton
+  geo_path: /eos/experiment/sndlhc/convertedData/physics/2024/geofile_sndlhc_TI18_V12_2024.root
+  output_root: /eos/experiment/sndlhc/users/zhibin
+  pp24_csv: /eos/user/i/idioniso/1_Data/Tracks/pp24.csv
+
+# pp24_run is retained as provenance.  Several pp24 rows were labelled from a
+# foreign f0 file; run is the canonical directory/internal run number.
+runs:
+  - run: 8007
+    pp24_run: 8006
+    source_dir: /eos/experiment/sndlhc/convertedData/physics/2024/run_241/run_008007
+    reco_dir: /eos/user/i/idioniso/1_Data/Tracks/run_008007
+    mode: whole_file
+    allow_missing_source_outputs: true
+  - run: 8329
+    pp24_run: 8329
+    source_dir: /eos/experiment/sndlhc/convertedData/physics/2024/run_242/run_008329
+    reco_dir: /eos/experiment/sndlhc/users/sii/2024/8329
+    mode: chunked
+    chunk_size: 100000
+    reco_tree: rawConv
+  - run: 8638
+    pp24_run: 8637
+    source_dir: /eos/experiment/sndlhc/convertedData/physics/2024/run_243/run_008638
+    reco_dir: /eos/user/i/idioniso/1_Data/Tracks/run_008638
+    mode: whole_file
+    allow_missing_source_outputs: true
+  - run: 9288
+    pp24_run: 9288
+    source_dir: /eos/experiment/sndlhc/convertedData/physics/2024/run_246/run_009288
+    reco_dir: /eos/user/i/idioniso/1_Data/Tracks/run_009288
+    mode: whole_file
+    allow_missing_source_outputs: true
+  - run: 9446
+    pp24_run: 9445
+    source_dir: /eos/experiment/sndlhc/convertedData/physics/2024/run_247/run_009446
+    reco_dir: /eos/user/i/idioniso/1_Data/Tracks/run_009446
+    mode: whole_file
+    allow_missing_source_outputs: true
+  - run: 9936
+    pp24_run: 9934
+    source_dir: /eos/experiment/sndlhc/convertedData/physics/2024/run_2411/run_009936
+    reco_dir: /eos/user/i/idioniso/1_Data/Tracks/run_009936
+    mode: whole_file
+    allow_missing_source_outputs: true

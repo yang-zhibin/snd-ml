@@ -1,0 +1,51 @@
+version: mc_neutrino_event_display_scifi_v1
+description: >-
+  Geometry-faithful three-page event displays for the four standard MC
+  neutrino samples.  Outputs are isolated by particle type and detector
+  region from the existing data and passing-muon products.
+
+input:
+  metadata_csv: snakemake/metadata/region_partitions/partition_v1_region_v1.csv
+  eval_config: snakemake/metadata/configs/region_evaluation/evaluation_options_v1.yaml
+  feature_tree: sndData
+  event_tree_candidates: [cbmsim, rawConv]
+  event_source_columns: [digi_path, nueAnalysisFilter_path]
+  # Feature and hit3D products are entry-aligned.  This preserves the source
+  # file offsets if a feature file listed by an older partition is later lost.
+  source_entry_count_fallback_column: hit3d_path
+  source_entry_count_fallback_tree: hit3D
+
+filters:
+  particles: [CC_nue, CC_numu, NC_nue, NC_numu]
+  regions:
+    - signal_no_veto_has_us_fiducial_inside
+    - sideband_no_veto_no_us_fiducial_inside
+    - sideband_no_veto_has_us_fiducial_outside
+    - sideband_no_veto_no_us_fiducial_outside
+    - sideband_has_veto_has_us_fiducial_inside
+    - sideband_has_veto_no_us_fiducial_inside
+    - sideband_has_veto_has_us_fiducial_outside
+    - sideband_has_veto_no_us_fiducial_outside
+
+selection:
+  label: "region preselection"
+  expression: "1"
+
+limits:
+  default_max_events_per_region_particle: 10
+
+display:
+  output_mode: vector_pdf
+  canvas_width: 1600
+  canvas_height: 1000
+  sndsw_display_script: ""
+  plane_page_width: 66
+  page_types: [overview, scifi_horizontal, scifi_vertical]
+  individual_sipm_pages: 0
+
+annotations:
+  features: [density_sndsw_scifi, count_scifi]
+  max_lines: 8
+
+outputs:
+  directory: evaluation_region_partitions/mc_neutrino_event_display_scifi

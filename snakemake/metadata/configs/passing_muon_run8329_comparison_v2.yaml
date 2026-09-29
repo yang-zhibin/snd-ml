@@ -1,0 +1,77 @@
+version: passing_muon_run8329_comparison_v2
+run: 8329
+expected:
+  source_files: 299
+  reconstructed_chunks: 2983
+  attempted_events: 298285666
+  passing_events: 82145120
+  luminosity_fb: 0.5323492746290897
+  luminosity_tolerance_fb: 1.0e-12
+inputs:
+  inclusive_metadata: snakemake/metadata/updated/real_data_2024_metadata.csv
+  passing_metadata: snakemake/metadata/updated/passing_muon_track_features_v1_metadata.csv
+  # These external-cutflow products were absent on EOS on 2026-08-03.
+  # They are clustered like an incomplete production, not an event selection.
+  missing_dq_cutflow_source_indices:
+    - 2
+    - 32
+    - 33
+    - 36
+    - 43
+    - 46
+    - 47
+    - 48
+    - 49
+    - 51
+    - 52
+    - 54
+    - 61
+    - 62
+    - 64
+    - 65
+    - 67
+    - 69
+    - 71
+    - 81
+    - 87
+    - 212
+    - 218
+    - 219
+    - 220
+    - 222
+    - 224
+    - 226
+    - 227
+    - 232
+    - 237
+    - 238
+    - 240
+    - 244
+    - 245
+    - 248
+    - 250
+    - 251
+    - 252
+    - 259
+    - 260
+    - 262
+    - 263
+    - 264
+    - 266
+    - 269
+output:
+  metadata_dir: snakemake/metadata/updated/passing_muon_run8329_comparison_v2
+  real_dq_feature_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/real_data_run8329_dq_features_v2
+  inclusive_metadata: initial_real_dq_run8329_source_metadata.csv
+  passing_metadata: initial_passing_muon_run8329_chunk_metadata.csv
+  source_pairs: passing_muon_run8329_source_pairs.csv
+  validation: passing_muon_run8329_source_validation.csv
+  filtered_passing_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/passing_muon_run8329_dq_intersection_v2
+  audit_dir: snakemake/metadata/run8329_comparison_v2/source_audits
+  final_real_metadata: real_data_dq_run8329_metadata.csv
+  final_passing_metadata: passing_muon_dq_run8329_metadata.csv
+  final_source_pairs: passing_muon_run8329_dq_source_pairs.csv
+  final_validation: passing_muon_run8329_dq_validation.csv
+partitioning:
+  n_partitions: 20
+  balance_by: attempted_events

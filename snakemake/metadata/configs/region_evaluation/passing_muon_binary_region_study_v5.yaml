@@ -1,0 +1,169 @@
+version: passing_muon_detector_selection_study_v5
+run: 8329
+tree_name: sndData
+description: >-
+  Detector-only through-going-muon topology and multiplicity study in the
+  complete run-8329 RealDataDQ population. No reconstructed-track quantity is
+  used to define a population.
+
+groups:
+  real_data: real_data_dq_run8329
+
+mc_muon_up:
+  source_metadata: snakemake/metadata/updated/MC_muon_up_metadata.csv
+  subfolder: up
+  expected_source_files: 15
+  metadata_csv: snakemake/metadata/updated/passing_muon_run8329_detector_selection_study_v5/mc_muon_up_metadata_v5.csv
+  validation_csv: snakemake/metadata/updated/passing_muon_run8329_detector_selection_study_v5/mc_muon_up_validation_v5.csv
+  productions:
+    scoring_1p8:
+      source_partition: scoring_1.8
+      group: mc_muon_up_scoring_1p8
+      label: "MC muon up, scoring 1.8"
+    scoring_2:
+      source_partition: scoring_2
+      group: mc_muon_up_scoring_2
+      label: "MC muon up, scoring 2"
+    scoring_2p5:
+      source_partition: scoring_2.5
+      group: mc_muon_up_scoring_2p5
+      label: "MC muon up, scoring 2.5"
+    scoring_at449m:
+      source_partition: scoring_at449m
+      group: mc_muon_up_scoring_at449m
+      label: "MC muon up, scoring at 449 m"
+  aggregate:
+    key: all
+    label: "All MC muon up (unweighted event sum)"
+    mode: unweighted_event_sum
+    selections:
+      - coverage_tight
+  baseline_expression: >-
+    std::abs(pdgCode) == 13 &&
+    (count_veto + count_scifi + count_us + count_ds) > 0
+  note: >-
+    Productions are validated and analysed separately. In addition, the
+    configured aggregate is a diagnostic unweighted sum of all source events;
+    it is not a luminosity-weighted physics prediction.
+
+derived_columns:
+  has_all_veto: >-
+    count_veto1 > 0 && count_veto2 > 0 && count_veto3 > 0
+  has_all_us: >-
+    count_us1 > 0 && count_us2 > 0 && count_us3 > 0 &&
+    count_us4 > 0 && count_us5 > 0
+  n_active_ds: >-
+    int(count_ds1 > 0) + int(count_ds2 > 0) +
+    int(count_ds3 > 0) + int(count_ds4 > 0)
+
+# Topology-only working points. Their complements are detector-topology
+# failures, not pure shower samples.
+coverage_working_points:
+  coverage_loose:
+    label: "Loose through-going topology"
+    scifi_min_active_xy_stations: 4
+    ds_min_active_stations: 3
+  coverage_tight:
+    label: "Tight low-multiplicity through-going topology"
+    scifi_min_active_xy_stations: 5
+    ds_min_active_stations: 4
+    # count_scifiN is the combined X+Y hit count for SciFi station N. The
+    # active-XY requirement above separately requires both views to be present.
+    scifi_max_hits_per_station_exclusive: 10
+    veto_max_hits_per_station_exclusive: 2
+    us_max_hits_per_station_exclusive: 2
+
+# Final clean selections use one coverage point plus upper multiplicity limits.
+# Keep nominal disabled until v3 has MC with a usable SciFi response.
+selection_working_points:
+  nominal:
+    enabled: false
+    label: "Nominal clean through-going muon candidate"
+    coverage: coverage_tight
+    veto_max: null
+    scifi_max: null
+    us_max: null
+    ds_max: null
+
+# Candidate thresholds for data-only diagnostics; these are not final cuts.
+multiplicity_scans:
+  veto_max:
+    label: "Maximum veto hit count"
+    variable: count_veto
+    base_coverage: coverage_loose
+    thresholds: [3, 4, 5, 6, 8, 10, 15, 20]
+  scifi_max:
+    label: "Maximum SciFi hit count"
+    variable: count_scifi
+    base_coverage: coverage_loose
+    thresholds: [20, 30, 40, 50, 75, 100, 150, 200]
+  us_max:
+    label: "Maximum US hit count"
+    variable: count_us
+    base_coverage: coverage_loose
+    thresholds: [5, 6, 8, 10, 15, 20, 30]
+  ds_max:
+    label: "Maximum DS hit count"
+    variable: count_ds
+    base_coverage: coverage_loose
+    thresholds: [1, 2, 4, 6, 8, 10, 15, 20, 30]
+
+# V5-only features augment the common run-8329 feature configuration.
+diagnostic_features:
+  scifi_n_active_stations_xy:
+    dimension: 1
+    expression: scifi_n_active_stations_xy
+    x_min: -0.5
+    x_max: 5.5
+    n_bins: 6
+    axis_title: "SciFi stations with X and Y activity"
+    logy: true
+  ds_n_active_stations:
+    dimension: 1
+    expression: n_active_ds
+    x_min: -0.5
+    x_max: 4.5
+    n_bins: 5
+    axis_title: "Active DS stations"
+    logy: true
+  scifi_count_vs_us_count:
+    dimension: 2
+    x_expression: count_scifi
+    y_expression: count_us
+    x_bins: 80
+    x_min: -0.5
+    x_max: 799.5
+    y_bins: 61
+    y_min: -0.5
+    y_max: 60.5
+    x_title: "SciFi hit count"
+    y_title: "US hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+  scifi_count_vs_ds_count:
+    dimension: 2
+    x_expression: count_scifi
+    y_expression: count_ds
+    x_bins: 80
+    x_min: -0.5
+    x_max: 799.5
+    y_bins: 41
+    y_min: -0.5
+    y_max: 40.5
+    x_title: "SciFi hit count"
+    y_title: "DS hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+expected:
+  real_data_dq: 11115982
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v5
+  plot_dir: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v5

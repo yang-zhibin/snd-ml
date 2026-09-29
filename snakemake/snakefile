@@ -14,7 +14,7 @@ wildcard_constraints:
     preCutEff_path=".*preCutEff.*.csv",
     muonDISFeature_path=".*muonDISFeature.*.root",
     muonDISDigi_path=".*muonDISDigi.*.root",
-    feature_path=".*feature_[^/]*\\.root",
+    feature_path="(?!.*passing_muon_track_partitions/).*feature_[^/]*\\.root",
     metadata_csv=".*metadata.*.csv",
     model_ckpt='.*ckpt.*',
     pt_hit_path = '.*pt_hit.*.pt.gz',
@@ -25,7 +25,8 @@ wildcard_constraints:
     eval_output = '.*eval.*.root',
     model_3d_output = '.*prediction.*.pkl.gz',
     matrix_output=".*matrix.*.csv",
-    nueAnalysisFilter_path = ".*nueAnalysisFilter.*.root"
+    nueAnalysisFilter_path = ".*nueAnalysisFilter.*.root",
+    track_feature_path = ".*featureTracks_[^/]*\\.root"
     #data_type="MC.*|real.*"
 
 raw_metadata_csv_list = [
@@ -40,8 +41,8 @@ raw_metadata_csv_list = [
     # "MC_neutrino_volMuFilter_20fb-1_metadata.csv",
     # "MC_neutrino_volTarget_100fb-1_metadata.csv",
     
-    "MC_neutrino_2024_vm_metadata.csv",
-    "MC_neutrino_2024_ve_metadata.csv",
+    # "MC_neutrino_2024_vm_metadata.csv",
+    # "MC_neutrino_2024_ve_metadata.csv",
 
     # "MC_kaon_FTFP_BERT_metadata.csv",
     # "MC_neutron_FTFP_BERT_metadata.csv",
@@ -65,10 +66,20 @@ subset_metadata_csv_list = [
     # "Split_v3.csv",
     # "real_data_2024_test.csv"
 ]
+passing_muon_metadata_csv_list = [
+    # "passing_muon_real_data_2024_metadata.csv",
+]
+
+# Metadata used to resolve explicitly requested wildcard targets, but excluded
+# from the broad ``production`` aggregate.  V5 requests its MC feature files
+# explicitly, so enabling this lookup must not start unrelated MC products.
+lookup_metadata_csv_list = [
+    "MC_muon_up_metadata.csv",
+]
 
 eventbuilder_metadata_csv_list = [
-     "MC_neutrino_2024_ve_EventBuilder_metadata.csv",
-     "MC_neutrino_2024_vm_EventBuilder_metadata.csv",
+    #  "MC_neutrino_2024_ve_EventBuilder_metadata.csv",
+    #  "MC_neutrino_2024_vm_EventBuilder_metadata.csv",
 ]
 
 train_metadata_csv_list = [
@@ -99,10 +110,32 @@ train_model = 'CNN3D_v1'
 
 include: "rules/metadata.smk"
 include: "rules/production.smk"
+include: "rules/passing_muon_track_features.smk"
+include: "rules/passing_muon_track_partitions.smk"
+include: "rules/passing_muon_track_partitions_v2_dq.smk"
+include: "rules/passing_muon_track_study_v3.smk"
+include: "rules/passing_muon_region_study_v4.smk"
+include: "rules/passing_muon_binary_region_study_v5.smk"
+include: "rules/passing_muon_binary_region_study_v6.smk"
+include: "rules/passing_muon_binary_region_study_v7.smk"
+include: "rules/passing_muon_detector_study_v8.smk"
+include: "rules/passing_muon_transform_comparison_v8.smk"
+include: "rules/passing_muon_transform_comparison_v1.smk"
+include: "rules/passing_muon_scifi_edge_transform_v1.smk"
+include: "rules/passing_muon_detid_channel_shift_v2.smk"
+include: "rules/passing_muon_detid_channel_shift_v3.smk"
+include: "rules/passing_muon_detid_channel_shift_v4.smk"
+include: "rules/passing_muon_detid_channel_shift_v5.smk"
 include: "rules/region_partitions.smk"
 include: "rules/post_partition_ml.smk"
+include: "rules/data_driven_3d_cnn_dataset.smk"
+include: "rules/data_driven_3d_cnn_diagnostics.smk"
+include: "rules/data_driven_3d_cnn_muondis_features.smk"
+include: "rules/data_driven_3d_classifier_training.smk"
 include: "rules/train.smk"
 include: "rules/region_evaluation.smk"
+include: "rules/region_v2_inspection_inputs.smk"
+include: "rules/region_v2_inspection_plots.smk"
 
 
 ##### metadata
@@ -112,6 +145,7 @@ rule metadata:
         expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=raw_metadata_csv_list),
         expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=subset_metadata_csv_list),
         expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=eventbuilder_metadata_csv_list),
+        expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}", metadata_csv=passing_muon_metadata_csv_list),
         # expand(f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{train_split}}_{{split_dataset}}.csv", train_split=train_split, split_dataset = split_dataset)
 
 # need another process before train split to add  preSelect_count
@@ -121,9 +155,9 @@ rule metadata:
 ##### production
 rule production:
     input:
-        expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),
-        # expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
-        # expand("{hit3d_path}", hit3d_path=collect_metadata_targets("hit3d_path", after_model = False)),
+        # expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),
+        expand("{feature_path}", feature_path=collect_metadata_targets("feature_path", after_model = False)),
+        expand("{hit3d_path}", hit3d_path=collect_metadata_targets("hit3d_path", after_model = False)),
         # expand("{muonDISFeature_path}", muonDISFeature_path=collect_metadata_targets("muonDISFeature_path", after_model = False)),
         # expand("{muonDISDigi_path}", muonDISDigi_path=collect_metadata_targets("muonDISDigi_path", after_model = False)),
         # expand("{nueAnalysisFilter_path}", nueAnalysisFilter_path=collect_metadata_targets("nueAnalysisFilter_path", after_model = False)),

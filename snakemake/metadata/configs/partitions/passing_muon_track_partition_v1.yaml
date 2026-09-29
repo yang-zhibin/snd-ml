@@ -1,0 +1,119 @@
+partition_version: passing_muon_track_partition_v1
+description: >
+  Full-schema, whole-file partitions of run-8329 passing-muon reconstructed
+  track features. All sndData branches are retained.
+
+seed: null
+shuffle: false
+split_method: contiguous_chunks_in_source_order
+fraction_selection: first_n_in_source_order
+
+products:
+  feature:
+    enabled: true
+    default_process: true
+  hit3d:
+    enabled: false
+    default_process: false
+
+input:
+  feature_tree: sndData
+  cutflow_tree: cutFlowSummary
+  hit3d_tree: hit3D
+
+event_identity:
+  preserve_source_file_index: true
+  unique_keys:
+    - source_file_index
+    - original_entry
+  description: >
+    source_file_index is the zero-based row of the run-8329 source metadata.
+    source_file_indices and source_feature_paths give the mapping for each
+    partition. original_entry is copied from eventIndex.
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/passing_muon_track_partitions
+  feature_prefix: feature
+  hit3d_prefix: hit3d
+  compression_level: 1
+  write_only_non_empty_partitions: true
+  copy_event_identity_branches: true
+  write_cutflow: false
+  # feature_branches is deliberately absent: the existing partition builder
+  # consequently snapshots every sndData input branch.
+  added_event_branches:
+    - event_uid
+    - original_entry
+    - source_file_index
+    - particle_group
+    - particle_id
+
+performance:
+  rdf_threads: 4
+
+validation:
+  skip_missing_files: false
+  check_entry_counts: false
+
+grouping:
+  group_by: [region, particle_group]
+  output_partition_id_template: "{region}__{particle_group}__part{part_index:03d}"
+
+defaults:
+  process: true
+  produce_feature: true
+  produce_hit3d: false
+  n_partitions: 20
+  fraction: 1.0
+  max_events: null
+
+particle_group_rules:
+  passing_muon:
+    process: true
+    produce_feature: true
+    produce_hit3d: false
+    source_data_type: passing_muon_real_data
+    particle_id: 9
+    particle_family: passing_muon
+    event_filter: "true"
+    n_partitions: 20
+    fraction: 1.0
+    max_events: null
+
+regions:
+  all_events:
+    process: true
+
+overrides: {}
+
+metadata_output_columns:
+  - partition_version
+  - region_version
+  - region
+  - particle_group
+  - particle_family
+  - particle_id
+  - partition_id
+  - feature_partition_path
+  - hit3d_partition_path
+  - feature_available
+  - hit3d_available
+  - hit3d_required
+  - products_written
+  - n_events
+  - lumi_per_partition
+  - fraction
+  - max_events
+  - n_partitions_requested
+  - n_partitions_written
+  - selection_expression
+  - particle_filter_expression
+  - source_metadata_csv
+  - source_feature_paths
+  - source_hit3d_paths
+  - source_file_indices
+  - first_original_entry
+  - last_original_entry
+  - shuffle
+  - split_method
+  - seed

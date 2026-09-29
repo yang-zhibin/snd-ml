@@ -1,0 +1,108 @@
+version: passing_muon_detector_selection_study_v6
+run: 8329
+tree_name: sndData
+description: >-
+  Detector-only comparison of Run-8329 RealDataDQ with the unweighted union of
+  all configured upward-muon MC productions. The coverage_loose and
+  coverage_tight PDFs contain data and pooled MC together.
+
+groups:
+  real_data: real_data_dq_run8329
+
+mc_muon_up:
+  source_metadata: snakemake/metadata/updated/MC_muon_up_metadata.csv
+  subfolder: up
+  expected_source_files: 15
+  metadata_csv: snakemake/metadata/updated/passing_muon_run8329_detector_selection_study_v6/mc_muon_up_metadata_v6.csv
+  validation_csv: snakemake/metadata/updated/passing_muon_run8329_detector_selection_study_v6/mc_muon_up_validation_v6.csv
+  productions:
+    scoring_1p8:
+      source_partition: scoring_1.8
+      group: mc_muon_up_scoring_1p8
+      label: "MC muon up, scoring 1.8"
+    scoring_2:
+      source_partition: scoring_2
+      group: mc_muon_up_scoring_2
+      label: "MC muon up, scoring 2"
+    scoring_2p5:
+      source_partition: scoring_2.5
+      group: mc_muon_up_scoring_2p5
+      label: "MC muon up, scoring 2.5"
+    scoring_at449m:
+      source_partition: scoring_at449m
+      group: mc_muon_up_scoring_at449m
+      label: "MC muon up, scoring at 449 m"
+  aggregate:
+    key: all
+    label: "All MC muon up (unweighted event sum)"
+    mode: unweighted_event_sum
+    selections: [coverage_loose, coverage_tight]
+  baseline_expression: >-
+    std::abs(pdgCode) == 13 &&
+    (count_veto + count_scifi + count_us + count_ds) > 0
+  note: >-
+    The four productions are validated separately and concatenated without
+    luminosity weights. The aggregate is diagnostic, not a physics-rate
+    prediction.
+
+derived_columns:
+  has_all_veto: >-
+    count_veto1 > 0 && count_veto2 > 0 && count_veto3 > 0
+  has_all_us: >-
+    count_us1 > 0 && count_us2 > 0 && count_us3 > 0 &&
+    count_us4 > 0 && count_us5 > 0
+  n_active_ds: >-
+    int(count_ds1 > 0) + int(count_ds2 > 0) +
+    int(count_ds3 > 0) + int(count_ds4 > 0)
+
+coverage_working_points:
+  coverage_loose:
+    label: "Loose low-multiplicity through-going topology"
+    scifi_min_active_xy_stations: 5
+    ds_min_active_stations: 4
+    scifi_max_hits_per_station_exclusive: 20
+    veto_max_hits_per_station_inclusive: 2
+    veto_max_hits_total_inclusive: 4
+    us_max_hits_per_station_inclusive: 2
+    us_max_hits_total_inclusive: 6
+  coverage_tight:
+    label: "Tight low-multiplicity through-going topology (V5)"
+    scifi_min_active_xy_stations: 5
+    ds_min_active_stations: 4
+    scifi_max_hits_per_station_exclusive: 10
+    veto_max_hits_per_station_exclusive: 2
+    us_max_hits_per_station_exclusive: 2
+
+selection_working_points: {}
+multiplicity_scans: {}
+
+# V6 station-count features are merged with every feature from the common V2
+# histogram configuration and therefore receive the same booking, folding,
+# normalization and plotting treatment.
+diagnostic_features:
+  count_veto1: {dimension: 1, expression: count_veto1, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "Veto station 1 hit count", logy: true}
+  count_veto2: {dimension: 1, expression: count_veto2, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "Veto station 2 hit count", logy: true}
+  count_veto3: {dimension: 1, expression: count_veto3, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "Veto station 3 hit count", logy: true}
+  count_scifi1: {dimension: 1, expression: count_scifi1, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 1 hit count (X+Y)", logy: true}
+  count_scifi2: {dimension: 1, expression: count_scifi2, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 2 hit count (X+Y)", logy: true}
+  count_scifi3: {dimension: 1, expression: count_scifi3, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 3 hit count (X+Y)", logy: true}
+  count_scifi4: {dimension: 1, expression: count_scifi4, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 4 hit count (X+Y)", logy: true}
+  count_scifi5: {dimension: 1, expression: count_scifi5, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 5 hit count (X+Y)", logy: true}
+  count_us1: {dimension: 1, expression: count_us1, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 1 hit count", logy: true}
+  count_us2: {dimension: 1, expression: count_us2, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 2 hit count", logy: true}
+  count_us3: {dimension: 1, expression: count_us3, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 3 hit count", logy: true}
+  count_us4: {dimension: 1, expression: count_us4, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 4 hit count", logy: true}
+  count_us5: {dimension: 1, expression: count_us5, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 5 hit count", logy: true}
+  count_ds1: {dimension: 1, expression: count_ds1, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "DS station 1 hit count", logy: true}
+  count_ds2: {dimension: 1, expression: count_ds2, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "DS station 2 hit count", logy: true}
+  count_ds3: {dimension: 1, expression: count_ds3, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "DS station 3 hit count", logy: true}
+  count_ds4: {dimension: 1, expression: count_ds4, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "DS station 4 hit count", logy: true}
+  scifi_n_active_stations_xy: {dimension: 1, expression: scifi_n_active_stations_xy, x_min: -0.5, x_max: 5.5, n_bins: 6, axis_title: "SciFi stations with X and Y activity", logy: true}
+  ds_n_active_stations: {dimension: 1, expression: n_active_ds, x_min: -0.5, x_max: 4.5, n_bins: 5, axis_title: "Active DS stations", logy: true}
+
+expected:
+  real_data_dq: 11115982
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v6
+  plot_dir: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v6

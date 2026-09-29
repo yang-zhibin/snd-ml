@@ -1,0 +1,61 @@
+version: passing_muon_transform_comparison_v8
+run: 8329
+tree_name: sndData
+
+inputs:
+  real_dq_metadata: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/passing_muon_run8329_comparison_v2/real_data_dq_run8329_metadata.csv
+  track_input_pattern: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/track_inputs/passingMuonDQ_flat_v2_run008329_source{source_file_index:03d}.root
+  v7_config: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/configs/region_evaluation/passing_muon_binary_region_study_v7.yaml
+  feature_config: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/configs/region_evaluation/passing_muon_run8329_hist_v2.yaml
+
+methods:
+  reco_scifi:
+    label: Reconstructed SciFi-track transform
+    track:
+      type_priority: [11, 1, 15]
+      min_ndf: 1
+      min_scifi_planes_per_projection: 2
+    transform:
+      axis_policy: largest_absolute_scifi_track_slope
+      min_abs_slope: 0.0
+      min_axis_dominance_ratio: 1.2
+      direction: {use_track_pz: true, assumed_pz_sign: 1}
+      edge_policy: closest_within_threshold_else_slope
+      near_edge_threshold_cm: 5.0
+      reference_plane_policy: earliest_selected_view_plane_with_hits
+  simple:
+    label: Five-station average-position transform
+    transform:
+      axis_policy: all_active_scifi_plane_averages_linear_fit
+      require_all_five_stations_both_views: true
+      min_abs_slope: 0.0
+      min_axis_dominance_ratio: 1.2
+      ambiguous_axis_policy: reject
+      direction: {use_track_pz: false, assumed_pz_sign: 1}
+      edge_policy: closest_within_threshold_else_slope
+      near_edge_threshold_cm: 5.0
+      reference_plane_policy: earliest_selected_view_plane_with_hits
+
+comparisons:
+  scifi_track:
+    label: Original vs reconstructed SciFi-track transform
+    method: reco_scifi
+    original_selection: reco_scifi_eligible
+  no_veto:
+    label: Original vs simple transform, original no-Veto events
+    method: simple
+    original_selection: count_veto == 0
+  loose_v7:
+    label: Original vs simple transform, original V7 loose selection
+    method: simple
+    original_selection: original_passes_loose_v7
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_transform_comparison_v8
+  plot_dir: evaluation_region_partitions/passing_muon_run8329_transform_comparison_v8
+  manifest_dir: manifests
+  digi_dir: transformed_digi
+  feature_dir: features
+  audit_dir: audits
+  histogram_dir: histograms/shards
+  histogram: histograms/transform_comparison.root

@@ -71,7 +71,6 @@ rule train_3d:
         export EOSSHIP=root://eosuser.cern.ch/
 
         #tmp_dir=$(mktemp -d)
-        export CUDA_VISIBLE_DEVICES=0
         #nvidia-smi
 
         

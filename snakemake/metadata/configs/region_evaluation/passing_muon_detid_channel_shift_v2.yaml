@@ -1,0 +1,27 @@
+version: passing_muon_detid_channel_shift_v2
+description: >-
+  Discrete detector-ID channel-sequence shift for Run 8329 Muon-DIS events.
+  Transforms SciFi, Veto, US, and DS hits onto real destination channels.
+
+input:
+  manifest: evaluation_region_partitions/passing_muon_detid_channel_shift_v2/selected_events.csv
+  event_tree_candidates: [rawConv, cbmsim]
+  event_sequence: 1
+  event_id: 6000152
+
+transform:
+  reference_station: 3
+  x_side: auto
+  y_side: auto
+  requested_shift_x_cm: auto
+  requested_shift_y_cm: auto
+
+output:
+  directory: evaluation_region_partitions/passing_muon_detid_channel_shift_v2
+  transformed_root: transformed_digis/run_008329_event_{eventId}.root
+  mapping_audit_csv: mapping_audit.csv
+  event_audit_json: event_audit.json
+  comparison_pdf: comparison.pdf
+  scifi_channel_pdf: scifi_channels.pdf
+  scifi_channel_audit: scifi_channels_audit.json
+  validation_marker: validation.ok

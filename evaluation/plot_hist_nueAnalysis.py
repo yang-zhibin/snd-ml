@@ -83,6 +83,8 @@ def partition_from_filename(filepath):
 
 
 def classify_partition(partition):
+    if partition.startswith("passing_muon_real_data"):
+        return "passing_muon_real_data"
     if partition.startswith("real_data"):
         return "real_data"
 
@@ -456,6 +458,11 @@ def combine_backgrounds(args, grouped_hists):
     final_hists["data"] = data_hist.Clone("h_data")
     final_hists["data"].SetDirectory(0)
 
+    passing_muon = grouped_hists.get("passing_muon_real_data")
+    if passing_muon is not None:
+        final_hists["passing_muon_real_data"] = passing_muon.Clone("h_passing_muon_real_data")
+        final_hists["passing_muon_real_data"].SetDirectory(0)
+
     kaon_hist = combine_categories(grouped_hists, KAON_BINS, "h_kaon", NutralHadScaleFactor= args.had_scale_factor)
     neutron_hist = combine_categories(grouped_hists, NEUTRON_BINS, "h_neutron",NutralHadScaleFactor= args.had_scale_factor)
     
@@ -508,6 +515,7 @@ def combine_backgrounds(args, grouped_hists):
 
 def style_final_hists(final_hists):
     style_data_hist(final_hists.get("data"))
+    style_hist(final_hists.get("passing_muon_real_data"), ROOT.kMagenta + 1, fill=True)
     style_hist(final_hists.get("kaon"), ROOT.kBlue + 2, fill=True)
     style_hist(final_hists.get("neutron"), ROOT.kBlue - 2, fill=True)
     style_hist(final_hists.get("MC_CC_numu"), ROOT.kRed + 1, fill=True)
@@ -517,7 +525,7 @@ def style_final_hists(final_hists):
 
 
 def build_stack_draw_hists(final_hists):
-    stack_order = ["kaon", "neutron", "MC_NC_nue", "MC_NC_numu", "MC_CC_nue", "MC_CC_numu"]
+    stack_order = ["passing_muon_real_data", "kaon", "neutron", "MC_NC_nue", "MC_NC_numu", "MC_CC_nue", "MC_CC_numu"]
     draw_hists = []
 
     for cat in stack_order:
@@ -712,6 +720,7 @@ def draw_plot(data_lumi, final_hists, feature, hist_cfg, outdir, base_cut="", ex
         legend.AddEntry(data_hist, f"Data ({data_integral:.1f})", "lep")    
 
     label_map = {
+        "passing_muon_real_data": "Passing-muon data",
         "kaon": "MC kaon",
         "neutron": "MC neutron",
         "MC_NC_nue": "MC NC #nu_{e}",

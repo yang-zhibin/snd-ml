@@ -4,6 +4,8 @@ rule generate_raw_metadata:
         script = f'{PERSONAL_WORK_SPACE}/snakemake/metadata/generate_path_file.py'
     output:
         raw_metadata = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/raw/{{metadata_csv}}"
+    wildcard_constraints:
+        metadata_csv=r"(?!passing_muon_real_data_2024_metadata\.csv$).*\.csv$"
     params:
         script = f'{PERSONAL_WORK_SPACE}/snakemake/metadata/generate_path_file.py'
     threads:1
@@ -29,7 +31,7 @@ rule update_metadata:
     output:
         updated_metadata = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/{{metadata_csv}}"
     wildcard_constraints:
-        metadata_csv=r"(?!.*_subset\.csv$)(?!.*_skim_runs_metadata.*\.csv$)(?!.*_EventBuilder_metadata\.csv$).*\.csv$" #aviod ambiguous with generate subset metadata
+        metadata_csv=r"(?!passing_muon_real_data_2024_metadata\.csv$)(?!.*_subset\.csv$)(?!.*_skim_runs_metadata.*\.csv$)(?!.*_EventBuilder_metadata\.csv$).*\.csv$" #aviod ambiguous with generate subset metadata
     threads:1
     resources:
         runtime=45*60,
@@ -43,6 +45,32 @@ rule update_metadata:
         set +u 
         source {env_script_lcg}
         python {input.script} -i {input.raw_metadata} -o {output.updated_metadata}
+        """
+
+
+rule generate_passing_muon_real_data_2024_metadata:
+    input:
+        script=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/generate_passing_muon_metadata.py",
+        config=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/passing_muon_real_data_2024.yaml",
+        pp24="/eos/user/i/idioniso/1_Data/Tracks/pp24.csv",
+    output:
+        metadata=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/passing_muon_real_data_2024_metadata.csv",
+        excluded=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/passing_muon_real_data_2024_excluded_files.csv",
+    threads: 1
+    resources:
+        runtime=5 * 60 * 60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        """
+        echo "Generating 2024 passing-muon real-data metadata"
+        set +u
+        source {env_script_lcg}
+        python {input.script} \
+            --config {input.config} \
+            --output {output.metadata} \
+            --excluded-report {output.excluded}
         """
 
 

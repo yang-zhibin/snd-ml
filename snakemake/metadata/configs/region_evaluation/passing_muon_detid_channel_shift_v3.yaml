@@ -1,0 +1,61 @@
+version: passing_muon_detid_channel_shift_v3
+description: >-
+  Slope-selected single-axis detector-ID channel shift for the reviewed Run
+  8329 Muon-DIS event. Orthogonal readout views remain unchanged.
+
+input:
+  source_manifest: /afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage/selected_events.csv
+  track_input_pattern: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/track_inputs/passingMuonDQ_flat_v2_run008329_source{source_file_index:03d}.root
+  track_tree: sndData
+  event_tree_candidates: [rawConv, cbmsim]
+  run_id: 8329
+  event_id: 6000152
+  source_category: run8329__failure__veto_eq3
+  event_sequence: 1
+  expected_track_type: 11
+  expected_track_index: 0
+  additional_display_events:
+    6000210: run8329__failure__veto_gt3
+    5004148: run8329__failure__veto_lt3
+    7000202: run8329__failure__veto_gt3
+
+track:
+  type_priority: [11, 1, 15]
+  min_ndf: 1
+  min_scifi_planes_per_projection: 2
+
+transform:
+  axis_policy: largest_absolute_scifi_track_slope
+  min_abs_slope: 0.0
+  min_axis_dominance_ratio: 1.2
+  ambiguous_axis_policy: reject
+  direction:
+    use_track_pz: true
+    assumed_pz_sign: 1
+  reference_plane_policy: earliest_selected_view_plane_with_hits
+
+validation:
+  track_edge_tolerance_cm: 1.0e-8
+
+display:
+  # Type 11 is the Hough SciFi track used to select the transform direction.
+  with_track: 0
+  with_hough_track: 2
+  minimum_tracks: 0
+  track_verbose: 0
+
+high_density_sample:
+  sample_size: 10
+  min_feature_scifi_occupancy: 500
+  exclude_event_ids: [6000152, 5004148, 6000210, 7000202]
+
+output:
+  directory: evaluation_region_partitions/passing_muon_detid_channel_shift_v3
+  selected_events: selected_events.csv
+  transformed_root: transformed_digis/run_008329_event_{eventId}.root
+  mapping_audit_csv: mapping_audit.csv
+  event_audit_json: event_audit.json
+  comparison_pdf: comparison.pdf
+  scifi_channel_pdf: scifi_channels.pdf
+  scifi_channel_audit: scifi_channels_audit.json
+  validation_marker: validation.ok

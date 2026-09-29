@@ -1,0 +1,43 @@
+version: passing_muon_transform_comparison_v1
+run: 8329
+tree_name: sndData
+
+inputs:
+  real_dq_metadata: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/passing_muon_run8329_comparison_v2/real_data_dq_run8329_metadata.csv
+  transform_production_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_transform_comparison_v8
+  v7_config: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/configs/region_evaluation/passing_muon_binary_region_study_v7.yaml
+  feature_config: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/configs/region_evaluation/passing_muon_run8329_hist_v2.yaml
+
+populations:
+  passing_muon_candidate:
+    label: Passing-muon candidate
+  muon_dis_candidate:
+    label: Muon-DIS candidate
+  signal_region:
+    label: No-Veto signal region
+
+methods:
+  reco_scifi:
+    label: Reconstructed SciFi-track transform
+    eligibility_field: reco_scifi_eligible
+    output_pdf: reco_scifi_transform_comparison.pdf
+  simple:
+    label: Five-station activity-line transform
+    eligibility_field: simple_eligible
+    output_pdf: simple_transform_comparison.pdf
+
+plot:
+  ratio_min: 0.0
+  ratio_max: 3.0
+  signal_label: Original no-Veto signal region
+  original_label: Original matched events
+  transformed_label: Transformed matched events
+  populations:
+    passing_muon: Passing-muon candidate (passes v7 loose)
+    muon_dis: Muon-DIS candidate (fails v7 loose)
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_transform_comparison_v1
+  plot_dir: evaluation_region_partitions/passing_muon_run8329_transform_comparison_v1
+  histogram_dir: histograms/shards
+  histogram: histograms/veto_tagged_transform_comparison.root

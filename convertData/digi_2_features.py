@@ -9,7 +9,31 @@ import time
 from analysis.analyses.snd_analysis_2024_0mu.sciFiTools import selectHits, getSumDensity
 import numpy as np
 
+from hit_time_selection import (
+    apply_first_arrival_time0 as apply_muon_first_arrival_time0,
+    is_muon_time_calibrated_sample,
+    select_calibrated_scifi_hits,
+)
+from sample_selection import (
+    EXTERNAL_CUTFLOW,
+    SELECTION_MODES,
+    resolve_selection_mode,
+    uses_external_cutflow,
+)
+from reco_track_features import (
+    FLAT_V1,
+    RECO_TRACK_SCHEMAS,
+    fill_reco_track_buffers,
+    reset_reco_track_buffers,
+    scalar_dtypes_for_schema,
+    vector_dtypes_for_schema,
+)
+
 ROOT.TH1.AddDirectory(False)
+
+NS_PER_CLOCK = 6.25
+INVALID_TIME = -999.0
+MC_HIT_TIME_WINDOW_NS = 25.0
 
 
 def record_timing(timing, timing_counts, name, start_time):
@@ -45,6 +69,127 @@ def print_timing_summary(timing, timing_counts, total_elapsed, n_selected_entrie
             f"{elapsed:10.3f} {calls:10d} {avg_ms:14.3f} {percent:9.2f}"
         )
 
+
+def make_hit_time_debug(max_examples=5):
+    return {
+        "max_examples": max_examples,
+        "events": 0,
+        "filter_enabled_events": 0,
+        "time0_applied_events": 0,
+        "scifi_before": 0,
+        "scifi_after": 0,
+        "mufilter_before": 0,
+        "mufilter_after": 0,
+        "raw_min": None,
+        "raw_max": None,
+        "calibrated_min": None,
+        "calibrated_max": None,
+        "kept_min": None,
+        "kept_max": None,
+        "examples": [],
+    }
+
+
+def _update_range(debug, prefix, times):
+    times = [float(value) for value in times if valid_time(value)]
+    if not times:
+        return
+
+    low_key = f"{prefix}_min"
+    high_key = f"{prefix}_max"
+    low = min(times)
+    high = max(times)
+    debug[low_key] = low if debug[low_key] is None else min(debug[low_key], low)
+    debug[high_key] = high if debug[high_key] is None else max(debug[high_key], high)
+
+
+def _time_range(times):
+    times = [float(value) for value in times if valid_time(value)]
+    if not times:
+        return None
+    return (min(times), max(times))
+
+
+def update_hit_time_debug(
+    debug,
+    args,
+    event_index,
+    event_id,
+    time0_ns,
+    time0_applied,
+    raw_scifi_times,
+    raw_mufilter_times,
+    calibrated_scifi_times,
+    calibrated_mufilter_times,
+    kept_scifi_times,
+    kept_mufilter_times,
+):
+    if debug is None:
+        return
+
+    debug["events"] += 1
+    filter_enabled = applies_mc_25ns_hit_filter(args)
+    if filter_enabled:
+        debug["filter_enabled_events"] += 1
+    if time0_applied:
+        debug["time0_applied_events"] += 1
+
+    debug["scifi_before"] += len(raw_scifi_times)
+    debug["mufilter_before"] += len(raw_mufilter_times)
+    debug["scifi_after"] += len(kept_scifi_times)
+    debug["mufilter_after"] += len(kept_mufilter_times)
+
+    _update_range(debug, "raw", raw_scifi_times + raw_mufilter_times)
+    _update_range(debug, "calibrated", calibrated_scifi_times + calibrated_mufilter_times)
+    _update_range(debug, "kept", kept_scifi_times + kept_mufilter_times)
+
+    if len(debug["examples"]) >= debug["max_examples"]:
+        return
+
+    if filter_enabled or time0_applied:
+        debug["examples"].append({
+            "eventIndex": int(event_index),
+            "eventId": int(event_id),
+            "time0_ns": float(time0_ns),
+            "time0_applied": int(time0_applied),
+            "filter_enabled": int(filter_enabled),
+            "scifi_before": len(raw_scifi_times),
+            "scifi_after": len(kept_scifi_times),
+            "mufilter_before": len(raw_mufilter_times),
+            "mufilter_after": len(kept_mufilter_times),
+            "raw_range_ns": _time_range(raw_scifi_times + raw_mufilter_times),
+            "calibrated_range_ns": _time_range(calibrated_scifi_times + calibrated_mufilter_times),
+            "kept_range_ns": _time_range(kept_scifi_times + kept_mufilter_times),
+        })
+
+
+def print_hit_time_debug_summary(debug):
+    if not debug:
+        return
+
+    print("Hit-time debug summary:")
+    print(f"  events processed                         {debug['events']:10d}")
+    print(f"  25 ns MC filter enabled events           {debug['filter_enabled_events']:10d}")
+    print(f"  first-arrival time0 applied events       {debug['time0_applied_events']:10d}")
+    print(
+        "  SciFi hits before/after/dropped          "
+        f"{debug['scifi_before']:10d} {debug['scifi_after']:10d} "
+        f"{debug['scifi_before'] - debug['scifi_after']:10d}"
+    )
+    print(
+        "  MuFilter hits before/after/dropped       "
+        f"{debug['mufilter_before']:10d} {debug['mufilter_after']:10d} "
+        f"{debug['mufilter_before'] - debug['mufilter_after']:10d}"
+    )
+    print(f"  raw time range [ns]                      {debug['raw_min']} .. {debug['raw_max']}")
+    print(f"  calibrated time range [ns]               {debug['calibrated_min']} .. {debug['calibrated_max']}")
+    print(f"  kept time range [ns]                     {debug['kept_min']} .. {debug['kept_max']}")
+
+    if debug["examples"]:
+        print("  example events:")
+        for example in debug["examples"]:
+            print(f"    {example}")
+
 def setup_geometry(geo_file):
     """Initialize and return the geometry configurations."""
     snd_geo = SndlhcGeo.GeoInterface(geo_file)
@@ -71,6 +216,26 @@ def is_muonDIS_sample(args):
     """Identify muonDIS jobs from the common path/type arguments."""
     fields = ("out_path", "type", "digi_path", "preSelect_path")
     return any("muondis" in str(getattr(args, field, "")).lower() for field in fields)
+
+
+def is_mc_sample(args):
+    return "MC" in str(args.type)
+
+
+def needs_first_arrival_time0(args):
+    return is_muon_time_calibrated_sample(args)
+
+
+def applies_mc_25ns_hit_filter(args):
+    fields = ("out_path", "type", "digi_path", "preSelect_path")
+    text = " ".join(str(getattr(args, field, "")) for field in fields).lower()
+    return is_mc_sample(args) and "mc_neutrino" not in text
+
+
+def skip_scifi_minhits_selection(args):
+    """Process all cutFlowSummary entries for muon MC samples."""
+    sample_type = str(args.type).lower()
+    return sample_type in ("mc_muon", "mc_muondis")
 
 
 def has_veto_and_us_hits(event):
@@ -124,6 +289,120 @@ def non_negative_float(value):
         return max(float(value), 0.0)
     except Exception:
         return 0.0
+
+
+def valid_time(value):
+    try:
+        value = float(value)
+    except Exception:
+        return False
+    return math.isfinite(value) and value > -900.0
+
+
+def scifi_time_ns(hit, scifi_det, args):
+    if is_mc_sample(args):
+        return float(hit.GetTime())
+
+    raw_time_ns = float(hit.GetTime()) * NS_PER_CLOCK
+    return float(scifi_det.GetCorrectedTime(hit.GetDetectorID(), raw_time_ns, 0))
+
+
+def get_mufilter_all_times(hit):
+    try:
+        raw_times = hit.GetAllTimes()
+    except TypeError:
+        try:
+            raw_times = hit.GetAllTimes(False)
+        except Exception:
+            return {}
+    except Exception:
+        return {}
+
+    times = {}
+    try:
+        iterator = raw_times.items()
+    except AttributeError:
+        iterator = raw_times
+
+    for item in iterator:
+        try:
+            channel, time_value = item
+        except (TypeError, ValueError):
+            try:
+                channel, time_value = item[0], item[1]
+            except Exception:
+                continue
+        times[int(channel)] = float(time_value)
+
+    return times
+
+
+def mufilter_channel_times_ns(hit, mufilter_det, args):
+    det_id = int(hit.GetDetectorID())
+    system = int(hit.GetSystem())
+    raw_times = get_mufilter_all_times(hit)
+
+    if not raw_times:
+        try:
+            raw_times = {0: hit.GetTime()}
+        except Exception:
+            raw_times = {}
+
+    n_sipms = None
+    if system == 3:
+        try:
+            n_sipms = int(mufilter_det.GetnSiPMs(det_id))
+        except Exception:
+            n_sipms = None
+
+    times = []
+    for channel, raw_time in raw_times.items():
+        if not valid_time(raw_time):
+            continue
+
+        if is_mc_sample(args):
+            time_ns = float(raw_time)
+        else:
+            time_ns = float(raw_time) * NS_PER_CLOCK
+            if system == 3 and n_sipms:
+                side = 0 if int(channel) < n_sipms else 1
+                try:
+                    time_ns = float(mufilter_det.GetCorrectedTime(det_id, side, time_ns, 0))
+                except Exception:
+                    pass
+
+        times.append(time_ns)
+
+    return times
+
+
+def mufilter_hit_time_ns(hit, mufilter_det, args):
+    times = mufilter_channel_times_ns(hit, mufilter_det, args)
+    return min(times) if times else INVALID_TIME
+
+
+def apply_first_arrival_time0(args, hit_collections, time_key="hitTimeNS"):
+    return apply_muon_first_arrival_time0(
+        args,
+        hit_collections,
+        time_key=time_key,
+        invalid_time=INVALID_TIME,
+    )
+
+
+def keep_hit_in_mc_time_window(args, hit, time_key="hitTimeNS"):
+    if not applies_mc_25ns_hit_filter(args):
+        return True
+
+    time_ns = hit.get(time_key, INVALID_TIME)
+    if not valid_time(time_ns):
+        return True
+
+    return float(time_ns) <= MC_HIT_TIME_WINDOW_NS
+
+
+def filter_late_mc_hits(args, hits, time_key="hitTimeNS"):
+    return [hit for hit in hits if keep_hit_in_mc_time_window(args, hit, time_key)]
 
 
 def weighted_mean_and_std(values, weights):
@@ -184,6 +463,13 @@ def make_track_vector_branches():
     }
 
 
+def make_hit_time_vector_branches():
+    return {
+        "hitTime_raw_ns": ROOT.std.vector("double")(),
+        "hitTime_raw_detType": ROOT.std.vector("int")(),
+    }
+
+
 def branch_vector_vars(tree, vector_branches):
     for name, vec in vector_branches.items():
         tree.Branch(name, vec)
@@ -203,6 +489,16 @@ def fill_track_info(prefix, track, vector_branches):
     vector_branches[f"{prefix}_px"].push_back(float(track.GetPx()))
     vector_branches[f"{prefix}_py"].push_back(float(track.GetPy()))
     vector_branches[f"{prefix}_pz"].push_back(float(track.GetPz()))
+
+
+def fill_raw_hit_time_vectors(SciFi_hits, MuFilter_hits, vector_branches):
+    for hit in SciFi_hits:
+        vector_branches["hitTime_raw_ns"].push_back(float(hit.get("hitTimeNS", INVALID_TIME)))
+        vector_branches["hitTime_raw_detType"].push_back(int(hit.get("detType", 0)))
+
+    for hit in MuFilter_hits:
+        vector_branches["hitTime_raw_ns"].push_back(float(hit.get("hitTimeNS", INVALID_TIME)))
+        vector_branches["hitTime_raw_detType"].push_back(int(hit.get("detType", -1)))
 
 
 def fill_secondary_interaction_info(child_track_id, child_track, vector_branches):
@@ -610,11 +906,11 @@ def process_qdcAvgPos(SciFi_hits, MuFilter_hits, branch_vars):
 
     
 
-def build_scifi_hit_dict(hit, Scifi):
+def build_scifi_hit_dict(hit, Scifi, args):
     detID = hit.GetDetectorID()
     station = hit.GetStation()
-    hit_time = hit.GetTime()
-    clock_cycle = hit_time / 6.25
+    hit_time_ns = scifi_time_ns(hit, Scifi, args)
+    clock_cycle = hit_time_ns / NS_PER_CLOCK if valid_time(hit_time_ns) else INVALID_TIME
     qdc = non_negative_float(hit.GetSignal(0))
     mat = hit.GetMat()
     sipm = hit.GetSiPM()
@@ -633,6 +929,7 @@ def build_scifi_hit_dict(hit, Scifi):
         "x": A.x(),
         "y": A.y(),
         "z": A.z(),
+        "hitTimeNS": hit_time_ns,
         "hitTimeCY": clock_cycle,
     }
 
@@ -699,6 +996,7 @@ def fill_mycode_density(branch_vars):
     # Match getSumDensity station ranking: choose by total density x+y
     station_sum = [station_x[i] + station_y[i] for i in range(5)]
     station_min = [min(station_x[i], station_y[i]) for i in range(5)]
+
 
     best_idx = 0
     best_sum = station_sum[0]
@@ -843,6 +1141,12 @@ def process_scifi_topology_features(SciFi_hits, branch_vars):
     branch_vars["scifi_qdc_peak_fraction"][0] = safe_fraction(max(qdcs), total_qdc)
 
     for idx, station in enumerate(stations):
+        # Keep the two SciFi views explicit.  ``count_scifiN`` remains the
+        # backwards-compatible X+Y total; the view counts make it possible to
+        # apply per-plane multiplicity requirements without approximating them
+        # with the station total.
+        branch_vars[f"count_scifi{station}_x"][0] = x_counts[idx]
+        branch_vars[f"count_scifi{station}_y"][0] = y_counts[idx]
         branch_vars[f"scifi_count_frac{station}"][0] = safe_fraction(counts[idx], total_count)
         branch_vars[f"scifi_qdc_frac{station}"][0] = safe_fraction(qdcs[idx], total_qdc)
         branch_vars[f"scifi{station}_std_x"][0] = std_or_sentinel(station_x_positions[idx])
@@ -858,7 +1162,58 @@ def process_scifi_topology_features(SciFi_hits, branch_vars):
     branch_vars["scifi_std_y"][0] = std_or_sentinel(all_y_positions)
 
 
-def process_hits(args, event, snd_geo, branch_vars, timing=None, timing_counts=None):
+def fill_time_summary(prefix, times, branch_vars):
+    times = [float(value) for value in times if valid_time(value)]
+    if not times:
+        return
+
+    time_min = min(times)
+    time_max = max(times)
+    branch_vars[f"{prefix}_min_ns"][0] = time_min
+    branch_vars[f"{prefix}_max_ns"][0] = time_max
+    branch_vars[f"{prefix}_mean_ns"][0] = sum(times) / len(times)
+    branch_vars[f"{prefix}_std_ns"][0] = std_or_sentinel(times)
+    branch_vars[f"{prefix}_range_ns"][0] = time_max - time_min
+
+
+def process_hit_time_features(SciFi_hits, MuFilter_hits, branch_vars, time0_ns, time0_applied):
+    scifi_times = [hit.get("hitTimeNS", INVALID_TIME) for hit in SciFi_hits]
+    veto_times = [
+        hit.get("hitTimeNS", INVALID_TIME)
+        for hit in MuFilter_hits
+        if int(hit.get("detType", -1)) == 1
+    ]
+    us_times = [
+        hit.get("hitTimeNS", INVALID_TIME)
+        for hit in MuFilter_hits
+        if int(hit.get("detType", -1)) == 2
+    ]
+    ds_times = [
+        hit.get("hitTimeNS", INVALID_TIME)
+        for hit in MuFilter_hits
+        if int(hit.get("detType", -1)) == 3
+    ]
+
+    branch_vars["hitTime_time0_ns"][0] = time0_ns
+    branch_vars["hitTime_time0_applied"][0] = int(time0_applied)
+
+    fill_time_summary("hitTime", scifi_times + veto_times + us_times + ds_times, branch_vars)
+    fill_time_summary("hitTime_scifi", scifi_times, branch_vars)
+    fill_time_summary("hitTime_veto", veto_times, branch_vars)
+    fill_time_summary("hitTime_us", us_times, branch_vars)
+    fill_time_summary("hitTime_ds", ds_times, branch_vars)
+
+
+def process_hits(
+    args,
+    event,
+    snd_geo,
+    branch_vars,
+    timing=None,
+    timing_counts=None,
+    hit_time_debug=None,
+    hit_time_vector_branches=None,
+):
     """Process all hits in the event and update hits array and averages."""
     process_start = time.perf_counter()
     eventId = branch_vars["eventId"][0]
@@ -866,30 +1221,23 @@ def process_hits(args, event, snd_geo, branch_vars, timing=None, timing_counts=N
     Scifi = snd_geo.modules['Scifi']
     MuFilter = snd_geo.modules['MuFilter']
     A, B = ROOT.TVector3(), ROOT.TVector3()
-    is_muon_dis = is_muonDIS_sample(args)
-    
-
     step_start = time.perf_counter()
-    if is_muon_dis:
+    if needs_first_arrival_time0(args):
         selected_scifi_hits = [hit for hit in event.Digi_ScifiHits if hit.isValid()]
     else:
         selected_scifi_hits = selectHits(event, MC=("MC" in args.type))
     record_timing(timing, timing_counts, "process_hits.select_scifi", step_start)
 
     step_start = time.perf_counter()
-    dens, dens2, dver, dhor = getSumDensity(selected_scifi_hits, return_2ndhighest=True, return_hv=True)
-    branch_vars["density_sndsw_scifi"][0] = dens
-    branch_vars["density_sndsw_scifi_second"][0] = dens2
-    branch_vars["density_sndsw_scifi_ver"][0] = dver
-    branch_vars["density_sndsw_scifi_hor"][0] = dhor
-    record_timing(timing, timing_counts, "process_hits.sndsw_density", step_start)
-
-    step_start = time.perf_counter()
-    SciFi_hits = [
-        build_scifi_hit_dict(aHit, Scifi)
-        for aHit in selected_scifi_hits
-        if aHit.isValid()
-    ]
+    SciFi_hit_entries = []
+    for aHit in selected_scifi_hits:
+        if not aHit.isValid():
+            continue
+        SciFi_hit_entries.append({
+            "raw": aHit,
+            "hit": build_scifi_hit_dict(aHit, Scifi, args),
+        })
+    SciFi_hits = [entry["hit"] for entry in SciFi_hit_entries]
     record_timing(timing, timing_counts, "process_hits.build_scifi_dicts", step_start)
 
     # Process MuFilter hits
@@ -903,8 +1251,8 @@ def process_hits(args, event, snd_geo, branch_vars, timing=None, timing_counts=N
         MuFilter.GetPosition(detID, A, B)
         detType = aHit.GetSystem()
         station = (detID // 1000) % 10
-        hitTime = aHit.GetTime()
-        clock_cycle = hitTime/6.25
+        hit_time_ns = mufilter_hit_time_ns(aHit, MuFilter, args)
+        clock_cycle = aHit.GetTime() / NS_PER_CLOCK
         barIndex = detID%100
         
         
@@ -919,12 +1267,76 @@ def process_hits(args, event, snd_geo, branch_vars, timing=None, timing_counts=N
             "isVertical": aHit.isVertical(),
             "qdc":qdc,
             "barIndex":barIndex,
+            "hitTimeNS": hit_time_ns,
             "hitTimeCY": clock_cycle,
             "x":A.x(),
             "y":A.y(),
             "z":A.z(),
         })
     record_timing(timing, timing_counts, "process_hits.build_mufilter_dicts", step_start)
+
+    raw_scifi_times = [hit.get("hitTimeNS", INVALID_TIME) for hit in SciFi_hits]
+    raw_mufilter_times = [hit.get("hitTimeNS", INVALID_TIME) for hit in MuFilter_hits]
+    if hit_time_vector_branches is not None:
+        fill_raw_hit_time_vectors(SciFi_hits, MuFilter_hits, hit_time_vector_branches)
+
+    step_start = time.perf_counter()
+    time0_ns, time0_applied = apply_first_arrival_time0(args, [SciFi_hits, MuFilter_hits])
+    if time0_applied:
+        for hit in SciFi_hits + MuFilter_hits:
+            time_ns = hit.get("hitTimeNS", INVALID_TIME)
+            if valid_time(time_ns):
+                hit["hitTimeCY"] = float(time_ns) / NS_PER_CLOCK
+    record_timing(timing, timing_counts, "process_hits.time0", step_start)
+
+    calibrated_scifi_times = [hit.get("hitTimeNS", INVALID_TIME) for hit in SciFi_hits]
+    calibrated_mufilter_times = [hit.get("hitTimeNS", INVALID_TIME) for hit in MuFilter_hits]
+
+    step_start = time.perf_counter()
+    if needs_first_arrival_time0(args):
+        SciFi_hit_entries = select_calibrated_scifi_hits(
+            SciFi_hit_entries,
+            hit_getter=lambda entry: entry["hit"],
+            time_key="hitTimeNS",
+            ns_per_clock=NS_PER_CLOCK,
+        )
+    record_timing(timing, timing_counts, "process_hits.select_calibrated_scifi", step_start)
+
+    step_start = time.perf_counter()
+    SciFi_hit_entries = [
+        entry
+        for entry in SciFi_hit_entries
+        if keep_hit_in_mc_time_window(args, entry["hit"], "hitTimeNS")
+    ]
+    SciFi_hits = [entry["hit"] for entry in SciFi_hit_entries]
+    MuFilter_hits = filter_late_mc_hits(args, MuFilter_hits, "hitTimeNS")
+    record_timing(timing, timing_counts, "process_hits.filter_late_mc_hits", step_start)
+
+    kept_scifi_times = [hit.get("hitTimeNS", INVALID_TIME) for hit in SciFi_hits]
+    kept_mufilter_times = [hit.get("hitTimeNS", INVALID_TIME) for hit in MuFilter_hits]
+    update_hit_time_debug(
+        hit_time_debug,
+        args,
+        branch_vars["eventIndex"][0],
+        branch_vars["eventId"][0],
+        time0_ns,
+        time0_applied,
+        raw_scifi_times,
+        raw_mufilter_times,
+        calibrated_scifi_times,
+        calibrated_mufilter_times,
+        kept_scifi_times,
+        kept_mufilter_times,
+    )
+
+    step_start = time.perf_counter()
+    selected_scifi_hits_for_density = [entry["raw"] for entry in SciFi_hit_entries]
+    dens, dens2, dver, dhor = getSumDensity(selected_scifi_hits_for_density, return_2ndhighest=True, return_hv=True)
+    branch_vars["density_sndsw_scifi"][0] = dens
+    branch_vars["density_sndsw_scifi_second"][0] = dens2
+    branch_vars["density_sndsw_scifi_ver"][0] = dver
+    branch_vars["density_sndsw_scifi_hor"][0] = dhor
+    record_timing(timing, timing_counts, "process_hits.sndsw_density", step_start)
     
     step_start = time.perf_counter()
     hitWeightDensity(SciFi_hits, branch_vars)
@@ -945,6 +1357,10 @@ def process_hits(args, event, snd_geo, branch_vars, timing=None, timing_counts=N
     step_start = time.perf_counter()
     process_scifi_topology_features(SciFi_hits, branch_vars)
     record_timing(timing, timing_counts, "process_hits.scifi_topology", step_start)
+
+    step_start = time.perf_counter()
+    process_hit_time_features(SciFi_hits, MuFilter_hits, branch_vars, time0_ns, time0_applied)
+    record_timing(timing, timing_counts, "process_hits.hit_time_features", step_start)
     
     step_start = time.perf_counter()
     fill_mycode_density(branch_vars)
@@ -963,19 +1379,46 @@ def process_hits(args, event, snd_geo, branch_vars, timing=None, timing_counts=N
 
 
 def main(args):
+    reco_track_schema = getattr(args, "reco_track_schema", FLAT_V1)
+    if not args.extract_reco_tracks and reco_track_schema != FLAT_V1:
+        raise ValueError(
+            "--reco-track-schema only applies when --extract-reco-tracks is enabled"
+        )
     print("start processing digi to features")
     job_start = time.perf_counter()
     timing = defaultdict(float)
     timing_counts = defaultdict(int)
+    hit_time_debug = make_hit_time_debug()
     
     step_start = time.perf_counter()
     snd_geo = setup_geometry(args.geo_path )
     record_timing(timing, timing_counts, "setup.geometry", step_start)
 
     step_start = time.perf_counter()
-    raw_data, raw_tree = open_root_file(args.digi_path)
-    preSelect_data, preSelect_tree = open_root_file(args.preSelect_path, tree_name='cutFlowSummary')
-    event_deltat_branch = setup_event_deltat_alias(preSelect_tree)
+    selection_mode = resolve_selection_mode(
+        args.type, getattr(args, "selection_mode", None)
+    )
+    direct_selection = selection_mode != EXTERNAL_CUTFLOW
+    if uses_external_cutflow(args.type, selection_mode) and not args.preSelect_path:
+        raise ValueError("--preSelectPath is required for external_cutflow mode")
+
+    raw_data, raw_tree = open_root_file(args.digi_path, tree_name=args.tree_name)
+    preSelect_data = None
+    preSelect_tree = None
+    event_deltat_branch = None
+    if not direct_selection:
+        preSelect_data, preSelect_tree = open_root_file(
+            args.preSelect_path, tree_name='cutFlowSummary'
+        )
+        event_deltat_branch = setup_event_deltat_alias(preSelect_tree)
+    else:
+        print(f"Using {selection_mode}: processing input-tree entries directly")
+    reco_track_branch_available = bool(raw_tree.GetBranch("Reco_MuonTracks"))
+    if args.extract_reco_tracks and not reco_track_branch_available:
+        raise RuntimeError(
+            "--extract-reco-tracks was requested, but input tree "
+            f"{args.tree_name!r} has no Reco_MuonTracks branch"
+        )
     record_timing(timing, timing_counts, "setup.open_files", step_start)
     
     step_start = time.perf_counter()
@@ -986,8 +1429,8 @@ def main(args):
 
 
     step_start = time.perf_counter()
-    selection = "SciFiMinHits == 1"
-    if "MC" not in args.type:
+    selection = None if direct_selection or skip_scifi_minhits_selection(args) else "SciFiMinHits == 1"
+    if not direct_selection and "MC" not in args.type:
         if not event_deltat_branch:
             raise RuntimeError("No EventDeltat cut branch found for real-data selection")
         data_selection = "StableBeams == 1 && IP1 == 1 && EventDeltat_m1_100 == 1"
@@ -1000,6 +1443,8 @@ def main(args):
     if selection:
         print(f"Applying selection: {selection}")
         n_match = preSelect_tree.GetEntries(selection)
+    elif direct_selection:
+        n_match = raw_tree.GetEntries()
     else:
         print("No selection applied")
         n_match = preSelect_tree.GetEntries()
@@ -1018,7 +1463,8 @@ def main(args):
         preSelect_tree.SetEntryList(elist)
     else:
         elist = ROOT.TEntryList("elist_all", "elist_all")
-        for j in range(preSelect_tree.GetEntries()):
+        entry_count = raw_tree.GetEntries() if direct_selection else preSelect_tree.GetEntries()
+        for j in range(entry_count):
             elist.Enter(j)
     record_timing(timing, timing_counts, "setup.selection", step_start)
 
@@ -1031,6 +1477,11 @@ def main(args):
         
         ("count_veto1", 'i'), ("count_veto2", 'i'), ("count_veto3", 'i'),  ("count_veto", 'i'), 
         ("count_scifi1", 'i'), ("count_scifi2", 'i'), ("count_scifi3", 'i'),("count_scifi4", 'i'), ("count_scifi5", 'i'), ("count_scifi", 'i'),
+        ("count_scifi1_x", 'i'), ("count_scifi1_y", 'i'),
+        ("count_scifi2_x", 'i'), ("count_scifi2_y", 'i'),
+        ("count_scifi3_x", 'i'), ("count_scifi3_y", 'i'),
+        ("count_scifi4_x", 'i'), ("count_scifi4_y", 'i'),
+        ("count_scifi5_x", 'i'), ("count_scifi5_y", 'i'),
         ("count_us1", 'i'), ("count_us2", 'i'), ("count_us3", 'i'),("count_us4", 'i'), ("count_us5", 'i'), ("count_us", 'i'),
         ("count_ds1", 'i'), ("count_ds2", 'i'), ("count_ds3", 'i'), ("count_ds4", 'i'),("count_ds", 'i'),
         
@@ -1087,6 +1538,13 @@ def main(args):
         ("scifi3_std_x", 'd'), ("scifi3_std_y", 'd'),
         ("scifi4_std_x", 'd'), ("scifi4_std_y", 'd'),
         ("scifi5_std_x", 'd'), ("scifi5_std_y", 'd'),
+
+        ("hitTime_time0_ns", 'd'), ("hitTime_time0_applied", 'i'),
+        ("hitTime_min_ns", 'd'), ("hitTime_max_ns", 'd'), ("hitTime_mean_ns", 'd'), ("hitTime_std_ns", 'd'), ("hitTime_range_ns", 'd'),
+        ("hitTime_scifi_min_ns", 'd'), ("hitTime_scifi_max_ns", 'd'), ("hitTime_scifi_mean_ns", 'd'), ("hitTime_scifi_std_ns", 'd'), ("hitTime_scifi_range_ns", 'd'),
+        ("hitTime_veto_min_ns", 'd'), ("hitTime_veto_max_ns", 'd'), ("hitTime_veto_mean_ns", 'd'), ("hitTime_veto_std_ns", 'd'), ("hitTime_veto_range_ns", 'd'),
+        ("hitTime_us_min_ns", 'd'), ("hitTime_us_max_ns", 'd'), ("hitTime_us_mean_ns", 'd'), ("hitTime_us_std_ns", 'd'), ("hitTime_us_range_ns", 'd'),
+        ("hitTime_ds_min_ns", 'd'), ("hitTime_ds_max_ns", 'd'), ("hitTime_ds_mean_ns", 'd'), ("hitTime_ds_std_ns", 'd'), ("hitTime_ds_range_ns", 'd'),
         
 
         ("vetoHitTime_earlist", 'd'), ("vetoHitTime_latest", 'd'),
@@ -1105,16 +1563,55 @@ def main(args):
 
     track_vector_branches = make_track_vector_branches()
     branch_vector_vars(new_tree, track_vector_branches)
+    hit_time_vector_branches = make_hit_time_vector_branches()
+    branch_vector_vars(new_tree, hit_time_vector_branches)
+    reco_track_scalar_branches = {}
+    reco_track_vector_branches = {}
+    if args.extract_reco_tracks:
+        reco_track_scalar_dtypes = scalar_dtypes_for_schema(reco_track_schema)
+        reco_track_vector_dtypes = vector_dtypes_for_schema(reco_track_schema)
+        for name, dtype in reco_track_scalar_dtypes.items():
+            initial = 0 if dtype == "i" else math.nan
+            reco_track_scalar_branches[name] = array.array(dtype, [initial])
+            root_dtype = "I" if dtype == "i" else "D"
+            new_tree.Branch(
+                name,
+                reco_track_scalar_branches[name],
+                f"{name}/{root_dtype}",
+            )
+        reco_track_vector_branches = {
+            name: ROOT.std.vector(dtype)()
+            for name, dtype in reco_track_vector_dtypes.items()
+        }
+        branch_vector_vars(new_tree, reco_track_vector_branches)
     record_timing(timing, timing_counts, "setup.branches", step_start)
 
     
     n_selected_entries = elist.GetN()
     n_written_entries = 0
     kept_cutflow_entries = ROOT.TEntryList("elist_kept", "elist_kept")
+    direct_cutflow = None
+    direct_cutflow_entry = None
+    direct_cutflow_marker = None
+    if direct_selection:
+        marker_name = "PassingMuonReco"
+        marker_title = "Passing-muon direct selection"
+        direct_cutflow = ROOT.TTree("cutFlowSummary", marker_title)
+        direct_cutflow_entry = array.array('q', [0])
+        direct_cutflow_marker = array.array('i', [1])
+        direct_cutflow.Branch("entry", direct_cutflow_entry, "entry/L")
+        direct_cutflow.Branch(marker_name, direct_cutflow_marker, f"{marker_name}/I")
     n_dropped_has_veto_has_us = 0
     for i in range(n_selected_entries):
         step_start = time.perf_counter()
         reset_vector_branches(track_vector_branches)
+        reset_vector_branches(hit_time_vector_branches)
+        if args.extract_reco_tracks:
+            reset_reco_track_buffers(
+                reco_track_scalar_branches,
+                reco_track_vector_branches,
+                reco_track_branch_available,
+            )
         if i % 10000 == 0:
             progress = 100.0 * i / n_selected_entries if n_selected_entries else 100.0
             print(f"processed {i}/{n_selected_entries} events ({progress:.2f}%)")
@@ -1124,13 +1621,17 @@ def main(args):
         record_timing(timing, timing_counts, "event.reset_branches", step_start)
 
         step_start = time.perf_counter()
-        cutflow_entry = elist.GetEntry(i)
-        preSelect_tree.GetEntry(cutflow_entry)
-
-        if hasattr(preSelect_tree, "entry"):
-            raw_entry = int(preSelect_tree.entry)
+        selected_entry = elist.GetEntry(i)
+        if direct_selection:
+            cutflow_entry = None
+            raw_entry = selected_entry
         else:
-            raw_entry = cutflow_entry
+            cutflow_entry = selected_entry
+            preSelect_tree.GetEntry(cutflow_entry)
+            if hasattr(preSelect_tree, "entry"):
+                raw_entry = int(preSelect_tree.entry)
+            else:
+                raw_entry = cutflow_entry
         record_timing(timing, timing_counts, "event.read_preselect", step_start)
 
         step_start = time.perf_counter()
@@ -1148,8 +1649,25 @@ def main(args):
             n_dropped_has_veto_has_us += 1
             continue
 
+        if args.extract_reco_tracks:
+            step_start = time.perf_counter()
+            fill_reco_track_buffers(
+                raw_tree.Reco_MuonTracks,
+                reco_track_scalar_branches,
+                reco_track_vector_branches,
+                schema=reco_track_schema,
+            )
+            record_timing(
+                timing, timing_counts, "event.reco_track_features", step_start
+            )
+
         step_start = time.perf_counter()
-        kept_cutflow_entries.Enter(cutflow_entry)
+        if direct_selection:
+            direct_cutflow_entry[0] = raw_entry
+            direct_cutflow_marker[0] = 1
+            direct_cutflow.Fill()
+        else:
+            kept_cutflow_entries.Enter(cutflow_entry)
         
         branch_vars["eventIndex"][0] = raw_entry
         branch_vars["runId"][0] = raw_tree.EventHeader.GetRunId()
@@ -1205,7 +1723,16 @@ def main(args):
             branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
             record_timing(timing, timing_counts, "event.real_metadata", step_start)
 
-        process_hits(args, raw_tree, snd_geo, branch_vars, timing, timing_counts)
+        process_hits(
+            args,
+            raw_tree,
+            snd_geo,
+            branch_vars,
+            timing,
+            timing_counts,
+            hit_time_debug,
+            hit_time_vector_branches,
+        )
         #if i>2:
         #    break
         step_start = time.perf_counter()
@@ -1218,14 +1745,31 @@ def main(args):
     record_timing(timing, timing_counts, "finalize.write_sndData", step_start)
 
     step_start = time.perf_counter()
-    if kept_cutflow_entries.GetN() > 0:
-        preSelect_tree.SetEntryList(kept_cutflow_entries)
-        cutflow_selected = preSelect_tree.CopyTree("")
+    if direct_selection:
+        direct_cutflow.Write()
     else:
-        preSelect_tree.SetEntryList(0)
-        cutflow_selected = preSelect_tree.CopyTree("0")
-    cutflow_selected.SetName("cutFlowSummary")
-    cutflow_selected.Write()
+        if kept_cutflow_entries.GetN() > 0:
+            preSelect_tree.SetEntryList(kept_cutflow_entries)
+            cutflow_selected = preSelect_tree.CopyTree("")
+        else:
+            preSelect_tree.SetEntryList(0)
+            cutflow_selected = preSelect_tree.CopyTree("0")
+        cutflow_selected.SetName("cutFlowSummary")
+        cutflow_selected.Write()
+    ROOT.TNamed(
+        "metadata_selection_mode",
+        selection_mode,
+    ).Write()
+    ROOT.TNamed("metadata_input_tree", str(args.tree_name)).Write()
+    ROOT.TNamed("metadata_external_cutflow_used", "0" if direct_selection else "1").Write()
+    ROOT.TNamed(
+        "metadata_reco_track_features",
+        reco_track_schema if args.extract_reco_tracks else "disabled",
+    ).Write()
+    ROOT.TNamed(
+        "metadata_reco_track_source_branch",
+        "Reco_MuonTracks" if args.extract_reco_tracks else "",
+    ).Write()
     record_timing(timing, timing_counts, "finalize.write_cutFlowSummary", step_start)
 
     step_start = time.perf_counter()
@@ -1243,21 +1787,51 @@ def main(args):
         n_selected_entries,
         n_written_entries,
     )
+    print_hit_time_debug_summary(hit_time_debug)
     print("finish processing digi to feature")
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("-p", "--preSelectPath", dest="preSelect_path", help="pre selection data file path", required=True)
+    parser.add_argument("-p", "--preSelectPath", dest="preSelect_path", help="pre selection data file path")
     parser.add_argument("-d", "--digiPath", dest="digi_path", help="digitized data file path", required=True)
     parser.add_argument("-g", "--geoPath", dest="geo_path", help="geo path", required=True)
     parser.add_argument("-o", "--outPath", dest="out_path", help="output path", required=True)
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
+    parser.add_argument("--tree-name", default="cbmsim", help="Input event-tree name (default: cbmsim)")
+    parser.add_argument(
+        "--selection-mode",
+        choices=SELECTION_MODES,
+        default=None,
+        help=(
+            "Selection source. Omit to preserve historical behavior: "
+            "passing_muon_real_data uses passing_muon_direct and other types "
+            "use external_cutflow."
+        ),
+    )
     parser.add_argument(
         "--drop-real-has-veto-has-us",
         dest="drop_real_has_veto_has_us",
         action="store_true",
         help="For real data, skip events with both valid veto and upstream MuFilter hits.",
+    )
+    parser.add_argument(
+        "--extract-reco-tracks",
+        action="store_true",
+        help=(
+            "Convert Reco_MuonTracks into flat per-track vectors, per-type counts, "
+            "and deterministic best-track scalar features."
+        ),
+    )
+    parser.add_argument(
+        "--reco-track-schema",
+        choices=RECO_TRACK_SCHEMAS,
+        default=FLAT_V1,
+        help=(
+            "Reconstructed-track output schema used with --extract-reco-tracks. "
+            "flat_v1 is the unchanged default; flat_v2 adds fitted measurement "
+            "points, detector IDs, and measured-plane summaries."
+        ),
     )
 
     args = parser.parse_args()

@@ -1,0 +1,155 @@
+version: passing_muon_region_study_v4
+run: 8329
+tree_name: sndData
+description: >-
+  Exhaustive veto-count, earliest-veto-time, and US-count region study inside
+  the validated run-8329 RealDataDQ population. PassingMuonReco and its exact
+  NoPassingMuonReco complement are selected with identical region expressions.
+
+groups:
+  passing: passing_muon_dq_run8329
+  missing: no_passing_muon_reco_run8329
+
+# The state field makes the physical count/time compatibility explicit. A
+# zero-veto event can only use veto_time_none; a positive-veto event can use
+# one of the three valid-time intervals. Invalid and negative times are audited
+# separately and are not silently called "no veto time".
+axes:
+  veto_count:
+    label: "Veto hit count region"
+    reference: veto_n0
+    categories:
+      veto_n0:
+        label: "No veto hits"
+        expression: "count_veto == 0"
+        state: none
+      veto_n1_2:
+        label: "1-2 veto hits"
+        expression: "count_veto >= 1 && count_veto < 3"
+        state: positive
+      veto_n3:
+        label: "3 veto hits"
+        expression: "count_veto == 3"
+        state: positive
+      veto_nge4:
+        label: ">=4 veto hits"
+        expression: "count_veto >= 4"
+        state: positive
+
+  veto_time:
+    label: "Earliest veto-hit time region"
+    reference: veto_time_none
+    categories:
+      veto_time_none:
+        label: "No veto hits / no veto time"
+        expression: "count_veto == 0"
+        state: none
+      veto_time_0_2:
+        label: "Earliest veto time [0,2] ns"
+        expression: >-
+          count_veto > 0 && std::isfinite(hitTime_veto_min_ns) &&
+          hitTime_veto_min_ns >= 0 && hitTime_veto_min_ns <= 2
+        state: positive
+      veto_time_gt2_lt7:
+        label: "Earliest veto time (2,7) ns"
+        expression: >-
+          count_veto > 0 && std::isfinite(hitTime_veto_min_ns) &&
+          hitTime_veto_min_ns > 2 && hitTime_veto_min_ns < 7
+        state: positive
+      veto_time_ge7:
+        label: "Earliest veto time >=7 ns"
+        expression: >-
+          count_veto > 0 && std::isfinite(hitTime_veto_min_ns) &&
+          hitTime_veto_min_ns >= 7
+        state: positive
+    audit_categories:
+      veto_time_invalid:
+        label: "Veto hits with invalid/missing time"
+        expression: >-
+          count_veto > 0 &&
+          (!std::isfinite(hitTime_veto_min_ns) || hitTime_veto_min_ns <= -900)
+      veto_time_negative:
+        label: "Veto hits with valid negative time"
+        expression: >-
+          count_veto > 0 && std::isfinite(hitTime_veto_min_ns) &&
+          hitTime_veto_min_ns > -900 && hitTime_veto_min_ns < 0
+
+  us_count:
+    label: "US hit count region"
+    reference: us_n0
+    categories:
+      us_n0:
+        label: "No US hits"
+        expression: "count_us == 0"
+      us_n1_4:
+        label: "1-4 US hits"
+        expression: "count_us >= 1 && count_us <= 4"
+      us_n5_7:
+        label: "5-7 US hits"
+        expression: "count_us >= 5 && count_us <= 7"
+      us_nge8:
+        label: ">=8 US hits"
+        expression: "count_us >= 8"
+
+joint_axes: [veto_count, veto_time, us_count]
+
+# All 40 physically compatible joint-region counts are stored. Full feature
+# histograms/PDFs are deliberately restricted to this configurable allowlist.
+selected_joint_regions:
+  - veto_n0__veto_time_none__us_n0
+  - veto_n0__veto_time_none__us_n1_4
+  - veto_n1_2__veto_time_0_2__us_n1_4
+  - veto_n3__veto_time_gt2_lt7__us_n5_7
+  - veto_nge4__veto_time_ge7__us_nge8
+
+# V4-only true spatial x-y maps. SciFi and DS stations each provide both
+# measured coordinates. Veto and US provide only one coordinate per station
+# in the current feature schema and are therefore intentionally excluded from
+# x-y maps rather than filled with an artificial coordinate.
+station_average_position_2d:
+  detectors:
+    scifi:
+      stations: [1, 2, 3, 4, 5]
+      feature_name: "avg_scifi{station}_x_vs_y"
+      x_expression: "avg_scifi{station}_x"
+      y_expression: "avg_scifi{station}_y"
+      x_bins: 100
+      x_min: -80
+      x_max: 20
+      y_bins: 80
+      y_min: 0
+      y_max: 80
+      x_title: "Average SciFi station {station} x [cm]"
+      y_title: "Average SciFi station {station} y [cm]"
+      logz: true
+      fold_x_underflow: false
+      fold_x_overflow: false
+      fold_y_underflow: false
+      fold_y_overflow: false
+    ds:
+      stations: [1, 2, 3, 4]
+      feature_name: "avg_ds{station}_x_vs_y"
+      x_expression: "avg_ds{station}_x"
+      y_expression: "avg_ds{station}_y"
+      x_bins: 75
+      x_min: -60
+      x_max: 15
+      y_bins: 85
+      y_min: -5
+      y_max: 80
+      x_title: "Average DS station {station} x [cm]"
+      y_title: "Average DS station {station} y [cm]"
+      logz: true
+      fold_x_underflow: false
+      fold_x_overflow: false
+      fold_y_underflow: false
+      fold_y_overflow: false
+
+expected:
+  real_data_dq: 11115982
+  passing_muon_dq: 11025227
+  no_passing_muon_reco: 90755
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_region_study_v4
+  plot_dir: evaluation_region_partitions/passing_muon_run8329_region_study_v4

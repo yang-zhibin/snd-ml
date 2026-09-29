@@ -1,0 +1,49 @@
+version: passing_muon_event_display_v4
+description: >-
+  Deterministic SNDSW event displays for the Run-8329 PassingMuonReco and
+  NoPassingMuonReco populations, divided by the four primary V4 veto-time
+  regions. Invalid and negative veto-time audit categories are intentionally
+  excluded because they do not all contain ten events.
+
+study_config: snakemake/metadata/configs/region_evaluation/passing_muon_region_study_v4.yaml
+reference_histogram: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_region_study_v4/histograms/regions.root
+
+input:
+  tree_name: sndData
+  partition_metadata: snakemake/metadata/region_partitions/passing_muon_track_partition_v2_passing_muon_track_comparison_region_v2.csv
+  missing_metadata: snakemake/metadata/updated/passing_muon_run8329_track_study_v3/no_passing_muon_reco_metadata_v3.csv
+  real_data_metadata: snakemake/metadata/updated/passing_muon_run8329_comparison_v2/real_data_dq_run8329_metadata.csv
+  event_tree_candidates: [cbmsim, rawConv]
+
+selection:
+  axis: veto_time
+  categories:
+    - veto_time_none
+    - veto_time_0_2
+    - veto_time_gt2_lt7
+    - veto_time_ge7
+
+sampling:
+  events_per_category: 10
+  reserve_factor: 2
+  mode: round_robin_sources
+  # Scan several independent partition files for diversity, then stop as soon
+  # as every veto-time category has a full reserve pool drawn from at least
+  # this many original Run-8329 source files.
+  minimum_partitions: 3
+  minimum_sources_per_category: 10
+
+annotations:
+  max_lines: 10
+
+display:
+  output_mode: vector_pdf
+  canvas_width: 1600
+  canvas_height: 1000
+  sndsw_display_script: ""
+
+output:
+  directory: evaluation_region_partitions/passing_muon_run8329_region_study_v4/event_display_veto_time
+  selected_manifest: selected_events.csv
+  category_counts: category_counts.csv
+  rendered_manifest: rendered_events.csv

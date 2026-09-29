@@ -62,6 +62,8 @@ def partition_from_filename(filepath):
 
 
 def classify_partition(partition):
+    if partition.startswith("passing_muon_real_data"):
+        return "passing_muon_real_data"
     if partition.startswith("real_data"):
         return "real_data"
 
@@ -269,6 +271,10 @@ def build_final_count_hists(args, grouped_counts):
 
     final_counts["data"] = clone_hist(grouped_counts["real_data"], "count_data")
 
+    if "passing_muon_real_data" in grouped_counts:
+        final_counts["passing_muon_real_data"] = clone_hist(
+            grouped_counts["passing_muon_real_data"], "count_passing_muon_real_data")
+
     kaon = combine_categories(grouped_counts, KAON_BINS, "count_MC_kaon", NutralHadScaleFactor = args.had_scale_factor)
     neutron = combine_categories(grouped_counts, NEUTRON_BINS, "count_MC_neutron", NutralHadScaleFactor = args.had_scale_factor)
 
@@ -408,6 +414,7 @@ def main(args):
 
     ordered_categories = [
         "data",
+        "passing_muon_real_data",
         "MC_kaon",
         "MC_neutron",
         "MC_CC_nue",

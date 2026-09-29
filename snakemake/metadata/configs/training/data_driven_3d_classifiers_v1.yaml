@@ -1,0 +1,27 @@
+container_image: /afs/cern.ch/work/z/zhibin/snd-ml/containers/releases/snd-ml-training-eca898623c12ae80.sif
+container_sha256: /afs/cern.ch/work/z/zhibin/snd-ml/containers/releases/snd-ml-training-eca898623c12ae80.sif.sha256
+output_root: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/outputs/data_driven_3d_classifiers_v1
+models:
+  pyg_gravnet: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/configs/classifier_pyg_gravnet_v1.yaml
+  sparse_resnet: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/configs/classifier_sparse_resnet_v1.yaml
+  native_scifi_gravnet: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/configs/classifier_native_scifi_gravnet_v1.yaml
+  two_view_sparse_resnet: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/configs/classifier_two_view_sparse_resnet_v1.yaml
+folds: [0, 1, 2, 3, 4]
+evaluation_shards: 20
+resources:
+  train:
+    cpus: 4
+    memory_mb: 16000
+    disk_mb: 10000
+    runtime_seconds: 86400
+    minimum_gpu_capability: 7.0
+  evaluate:
+    cpus: 4
+    memory_mb: 12000
+    disk_mb: 5000
+    runtime_seconds: 7200
+  merge:
+    cpus: 1
+    memory_mb: 4000
+    disk_mb: 5000
+    runtime_seconds: 1800

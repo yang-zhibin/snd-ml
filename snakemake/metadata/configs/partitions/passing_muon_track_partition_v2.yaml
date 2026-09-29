@@ -1,0 +1,25 @@
+partition_version: passing_muon_track_partition_v2
+region_version: passing_muon_track_comparison_region_v2
+description: Paired run-8329 real-data-DQ and DQ-intersected PassingMuonReco partitions.
+run: 8329
+n_partitions: 20
+tree_name: sndData
+region: all_events
+groups:
+  real_data_dq_run8329:
+    metadata_kind: real_dq
+    particle_id: 0
+    particle_family: real_data
+  passing_muon_dq_run8329:
+    metadata_kind: passing_dq
+    particle_id: 9
+    particle_family: passing_muon
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/passing_muon_track_partitions/passing_muon_track_partition_v2/passing_muon_track_comparison_region_v2
+  metadata_csv: snakemake/metadata/region_partitions/passing_muon_track_partition_v2_passing_muon_track_comparison_region_v2.csv
+  validation_csv: snakemake/metadata/region_partitions/passing_muon_track_partition_v2_passing_muon_track_comparison_region_v2_validation.csv
+  compression_level: 1
+  rdf_threads: 4
+expected:
+  luminosity_fb: 0.5323492746290897
+  luminosity_tolerance_fb: 1.0e-12

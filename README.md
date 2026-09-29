@@ -1,5 +1,15 @@
 # Machine Learning for SND
 
+## Passing-muon detector-ID transformation
+
+The accepted Run 8329 side-entering muon-background transformation is version
+4. Its definition, detector-view mapping, gap treatment, validation contract,
+limitations, outputs, and commands are documented in
+[`document/PASSING_MUON_DETID_TRANSFORM_METHOD.md`](document/PASSING_MUON_DETID_TRANSFORM_METHOD.md).
+
+The v2/v3 products are development history, and v5 is an experimental
+comparison; none should be substituted for the accepted v4 method.
+
 
 ## How to run snakemake
 ### Local

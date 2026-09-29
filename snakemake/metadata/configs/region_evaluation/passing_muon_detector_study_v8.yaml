@@ -1,0 +1,25 @@
+version: passing_muon_detector_study_v8
+base_config: passing_muon_binary_region_study_v7.yaml
+run: 8329
+data:
+  year: 2024
+  label: "Run 8329 RealDataDQ"
+selection:
+  key: passing_muon
+  label: "Passing-muon selection"
+  base_working_point: coverage_loose
+  veto_present_expression: count_veto > 0
+  signal_region_expression: count_veto == 0
+populations:
+  passing_muon_candidate:
+    label: "Passing-muon candidate"
+  muon_dis_candidate:
+    label: "Muon-DIS candidate"
+  signal_region:
+    label: "Signal region (no Veto hits)"
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_study_v8
+  plot_dir: evaluation_region_partitions/passing_muon_run8329_detector_study_v8
+  histogram: histograms/passing_muon_detector_study_v8.root
+  passing_muon_pdf: passing_muon_selection.pdf
+  signal_region_pdf: signal_region.pdf

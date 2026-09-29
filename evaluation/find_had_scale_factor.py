@@ -86,6 +86,8 @@ def partition_from_filename(filepath):
 
 
 def classify_partition(partition):
+    if partition.startswith("passing_muon_real_data"):
+        return "passing_muon_real_data"
     if partition.startswith("real_data"):
         return "real_data"
 

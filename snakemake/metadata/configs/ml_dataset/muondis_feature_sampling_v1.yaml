@@ -1,0 +1,7 @@
+version: muondis_feature_sampling_v1
+feature_tree: sndData
+training_config: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/configs/classifier_pyg_gravnet_v1.yaml
+hist_config: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/configs/region_evaluation/passing_muon_run8329_hist_v2.yaml
+region_config: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/configs/region_evaluation/passing_muon_binary_region_study_v7.yaml
+folds: [0]
+epochs: [0]

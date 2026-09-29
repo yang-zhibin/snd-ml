@@ -1,0 +1,19 @@
+version: passing_muon_run8329_eval_v2
+tree_name: sndData
+groups:
+  denominator: real_data_dq_run8329
+  numerator: passing_muon_dq_run8329
+selections:
+  none: "true"
+  scifi_gt_35: "count_scifi > 35"
+  no_veto: "count_veto == 0"
+  has_veto: "count_veto > 0"
+  no_us: "count_us == 0"
+  has_us: "count_us > 0"
+statistics:
+  require_subset: true
+  interval: clopper_pearson
+  confidence_level: 0.682689492137
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_v2
+  plot_dir: evaluation_region_partitions/passing_muon_run8329_v2

@@ -117,6 +117,11 @@ def process_file_stepwise(root_path, tree_name, cut_groups, is_mc=False):
 
 
 def parse_partition(partition: str) -> PartitionInfo:
+    m = re.fullmatch(r"passing_muon_real_data_(\d{4})(?:_Max(\d+)-(\d+))?", partition)
+    if m:
+        return PartitionInfo(raw=partition, is_mc=False, category="passing_muon_real_data",
+            year=int(m.group(1)), max_partitions=int(m.group(2)) if m.group(2) else None,
+            partition_id=int(m.group(3)) if m.group(3) else None)
     # real data with explicit partitioning:
     # real_data_2024_Max20-1
     m = re.fullmatch(r"real_data_(\d{4})_Max(\d+)-(\d+)", partition)
@@ -200,6 +205,8 @@ def parse_partition(partition: str) -> PartitionInfo:
 def resolve_metadata_csv(info: PartitionInfo, metadata_dir: Union[str, Path]) -> Path:
     metadata_dir = Path(metadata_dir)
 
+    if info.category == "passing_muon_real_data":
+        return metadata_dir / f"passing_muon_real_data_{info.year}_metadata.csv"
     if not info.is_mc:
         filename = f"real_data_{info.year}_skim_runs_metadata.csv"
         return metadata_dir / filename
@@ -285,6 +292,20 @@ def filter_metadata_rows(df: pd.DataFrame, info: PartitionInfo) -> pd.DataFrame:
         keep all rows
     """
     selected = df
+
+    if info.category == "passing_muon_real_data":
+        if info.partition_id is None and info.max_partitions is None:
+            return df.reset_index(drop=True)
+        if info.partition_id is None or info.max_partitions is None:
+            raise ValueError(f"Incomplete partitioning info in {info.raw}")
+        if "lumi_per_file" not in df.columns:
+            raise KeyError("lumi_per_file is required for exposure-balanced partitions")
+        groups, totals = [[] for _ in range(info.max_partitions)], [0.0] * info.max_partitions
+        for index in df.sort_values("lumi_per_file", ascending=False, kind="stable").index:
+            target = min(range(info.max_partitions), key=lambda part: (totals[part], part))
+            groups[target].append(index)
+            totals[target] += float(df.at[index, "lumi_per_file"])
+        return df.loc[groups[info.partition_id - 1]].sort_index().reset_index(drop=True)
 
     # Real data: split directly
     if not info.is_mc:

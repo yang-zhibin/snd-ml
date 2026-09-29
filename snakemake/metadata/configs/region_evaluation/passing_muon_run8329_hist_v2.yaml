@@ -1,0 +1,269 @@
+version: passing_muon_run8329_hist_v2
+defaults: {fold_underflow: true, fold_overflow: true}
+definitions:
+  veto_time_for_plot: "count_veto == 0 ? -1.0 : hitTime_veto_min_ns"
+  veto_time_available: >-
+    count_veto == 0 ||
+    (count_veto > 0 && std::isfinite(hitTime_veto_min_ns) && hitTime_veto_min_ns > -900)
+features:
+  count_veto: {dimension: 1, expression: count_veto, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "Veto hit count", logy: true}
+  qdc_veto: {dimension: 1, expression: qdc_veto, x_min: 0, x_max: 6000, n_bins: 120, axis_title: "Veto QDC", logy: true}
+  hitTime_veto_min_ns: {dimension: 1, expression: hitTime_veto_min_ns, x_min: -0.625, x_max: 30.125, n_bins: 123, axis_title: "Earliest valid veto-hit time [ns]", logy: false, feature_cut: "count_veto > 0 && std::isfinite(hitTime_veto_min_ns) && hitTime_veto_min_ns > -900"}
+  count_scifi: {dimension: 1, expression: count_scifi, x_min: -0.5, x_max: 800.5, n_bins: 801, axis_title: "SciFi hit count", logy: true}
+  qdc_scifi: {dimension: 1, expression: qdc_scifi, x_min: 0, x_max: 30000, n_bins: 200, axis_title: "SciFi QDC (overflow in final bin)", logy: true}
+  density_sndsw_scifi: {dimension: 1, expression: density_sndsw_scifi, x_min: 0, x_max: 40000, n_bins: 160, axis_title: "SciFi density", logy: true}
+  avg_scifi_x: {dimension: 1, expression: avg_scifi_x, feature_cut: "std::isfinite(avg_scifi_x) && avg_scifi_x > -900", x_min: -80, x_max: 20, n_bins: 100, axis_title: "Average SciFi x [cm]", fold_underflow: false, fold_overflow: false, logy: true}
+  avg_scifi_y: {dimension: 1, expression: avg_scifi_y, feature_cut: "std::isfinite(avg_scifi_y) && avg_scifi_y > -900", x_min: 0, x_max: 80, n_bins: 80, axis_title: "Average SciFi y [cm]", fold_underflow: false, fold_overflow: false, logy: true}
+  qdcAvg_scifi_x: {dimension: 1, expression: qdcAvg_scifi_x, feature_cut: "std::isfinite(qdcAvg_scifi_x) && qdcAvg_scifi_x > -900", x_min: -80, x_max: 20, n_bins: 100, axis_title: "QDC-weighted SciFi x [cm]", fold_underflow: false, fold_overflow: false, logy: true}
+  qdcAvg_scifi_y: {dimension: 1, expression: qdcAvg_scifi_y, feature_cut: "std::isfinite(qdcAvg_scifi_y) && qdcAvg_scifi_y > -900", x_min: 0, x_max: 80, n_bins: 80, axis_title: "QDC-weighted SciFi y [cm]", fold_underflow: false, fold_overflow: false, logy: true}
+  count_us: {dimension: 1, expression: count_us, x_min: -0.5, x_max: 60.5, n_bins: 61, axis_title: "US hit count", logy: true}
+  qdc_us: {dimension: 1, expression: qdc_us, x_min: 0, x_max: 20000, n_bins: 200, axis_title: "US QDC", logy: true}
+  count_ds: {dimension: 1, expression: count_ds, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "DS hit count", logy: true}
+  qdc_ds: {dimension: 1, expression: qdc_ds, x_min: 0, x_max: 10000, n_bins: 100, axis_title: "DS QDC", logy: true}
+
+  # Region-V2 veto-inspection features. The inclusive veto-time view reserves
+  # -1 ns for events with no veto hit, matching veto_inspection_v1.
+  veto_earliest_time_inclusive:
+    dimension: 1
+    expression: veto_time_for_plot
+    feature_cut: veto_time_available
+    x_min: -1.125
+    x_max: 30.125
+    n_bins: 125
+    axis_title: "Earliest veto-hit time [ns] (-1 ns = no veto hit)"
+    fold_underflow: false
+    fold_overflow: true
+    logy: true
+
+  veto_time_vs_count:
+    dimension: 2
+    x_expression: veto_time_for_plot
+    y_expression: count_veto
+    feature_cut: veto_time_available
+    x_bins: 125
+    x_min: -1.125
+    x_max: 30.125
+    y_bins: 31
+    y_min: -0.5
+    y_max: 30.5
+    x_title: "Earliest veto-hit time [ns] (-1 ns = no veto hit)"
+    y_title: "Veto hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  veto_time_vs_scifi_count:
+    dimension: 2
+    x_expression: veto_time_for_plot
+    y_expression: count_scifi
+    feature_cut: veto_time_available
+    x_bins: 125
+    x_min: -1.125
+    x_max: 30.125
+    y_bins: 80
+    y_min: -0.5
+    y_max: 799.5
+    x_title: "Earliest veto-hit time [ns] (-1 ns = no veto hit)"
+    y_title: "SciFi hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  veto_time_vs_scifi_density:
+    dimension: 2
+    x_expression: veto_time_for_plot
+    y_expression: density_sndsw_scifi
+    feature_cut: veto_time_available
+    x_bins: 125
+    x_min: -1.125
+    x_max: 30.125
+    y_bins: 80
+    y_min: 0
+    y_max: 40000
+    x_title: "Earliest veto-hit time [ns] (-1 ns = no veto hit)"
+    y_title: "SciFi density (SNDSW)"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  veto_count_vs_scifi_count:
+    dimension: 2
+    x_expression: count_veto
+    y_expression: count_scifi
+    x_bins: 31
+    x_min: -0.5
+    x_max: 30.5
+    y_bins: 80
+    y_min: -0.5
+    y_max: 799.5
+    x_title: "Veto hit count"
+    y_title: "SciFi hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  veto_count_vs_scifi_density:
+    dimension: 2
+    x_expression: count_veto
+    y_expression: density_sndsw_scifi
+    x_bins: 31
+    x_min: -0.5
+    x_max: 30.5
+    y_bins: 80
+    y_min: 0
+    y_max: 40000
+    x_title: "Veto hit count"
+    y_title: "SciFi density (SNDSW)"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  # Pairwise combinations of veto count, inclusive earliest veto time, US
+  # count, and DS count. veto_time_vs_count above is the sixth unique pair.
+  veto_count_vs_us_count:
+    dimension: 2
+    x_expression: count_veto
+    y_expression: count_us
+    x_bins: 31
+    x_min: -0.5
+    x_max: 30.5
+    y_bins: 61
+    y_min: -0.5
+    y_max: 60.5
+    x_title: "Veto hit count"
+    y_title: "US hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  veto_count_vs_ds_count:
+    dimension: 2
+    x_expression: count_veto
+    y_expression: count_ds
+    x_bins: 31
+    x_min: -0.5
+    x_max: 30.5
+    y_bins: 41
+    y_min: -0.5
+    y_max: 40.5
+    x_title: "Veto hit count"
+    y_title: "DS hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  veto_time_vs_us_count:
+    dimension: 2
+    x_expression: veto_time_for_plot
+    y_expression: count_us
+    feature_cut: veto_time_available
+    x_bins: 125
+    x_min: -1.125
+    x_max: 30.125
+    y_bins: 61
+    y_min: -0.5
+    y_max: 60.5
+    x_title: "Earliest veto-hit time [ns] (-1 ns = no veto hit)"
+    y_title: "US hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  veto_time_vs_ds_count:
+    dimension: 2
+    x_expression: veto_time_for_plot
+    y_expression: count_ds
+    feature_cut: veto_time_available
+    x_bins: 125
+    x_min: -1.125
+    x_max: 30.125
+    y_bins: 41
+    y_min: -0.5
+    y_max: 40.5
+    x_title: "Earliest veto-hit time [ns] (-1 ns = no veto hit)"
+    y_title: "DS hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  us_count_vs_ds_count:
+    dimension: 2
+    x_expression: count_us
+    y_expression: count_ds
+    x_bins: 61
+    x_min: -0.5
+    x_max: 60.5
+    y_bins: 41
+    y_min: -0.5
+    y_max: 40.5
+    x_title: "US hit count"
+    y_title: "DS hit count"
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    logz: true
+
+  scifi_x_vs_y:
+    dimension: 2
+    x_expression: avg_scifi_x
+    y_expression: avg_scifi_y
+    feature_cut: >-
+      std::isfinite(avg_scifi_x) &&
+      std::isfinite(avg_scifi_y) &&
+      avg_scifi_x > -900 &&
+      avg_scifi_y > -900
+    x_bins: 100
+    x_min: -80
+    x_max: 20
+    y_bins: 80
+    y_min: 0
+    y_max: 80
+    x_title: "Average SciFi x [cm]"
+    y_title: "Average SciFi y [cm]"
+    fold_x_underflow: false
+    fold_x_overflow: false
+    fold_y_underflow: false
+    fold_y_overflow: false
+    logz: true
+
+  qdc_weighted_scifi_x_vs_y:
+    dimension: 2
+    x_expression: qdcAvg_scifi_x
+    y_expression: qdcAvg_scifi_y
+    feature_cut: >-
+      std::isfinite(qdcAvg_scifi_x) &&
+      std::isfinite(qdcAvg_scifi_y) &&
+      qdcAvg_scifi_x > -900 &&
+      qdcAvg_scifi_y > -900
+    x_bins: 100
+    x_min: -80
+    x_max: 20
+    y_bins: 80
+    y_min: 0
+    y_max: 80
+    x_title: "QDC-weighted SciFi x [cm]"
+    y_title: "QDC-weighted SciFi y [cm]"
+    fold_x_underflow: false
+    fold_x_overflow: false
+    fold_y_underflow: false
+    fold_y_overflow: false
+    logz: true

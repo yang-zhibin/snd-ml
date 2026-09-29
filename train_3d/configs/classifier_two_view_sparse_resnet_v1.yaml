@@ -1,0 +1,74 @@
+model_version: two_view_sparse_resnet_v1
+task: classification
+dataset_version: data_driven_3d_cnn_v1
+num_classes: 7
+class_names: [CC_numu, CC_nue, NC, neutral_kaon, neutron, passing_muon, muon_DIS]
+excluded_classes: [CC_nutau]
+
+data:
+  fold_views: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/ml_dataset/data_driven_3d_cnn_v1/five_fold_train_validation_views.csv
+  validation_report: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/ml_dataset/data_driven_3d_cnn_v1/validation_report.json
+  scifi_metadata_root: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/metadata/scifi_native_hits_metadata_v1
+  metadata_local_cache: auto
+  cv_fold: 0
+  n_folds: 5
+  epoch_size: 100000
+  class_probabilities: uniform
+  domain_probabilities: null
+  muondis_density_probabilities: uniform
+  validation_sampling: natural
+  allowed_detector_types: [1]
+  raw_input_fields: [scifi_native_station, scifi_native_orientation, scifi_native_channel, scifi_native_det_id, scifi_native_x, scifi_native_y, scifi_native_z, scifi_native_qdc, scifi_native_time_ns]
+  tree_name: hit3D
+  reader_backend: pyroot
+  max_open_files: 8
+  num_workers: 4
+  persistent_workers: true
+  prefetch_factor: 2
+  pin_memory: true
+  max_events_per_batch: 32
+  max_nodes_per_batch: 20000
+
+representation:
+  version: scifi_two_view_detector_grid_v1
+  metadata_version: scifi_native_hits_v1
+  coordinates: [station_index, channel]
+  qdc_transform: log1p
+  collision_reduction: qdc_sum_then_log1p_and_occupancy
+  include_station: false
+  include_occupancy_as_input: true
+  include_time: false
+
+model:
+  family: two_view_sparse_resnet
+  in_channels: 2
+  channels: [32, 64, 128, 256]
+  dimension: 2
+  independent_view_encoders: true
+  pooling: mean_max
+  dropout: 0.1
+
+optim: {lr: 0.0003, weight_decay: 0.0001}
+objective: {name: cross_entropy, class_weights: null}
+trainer:
+  max_epochs: 50
+  accelerator: gpu
+  devices: 1
+  precision: 32-true
+  accumulate_grad_batches: 1
+  log_every_n_steps: 20
+checkpoint: {monitor: val/macro_f1, mode: max, save_top_k: 1, save_last: true}
+early_stopping: {patience: 10}
+wandb:
+  project: snd-ml-data-driven-3d
+  entity: null
+  group: two_view_sparse_resnet_v1
+  job_type: train
+  mode: disabled
+  save_dir: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/wandb_logs
+  log_model: true
+  watch_model: false
+  prediction_table_max_rows: 2000
+  diagnostic_table_every_n_epochs: 5
+  tags: [data_driven_3d_cnn_v1, seven_class, scifi_two_view_detector_grid_v1, sparse_resnet]
+runtime: {seed: 42}

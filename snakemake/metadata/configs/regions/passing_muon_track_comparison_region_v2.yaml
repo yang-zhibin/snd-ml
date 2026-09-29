@@ -1,0 +1,9 @@
+region_version: passing_muon_track_comparison_region_v2
+description: No-cut region for paired run-8329 inclusive/passing evaluation.
+regions:
+  all_events:
+    priority: 1
+    category: comparison
+    process_default: true
+    expression: "true"
+expression_macros: {}

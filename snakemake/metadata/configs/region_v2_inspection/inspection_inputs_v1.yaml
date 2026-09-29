@@ -1,0 +1,58 @@
+version: region_v2_inspection_v1
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/region_v2_inspection_inputs
+  tree_name: sndData
+  compression_level: 1
+target_luminosity:
+  source_dataset: real_data_run009715
+  expected_fb: 0.6102
+  tolerance_fb: 1.0e-6
+datasets:
+  real_data_run009715:
+    data_type: real_data
+    metadata_csv: snakemake/metadata/updated/real_data_2024_skim_runs_metadata.csv
+    selection_mode: preselected_data_direct
+    metadata_filter: {partition: run_009715}
+    event_selection: "true"
+    particle_filter: "true"
+    mc_fraction: 1.0
+    output_file: real_data_run009715.root
+    selected_runs: "9715"
+    normalization_note: "Input feature files already apply StableBeams, IP1, and EventDeltat during digi-to-feature production; inspection consolidation applies no additional event filter."
+  passing_muon_data_run008329:
+    data_type: passing_muon_real_data
+    metadata_csv: snakemake/metadata/updated/passing_muon_real_data_2024_metadata.csv
+    selection_mode: passing_muon_direct
+    metadata_filter: {run: 8329}
+    event_selection: "true"
+    particle_filter: "true"
+    mc_fraction: 1.0
+    output_file: passing_muon_data_run008329.root
+    selected_runs: "8329"
+    normalization_note: "Muon-enriched reference; do not stack on inclusive data. lumi_per_file already includes the passing-muon scale factor. Upstream: PassingMuonReco; feature production excluded count_veto > 0 && count_us > 0."
+  CC_nue_EventBuilder_first10pct: &ve_cc
+    data_type: MC_neutrino_ve_EventBuilder
+    metadata_csv: snakemake/metadata/updated/MC_neutrino_2024_ve_EventBuilder_metadata.csv
+    selection_mode: eventbuilder_truth_filter
+    row_selection: {method: first_fraction, fraction: 0.10, rounding: ceil}
+    event_selection: "true"
+    particle_filter: "abs(pdgCode) == 12"
+    mc_fraction: 0.10
+    output_file: CC_nue_EventBuilder_first10pct.root
+  NC_nue_EventBuilder_first10pct:
+    <<: *ve_cc
+    particle_filter: "abs(pdgCode) == 112"
+    output_file: NC_nue_EventBuilder_first10pct.root
+  CC_numu_EventBuilder_first10pct: &vm_cc
+    data_type: MC_neutrino_vm_EventBuilder
+    metadata_csv: snakemake/metadata/updated/MC_neutrino_2024_vm_EventBuilder_metadata.csv
+    selection_mode: eventbuilder_truth_filter
+    row_selection: {method: first_fraction, fraction: 0.10, rounding: ceil}
+    event_selection: "true"
+    particle_filter: "abs(pdgCode) == 14"
+    mc_fraction: 0.10
+    output_file: CC_numu_EventBuilder_first10pct.root
+  NC_numu_EventBuilder_first10pct:
+    <<: *vm_cc
+    particle_filter: "abs(pdgCode) == 114"
+    output_file: NC_numu_EventBuilder_first10pct.root

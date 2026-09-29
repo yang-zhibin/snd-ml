@@ -1,0 +1,565 @@
+version: passing_muon_detector_selection_study_v7
+run: 8329
+tree_name: sndData
+description: >-
+  V7 preserves the V6 detector-only Run-8329/pooled-MC comparison and adds a
+  separate, DQ-intersected flat-v2 PassingMuonReco diagnostic report. Track
+  information is diagnostic only and never enters a detector working point.
+
+groups:
+  real_data: real_data_dq_run8329
+
+mc_muon_up:
+  source_metadata: snakemake/metadata/updated/MC_muon_up_metadata.csv
+  subfolder: up
+  expected_source_files: 15
+  metadata_csv: snakemake/metadata/updated/passing_muon_run8329_detector_selection_study_v7/mc_muon_up_metadata_v7_counts.csv
+  validation_csv: snakemake/metadata/updated/passing_muon_run8329_detector_selection_study_v7/mc_muon_up_validation_v7_counts.csv
+  productions:
+    scoring_1p8:
+      source_partition: scoring_1.8
+      group: mc_muon_up_scoring_1p8
+      label: "MC muon up, scoring 1.8"
+    scoring_2:
+      source_partition: scoring_2
+      group: mc_muon_up_scoring_2
+      label: "MC muon up, scoring 2"
+    scoring_2p5:
+      source_partition: scoring_2.5
+      group: mc_muon_up_scoring_2p5
+      label: "MC muon up, scoring 2.5"
+    scoring_at449m:
+      source_partition: scoring_at449m
+      group: mc_muon_up_scoring_at449m
+      label: "MC muon up, scoring at 449 m"
+  aggregate:
+    key: all
+    label: "All MC muon up (unweighted event sum)"
+    mode: unweighted_event_sum
+    selections: [coverage_loose, coverage_tight]
+  baseline_expression: >-
+    std::abs(pdgCode) == 13 &&
+    (count_veto + count_scifi + count_us + count_ds) > 0
+  note: >-
+    The four productions are concatenated without luminosity weights. The
+    aggregate is diagnostic, not a physics-rate prediction. Reconstructed
+    tracks are unavailable for these MC inputs.
+
+derived_columns:
+  has_all_veto: >-
+    count_veto1 > 0 && count_veto2 > 0 && count_veto3 > 0
+  has_all_us: >-
+    count_us1 > 0 && count_us2 > 0 && count_us3 > 0 &&
+    count_us4 > 0 && count_us5 > 0
+  n_active_ds: >-
+    int(count_ds1 > 0) + int(count_ds2 > 0) +
+    int(count_ds3 > 0) + int(count_ds4 > 0)
+
+coverage_working_points:
+  coverage_loose:
+    label: "Loose low-multiplicity through-going topology"
+    scifi_min_active_xy_stations: 5
+    ds_min_active_stations: 4
+    scifi_max_hits_per_station_exclusive: 20
+    veto_max_hits_per_station_inclusive: 2
+    veto_max_hits_total_inclusive: 4
+    us_max_hits_per_station_inclusive: 2
+    us_max_hits_total_inclusive: 6
+  coverage_tight:
+    label: "Tight low-multiplicity through-going topology (V5)"
+    scifi_min_active_xy_stations: 5
+    ds_min_active_stations: 4
+    scifi_max_hits_per_station_exclusive: 10
+    veto_max_hits_per_station_exclusive: 2
+    us_max_hits_per_station_exclusive: 2
+
+selection_working_points: {}
+multiplicity_scans: {}
+
+diagnostic_features:
+  count_veto1: {dimension: 1, expression: count_veto1, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "Veto station 1 hit count", logy: true}
+  count_veto2: {dimension: 1, expression: count_veto2, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "Veto station 2 hit count", logy: true}
+  count_veto3: {dimension: 1, expression: count_veto3, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "Veto station 3 hit count", logy: true}
+  count_scifi1: {dimension: 1, expression: count_scifi1, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 1 hit count (X+Y)", logy: true}
+  count_scifi2: {dimension: 1, expression: count_scifi2, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 2 hit count (X+Y)", logy: true}
+  count_scifi3: {dimension: 1, expression: count_scifi3, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 3 hit count (X+Y)", logy: true}
+  count_scifi4: {dimension: 1, expression: count_scifi4, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 4 hit count (X+Y)", logy: true}
+  count_scifi5: {dimension: 1, expression: count_scifi5, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi station 5 hit count (X+Y)", logy: true}
+  count_us1: {dimension: 1, expression: count_us1, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 1 hit count", logy: true}
+  count_us2: {dimension: 1, expression: count_us2, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 2 hit count", logy: true}
+  count_us3: {dimension: 1, expression: count_us3, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 3 hit count", logy: true}
+  count_us4: {dimension: 1, expression: count_us4, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 4 hit count", logy: true}
+  count_us5: {dimension: 1, expression: count_us5, x_min: -0.5, x_max: 15.5, n_bins: 16, axis_title: "US station 5 hit count", logy: true}
+  count_ds1: {dimension: 1, expression: count_ds1, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "DS station 1 hit count", logy: true}
+  count_ds2: {dimension: 1, expression: count_ds2, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "DS station 2 hit count", logy: true}
+  count_ds3: {dimension: 1, expression: count_ds3, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "DS station 3 hit count", logy: true}
+  count_ds4: {dimension: 1, expression: count_ds4, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "DS station 4 hit count", logy: true}
+  scifi_n_active_stations_xy: {dimension: 1, expression: scifi_n_active_stations_xy, x_min: -0.5, x_max: 5.5, n_bins: 6, axis_title: "SciFi stations with X and Y activity", logy: true}
+  ds_n_active_stations: {dimension: 1, expression: n_active_ds, x_min: -0.5, x_max: 4.5, n_bins: 5, axis_title: "Active DS stations", logy: true}
+
+count_diagnostics:
+  description: >-
+    Raw data event counts and detector-family N-minus-one populations. These
+    are data-only diagnostics; pooled MC has no comparable absolute exposure.
+  overview_features: [count_veto, count_scifi, count_us, count_ds]
+  extra_features:
+    veto_n_active_planes:
+      dimension: 1
+      expression: >-
+        int(count_veto1 > 0) + int(count_veto2 > 0) + int(count_veto3 > 0)
+      x_min: -0.5
+      x_max: 3.5
+      n_bins: 4
+      axis_title: "Active Veto planes"
+      logy: true
+    veto_excess_measurements:
+      dimension: 1
+      expression: >-
+        count_veto - int(count_veto1 > 0) - int(count_veto2 > 0) -
+        int(count_veto3 > 0)
+      x_min: -0.5
+      x_max: 27.5
+      n_bins: 28
+      axis_title: "Veto measurements beyond one per active plane"
+      logy: true
+  detector_families:
+    veto:
+      label: "Veto"
+      features:
+        [count_veto1, count_veto2, count_veto3, count_veto,
+         veto_n_active_planes, veto_excess_measurements]
+      remove_components:
+        coverage_loose:
+          [all_veto_stations, veto_station_multiplicity,
+           veto_total_multiplicity]
+        coverage_tight: [all_veto_stations, veto_station_multiplicity]
+    scifi:
+      label: "SciFi"
+      features:
+        [count_scifi1, count_scifi2, count_scifi3, count_scifi4,
+         count_scifi5, count_scifi]
+      remove_components:
+        coverage_loose:
+          [scifi_xy_station_coverage, scifi_station_multiplicity]
+        coverage_tight:
+          [scifi_xy_station_coverage, scifi_station_multiplicity]
+    us:
+      label: "Upstream MuFilter"
+      features: [count_us1, count_us2, count_us3, count_us4, count_us5, count_us]
+      remove_components:
+        coverage_loose:
+          [all_us_stations, us_station_multiplicity, us_total_multiplicity]
+        coverage_tight: [all_us_stations, us_station_multiplicity]
+    ds:
+      label: "Downstream MuFilter"
+      features: [count_ds1, count_ds2, count_ds3, count_ds4, count_ds, ds_n_active_stations]
+      remove_components:
+        coverage_loose: [ds_station_coverage]
+        coverage_tight: [ds_station_coverage]
+
+reco_track_diagnostics:
+  required_schema: flat_v2
+  input_group: passing_muon_dq_run8329_flat_v2
+  defaults: {fold_underflow: true, fold_overflow: true}
+  track_types:
+    scifi_simple: {prefix: reco_scifi_simple, label: "Simple SciFi"}
+    ds_simple: {prefix: reco_ds_simple, label: "Simple downstream"}
+    scifi_hough: {prefix: reco_scifi_hough, label: "Hough SciFi"}
+    ds_hough: {prefix: reco_ds_hough, label: "Hough downstream"}
+    combined_hough: {prefix: reco_combined_hough, label: "Combined Hough"}
+  event_features:
+    n_tracks: {dimension: 1, expression: reco_track_n_all, x_min: -0.5, x_max: 5.5, n_bins: 6, axis_title: "Reconstructed tracks per event", logy: true}
+    n_converged_tracks: {dimension: 1, expression: reco_track_n_converged, x_min: -0.5, x_max: 5.5, n_bins: 6, axis_title: "Converged reconstructed tracks per event", logy: true}
+    n_track_types: {dimension: 1, expression: reco_track_n_types_present, x_min: -0.5, x_max: 5.5, n_bins: 6, axis_title: "Reconstructed track types per event", logy: true}
+  plot_groups:
+    simple:
+      label: "Simple tracking"
+      sections:
+        scifi: {label: "SciFi tracks", track_types: [scifi_simple]}
+        ds: {label: "Downstream tracks", track_types: [ds_simple]}
+      event_features:
+        n_tracks:
+          {dimension: 1, expression: "reco_scifi_simple_n_all + reco_ds_simple_n_all", x_min: -0.5, x_max: 10.5, n_bins: 11, axis_title: "Simple reconstructed tracks per event", logy: true}
+        n_converged_tracks:
+          {dimension: 1, expression: "reco_scifi_simple_n_converged + reco_ds_simple_n_converged", x_min: -0.5, x_max: 10.5, n_bins: 11, axis_title: "Converged Simple tracks per event", logy: true}
+        n_track_types:
+          {dimension: 1, expression: "int(reco_scifi_simple_n_all > 0) + int(reco_ds_simple_n_all > 0)", x_min: -0.5, x_max: 2.5, n_bins: 3, axis_title: "Simple track types present per event", logy: true}
+    hough:
+      label: "Hough tracking"
+      sections:
+        scifi: {label: "SciFi tracks", track_types: [scifi_hough]}
+        ds: {label: "Downstream tracks", track_types: [ds_hough]}
+        combined: {label: "Combined SciFi and downstream tracks", track_types: [combined_hough]}
+      event_features:
+        n_tracks:
+          {dimension: 1, expression: "reco_scifi_hough_n_all + reco_ds_hough_n_all + reco_combined_hough_n_all", x_min: -0.5, x_max: 10.5, n_bins: 11, axis_title: "Hough reconstructed tracks per event", logy: true}
+        n_converged_tracks:
+          {dimension: 1, expression: "reco_scifi_hough_n_converged + reco_ds_hough_n_converged + reco_combined_hough_n_converged", x_min: -0.5, x_max: 10.5, n_bins: 11, axis_title: "Converged Hough tracks per event", logy: true}
+        n_track_types:
+          {dimension: 1, expression: "int(reco_scifi_hough_n_all > 0) + int(reco_ds_hough_n_all > 0) + int(reco_combined_hough_n_all > 0)", x_min: -0.5, x_max: 3.5, n_bins: 4, axis_title: "Hough track types present per event", logy: true}
+  track_features:
+    start_z:
+      dimension: 1
+      expression: "{prefix}_best_start_z"
+      feature_cut: "std::isfinite({prefix}_best_start_z)"
+      x_min: 250
+      x_max: 650
+      n_bins: 160
+      axis_title: "Best-track first fitted-point z [cm]"
+      logy: true
+    start_xy:
+      dimension: 2
+      x_expression: "{prefix}_best_start_x"
+      y_expression: "{prefix}_best_start_y"
+      feature_cut: "std::isfinite({prefix}_best_start_x) && std::isfinite({prefix}_best_start_y)"
+      x_bins: 100
+      x_min: -80
+      x_max: 20
+      y_bins: 80
+      y_min: 0
+      y_max: 80
+      x_title: "Best-track first fitted-point x [cm]"
+      y_title: "Best-track first fitted-point y [cm]"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+    stop_z:
+      dimension: 1
+      expression: "{prefix}_best_stop_z"
+      feature_cut: "std::isfinite({prefix}_best_stop_z)"
+      x_min: 250
+      x_max: 650
+      n_bins: 160
+      axis_title: "Best-track last fitted-point z [cm]"
+      logy: true
+    stop_xy:
+      dimension: 2
+      x_expression: "{prefix}_best_stop_x"
+      y_expression: "{prefix}_best_stop_y"
+      feature_cut: "std::isfinite({prefix}_best_stop_x) && std::isfinite({prefix}_best_stop_y)"
+      x_bins: 100
+      x_min: -80
+      x_max: 20
+      y_bins: 80
+      y_min: 0
+      y_max: 80
+      x_title: "Best-track last fitted-point x [cm]"
+      y_title: "Best-track last fitted-point y [cm]"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+    endpoint_delta_z:
+      dimension: 1
+      expression: "{prefix}_best_stop_z - {prefix}_best_start_z"
+      feature_cut: "std::isfinite({prefix}_best_start_z) && std::isfinite({prefix}_best_stop_z)"
+      x_min: -400
+      x_max: 400
+      n_bins: 160
+      axis_title: "Best-track endpoint #Deltaz [cm]"
+      logy: true
+    endpoint_distance:
+      dimension: 1
+      expression: >-
+        std::sqrt(std::pow({prefix}_best_stop_x - {prefix}_best_start_x, 2) +
+        std::pow({prefix}_best_stop_y - {prefix}_best_start_y, 2) +
+        std::pow({prefix}_best_stop_z - {prefix}_best_start_z, 2))
+      feature_cut: >-
+        std::isfinite({prefix}_best_start_x) && std::isfinite({prefix}_best_start_y) &&
+        std::isfinite({prefix}_best_start_z) && std::isfinite({prefix}_best_stop_x) &&
+        std::isfinite({prefix}_best_stop_y) && std::isfinite({prefix}_best_stop_z)
+      x_min: 0
+      x_max: 500
+      n_bins: 100
+      axis_title: "Best-track fitted endpoint separation [cm]"
+      logy: true
+    n_measurements:
+      dimension: 1
+      expression: "{prefix}_best_n_measurements"
+      x_min: -0.5
+      x_max: 40.5
+      n_bins: 41
+      axis_title: "Best-track associated measurements"
+      logy: true
+    n_unique_planes:
+      dimension: 1
+      expression: "{prefix}_best_n_unique_planes"
+      x_min: -0.5
+      x_max: 30.5
+      n_bins: 31
+      axis_title: "Best-track planes with associated measurements"
+      logy: true
+    chi2ndf:
+      dimension: 1
+      expression: "{prefix}_best_chi2ndf"
+      feature_cut: "std::isfinite({prefix}_best_chi2ndf)"
+      x_min: 0
+      x_max: 300
+      n_bins: 150
+      axis_title: "Best-track #chi^{2}/NDF"
+      logy: true
+    ndf:
+      dimension: 1
+      expression: "{prefix}_best_ndf"
+      x_min: -0.5
+      x_max: 50.5
+      n_bins: 51
+      axis_title: "Best-track NDF"
+      logy: true
+    slope_xz:
+      dimension: 1
+      expression: "{prefix}_best_slope_xz"
+      feature_cut: "std::isfinite({prefix}_best_slope_xz)"
+      x_min: -0.5
+      x_max: 0.5
+      n_bins: 100
+      axis_title: "Best-track dx/dz"
+      logy: true
+    slope_yz:
+      dimension: 1
+      expression: "{prefix}_best_slope_yz"
+      feature_cut: "std::isfinite({prefix}_best_slope_yz)"
+      x_min: -0.5
+      x_max: 0.5
+      n_bins: 100
+      axis_title: "Best-track dy/dz"
+      logy: true
+    slope_xy:
+      dimension: 2
+      x_expression: "{prefix}_best_slope_xz"
+      y_expression: "{prefix}_best_slope_yz"
+      feature_cut: "std::isfinite({prefix}_best_slope_xz) && std::isfinite({prefix}_best_slope_yz)"
+      x_bins: 100
+      x_min: -0.5
+      x_max: 0.5
+      y_bins: 100
+      y_min: -0.5
+      y_max: 0.5
+      x_title: "Best-track dx/dz"
+      y_title: "Best-track dy/dz"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+    measurements_vs_planes:
+      dimension: 2
+      x_expression: "{prefix}_best_n_unique_planes"
+      y_expression: "{prefix}_best_n_measurements"
+      x_bins: 31
+      x_min: -0.5
+      x_max: 30.5
+      y_bins: 41
+      y_min: -0.5
+      y_max: 40.5
+      x_title: "Planes with associated measurements"
+      y_title: "Associated measurements"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+    chi2ndf_vs_measurements:
+      dimension: 2
+      x_expression: "{prefix}_best_n_measurements"
+      y_expression: "{prefix}_best_chi2ndf"
+      feature_cut: "std::isfinite({prefix}_best_chi2ndf)"
+      x_bins: 41
+      x_min: -0.5
+      x_max: 40.5
+      y_bins: 150
+      y_min: 0
+      y_max: 300
+      x_title: "Associated measurements"
+      y_title: "Best-track #chi^{2}/NDF"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+    start_z_vs_measurements:
+      dimension: 2
+      x_expression: "{prefix}_best_start_z"
+      y_expression: "{prefix}_best_n_measurements"
+      feature_cut: "std::isfinite({prefix}_best_start_z)"
+      x_bins: 160
+      x_min: 250
+      x_max: 650
+      y_bins: 41
+      y_min: -0.5
+      y_max: 40.5
+      x_title: "First fitted-point z [cm]"
+      y_title: "Associated measurements"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+
+background_composition:
+  enabled: true
+  scope: passing_muon_reco_only
+  required_schema: flat_v2
+  input_group: passing_muon_dq_run8329_flat_v2
+  description: >-
+    Observable decomposition of the DQ-intersected PassingMuonReco population.
+    These classes are not particle-truth labels and do not measure the
+    no-incoming-track fraction of inclusive RealDataDQ.
+  track_definition:
+    key: hough_scifi_ds
+    valid_expression: >-
+      reco_scifi_hough_has_best == 1 && reco_ds_hough_has_best == 1
+    property_prefix: reco_scifi_hough
+    required_prefixes: [reco_scifi_hough, reco_ds_hough]
+    label: "Valid SciFi-Hough and downstream-Hough best tracks"
+  class_order: [no_valid_track, track_like_low_activity, track_plus_activity]
+  class_labels:
+    no_valid_track: "No valid SciFi+DS Hough track pair"
+    track_like_low_activity: "Valid track + detector coverage pass"
+    track_plus_activity: "Valid track + detector coverage failure"
+  defaults: {fold_underflow: true, fold_overflow: true}
+  features:
+    count_veto: {dimension: 1, expression: count_veto, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "Total Veto measurements", logy: true}
+    count_scifi: {dimension: 1, expression: count_scifi, x_min: -0.5, x_max: 200.5, n_bins: 201, axis_title: "Total SciFi measurements", logy: true}
+    count_us: {dimension: 1, expression: count_us, x_min: -0.5, x_max: 50.5, n_bins: 51, axis_title: "Total upstream MuFilter measurements", logy: true}
+    count_ds: {dimension: 1, expression: count_ds, x_min: -0.5, x_max: 100.5, n_bins: 101, axis_title: "Total downstream MuFilter measurements", logy: true}
+    veto_n_active_planes:
+      {dimension: 1, expression: "int(count_veto1 > 0) + int(count_veto2 > 0) + int(count_veto3 > 0)", x_min: -0.5, x_max: 3.5, n_bins: 4, axis_title: "Active Veto planes", logy: true}
+    veto_excess_measurements:
+      {dimension: 1, expression: "count_veto - int(count_veto1 > 0) - int(count_veto2 > 0) - int(count_veto3 > 0)", x_min: -0.5, x_max: 27.5, n_bins: 28, axis_title: "Veto measurements beyond one per active plane", logy: true}
+    scifi_n_active_stations:
+      {dimension: 1, expression: scifi_n_active_stations_xy, x_min: -0.5, x_max: 5.5, n_bins: 6, axis_title: "SciFi stations with X and Y activity", logy: true}
+    ds_n_active_stations:
+      {dimension: 1, expression: n_active_ds, x_min: -0.5, x_max: 4.5, n_bins: 5, axis_title: "Active downstream MuFilter stations", logy: true}
+    n_reco_tracks:
+      {dimension: 1, expression: reco_track_n_all, x_min: -0.5, x_max: 10.5, n_bins: 11, axis_title: "All reconstructed tracks per event", logy: true}
+    track_n_measurements:
+      {dimension: 1, expression: "{prefix}_best_n_measurements", requires_valid_track: true, x_min: -0.5, x_max: 40.5, n_bins: 41, axis_title: "SciFi-Hough associated measurements", logy: true}
+    track_n_unique_planes:
+      {dimension: 1, expression: "{prefix}_best_n_unique_planes", requires_valid_track: true, x_min: -0.5, x_max: 30.5, n_bins: 31, axis_title: "SciFi-Hough measured planes", logy: true}
+    track_chi2ndf:
+      dimension: 1
+      expression: "{prefix}_best_chi2ndf"
+      feature_cut: "std::isfinite({prefix}_best_chi2ndf)"
+      requires_valid_track: true
+      x_min: 0
+      x_max: 300
+      n_bins: 150
+      axis_title: "SciFi-Hough #chi^{2}/NDF"
+      logy: true
+    veto_excess_vs_scifi:
+      dimension: 2
+      x_expression: "count_veto - int(count_veto1 > 0) - int(count_veto2 > 0) - int(count_veto3 > 0)"
+      y_expression: count_scifi
+      x_bins: 28
+      x_min: -0.5
+      x_max: 27.5
+      y_bins: 101
+      y_min: -0.5
+      y_max: 200.5
+      x_title: "Veto excess measurements"
+      y_title: "Total SciFi measurements"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+    veto_excess_vs_track_measurements:
+      dimension: 2
+      x_expression: "count_veto - int(count_veto1 > 0) - int(count_veto2 > 0) - int(count_veto3 > 0)"
+      y_expression: "{prefix}_best_n_measurements"
+      requires_valid_track: true
+      x_bins: 28
+      x_min: -0.5
+      x_max: 27.5
+      y_bins: 41
+      y_min: -0.5
+      y_max: 40.5
+      x_title: "Veto excess measurements"
+      y_title: "SciFi-Hough associated measurements"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+    scifi_vs_track_measurements:
+      dimension: 2
+      x_expression: count_scifi
+      y_expression: "{prefix}_best_n_measurements"
+      requires_valid_track: true
+      x_bins: 101
+      x_min: -0.5
+      x_max: 200.5
+      y_bins: 41
+      y_min: -0.5
+      y_max: 40.5
+      x_title: "Total SciFi measurements"
+      y_title: "SciFi-Hough associated measurements"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+    chi2ndf_vs_veto_excess:
+      dimension: 2
+      x_expression: "count_veto - int(count_veto1 > 0) - int(count_veto2 > 0) - int(count_veto3 > 0)"
+      y_expression: "{prefix}_best_chi2ndf"
+      feature_cut: "std::isfinite({prefix}_best_chi2ndf)"
+      requires_valid_track: true
+      x_bins: 28
+      x_min: -0.5
+      x_max: 27.5
+      y_bins: 100
+      y_min: 0
+      y_max: 300
+      x_title: "Veto excess measurements"
+      y_title: "SciFi-Hough #chi^{2}/NDF"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+    start_z_vs_veto_excess:
+      dimension: 2
+      x_expression: "{prefix}_best_start_z"
+      y_expression: "count_veto - int(count_veto1 > 0) - int(count_veto2 > 0) - int(count_veto3 > 0)"
+      feature_cut: "std::isfinite({prefix}_best_start_z)"
+      requires_valid_track: true
+      x_bins: 160
+      x_min: 250
+      x_max: 650
+      y_bins: 28
+      y_min: -0.5
+      y_max: 27.5
+      x_title: "SciFi-Hough first fitted-point z [cm]"
+      y_title: "Veto excess measurements"
+      fold_x_underflow: true
+      fold_x_overflow: true
+      fold_y_underflow: true
+      fold_y_overflow: true
+      logz: true
+  plot_sections:
+    detector_totals:
+      label: "Detector measurement totals"
+      features: [count_veto, count_scifi, count_us, count_ds]
+    detector_activity:
+      label: "Detector coverage and excess activity"
+      features: [veto_n_active_planes, veto_excess_measurements, scifi_n_active_stations, ds_n_active_stations]
+    track_properties:
+      label: "Configured-track availability and properties"
+      features: [n_reco_tracks, track_n_measurements, track_n_unique_planes, track_chi2ndf]
+    correlations:
+      label: "Track and detector-activity correlations"
+      features: [veto_excess_vs_scifi, veto_excess_vs_track_measurements, scifi_vs_track_measurements, chi2ndf_vs_veto_excess, start_z_vs_veto_excess]
+
+expected:
+  real_data_dq: 11115982
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7
+  plot_dir: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7
+  track_input_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/track_inputs
+  track_manifest: snakemake/metadata/updated/passing_muon_run8329_detector_selection_study_v7/flat_v2_track_manifest.csv

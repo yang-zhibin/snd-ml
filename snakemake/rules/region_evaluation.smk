@@ -1049,3 +1049,103 @@ rule region_eval_studies:
         REGION_EVAL_CUTFLOW_EVENTBUILDER_COMPARISON_CSV,
         REGION_EVAL_CUTFLOW_TABLE_PDF,
         REGION_EVAL_EVENT_DISPLAY_DONE,
+
+
+# Independent MC-neutrino event-display product.  Each region/type job writes
+# one document containing three pages per event: SNDSW overview, active
+# horizontal SciFi planes, and active vertical SciFi planes.
+MC_NEUTRINO_SCIFI_EVENT_DISPLAY_CONFIG = (
+    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    "mc_neutrino_event_display_scifi_v1.yaml"
+)
+with open(MC_NEUTRINO_SCIFI_EVENT_DISPLAY_CONFIG, "r", encoding="utf-8") as stream:
+    MC_NEUTRINO_SCIFI_EVENT_DISPLAY = yaml.safe_load(stream)
+
+MC_NEUTRINO_SCIFI_PARTICLES = list(
+    MC_NEUTRINO_SCIFI_EVENT_DISPLAY["filters"]["particles"]
+)
+MC_NEUTRINO_SCIFI_REGIONS = list(
+    MC_NEUTRINO_SCIFI_EVENT_DISPLAY["filters"]["regions"]
+)
+MC_NEUTRINO_SCIFI_ROOT = (
+    f"{PERSONAL_WORK_SPACE}/"
+    f"{MC_NEUTRINO_SCIFI_EVENT_DISPLAY['outputs']['directory'].rstrip('/')}"
+)
+MC_NEUTRINO_SCIFI_PDFS = [
+    f"{MC_NEUTRINO_SCIFI_ROOT}/{particle}/{region}.pdf"
+    for particle in MC_NEUTRINO_SCIFI_PARTICLES
+    for region in MC_NEUTRINO_SCIFI_REGIONS
+]
+MC_NEUTRINO_SCIFI_SUMMARIES = [
+    f"{MC_NEUTRINO_SCIFI_ROOT}/summaries/{particle}/{region}.csv"
+    for particle in MC_NEUTRINO_SCIFI_PARTICLES
+    for region in MC_NEUTRINO_SCIFI_REGIONS
+]
+MC_NEUTRINO_SCIFI_AUDITS = [
+    f"{MC_NEUTRINO_SCIFI_ROOT}/audits/{particle}/{region}.json"
+    for particle in MC_NEUTRINO_SCIFI_PARTICLES
+    for region in MC_NEUTRINO_SCIFI_REGIONS
+]
+
+
+rule plot_mc_neutrino_scifi_event_display:
+    input:
+        config=MC_NEUTRINO_SCIFI_EVENT_DISPLAY_CONFIG,
+        script=(
+            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            "plot_mc_neutrino_scifi_event_displays.py"
+        ),
+        selector=(
+            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            "plot_saved_events_sndsw.py"
+        ),
+        scifi_renderer=(
+            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            "scifi_sipm_event_display.py"
+        ),
+    params:
+        metadata=REGION_EVAL_METADATA_CSV,
+    output:
+        pdf=f"{MC_NEUTRINO_SCIFI_ROOT}/{{particle}}/{{region}}.pdf",
+        summary=(
+            f"{MC_NEUTRINO_SCIFI_ROOT}/summaries/"
+            "{particle}/{region}.csv"
+        ),
+        audit=(
+            f"{MC_NEUTRINO_SCIFI_ROOT}/audits/"
+            "{particle}/{region}.json"
+        ),
+    wildcard_constraints:
+        particle="|".join(MC_NEUTRINO_SCIFI_PARTICLES),
+        region="|".join(MC_NEUTRINO_SCIFI_REGIONS),
+    threads: 1
+    resources:
+        runtime=4 * 60 * 60,
+        mem_mb=6000,
+        disk_mb=8000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        set +u
+        source {env_script_sndsw_nue}
+        set -euo pipefail
+        export EOSSHIP=root://eosuser.cern.ch/
+
+        python {input.script} \
+          --config {input.config} \
+          --metadata-csv {params.metadata} \
+          --region {wildcards.region} \
+          --particle {wildcards.particle} \
+          --output-pdf {output.pdf} \
+          --output-summary {output.summary} \
+          --output-audit {output.audit} \
+          --repo-root {PERSONAL_WORK_SPACE}
+        """
+
+
+rule mc_neutrino_scifi_event_displays:
+    input:
+        pdfs=MC_NEUTRINO_SCIFI_PDFS,
+        summaries=MC_NEUTRINO_SCIFI_SUMMARIES,
+        audits=MC_NEUTRINO_SCIFI_AUDITS,

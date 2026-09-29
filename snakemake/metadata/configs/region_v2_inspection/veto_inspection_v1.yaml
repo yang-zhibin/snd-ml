@@ -1,0 +1,169 @@
+version: veto_inspection_v1
+description: >
+  Veto-count and earliest-veto-time inspection using the six validated
+  region_v2_inspection_v1 consolidated samples.
+
+input:
+  manifest: snakemake/metadata/region_v2_inspection/region_v2_inspection_v1_manifest.csv
+  tree_name: sndData
+  weight: inspection_event_weight
+
+output:
+  root_dir: evaluation_region_partitions/region_v2_inspection/veto_inspection_v1
+
+datasets:
+  - name: real_data_run009715
+    label: Real data
+    category: real_data
+    color: black
+    marker: 20
+  - name: passing_muon_data_run008329
+    label: Passing-muon data
+    category: passing_muon
+    color: orange_dark
+    marker: 24
+  - name: CC_nue_EventBuilder_first10pct
+    label: "CC #nu_{e}"
+    category: neutrino
+    color: blue
+    marker: 21
+  - name: NC_nue_EventBuilder_first10pct
+    label: "NC #nu_{e}"
+    category: neutrino
+    color: green
+    marker: 22
+  - name: CC_numu_EventBuilder_first10pct
+    label: "CC #nu_{#mu}"
+    category: neutrino
+    color: red
+    marker: 23
+  - name: NC_numu_EventBuilder_first10pct
+    label: "NC #nu_{#mu}"
+    category: neutrino
+    color: magenta
+    marker: 33
+
+selection:
+  analysis_event_expression: "true"
+  count_expression: count_veto
+  earliest_time_expression: hitTime_veto_min_ns
+  scifi_count_expression: count_scifi
+  scifi_density_expression: density_sndsw_scifi
+  no_veto_expression: count_veto == 0
+  valid_time_expression: >
+    count_veto > 0 &&
+    std::isfinite(hitTime_veto_min_ns) &&
+    hitTime_veto_min_ns > -900
+  invalid_time_expression: >
+    count_veto > 0 &&
+    (!std::isfinite(hitTime_veto_min_ns) ||
+     hitTime_veto_min_ns <= -900)
+  no_veto_display_time_ns: -1.0
+  reserve_no_veto_time_bin: true
+  invalid_time_warning_fraction: 0.001
+
+histograms:
+  veto_count:
+    bins: 31
+    min: -0.5
+    max: 30.5
+    fold_underflow: false
+    fold_overflow: true
+    x_title: Veto hit count
+
+  veto_earliest_time:
+    # With this uniform binning, -1 ns is exactly the centre of the first bin.
+    bins: 125
+    min: -1.125
+    max: 30.125
+    no_veto_bin_center: -1.0
+    fold_underflow: false
+    fold_overflow: true
+    x_title: Earliest veto-hit time [ns]
+
+  veto_time_vs_count:
+    x_bins: 125
+    x_min: -1.125
+    x_max: 30.125
+    y_bins: 31
+    y_min: -0.5
+    y_max: 30.5
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    x_title: Earliest veto-hit time [ns]
+    y_title: Veto hit count
+
+  veto_time_vs_scifi_count:
+    x_bins: 125
+    x_min: -1.125
+    x_max: 30.125
+    y_bins: 80
+    y_min: -0.5
+    y_max: 799.5
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    x_title: Earliest veto-hit time [ns]
+    y_title: SciFi hit count
+
+  veto_time_vs_scifi_density:
+    x_bins: 125
+    x_min: -1.125
+    x_max: 30.125
+    y_bins: 80
+    y_min: 0
+    y_max: 40000
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    x_title: Earliest veto-hit time [ns]
+    y_title: SciFi density (SNDSW)
+
+  veto_count_vs_scifi_count:
+    x_bins: 31
+    x_min: -0.5
+    x_max: 30.5
+    y_bins: 80
+    y_min: -0.5
+    y_max: 799.5
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    x_title: Veto hit count
+    y_title: SciFi hit count
+
+  veto_count_vs_scifi_density:
+    x_bins: 31
+    x_min: -0.5
+    x_max: 30.5
+    y_bins: 80
+    y_min: 0
+    y_max: 40000
+    fold_x_underflow: false
+    fold_x_overflow: true
+    fold_y_underflow: false
+    fold_y_overflow: true
+    x_title: Veto hit count
+    y_title: SciFi density (SNDSW)
+
+plots:
+  formats: [pdf]
+  include_inclusive_1d: true
+  canvas_1d: [1000, 750]
+  canvas_2d: [1800, 620]
+  margin_left_2d: 0.20
+  y_title_offset_2d: 2.05
+  draw_option_1d: "E1 X0"
+  log_y: true
+  log_z: true
+  marker_size: 0.85
+  line_width: 2
+  luminosity_label: "Target luminosity: 0.6102 fb^{-1}"
+  show_no_veto_label: true
+  no_veto_label: "-1 ns = no veto hit"
+  preliminary_label: "SND@LHC work in progress"

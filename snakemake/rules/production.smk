@@ -1,5 +1,14 @@
 
-def load_metadata():
+def production_metadata_csv_names():
+    return (
+        raw_metadata_csv_list
+        + subset_metadata_csv_list
+        + eventbuilder_metadata_csv_list
+        + passing_muon_metadata_csv_list
+    )
+
+
+def load_metadata(metadata_csv_names=None):
     if train_mode:
         metadata_prefix = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/training/{train_split}"
         metadata_files = glob.glob(f"{metadata_prefix}*.csv")
@@ -13,10 +22,8 @@ def load_metadata():
         metadata_rootpath = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/"
         metadata_files = [
             os.path.join(metadata_rootpath, file_name)
-            for file_name in (
-                raw_metadata_csv_list
-                + subset_metadata_csv_list
-                + eventbuilder_metadata_csv_list
+            for file_name in dict.fromkeys(
+                metadata_csv_names or production_metadata_csv_names()
             )
         ]
         metadata_files = [file for file in metadata_files if os.path.isfile(file)]
@@ -29,11 +36,16 @@ def load_metadata():
             df = pd.concat((pd.read_csv(file) for file in metadata_files), ignore_index=True)
             return df
 
-METADATA = load_metadata()
+PRODUCTION_METADATA = load_metadata(production_metadata_csv_names())
+METADATA = load_metadata(
+    production_metadata_csv_names() + lookup_metadata_csv_list
+)
 
 def collect_metadata_targets(target_name, after_model=False):
-    if METADATA is None:
+    if PRODUCTION_METADATA is None:
         return []
+
+    metadata = PRODUCTION_METADATA
 
     # -------------------------
     # MODEL-RELATED TARGETS
@@ -47,10 +59,10 @@ def collect_metadata_targets(target_name, after_model=False):
             else:
                 raise ValueError(f"Unknown model target: {target_name}")
 
-            if col in METADATA.columns:
+            if col in metadata.columns:
                 paths = (
-                    METADATA["output_base_path"].astype(str).str.rstrip("/") + "/" +
-                    METADATA[col].astype(str).str.lstrip("/")
+                    metadata["output_base_path"].astype(str).str.rstrip("/") + "/" +
+                    metadata[col].astype(str).str.lstrip("/")
                 )
                 target_paths.extend(paths.tolist())
 
@@ -67,13 +79,13 @@ def collect_metadata_targets(target_name, after_model=False):
         ).tolist()
     target_paths = []
 
-    if target_name in METADATA.columns:
-        target_paths.extend(combine_paths(METADATA["output_base_path"], METADATA[target_name]))
+    if target_name in metadata.columns:
+        target_paths.extend(combine_paths(metadata["output_base_path"], metadata[target_name]))
 
     if process_veto:
         col = f"veto_{target_name}"
-        if col in METADATA.columns:
-            target_paths.extend(combine_paths(METADATA["output_base_path"], METADATA[col]))
+        if col in metadata.columns:
+            target_paths.extend(combine_paths(metadata["output_base_path"], metadata[col]))
 
 
     return (set(target_paths))
@@ -200,6 +212,7 @@ def get_metadata_value(ref_name, ref_value, target_name, after_model=False):
         "n_event",
         "split",
         "production_profile",
+        "input_tree",
     ]:
         return value
 
@@ -212,10 +225,35 @@ def get_production_profile(ref_name, ref_value):
 
     return get_metadata_value(ref_name, ref_value, "production_profile", after_model=False)
 
+def get_input_tree(ref_name, ref_value):
+    if METADATA is None or "input_tree" not in METADATA.columns:
+        return "cbmsim"
+    value = get_metadata_value(ref_name, ref_value, "input_tree", after_model=False)
+    return "cbmsim" if value.strip().lower() in {"", "nan", "none"} else value
+
+def is_passing_muon_target(ref_name, ref_value):
+    data_type = get_metadata_value(ref_name, ref_value, "data_type", after_model=False)
+    return data_type.strip().lower() == "passing_muon_real_data"
+
+def get_optional_nue_analysis_filter(ref_name, ref_value):
+    if is_passing_muon_target(ref_name, ref_value):
+        return []
+    return get_metadata_value(
+        ref_name, ref_value, "nueAnalysisFilter_path", after_model=False
+    )
+
+def get_preselect_argument(ref_name, ref_value):
+    if is_passing_muon_target(ref_name, ref_value):
+        return ""
+    path = get_metadata_value(
+        ref_name, ref_value, "nueAnalysisFilter_path", after_model=False
+    )
+    return f"-p {path}"
+
 def drop_real_has_veto_has_us_flag(ref_name, ref_value):
     data_type = get_metadata_value(ref_name, ref_value, "data_type", after_model=False)
     production_profile = get_production_profile(ref_name, ref_value)
-    if data_type == "real_data" and production_profile != "real_data_2024_skim_run":
+    if data_type in {"real_data", "passing_muon_real_data"} and production_profile != "real_data_2024_skim_run":
         return "--drop-real-has-veto-has-us"
     return ""
 
@@ -232,6 +270,20 @@ def get_nue_analysis_pipeline(wildcards):
         "data_type",
     )
     return NUE_ANALYSIS_PIPELINES_BY_DATA_TYPE.get(data_type, NUE_ANALYSIS_PIPELINE)
+
+def is_mc_muon_cutflow(wildcards):
+    return get_metadata_value(
+        "nueAnalysisFilter_path",
+        wildcards.nueAnalysisFilter_path,
+        "data_type",
+    ).strip().lower() == "mc_muon"
+
+def is_mc_muon_feature(wildcards):
+    return get_metadata_value(
+        "feature_path",
+        wildcards.feature_path,
+        "data_type",
+    ).strip().lower() == "mc_muon"
 
 
 rule process_newRaw:
@@ -353,10 +405,18 @@ rule process_nueAnalysis:
         #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         digi=lambda wildcards: get_metadata_value(ref_name = "nueAnalysisFilter_path", ref_value = wildcards.nueAnalysisFilter_path, target_name = "digi_path",  after_model = False),
         geo=lambda wildcards: get_metadata_value(ref_name = "nueAnalysisFilter_path", ref_value = wildcards.nueAnalysisFilter_path, target_name = "geo_path",  after_model = False),
+        identity_script=lambda wildcards: (
+            f"{PERSONAL_WORK_SPACE}/convertData/make_identity_cutflow.py"
+            if is_mc_muon_cutflow(wildcards) else []
+        ),
         
     params:
         data_type=lambda wildcards: get_metadata_value("nueAnalysisFilter_path", wildcards.nueAnalysisFilter_path, "data_type"),
-        pipeline=get_nue_analysis_pipeline
+        pipeline=get_nue_analysis_pipeline,
+        identity_cutflow=lambda wildcards: int(is_mc_muon_cutflow(wildcards)),
+        input_tree=lambda wildcards: get_input_tree(
+            "nueAnalysisFilter_path", wildcards.nueAnalysisFilter_path
+        ),
     output:
         nueAnalysisFilter_path="{nueAnalysisFilter_path}"
     threads:1
@@ -368,7 +428,8 @@ rule process_nueAnalysis:
     shell:
         r"""
         # Avoid conda/python conflicts
-        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | grep -v '/cvmfs/sft.cern.ch/lcg/' | tr '\n' ':' | sed 's/:$//')
+        unset PYTHONHOME PYTHONPATH LD_LIBRARY_PATH ROOTSYS ROOT_INCLUDE_PATH
         set +u  # Avoid unbound variable errors
 
         echo "Source SNDSW environment script"
@@ -380,13 +441,21 @@ rule process_nueAnalysis:
         filename=$(basename "{output.nueAnalysisFilter_path}")
         tmp_output="${{tmp_dir}}/${{filename}}"
 
-        echo "Running sndEventFilter"
-        echo "Using sndEventFilter pipeline: {params.pipeline}"
-        sndEventFilter \
-            --input {input.digi} \
-            --geofile {input.geo} \
-            --output "${{tmp_output}}" \
-            --pipeline  {params.pipeline}
+        if [[ "{params.identity_cutflow}" == "1" ]]; then
+            echo "Creating inclusive identity cutflow for MC_muon"
+            python {input.identity_script} \
+                --input {input.digi} \
+                --input-tree {params.input_tree} \
+                --output "${{tmp_output}}"
+        else
+            echo "Running sndEventFilter"
+            echo "Using sndEventFilter pipeline: {params.pipeline}"
+            sndEventFilter \
+                --input {input.digi} \
+                --geofile {input.geo} \
+                --output "${{tmp_output}}" \
+                --pipeline {params.pipeline}
+        fi
 
 
         echo "Transferring output to EOS"
@@ -400,10 +469,21 @@ rule process_features:
         #expand("/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/{metadata_csv}", metadata_csv=metadata_csv_list),
         digi=lambda wildcards: get_metadata_value(ref_name = "feature_path", ref_value = wildcards.feature_path, target_name = "digi_path",  after_model = False),
         geo=lambda wildcards: get_metadata_value(ref_name = "feature_path", ref_value = wildcards.feature_path, target_name = "geo_path",  after_model = False),
-        script = f"{PERSONAL_WORK_SPACE}/convertData/digi_2_features.py",
-        nueAnalysisFilter_path=lambda wildcards: get_metadata_value(ref_name = "feature_path", ref_value = wildcards.feature_path, target_name = "nueAnalysisFilter_path",  after_model = False),
+        script=lambda wildcards: (
+            f"{PERSONAL_WORK_SPACE}/convertData/digi_2_features_mc_muon.py"
+            if is_mc_muon_feature(wildcards)
+            else f"{PERSONAL_WORK_SPACE}/convertData/digi_2_features.py"
+        ),
+        feature_core=lambda wildcards: (
+            f"{PERSONAL_WORK_SPACE}/convertData/digi_2_features.py"
+            if is_mc_muon_feature(wildcards) else []
+        ),
+        selection_module=f"{PERSONAL_WORK_SPACE}/convertData/sample_selection.py",
+        nueAnalysisFilter_path=lambda wildcards: get_optional_nue_analysis_filter("feature_path", wildcards.feature_path),
     params:
         data_type=lambda wildcards: get_metadata_value(ref_name = "feature_path", ref_value = wildcards.feature_path, target_name = "data_type",  after_model = False),
+        input_tree=lambda wildcards: get_input_tree("feature_path", wildcards.feature_path),
+        preselect_arg=lambda wildcards: get_preselect_argument("feature_path", wildcards.feature_path),
         drop_real_has_veto_has_us_flag=lambda wildcards: drop_real_has_veto_has_us_flag(
             "feature_path",
             wildcards.feature_path,
@@ -419,7 +499,8 @@ rule process_features:
     shell:
         r"""
         # Avoid sndsw and conda python conflict 
-        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | tr '\n' ':' | sed 's/:$//')
+        export PATH=$(echo $PATH | tr ':' '\n' | grep -v 'miniconda3' | grep -v '/cvmfs/sft.cern.ch/lcg/' | tr '\n' ':' | sed 's/:$//')
+        unset PYTHONHOME PYTHONPATH LD_LIBRARY_PATH ROOTSYS ROOT_INCLUDE_PATH
         
         # Avoid unbound variable error (only occurs when using Snakemake)
         set +u 
@@ -438,11 +519,12 @@ rule process_features:
         echo "Running feature generation script"
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
             {input.script} \
-            -p {input.nueAnalysisFilter_path}\
+            {params.preselect_arg} \
             -d {input.digi} \
             -g {input.geo} \
             -o "${{tmp_output}}" \
             -t {params.data_type} \
+            --tree-name {params.input_tree} \
             {params.drop_real_has_veto_has_us_flag}
 
         echo "Copying result to final location"
@@ -459,9 +541,12 @@ rule process_hit3d:
         digi=lambda wildcards: get_metadata_value(ref_name = "hit3d_path", ref_value = wildcards.hit3d_path, target_name = "digi_path",  after_model = False),
         geo=lambda wildcards: get_metadata_value(ref_name = "hit3d_path", ref_value = wildcards.hit3d_path, target_name = "geo_path",  after_model = False),
         script = f"{PERSONAL_WORK_SPACE}/convertData/digi_2_hits3D.py",
-        nueAnalysisFilter_path=lambda wildcards: get_metadata_value(ref_name = "hit3d_path", ref_value = wildcards.hit3d_path, target_name = "nueAnalysisFilter_path",  after_model = False),
+        selection_module=f"{PERSONAL_WORK_SPACE}/convertData/sample_selection.py",
+        nueAnalysisFilter_path=lambda wildcards: get_optional_nue_analysis_filter("hit3d_path", wildcards.hit3d_path),
     params:
         data_type=lambda wildcards: get_metadata_value(ref_name = "hit3d_path", ref_value = wildcards.hit3d_path, target_name = "data_type",  after_model = False),
+        input_tree=lambda wildcards: get_input_tree("hit3d_path", wildcards.hit3d_path),
+        preselect_arg=lambda wildcards: get_preselect_argument("hit3d_path", wildcards.hit3d_path),
         drop_real_has_veto_has_us_flag=lambda wildcards: drop_real_has_veto_has_us_flag(
             "hit3d_path",
             wildcards.hit3d_path,
@@ -496,11 +581,12 @@ rule process_hit3d:
         echo "Running hit3D ROOT generation script"
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
             {input.script} \
-            -p {input.nueAnalysisFilter_path}\
+            {params.preselect_arg} \
             -d {input.digi} \
             -g {input.geo} \
             -o "${{tmp_output}}" \
             -t {params.data_type} \
+            --tree-name {params.input_tree} \
             {params.drop_real_has_veto_has_us_flag}
 
         echo "Copying result to final location"

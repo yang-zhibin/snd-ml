@@ -1,0 +1,66 @@
+# DEPRECATED partial prototype. It is intentionally rejected by the strict
+# SciFi contract; use classifier_sparse_resnet_v1.yaml for new training.
+model_version: sparse_cnn_7class_v1
+task: classification
+dataset_version: data_driven_3d_cnn_v1
+num_classes: 7
+class_names: [CC_numu, CC_nue, NC, neutral_kaon, neutron, passing_muon, muon_DIS]
+excluded_classes: [CC_nutau]
+
+data:
+  fold_views: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/ml_dataset/data_driven_3d_cnn_v1/five_fold_train_validation_views.csv
+  cv_fold: 0
+  n_folds: 5
+  epoch_size: 100000
+  batch_size: 16
+  class_probabilities: uniform
+  domain_probabilities: null
+  num_workers: 4
+  persistent_workers: true
+  prefetch_factor: 2
+  pin_memory: true
+  max_open_files: 8
+  tree_name: hit3D
+  seed: 42
+
+voxel:
+  voxel_size: [1.0, 1.0, 1.0]
+  feature_channels: [qdc_sum, occupancy, dettype_1, dettype_2, dettype_3]
+  # Freeze these from the validated dataset before launching full training.
+  x_range: null
+  y_range: null
+  z_range: null
+  clamp_out_of_bounds: false
+
+model:
+  in_channels: 5
+  output_dim: 7
+  base_channels: 16
+  dropout: 0.1
+  backend: minkowski
+
+optim:
+  lr: 0.0003
+  weight_decay: 0.0001
+
+trainer:
+  max_epochs: 50
+  accelerator: auto
+  devices: 1
+  log_every_n_steps: 20
+
+early_stopping:
+  patience: 10
+
+wandb:
+  project: snd-ml-data-driven-3d
+  entity: null
+  group: sparse_cnn_7class_v1
+  job_type: train
+  mode: disabled
+  save_dir: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/wandb_logs
+  log_model: false
+  tags: [data_driven_3d_cnn_v1, seven_class, sparse_cnn]
+
+runtime:
+  seed: 42

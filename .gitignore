@@ -6,7 +6,18 @@ log
 *.pt
 wandb/
 lightning_logs/
-test/
+test/*
+!test/test_*3d*.py
+!test/test_muon_loose_partitions.py
+!test/test_neutrino_class_partitions.py
+!test/test_data_driven_fold_dataset.py
+!test/test_data_driven_root_dataset.py
+!test/test_build_scifi_statistics.py
+!test/test_scifi_classification_pipeline.py
+!test/test_scifi_classification_models.py
+!test/test_classification_evaluation.py
+!test/test_train_classifier_smoke.py
+!test/test_initial_training_policy.py
 test_data/
 csv*/
 plot*/
@@ -25,4 +36,27 @@ old_log/
 *.done
 *.npz
 *.txt
+!containers/training/constraints.txt
 *.json
+
+# Generated Python and analysis artifacts
+__pycache__/
+*.py[cod]
+*.log
+*.ckpt
+*.ok
+*.npy
+*.sif
+*.tar.zst
+train_3d/test_outputs/
+snakemake/diagnostics/
+
+# Local datasets, generated metadata, and container workspace
+containers/
+train_3d/metadata/
+snakemake/metadata/ml_dataset/
+evaluation_region_partitions/passing_muon_*/
+.gitlab-ci.yml
+docs/operations/
+test/test_lcg_overlay.py
+test/test_training_container_3d_ci.py

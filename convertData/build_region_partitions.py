@@ -440,20 +440,66 @@ def alias_expression_identifiers(expression, alias_prefix="feat", name_prefix="f
     return aliased_expression, aliases
 
 
-def apply_metadata_defines(rdf, existing_columns, particle_group, particle_id):
+def apply_metadata_defines(
+    rdf,
+    existing_columns,
+    particle_group,
+    particle_id,
+    preserve_source_identity=False,
+):
     existing_columns = set(existing_columns)
     escaped_particle_group = str(particle_group).replace("\\", "\\\\").replace('"', '\\"')
     definitions = {
-        "event_uid": 'std::string("")',
-        "original_entry": "rdfentry_",
         "source_file_index": "-1",
+        "original_entry": (
+            "eventIndex"
+            if preserve_source_identity and "eventIndex" in existing_columns
+            else "rdfentry_"
+        ),
         "particle_group": f'std::string("{escaped_particle_group}")',
         "particle_id": f"int({int(particle_id)})",
+        "event_uid": (
+            'std::string("source_") + std::to_string(source_file_index) + '
+            'std::string(":entry_") + std::to_string((long long)original_entry)'
+            if preserve_source_identity
+            else 'std::string("")'
+        ),
     }
     for name, expression in definitions.items():
         if name not in existing_columns:
             rdf = rdf.Define(name, expression)
+            existing_columns.add(name)
     return rdf
+
+
+def rdf_input_path(path):
+    """Use ROOT's canonical EOS identity so per-sample metadata lookup is stable."""
+    path = str(path)
+    if path.startswith("/eos/"):
+        return f"root://eospublic.cern.ch/{path}"
+    return path
+
+
+def make_source_aware_dataframe(metadata_rows, tree_name):
+    """Build an RDataFrame that retains a deterministic source-file index."""
+    import ROOT
+
+    spec = ROOT.RDF.Experimental.RDatasetSpec()
+    for sample_index, item in enumerate(metadata_rows):
+        source_index = int(item["row_number"])
+        metadata = ROOT.RDF.Experimental.RMetaData()
+        metadata.Add("source_file_index", source_index)
+        sample = ROOT.RDF.Experimental.RSample(
+            f"source_file_{sample_index:06d}",
+            tree_name,
+            rdf_input_path(item["feature_path"]),
+            metadata,
+        )
+        spec.AddSample(sample)
+    return ROOT.RDataFrame(spec).DefinePerSample(
+        "source_file_index",
+        'rdfsampleinfo_.GetI("source_file_index")',
+    )
 
 
 def configured_snapshot_columns(configured_columns, existing_columns, added_columns, label):
@@ -570,6 +616,17 @@ def write_rdf_metadata_row(
         part_index=int(part_index),
     )
     particle_rule = partition_config["particle_group_rules"][particle_rule_name]
+    preserve_source_identity = bool(
+        partition_config.get("event_identity", {}).get(
+            "preserve_source_file_index",
+            False,
+        )
+    )
+    source_feature_paths = (
+        ";".join(item["feature_path"] for item in metadata_rows)
+        if preserve_source_identity
+        else ";".join(sorted({item["feature_path"] for item in metadata_rows}))
+    )
     row = {
         "partition_version": partition_config["partition_version"],
         "region_version": region_config["region_version"],
@@ -593,13 +650,17 @@ def write_rdf_metadata_row(
         "selection_expression": region_config["regions"][region]["expression"],
         "particle_filter_expression": particle_rule.get("event_filter", ""),
         "source_metadata_csv": ";".join(sorted({item["metadata_path"] for item in metadata_rows})),
-        "source_feature_paths": ";".join(sorted({item["feature_path"] for item in metadata_rows})),
+        "source_feature_paths": source_feature_paths,
         "source_hit3d_paths": (
             ";".join(sorted({item["hit3d_path"] for item in metadata_rows}))
             if hit3d_required or hit3d_available
             else ""
         ),
-        "source_file_indices": "",
+        "source_file_indices": (
+            ";".join(str(int(item["row_number"])) for item in metadata_rows)
+            if preserve_source_identity
+            else ""
+        ),
         "first_original_entry": "",
         "last_original_entry": "",
         "shuffle": partition_config.get("shuffle"),
@@ -723,7 +784,20 @@ def run_rdf_partition(
         check_entry_counts(metadata_rows, feature_tree_name, hit3d_tree_name)
 
     feature_chain = build_tchain(feature_tree_name, feature_paths, "feature")
-    cutflow_chain = build_tchain(cutflow_tree_name, feature_paths, "cutflow")
+    preserve_source_identity = bool(
+        partition_config.get("event_identity", {}).get(
+            "preserve_source_file_index",
+            False,
+        )
+    )
+    write_cutflow = bool(
+        partition_config.get("output", {}).get("write_cutflow", True)
+    )
+    cutflow_chain = (
+        build_tchain(cutflow_tree_name, feature_paths, "cutflow")
+        if write_cutflow
+        else None
+    )
     hit3d_chain = build_tchain(hit3d_tree_name, hit3d_paths, "hit3D") if need_hit3d_output else None
 
     region_expr = root_region_expression(region_config, region)
@@ -732,22 +806,44 @@ def run_rdf_partition(
     log(f"RDF selection: {selection_expr}")
 
     feature_columns = get_tree_branch_names(feature_paths[0], feature_tree_name)
-    cutflow_columns = get_tree_branch_names(feature_paths[0], cutflow_tree_name)
+    cutflow_columns = (
+        get_tree_branch_names(feature_paths[0], cutflow_tree_name)
+        if write_cutflow
+        else []
+    )
     added_columns = partition_config["output"].get(
         "added_event_branches",
         ["event_uid", "original_entry", "source_file_index", "particle_group", "particle_id"],
     )
+    if preserve_source_identity:
+        identity_names = {
+            "event_uid",
+            "original_entry",
+            "source_file_index",
+            "particle_group",
+            "particle_id",
+        }
+        collisions = identity_names.intersection(feature_columns)
+        if collisions:
+            raise ValueError(
+                "Source-identity output branches already exist in the input: "
+                f"{sorted(collisions)}"
+            )
     feature_snapshot_columns = configured_snapshot_columns(
         partition_config["output"].get("feature_branches"),
         feature_columns,
         added_columns,
         "feature",
     )
-    cutflow_snapshot_columns = configured_snapshot_columns(
-        partition_config["output"].get("cutflow_branches"),
-        cutflow_columns,
-        added_columns,
-        "cutflow",
+    cutflow_snapshot_columns = (
+        configured_snapshot_columns(
+            partition_config["output"].get("cutflow_branches"),
+            cutflow_columns,
+            added_columns,
+            "cutflow",
+        )
+        if write_cutflow
+        else []
     )
     if need_hit3d_output:
         hit3d_columns = get_tree_branch_names(hit3d_paths[0], hit3d_tree_name)
@@ -766,16 +862,36 @@ def run_rdf_partition(
         hit3d_snapshot_columns = []
         log(f"Snapshot columns: feature={format_count(len(feature_snapshot_columns))}, hit3D=disabled")
 
-    feature_rdf = ROOT.RDataFrame(feature_chain).Filter(selection_expr)
-    feature_rdf = apply_metadata_defines(feature_rdf, feature_columns, particle_group, particle_id)
+    if preserve_source_identity:
+        feature_rdf = make_source_aware_dataframe(metadata_rows, feature_tree_name)
+        feature_define_columns = feature_columns + ["source_file_index"]
+    else:
+        feature_rdf = ROOT.RDataFrame(feature_chain)
+        feature_define_columns = feature_columns
+    feature_rdf = feature_rdf.Filter(selection_expr)
+    feature_rdf = apply_metadata_defines(
+        feature_rdf,
+        feature_define_columns,
+        particle_group,
+        particle_id,
+        preserve_source_identity=preserve_source_identity,
+    )
 
-    cutflow_chain.AddFriend(feature_chain, "feat")
-    cutflow_selection_expr, cutflow_aliases = alias_expression_identifiers(selection_expr)
-    cutflow_rdf = ROOT.RDataFrame(cutflow_chain)
-    for alias_name, target_name in cutflow_aliases.items():
-        cutflow_rdf = cutflow_rdf.Alias(alias_name, target_name)
-    cutflow_rdf = cutflow_rdf.Filter(cutflow_selection_expr)
-    cutflow_rdf = apply_metadata_defines(cutflow_rdf, cutflow_columns, particle_group, particle_id)
+    if write_cutflow:
+        cutflow_chain.AddFriend(feature_chain, "feat")
+        cutflow_selection_expr, cutflow_aliases = alias_expression_identifiers(selection_expr)
+        cutflow_rdf = ROOT.RDataFrame(cutflow_chain)
+        for alias_name, target_name in cutflow_aliases.items():
+            cutflow_rdf = cutflow_rdf.Alias(alias_name, target_name)
+        cutflow_rdf = cutflow_rdf.Filter(cutflow_selection_expr)
+        cutflow_rdf = apply_metadata_defines(
+            cutflow_rdf,
+            cutflow_columns,
+            particle_group,
+            particle_id,
+        )
+    else:
+        cutflow_rdf = None
 
     if need_hit3d_output:
         hit3d_chain.AddFriend(feature_chain, "feat")
@@ -806,14 +922,15 @@ def run_rdf_partition(
                 compression_level=compression_level,
                 mode="RECREATE",
             )
-            snapshot_rdf(
-                cutflow_out_rdf,
-                cutflow_tree_name,
-                feature_output,
-                cutflow_snapshot_columns,
-                compression_level=compression_level,
-                mode="UPDATE",
-            )
+            if write_cutflow:
+                snapshot_rdf(
+                    cutflow_out_rdf,
+                    cutflow_tree_name,
+                    feature_output,
+                    cutflow_snapshot_columns,
+                    compression_level=compression_level,
+                    mode="UPDATE",
+                )
         if need_hit3d_output:
             snapshot_rdf(
                 hit3d_out_rdf,

@@ -187,10 +187,31 @@ def tree_entries(path: str, tree_name: str) -> int:
 
 
 class SourceFeatureMapper:
-    def __init__(self, source_paths: list[str], tree_name: str):
+    def __init__(
+        self,
+        source_paths: list[str],
+        tree_name: str,
+        entry_count_fallbacks: dict[str, tuple[str, str]] | None = None,
+    ):
         self.source_paths = list(source_paths)
         self.tree_name = tree_name
+        self.entry_count_fallbacks = entry_count_fallbacks or {}
         self._ranges: list[tuple[int, int, str]] = []
+
+    def _entries(self, path: str) -> int:
+        try:
+            return tree_entries(path, self.tree_name)
+        except (OSError, KeyError) as error:
+            fallback = self.entry_count_fallbacks.get(normalized_path(path))
+            if fallback is None:
+                raise
+            fallback_path, fallback_tree = fallback
+            entries = tree_entries(fallback_path, fallback_tree)
+            print(
+                f"[warn] could not count entries in {path}: {error}; "
+                f"using aligned {fallback_tree} tree ({entries} entries): {fallback_path}"
+            )
+            return entries
 
     def path_for_original_entry(self, original_entry: int) -> str | None:
         if not self.source_paths:
@@ -203,7 +224,7 @@ class SourceFeatureMapper:
         ):
             start = self._ranges[-1][1] if self._ranges else 0
             path = self.source_paths[len(self._ranges)]
-            entries = tree_entries(path, self.tree_name)
+            entries = self._entries(path)
             self._ranges.append((start, start + entries, path))
             if len(self._ranges) >= len(self.source_paths):
                 break
@@ -258,8 +279,10 @@ def collect_partition_events(
     config: dict,
     repo_root: str | Path,
     remaining: int | None,
+    event_validator=None,
 ) -> list[dict]:
-    feature_tree_name = config.get("input", {}).get("feature_tree", "sndData")
+    input_config = config.get("input", {}) or {}
+    feature_tree_name = input_config.get("feature_tree", "sndData")
     selection = str((config.get("selection", {}) or {}).get("expression", "") or "").strip()
     annotation_features = list((config.get("annotations", {}) or {}).get("features", []) or [])
 
@@ -271,7 +294,24 @@ def collect_partition_events(
         resolve_path(path, repo_root)
         for path in split_list_cell(partition_row.get("source_feature_paths"))
     ]
-    mapper = SourceFeatureMapper(source_paths, feature_tree_name)
+    fallback_column = input_config.get("source_entry_count_fallback_column", "hit3d_path")
+    fallback_tree = input_config.get("source_entry_count_fallback_tree", "hit3D")
+    entry_count_fallbacks = {}
+    for source_path in source_paths:
+        source_row = source_index.get(normalized_path(source_path))
+        if not source_row:
+            continue
+        fallback_path = resolve_row_path(source_row, fallback_column, repo_root)
+        if fallback_path:
+            entry_count_fallbacks[normalized_path(source_path)] = (
+                fallback_path,
+                fallback_tree,
+            )
+    mapper = SourceFeatureMapper(
+        source_paths,
+        feature_tree_name,
+        entry_count_fallbacks=entry_count_fallbacks,
+    )
 
     root_file = ROOT.TFile.Open(feature_path)
     if not root_file or root_file.IsZombie():
@@ -321,32 +361,38 @@ def collect_partition_events(
         for feature in annotation_features:
             features[feature] = get_branch_value(tree, feature)
 
-        selected.append(
-            {
-                "region": partition_row.get("region", ""),
-                "particle_group": partition_row.get("particle_group", ""),
-                "particle_family": partition_row.get("particle_family", ""),
-                "partition_id": partition_row.get("partition_id", ""),
-                "feature_partition_path": feature_path,
-                "feature_entry": int(feature_entry),
-                "original_entry": original_entry,
-                "source_feature_path": source_feature_path,
-                "source_metadata_csv": source_row.get("__metadata_csv", ""),
-                "source_metadata_row": source_row,
-                "source_event_index": int(event_index),
-                "runId": get_branch_value(tree, "runId"),
-                "eventId": get_branch_value(tree, "eventId"),
-                "features": features,
-                "selection_label": (config.get("selection", {}) or {}).get("label", selection),
-                "selection_expression": selection,
-            }
-        )
+        event = {
+            "region": partition_row.get("region", ""),
+            "particle_group": partition_row.get("particle_group", ""),
+            "particle_family": partition_row.get("particle_family", ""),
+            "partition_id": partition_row.get("partition_id", ""),
+            "feature_partition_path": feature_path,
+            "feature_entry": int(feature_entry),
+            "original_entry": original_entry,
+            "source_feature_path": source_feature_path,
+            "source_metadata_csv": source_row.get("__metadata_csv", ""),
+            "source_metadata_row": source_row,
+            "source_event_index": int(event_index),
+            "runId": get_branch_value(tree, "runId"),
+            "eventId": get_branch_value(tree, "eventId"),
+            "features": features,
+            "selection_label": (config.get("selection", {}) or {}).get("label", selection),
+            "selection_expression": selection,
+        }
+        if event_validator is not None and not event_validator(event):
+            continue
+        selected.append(event)
 
     root_file.Close()
     return selected
 
 
-def collect_events(config: dict, metadata_csv: str, repo_root: str | Path) -> dict[tuple[str, str], list[dict]]:
+def collect_events(
+    config: dict,
+    metadata_csv: str,
+    repo_root: str | Path,
+    event_validator=None,
+) -> dict[tuple[str, str], list[dict]]:
     rows = selected_metadata_rows(load_region_metadata(metadata_csv, repo_root), config)
     source_index = build_source_metadata_index(rows, repo_root)
 
@@ -370,6 +416,7 @@ def collect_events(config: dict, metadata_csv: str, repo_root: str | Path) -> di
                     config=config,
                     repo_root=repo_root,
                     remaining=remaining,
+                    event_validator=event_validator,
                 )
             )
         grouped_events[(region, particle)] = collected

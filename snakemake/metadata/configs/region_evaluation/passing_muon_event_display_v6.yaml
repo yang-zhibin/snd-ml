@@ -1,0 +1,49 @@
+version: passing_muon_event_display_v6
+description: >-
+  Deterministic SNDSW event displays for the V6 loose detector-selection
+  candidate and its veto-count-partitioned complement.
+
+study_config: snakemake/metadata/configs/region_evaluation/passing_muon_binary_region_study_v6.yaml
+reference_histogram: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v6/histograms/detector_selection_combined.root
+
+input:
+  tree_name: sndData
+  real_data_metadata: snakemake/metadata/updated/passing_muon_run8329_comparison_v2/real_data_dq_run8329_metadata.csv
+  mc_metadata: snakemake/metadata/updated/MC_muon_up_metadata.csv
+  event_tree_candidates: [cbmsim, rawConv]
+
+selection:
+  working_point: coverage_loose
+  failure_veto_categories:
+    veto_lt3:
+      label: "loose-selection failure, 0 <= veto count < 3"
+      expression: "count_veto >= 0 && count_veto < 3"
+    veto_eq3:
+      label: "loose-selection failure, veto count = 3"
+      expression: "count_veto == 3"
+    veto_gt3:
+      label: "loose-selection failure, veto count > 3"
+      expression: "count_veto > 3"
+
+sampling:
+  events_per_category: 25
+  reserve_factor: 2
+  mode: round_robin_sources
+  # Scan at least this many source files for diversity, then stop as soon as
+  # every category has events_per_category * reserve_factor rows.
+  minimum_sources: 10
+
+annotations:
+  max_lines: 10
+
+display:
+  output_mode: vector_pdf
+  canvas_width: 1600
+  canvas_height: 1000
+  sndsw_display_script: ""
+
+output:
+  directory: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v6/event_display_loose
+  selected_manifest: selected_events.csv
+  category_counts: category_counts.csv
+  rendered_manifest: rendered_events.csv

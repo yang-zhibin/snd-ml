@@ -1,0 +1,47 @@
+version: passing_muon_detid_channel_shift_v4_display100
+description: >-
+  One hundred density-ranked, track-valid Run 8329 v4 detector-ID transforms
+  for large-sample official SNDSW event-display inspection.
+
+input:
+  source_manifest: /afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage/selected_events.csv
+  track_input_pattern: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/track_inputs/passingMuonDQ_flat_v2_run008329_source{source_file_index:03d}.root
+  track_tree: sndData
+  event_tree_candidates: [rawConv, cbmsim]
+  run_id: 8329
+
+track:
+  type_priority: [11, 1, 15]
+  min_ndf: 1
+  min_scifi_planes_per_projection: 2
+
+transform:
+  axis_policy: largest_absolute_scifi_track_slope
+  min_abs_slope: 0.0
+  min_axis_dominance_ratio: 1.2
+  ambiguous_axis_policy: reject
+  direction:
+    use_track_pz: true
+    assumed_pz_sign: 1
+  reference_plane_policy: earliest_selected_view_plane_with_hits
+  edge_policy: closest_within_threshold_else_slope
+  near_edge_threshold_cm: 5.0
+
+validation:
+  track_edge_tolerance_cm: 1.0e-8
+
+display:
+  with_track: 0
+  with_hough_track: 2
+  minimum_tracks: 0
+  track_verbose: 0
+
+high_density_sample:
+  sample_size: 100
+  # Rank by density but do not impose the 500-hit cutoff: only 85 manifest
+  # candidates satisfy that cutoff before track-quality rejection.
+  min_feature_scifi_occupancy: 0
+  exclude_event_ids: [6000152, 5004148, 6000210, 7000202]
+
+output:
+  directory: evaluation_region_partitions/passing_muon_detid_channel_shift_v4/display_sample_100

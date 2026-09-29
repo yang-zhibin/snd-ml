@@ -1,0 +1,13 @@
+region_version: passing_muon_track_inspection_region_v1
+description: >
+  All-events region used only to partition the reconstructed-track
+  passing-muon inspection sample. It intentionally applies no physics cut.
+
+regions:
+  all_events:
+    priority: 1
+    category: inspection
+    process_default: true
+    expression: "true"
+
+expression_macros: {}

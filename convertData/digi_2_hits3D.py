@@ -2,6 +2,7 @@ import ROOT
 import array
 import os
 import time
+import math
 from argparse import ArgumentParser
 import SndlhcGeo
 from collections import defaultdict
@@ -11,8 +12,19 @@ from matplotlib.colors import LogNorm
 from tqdm import tqdm
 
 from analysis.analyses.snd_analysis_2024_0mu.sciFiTools import selectHits
+from hit_time_selection import (
+    apply_first_arrival_time0 as apply_muon_first_arrival_time0,
+    is_muon_time_calibrated_sample,
+    select_calibrated_scifi_hits,
+)
+from sample_selection import is_passing_muon_real_data, uses_external_cutflow
 
 ROOT.TH1.AddDirectory(False)
+
+NS_PER_CLOCK = 6.25
+INVALID_TIME = -999.0
+MC_HIT_TIME_WINDOW_NS = 25.0
+
 
 
 TIMING_KEYS = [
@@ -21,6 +33,7 @@ TIMING_KEYS = [
     "scifi_select",
     "scifi_build",
     "mufilter_build",
+    "scifi_calibrated_select",
     "scifi_cross",
     "ds_cross",
     "us_ds4_voxel",
@@ -91,6 +104,7 @@ HIT_KEYS = [
     "h_channel",
     "v_qdc",
     "h_qdc",
+    "time",
 ]
 HIT_DTYPES = [
     np.int16,
@@ -108,7 +122,18 @@ HIT_DTYPES = [
     np.int32,
     np.float32,
     np.float32,
+    np.float32,
 ]
+
+NATIVE_SCIFI_KEYS = [
+    "station", "orientation", "channel", "det_id",
+    "x", "y", "z", "qdc", "time_ns",
+]
+NATIVE_SCIFI_DTYPES = [
+    np.int16, np.int16, np.int32, np.int64,
+    np.float32, np.float32, np.float32, np.float32, np.float32,
+]
+NATIVE_SCIFI_SCHEMA = "scifi_native_hits_v1"
 
 # ==========================================================
 # I/O and setup
@@ -147,6 +172,26 @@ def is_muonDIS_sample(args):
     return any("muondis" in str(getattr(args, field, "")).lower() for field in fields)
 
 
+def is_mc_sample(args):
+    return "MC" in str(args.type)
+
+
+def needs_first_arrival_time0(args):
+    return is_muon_time_calibrated_sample(args)
+
+
+def applies_mc_25ns_hit_filter(args):
+    fields = ("out_path", "type", "digi_path", "preSelect_path")
+    text = " ".join(str(getattr(args, field, "")) for field in fields).lower()
+    return is_mc_sample(args) and "mc_neutrino" not in text
+
+
+def skip_scifi_minhits_selection(args):
+    """Process all cutFlowSummary entries for muon MC samples."""
+    sample_type = str(args.type).lower()
+    return sample_type in ("mc_muon", "mc_muondis")
+
+
 def has_veto_and_us_hits(event):
     has_veto = False
     has_us = False
@@ -182,6 +227,120 @@ def non_negative_float(value):
         return 0.0
 
 
+def valid_time(value):
+    try:
+        value = float(value)
+    except Exception:
+        return False
+    return math.isfinite(value) and value > -900.0
+
+
+def scifi_time_ns(hit, scifi_det, args):
+    if is_mc_sample(args):
+        return float(hit.GetTime())
+
+    raw_time_ns = float(hit.GetTime()) * NS_PER_CLOCK
+    return float(scifi_det.GetCorrectedTime(hit.GetDetectorID(), raw_time_ns, 0))
+
+
+def get_mufilter_all_times(hit):
+    try:
+        raw_times = hit.GetAllTimes()
+    except TypeError:
+        try:
+            raw_times = hit.GetAllTimes(False)
+        except Exception:
+            return {}
+    except Exception:
+        return {}
+
+    times = {}
+    try:
+        iterator = raw_times.items()
+    except AttributeError:
+        iterator = raw_times
+
+    for item in iterator:
+        try:
+            channel, time_value = item
+        except (TypeError, ValueError):
+            try:
+                channel, time_value = item[0], item[1]
+            except Exception:
+                continue
+        times[int(channel)] = float(time_value)
+
+    return times
+
+
+def mufilter_channel_times_ns(hit, mufilter_det, args):
+    det_id = int(hit.GetDetectorID())
+    system = int(hit.GetSystem())
+    raw_times = get_mufilter_all_times(hit)
+
+    if not raw_times:
+        try:
+            raw_times = {0: hit.GetTime()}
+        except Exception:
+            raw_times = {}
+
+    n_sipms = None
+    if system == 3:
+        try:
+            n_sipms = int(mufilter_det.GetnSiPMs(det_id))
+        except Exception:
+            n_sipms = None
+
+    times = []
+    for channel, raw_time in raw_times.items():
+        if not valid_time(raw_time):
+            continue
+
+        if is_mc_sample(args):
+            time_ns = float(raw_time)
+        else:
+            time_ns = float(raw_time) * NS_PER_CLOCK
+            if system == 3 and n_sipms:
+                side = 0 if int(channel) < n_sipms else 1
+                try:
+                    time_ns = float(mufilter_det.GetCorrectedTime(det_id, side, time_ns, 0))
+                except Exception:
+                    pass
+
+        times.append(time_ns)
+
+    return times
+
+
+def mufilter_hit_time_ns(hit, mufilter_det, args):
+    times = mufilter_channel_times_ns(hit, mufilter_det, args)
+    return min(times) if times else INVALID_TIME
+
+
+def apply_first_arrival_time0(args, hit_collections, time_key="time"):
+    return apply_muon_first_arrival_time0(
+        args,
+        hit_collections,
+        time_key=time_key,
+        invalid_time=INVALID_TIME,
+    )
+
+
+def keep_hit_in_mc_time_window(args, hit, time_key="time"):
+    if not applies_mc_25ns_hit_filter(args):
+        return True
+
+    time_ns = hit.get(time_key, INVALID_TIME)
+    if not valid_time(time_ns):
+        return True
+
+    return float(time_ns) <= MC_HIT_TIME_WINDOW_NS
+
+
+def filter_late_mc_hits(args, hits, time_key="time"):
+    return [hit for hit in hits if keep_hit_in_mc_time_window(args, hit, time_key)]
+
+
 def setup_event_deltat_alias(preSelect_tree):
     """Make EventDeltat_m1_100 usable for trees with different sanitized names."""
     alias_name = "EventDeltat_m1_100"
@@ -198,14 +357,14 @@ def setup_event_deltat_alias(preSelect_tree):
 
 def build_selection(args, preSelect_tree):
     """Build the same broad event selection used by digi_2_features.py."""
-    selection = "SciFiMinHits == 1"
+    selection = None if skip_scifi_minhits_selection(args) else "SciFiMinHits == 1"
     if "MC" not in args.type:
         event_deltat_branch = setup_event_deltat_alias(preSelect_tree)
         if not event_deltat_branch:
             raise RuntimeError("No EventDeltat cut branch found for real-data selection")
 
         data_selection = "StableBeams == 1 && IP1 == 1 && EventDeltat_m1_100 == 1"
-        selection = selection + " && " + data_selection
+        selection = selection + " && " + data_selection if selection else data_selection
 
     return selection
 
@@ -245,6 +404,39 @@ def empty_3d_hits():
     return empty_hit_arrays(HIT_KEYS, HIT_DTYPES)
 
 
+def build_native_scifi_hits(scifi_hits):
+    """Preserve every selected SciFi digi once, before Cartesian crossing."""
+    if not scifi_hits:
+        return empty_hit_arrays(NATIVE_SCIFI_KEYS, NATIVE_SCIFI_DTYPES)
+    result = {
+        "station": np.asarray([h["station"] for h in scifi_hits], dtype=np.int16),
+        # The training contract defines 0=vertical and 1=horizontal.
+        "orientation": np.asarray(
+            [0 if h["isVertical"] else 1 for h in scifi_hits], dtype=np.int16
+        ),
+        "channel": np.asarray([h["channel"] for h in scifi_hits], dtype=np.int32),
+        "det_id": np.asarray([h["det_id"] for h in scifi_hits], dtype=np.int64),
+        "x": np.asarray([h["x_mid"] for h in scifi_hits], dtype=np.float32),
+        "y": np.asarray([h["y_mid"] for h in scifi_hits], dtype=np.float32),
+        "z": np.asarray([h["z_mid"] for h in scifi_hits], dtype=np.float32),
+        "qdc": np.asarray([h["qdc"] for h in scifi_hits], dtype=np.float32),
+        "time_ns": np.asarray([h["time"] for h in scifi_hits], dtype=np.float32),
+    }
+    lengths = {len(result[key]) for key in NATIVE_SCIFI_KEYS}
+    if lengths != {len(scifi_hits)}:
+        raise RuntimeError("Native SciFi hit vectors are not aligned")
+    if np.any((result["station"] < 1) | (result["station"] > 5)):
+        raise RuntimeError("Native SciFi station is outside [1,5]")
+    if np.any(result["channel"] < 0) or np.any(result["det_id"] < 0):
+        raise RuntimeError("Native SciFi channel/detector ID must be non-negative")
+    for key in ("x", "y", "z", "qdc", "time_ns"):
+        if not np.isfinite(result[key]).all():
+            raise RuntimeError(f"Native SciFi {key} contains a non-finite value")
+    if np.any(result["qdc"] < 0):
+        raise RuntimeError("Native SciFi QDC must be non-negative")
+    return result
+
+
 def combine_station_hits_to_3d(vertical_hits, horizontal_hits, det_type, index_type):
     """Combine one station's vertical and horizontal hits into crossed 3D hits."""
     if not vertical_hits or not horizontal_hits:
@@ -256,11 +448,13 @@ def combine_station_hits_to_3d(vertical_hits, horizontal_hits, det_type, index_t
     vz = np.array([h["z_mid"] for h in vertical_hits], dtype=np.float32)
     vq = np.array([h["qdc"] for h in vertical_hits], dtype=np.float32)
     vc = np.array([h["channel"] for h in vertical_hits], dtype=np.int32)
+    vt = np.array([h["time"] for h in vertical_hits], dtype=np.float32)
 
     hy = np.array([h["y_mid"] for h in horizontal_hits], dtype=np.float32)
     hz = np.array([h["z_mid"] for h in horizontal_hits], dtype=np.float32)
     hq = np.array([h["qdc"] for h in horizontal_hits], dtype=np.float32)
     hc = np.array([h["channel"] for h in horizontal_hits], dtype=np.int32)
+    ht = np.array([h["time"] for h in horizontal_hits], dtype=np.float32)
 
     nv = len(vertical_hits)
     nh = len(horizontal_hits)
@@ -274,6 +468,7 @@ def combine_station_hits_to_3d(vertical_hits, horizontal_hits, det_type, index_t
     qdc = v_qdc + h_qdc
     v_channel = np.repeat(vc, nh)
     h_channel = np.tile(hc, nv)
+    hit_time = np.minimum(np.repeat(vt, nh), np.tile(ht, nv))
 
     return {
         "station": np.full(n_crossed, station, dtype=np.int16),
@@ -291,6 +486,7 @@ def combine_station_hits_to_3d(vertical_hits, horizontal_hits, det_type, index_t
         "h_channel": h_channel.astype(np.int32, copy=False),
         "v_qdc": v_qdc.astype(np.float32, copy=False),
         "h_qdc": h_qdc.astype(np.float32, copy=False),
+        "time": hit_time.astype(np.float32, copy=False),
     }
 
 
@@ -329,6 +525,7 @@ def build_one_orientation_hits(hits, det_type, index_type, known_axis):
         "h_channel": h_channel,
         "v_qdc": v_qdc,
         "h_qdc": h_qdc,
+        "time": np.array([h["time"] for h in hits], dtype=np.float32),
     }
 
 
@@ -399,6 +596,7 @@ def build_centered_boxes_for_us_ds4(
     index_valid_all, index_type_all = [], []
     v_channel_all, h_channel_all = [], []
     v_qdc_all, h_qdc_all = [], []
+    time_all = []
 
     for h, (voxel_grid, index_type) in zip(selected_hits, offset_sets):
         step_x, step_y, step_z, ix, iy, iz, half_x, half_y, half_z = voxel_grid
@@ -424,6 +622,7 @@ def build_centered_boxes_for_us_ds4(
         h_channel_all.append(np.full(nvox, h_channel, dtype=np.int32))
         v_qdc_all.append(np.full(nvox, v_qdc / nvox, dtype=np.float32))
         h_qdc_all.append(np.full(nvox, h_qdc / nvox, dtype=np.float32))
+        time_all.append(np.full(nvox, float(h.get("time", INVALID_TIME)), dtype=np.float32))
 
     return {
         "station": np.concatenate(station_all),
@@ -441,6 +640,7 @@ def build_centered_boxes_for_us_ds4(
         "h_channel": np.concatenate(h_channel_all),
         "v_qdc": np.concatenate(v_qdc_all),
         "h_qdc": np.concatenate(h_qdc_all),
+        "time": np.concatenate(time_all),
     }
 
 
@@ -477,6 +677,8 @@ def create_output_root(path, mode, compression_level=9):
         "isMC": array.array("i", [-999]),
         "label": array.array("i", [-999]),
         "energy": array.array("d", [-999.0]),
+        "hitTime_time0_ns": array.array("d", [-999.0]),
+        "hitTime_time0_applied": array.array("i", [-999]),
     }
 
     for name, value in branch_vars.items():
@@ -499,6 +701,16 @@ def create_output_root(path, mode, compression_level=9):
         "hit_h_channel": ROOT.std.vector("int")(),
         "hit_v_qdc": ROOT.std.vector("float")(),
         "hit_h_qdc": ROOT.std.vector("float")(),
+        "hit_time_ns": ROOT.std.vector("float")(),
+        "scifi_native_station": ROOT.std.vector("short")(),
+        "scifi_native_orientation": ROOT.std.vector("short")(),
+        "scifi_native_channel": ROOT.std.vector("int")(),
+        "scifi_native_det_id": ROOT.std.vector("long long")(),
+        "scifi_native_x": ROOT.std.vector("float")(),
+        "scifi_native_y": ROOT.std.vector("float")(),
+        "scifi_native_z": ROOT.std.vector("float")(),
+        "scifi_native_qdc": ROOT.std.vector("float")(),
+        "scifi_native_time_ns": ROOT.std.vector("float")(),
     }
 
     for name, vec in vector_vars.items():
@@ -523,6 +735,8 @@ def fill_event_branches(event, branch_vars):
     branch_vars["isMC"][0] = int(event.get("isMC", -999))
     branch_vars["label"][0] = int(event.get("label", -999))
     branch_vars["energy"][0] = float(event.get("energy", -999.0))
+    branch_vars["hitTime_time0_ns"][0] = float(event.get("hitTime_time0_ns", -999.0))
+    branch_vars["hitTime_time0_applied"][0] = int(event.get("hitTime_time0_applied", -999))
 
 
 def assign_vector(vec, values):
@@ -546,6 +760,7 @@ def fill_hit_vectors(all_3dHits, vector_vars):
     h_channel = np.asarray(all_3dHits.get("h_channel", []), dtype=np.int32)
     v_qdc = np.asarray(all_3dHits.get("v_qdc", []), dtype=np.float32)
     h_qdc = np.asarray(all_3dHits.get("h_qdc", []), dtype=np.float32)
+    hit_time = np.asarray(all_3dHits.get("time", []), dtype=np.float32)
 
     lengths = {
         len(x),
@@ -563,6 +778,7 @@ def fill_hit_vectors(all_3dHits, vector_vars):
         len(h_channel),
         len(v_qdc),
         len(h_qdc),
+        len(hit_time),
     }
     if len(lengths) != 1:
         raise RuntimeError(f"Inconsistent hit3D array lengths: {sorted(lengths)}")
@@ -582,6 +798,30 @@ def fill_hit_vectors(all_3dHits, vector_vars):
     assign_vector(vector_vars["hit_h_channel"], h_channel)
     assign_vector(vector_vars["hit_v_qdc"], v_qdc)
     assign_vector(vector_vars["hit_h_qdc"], h_qdc)
+    assign_vector(vector_vars["hit_time_ns"], hit_time)
+
+
+def fill_native_scifi_vectors(native_hits, vector_vars):
+    values = {
+        key: np.asarray(native_hits.get(key, []), dtype=dtype)
+        for key, dtype in zip(NATIVE_SCIFI_KEYS, NATIVE_SCIFI_DTYPES)
+    }
+    lengths = {len(value) for value in values.values()}
+    if len(lengths) != 1:
+        raise RuntimeError(f"Inconsistent native SciFi array lengths: {sorted(lengths)}")
+    branch_names = {
+        "station": "scifi_native_station",
+        "orientation": "scifi_native_orientation",
+        "channel": "scifi_native_channel",
+        "det_id": "scifi_native_det_id",
+        "x": "scifi_native_x",
+        "y": "scifi_native_y",
+        "z": "scifi_native_z",
+        "qdc": "scifi_native_qdc",
+        "time_ns": "scifi_native_time_ns",
+    }
+    for key, branch in branch_names.items():
+        assign_vector(vector_vars[branch], values[key])
 
 
 def write_metadata_objects(out_file, metadata):
@@ -608,7 +848,7 @@ def process_hits_numpy(
     A, B = ROOT.TVector3(), ROOT.TVector3()
 
     t0 = time.perf_counter()
-    if is_muonDIS_sample(args):
+    if needs_first_arrival_time0(args):
         selected_scifi_hits = [hit for hit in event.Digi_ScifiHits if hit.isValid()]
     else:
         selected_scifi_hits = selectHits(event, MC=("MC" in args.type))
@@ -631,9 +871,11 @@ def process_hits_numpy(
         Bx, By, Bz = B.x(), B.y(), B.z()
 
         SciFi_hits.append({
+            "det_id": int(detID),
             "station": station,
             "isVertical": bool(aHit.isVertical()),
             "qdc": qdc,
+            "time": scifi_time_ns(aHit, Scifi, args),
             "x_mid": 0.5 * (Ax + Bx),
             "y_mid": 0.5 * (Ay + By),
             "z_mid": 0.5 * (Az + Bz),
@@ -670,12 +912,27 @@ def process_hits_numpy(
             "station": station,
             "isVertical": bool(aHit.isVertical()),
             "qdc": qdc,
+            "time": mufilter_hit_time_ns(aHit, MuFilter, args),
             "x_mid": 0.5 * (Ax + Bx),
             "y_mid": 0.5 * (Ay + By),
             "z_mid": 0.5 * (Az + Bz),
             "channel": channel,
         })
     add_timing(timings, "mufilter_build", time.perf_counter() - t0)
+
+    time0_ns, time0_applied = apply_first_arrival_time0(args, [SciFi_hits, MuFilter_hits])
+    t0 = time.perf_counter()
+    if needs_first_arrival_time0(args):
+        SciFi_hits = select_calibrated_scifi_hits(
+            SciFi_hits,
+            time_key="time",
+            ns_per_clock=NS_PER_CLOCK,
+        )
+    add_timing(timings, "scifi_calibrated_select", time.perf_counter() - t0)
+    SciFi_hits = filter_late_mc_hits(args, SciFi_hits, "time")
+    MuFilter_hits = filter_late_mc_hits(args, MuFilter_hits, "time")
+
+    native_scifi_hits = build_native_scifi_hits(SciFi_hits)
 
     # SciFi 3D hits
     t0 = time.perf_counter()
@@ -779,7 +1036,7 @@ def process_hits_numpy(
     )
     add_timing(timings, "merge_hits", time.perf_counter() - t0)
 
-    return all_3dHits
+    return all_3dHits, native_scifi_hits, time0_ns, time0_applied
 
 
 # ==========================================================
@@ -950,27 +1207,53 @@ def make_metadata(args, selection, n_selected):
         "preSelect_path": args.preSelect_path,
         "geo_path": args.geo_path,
         "compression_level": args.compression_level,
+        "selection_mode": (
+            "passing_muon_direct"
+            if is_passing_muon_real_data(args.type)
+            else "external_cutflow"
+        ),
+        "input_tree": args.tree_name,
+        "external_cutflow_used": int(not is_passing_muon_real_data(args.type)),
+        "scifi_native_schema": NATIVE_SCIFI_SCHEMA,
+        "scifi_native_orientation": "0_vertical_1_horizontal",
+        "scifi_native_selection": "post_time_and_qdc_selection",
     }
 
 
 def main(args):
     print("start processing digi to hits3D")
 
+    direct_passing_muon = is_passing_muon_real_data(args.type)
+    if uses_external_cutflow(args.type) and not args.preSelect_path:
+        raise ValueError("--preSelectPath is required unless type is passing_muon_real_data")
+
     snd_geo = setup_geometry(args.geo_path)
-    raw_data, raw_tree = open_root_file(args.digi_path)
-    preSelect_data, preSelect_tree = open_root_file(args.preSelect_path, tree_name="cutFlowSummary")
+    raw_data, raw_tree = open_root_file(args.digi_path, tree_name=args.tree_name)
+    preSelect_data = None
+    preSelect_tree = None
+    if not direct_passing_muon:
+        preSelect_data, preSelect_tree = open_root_file(
+            args.preSelect_path, tree_name="cutFlowSummary"
+        )
+    else:
+        print("Using direct passing-muon selection: processing reconstructed-tree entries")
     out_file, hit_tree, branch_vars, vector_vars = create_output_root(
         args.out_path,
         args.mode,
         compression_level=args.compression_level,
     )
 
-    selection = build_selection(args, preSelect_tree)
+    selection = None if direct_passing_muon else build_selection(args, preSelect_tree)
 
     print("Using feature-aligned hit3D event selection")
-    print(f"Applying selection: {selection}")
-
-    n_match = preSelect_tree.GetEntries(selection)
+    if selection:
+        print(f"Applying selection: {selection}")
+        n_match = preSelect_tree.GetEntries(selection)
+    elif direct_passing_muon:
+        n_match = raw_tree.GetEntries()
+    else:
+        print("No selection applied")
+        n_match = preSelect_tree.GetEntries()
     print(f"Entries matching selection: {n_match}")
 
     if n_match == 0:
@@ -978,18 +1261,26 @@ def main(args):
         write_metadata_objects(out_file, make_metadata(args, selection, 0))
         out_file.Close()
         raw_data.Close()
-        preSelect_data.Close()
+        if preSelect_data:
+            preSelect_data.Close()
         print("No entries matched the selection condition, saved empty hit3D tree")
         return 0
 
-    elist_name = "elist"
-    preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")
-    elist = ROOT.gDirectory.Get(elist_name)
+    if selection:
+        elist_name = "elist"
+        preSelect_tree.Draw(f">>{elist_name}", selection, "entrylist")
+        elist = ROOT.gDirectory.Get(elist_name)
 
-    if not elist or not isinstance(elist, ROOT.TEntryList):
-        raise RuntimeError("Failed to create or retrieve TEntryList")
+        if not elist or not isinstance(elist, ROOT.TEntryList):
+            raise RuntimeError("Failed to create or retrieve TEntryList")
+    else:
+        elist = ROOT.TEntryList("elist_all", "elist_all")
+        entry_count = raw_tree.GetEntries() if direct_passing_muon else preSelect_tree.GetEntries()
+        for j in range(entry_count):
+            elist.Enter(j)
 
-    preSelect_tree.SetEntryList(elist)
+    if preSelect_tree:
+        preSelect_tree.SetEntryList(elist)
     n_selected = int(elist.GetN())
     n_written = 0
     n_dropped_has_veto_has_us = 0
@@ -997,13 +1288,16 @@ def main(args):
 
     for i in tqdm(range(n_selected), desc="processing hit3D events", mininterval=30):
         t0 = time.perf_counter()
-        cutflow_entry = elist.GetEntry(i)
-        preSelect_tree.GetEntry(cutflow_entry)
-
-        if hasattr(preSelect_tree, "entry"):
-            raw_entry = int(preSelect_tree.entry)
+        selected_entry = elist.GetEntry(i)
+        if direct_passing_muon:
+            raw_entry = selected_entry
         else:
-            raw_entry = cutflow_entry
+            cutflow_entry = selected_entry
+            preSelect_tree.GetEntry(cutflow_entry)
+            if hasattr(preSelect_tree, "entry"):
+                raw_entry = int(preSelect_tree.entry)
+            else:
+                raw_entry = cutflow_entry
 
         raw_tree.GetEntry(raw_entry)
         init_event_geometry(snd_geo, raw_tree.EventHeader)
@@ -1018,23 +1312,40 @@ def main(args):
         event["label"] = particle_to_target.get(event["pdgCode"], -1)
         add_timing(timings, "metadata", time.perf_counter() - t0)
 
-        all_3dHits = process_hits_numpy(args, raw_tree, snd_geo, timings=timings)
+        all_3dHits, native_scifi_hits, time0_ns, time0_applied = process_hits_numpy(
+            args,
+            raw_tree,
+            snd_geo,
+            timings=timings,
+        )
+        event["hitTime_time0_ns"] = time0_ns
+        event["hitTime_time0_applied"] = int(time0_applied)
 
         t0 = time.perf_counter()
         reset_output_branches(branch_vars, vector_vars)
         fill_event_branches(event, branch_vars)
         fill_hit_vectors(all_3dHits, vector_vars)
+        fill_native_scifi_vectors(native_scifi_hits, vector_vars)
         hit_tree.Fill()
         n_written += 1
         add_timing(timings, "root_fill", time.perf_counter() - t0)
 
     t0 = time.perf_counter()
     hit_tree.Write()
-    write_metadata_objects(out_file, make_metadata(args, selection, n_written))
+    metadata = make_metadata(args, selection, n_written)
+    metadata.update({
+        "selection_mode": "passing_muon_direct" if direct_passing_muon else "external_cutflow",
+        "input_tree": args.tree_name,
+        "external_cutflow_used": int(not direct_passing_muon),
+        "input_entries": int(raw_tree.GetEntries()),
+        "dropped_has_veto_and_us": int(n_dropped_has_veto_has_us),
+    })
+    write_metadata_objects(out_file, metadata)
     add_timing(timings, "root_write", time.perf_counter() - t0)
     out_file.Close()
     raw_data.Close()
-    preSelect_data.Close()
+    if preSelect_data:
+        preSelect_data.Close()
 
     print_timing_summary(timings, n_written)
     if args.drop_real_has_veto_has_us:
@@ -1049,12 +1360,13 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser()
 
-    parser.add_argument("-p", "--preSelectPath", dest="preSelect_path", help="pre selection data file path", required=True)
+    parser.add_argument("-p", "--preSelectPath", dest="preSelect_path", help="pre selection data file path")
     parser.add_argument("-d", "--digiPath", dest="digi_path", help="digitized data file path", required=True)
     parser.add_argument("-g", "--geoPath", dest="geo_path", help="geo path", required=True)
     parser.add_argument("-o", "--outPath", dest="out_path", help="output ROOT path", required=True)
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default="RECREATE")
     parser.add_argument("-t", "--type", dest="type", help="data type, e.g. MC or real", required=True)
+    parser.add_argument("--tree-name", default="cbmsim", help="Input event-tree name (default: cbmsim)")
     parser.add_argument(
         "--compression-level",
         dest="compression_level",

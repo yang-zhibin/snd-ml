@@ -1,0 +1,141 @@
+version: passing_muon_track_study_v3
+run: 8329
+tree_name: sndData
+description: >-
+  Track-type and reconstruction-failure study within the run-8329 real-data
+  DQ population. Track categories are selected only on the passing-muon side.
+
+groups:
+  real_data: real_data_dq_run8329
+  passing: passing_muon_dq_run8329
+  missing: no_passing_muon_reco_run8329
+
+# Detector-only MC reference. Use one explicitly identified upward-muon
+# production so incompatible simulation configurations are never combined by
+# accident. This production has no SciFi-hit events, so the reference requires
+# activity in any detector subsystem rather than claiming full-detector
+# traversal. It is diagnostic only and cannot calibrate the v5 SciFi cut.
+mc_muon_up:
+  group: mc_muon_up
+  label: "MC muon up, detector activity"
+  source_metadata: snakemake/metadata/updated/MC_muon_up_metadata.csv
+  source:
+    subfolder: up
+    partition: scoring_at449m
+    feature_name: feature_MC_muon_up_scoring_at449m_14.root
+  inclusive_expression: "std::abs(pdgCode) == 13"
+  reference_expression: >-
+    std::abs(pdgCode) == 13 &&
+    (count_veto + count_scifi + count_us + count_ds) > 0
+
+track_types:
+  simple_scifi:
+    label: "Simple SciFi"
+    short_label: "Simple SciFi"
+    components: [reco_scifi_simple]
+  simple_ds:
+    label: "Simple downstream"
+    short_label: "Simple DS"
+    components: [reco_ds_simple]
+  simple_scifi_and_ds:
+    label: "Simple SciFi and downstream"
+    short_label: "Simple SF+DS"
+    components: [reco_scifi_simple, reco_ds_simple]
+  hough_scifi:
+    label: "Hough SciFi"
+    short_label: "Hough SciFi"
+    components: [reco_scifi_hough]
+  hough_ds:
+    label: "Hough downstream"
+    short_label: "Hough DS"
+    components: [reco_ds_hough]
+  hough_scifi_and_ds:
+    label: "Hough SciFi and downstream"
+    short_label: "Hough SF+DS"
+    components: [reco_scifi_hough, reco_ds_hough]
+  hough_combined:
+    label: "Hough combined-detector"
+    short_label: "Hough combined"
+    components: [reco_combined_hough]
+
+# Four disjoint PassingMuonReco populations are built for each algorithm from
+# the pass/fail state of its separate SciFi and DS component selections. A
+# Hough type-15 combined-detector track is intentionally not counted as either
+# the type-11 SciFi component or the type-13 DS component.
+algorithm_comparisons:
+  simple:
+    label: "Simple tracking"
+    scifi_component: reco_scifi_simple
+    ds_component: reco_ds_simple
+  hough:
+    label: "Hough tracking"
+    scifi_component: reco_scifi_hough
+    ds_component: reco_ds_hough
+
+working_points:
+  no_quality_cut: {chi2ndf_max: null, label: "Converged target track"}
+  chi2ndf_lt_50: {chi2ndf_max: 50.0, label: "Best target track #chi^{2}/NDF < 50"}
+  chi2ndf_lt_20: {chi2ndf_max: 20.0, label: "Best target track #chi^{2}/NDF < 20"}
+  chi2ndf_lt_10: {chi2ndf_max: 10.0, label: "Best target track #chi^{2}/NDF < 10"}
+
+# These histograms are defined only for target-category events with a valid
+# best-track score. For two-component categories the x expression is the
+# larger (worse) of the two component best chi2/NDF values.
+track_quality_2d:
+  score:
+    n_bins: 150
+    min: 0.0
+    max: 300.0
+    fold_underflow: false
+    fold_overflow: true
+  observables:
+    veto_count:
+      expression: count_veto
+      n_bins: 31
+      min: -0.5
+      max: 30.5
+      axis_title: "Veto hit count"
+      fold_overflow: true
+    us_count:
+      expression: count_us
+      n_bins: 61
+      min: -0.5
+      max: 60.5
+      axis_title: "US hit count"
+      fold_overflow: true
+    ds_count:
+      expression: count_ds
+      n_bins: 41
+      min: -0.5
+      max: 40.5
+      axis_title: "DS hit count"
+      fold_overflow: true
+    scifi_count:
+      expression: count_scifi
+      n_bins: 100
+      min: -0.5
+      max: 799.5
+      axis_title: "SciFi hit count"
+      fold_overflow: true
+    scifi_density:
+      expression: density_sndsw_scifi
+      n_bins: 80
+      min: 0.0
+      max: 40000.0
+      axis_title: "SciFi density"
+      fold_overflow: true
+
+expected:
+  n_partitions: 20
+  real_data_dq: 11115982
+  passing_muon_dq: 11025227
+  no_passing_muon_reco: 90755
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_track_study_v3
+  plot_dir: evaluation_region_partitions/passing_muon_run8329_track_study_v3
+  metadata_csv: snakemake/metadata/updated/passing_muon_run8329_track_study_v3/no_passing_muon_reco_metadata_v3.csv
+  validation_csv: snakemake/metadata/updated/passing_muon_run8329_track_study_v3/no_passing_muon_reco_validation_v3.csv
+  mc_muon_up_metadata_csv: snakemake/metadata/updated/passing_muon_run8329_track_study_v3/mc_muon_up_reference_metadata_v3.csv
+  mc_muon_up_validation_csv: snakemake/metadata/updated/passing_muon_run8329_track_study_v3/mc_muon_up_reference_validation_v3.csv
+  compression_level: 1

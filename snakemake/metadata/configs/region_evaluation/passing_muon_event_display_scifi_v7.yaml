@@ -1,0 +1,59 @@
+version: passing_muon_event_display_scifi_v7
+description: >-
+  Run-8329 V7 event identities regenerated as three-page SNDSW plus
+  geometry-faithful SciFi channel displays in an isolated directory that
+  mirrors the complete original 19-category folder hierarchy.
+
+frozen_input:
+  source_summary_root: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage
+  selection_manifest: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage/selected_events.csv
+  events_per_category: 25
+  categories:
+    - run8329__candidate
+    - run8329__failure__veto_lt3
+    - run8329__failure__veto_eq3
+    - run8329__failure__veto_gt3
+    - run8329__failure__veto_lt3__scifi_hit_count_gt100
+    - run8329__failure__veto_eq3__scifi_hit_count_gt100
+    - run8329__failure__veto_gt3__scifi_hit_count_gt100
+    - run8329__failure__veto_lt3__scifi_density_gt100
+    - run8329__failure__veto_eq3__scifi_density_gt100
+    - run8329__failure__veto_gt3__scifi_density_gt100
+    - run8329__failure__veto_lt3__scifi_density_gt500
+    - run8329__failure__veto_eq3__scifi_density_gt500
+    - run8329__failure__veto_gt3__scifi_density_gt500
+    - run8329__failure__veto_lt3__scifi_density_gt1000
+    - run8329__failure__veto_eq3__scifi_density_gt1000
+    - run8329__failure__veto_gt3__scifi_density_gt1000
+    - run8329__failure__veto_lt3__scifi_density_gt5000
+    - run8329__failure__veto_eq3__scifi_density_gt5000
+    - run8329__failure__veto_gt3__scifi_density_gt5000
+  base_categories:
+    - run8329__candidate
+    - run8329__failure__veto_lt3
+    - run8329__failure__veto_eq3
+    - run8329__failure__veto_gt3
+  additional_criteria:
+    - scifi_hit_count_gt100
+    - scifi_density_gt100
+    - scifi_density_gt500
+    - scifi_density_gt1000
+    - scifi_density_gt5000
+  veto_categories: [veto_lt3, veto_eq3, veto_gt3]
+
+annotations:
+  max_lines: 10
+
+display:
+  output_mode: vector_pdf
+  canvas_width: 1600
+  canvas_height: 1000
+  sndsw_display_script: ""
+  plane_page_width: 66
+  page_types: [overview, scifi_horizontal, scifi_vertical]
+  individual_sipm_pages: 0
+  write_plane_pngs: false
+
+output:
+  directory: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage_scifi_channels
+  rendered_manifest: rendered_pages.csv

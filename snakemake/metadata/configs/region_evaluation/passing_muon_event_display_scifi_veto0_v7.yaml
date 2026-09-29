@@ -1,0 +1,69 @@
+version: passing_muon_event_display_scifi_veto0_v7
+description: >-
+  Additive Run-8329 SciFi-channel event displays selected with exactly zero
+  Veto measurements and the existing SciFi-density thresholds, without a
+  coverage-loose pass/fail requirement.
+
+study_config: snakemake/metadata/configs/region_evaluation/passing_muon_binary_region_study_v7.yaml
+samples: [run8329]
+
+input:
+  tree_name: sndData
+  real_data_metadata: snakemake/metadata/updated/passing_muon_run8329_comparison_v2/real_data_dq_run8329_metadata.csv
+  event_tree_candidates: [cbmsim, rawConv]
+
+selection:
+  working_point: coverage_loose
+  include_standard_categories: false
+  inclusive_veto_categories:
+    veto_eq0:
+      label: "veto count = 0, independent of loose selection"
+      expression: "count_veto == 0"
+  inclusive_criteria:
+    scifi_density_gt100:
+      label: "SciFi density > 100"
+      expression: "density_sndsw_scifi > 100"
+    scifi_density_gt500:
+      label: "SciFi density > 500"
+      expression: "density_sndsw_scifi > 500"
+    scifi_density_gt1000:
+      label: "SciFi density > 1000"
+      expression: "density_sndsw_scifi > 1000"
+    scifi_density_gt5000:
+      label: "SciFi density > 5000"
+      expression: "density_sndsw_scifi > 5000"
+
+sampling:
+  events_per_category: 25
+  reserve_factor: 2
+  mode: round_robin_sources
+  minimum_sources: 10
+
+annotations:
+  max_lines: 10
+
+display:
+  output_mode: vector_pdf
+  canvas_width: 1600
+  canvas_height: 1000
+  sndsw_display_script: ""
+  plane_page_width: 66
+  page_types: [overview, scifi_horizontal, scifi_vertical]
+  individual_sipm_pages: 0
+  write_plane_pngs: false
+
+frozen_input:
+  manifest_mode: selection
+  events_per_category: 25
+  allow_fewer_events: true
+  categories:
+    - run8329__inclusive__veto_eq0__scifi_density_gt100
+    - run8329__inclusive__veto_eq0__scifi_density_gt500
+    - run8329__inclusive__veto_eq0__scifi_density_gt1000
+    - run8329__inclusive__veto_eq0__scifi_density_gt5000
+
+output:
+  directory: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage_scifi_channels
+  selected_manifest: selected_events_veto_eq0.csv
+  category_counts: category_counts_veto_eq0.csv
+  rendered_manifest: rendered_pages_veto_eq0.csv

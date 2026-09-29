@@ -1,0 +1,24 @@
+version: passing_muon_tracks_v1
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/region_v2_inspection_inputs
+  tree_name: sndData
+  compression_level: 1
+target_luminosity:
+  source_dataset: passing_muon_tracks_run008329
+  expected_fb: 0.5323492746290897
+  tolerance_fb: 1.0e-12
+datasets:
+  passing_muon_tracks_run008329:
+    data_type: passing_muon_real_data
+    metadata_csv: snakemake/metadata/updated/passing_muon_track_features_v1_metadata.csv
+    selection_mode: passing_muon_direct
+    metadata_filter: {run: 8329}
+    event_selection: "true"
+    particle_filter: "true"
+    mc_fraction: 1.0
+    output_file: passing_muon_tracks_run008329.root
+    selected_runs: "8329"
+    normalization_note: >
+      Dedicated reconstructed-track inspection. All PassingMuonReco events are
+      retained; unlike the legacy feature sample, no veto+US event category is
+      removed. This enriched control sample is not stacked with inclusive data.
