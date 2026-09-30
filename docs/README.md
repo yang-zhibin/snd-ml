@@ -39,6 +39,7 @@ from the relevant topic documents.
 
 - [Workflow documentation index](workflows/README.md)
 - [Operations and environment index](operations/README.md)
+- [Environment and Snakemake execution guide](project/ENVIRONMENT_AND_SNAKEMAKE.md)
 - [Active proposals](plans/proposed/README.md)
 - [Superseded documents](archive/superseded/README.md)
 

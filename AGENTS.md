@@ -24,6 +24,29 @@ exploratory unless the task names them.
 - Submit long CERN work through Snakemake/HTCondor and record the command, job
   ID, logs, expected outputs, and status command in the task file.
 
+## Runtime environments
+
+Read `docs/project/ENVIRONMENT_AND_SNAKEMAKE.md` before running Python,
+ROOT, Snakemake, tests, or batch jobs.
+
+- Inspect the relevant rule or wrapper and use its existing environment. Do
+  not choose an environment from memory.
+- Environment activation and the dependent command must run in the same shell
+  block or batch job. A previous terminal, tool call, or login does not carry
+  into a new process.
+- Before sourcing CVMFS, SNDSW, or Conda setup under strict Bash, run `set +u`;
+  enable `set -euo pipefail` only after activation.
+- Run a small preflight that records `hostname`, `pwd`, `command -v python3`,
+  the Python version, and imports required by the command.
+- Treat ROOT/SNDSW and PyTorch as separate runtime stacks unless a documented,
+  validated container or overlay explicitly provides both. Split mixed work
+  into separate processes with files as the interface.
+- Set `PYTHONNOUSERSITE=1` and normally `PYTHONDONTWRITEBYTECODE=1` to prevent
+  packages under the user site from changing the selected environment.
+- Do not install packages, alter shared environments, or edit activation
+  scripts to bypass an import failure unless the user explicitly requests it.
+  Diagnose the selected interpreter and required imports first.
+
 ## Continuity
 
 The chat transcript is not authoritative. Task files, Git state, code, tests,
