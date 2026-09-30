@@ -23,6 +23,25 @@ REGION_PARTITION_METADATA_CSV = (
     f"{PERSONAL_WORK_SPACE}/snakemake/metadata/region_partitions/"
     f"{PARTITION_VERSION}_{REGION_VERSION}.csv"
 )
+ABCD_INPUT_AUDIT_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_input_audit_v1.yaml"
+)
+
+with open(ABCD_INPUT_AUDIT_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_INPUT_AUDIT = yaml.safe_load(handle)
+
+ABCD_INPUT_AUDIT_OUTPUT_DIR = ABCD_INPUT_AUDIT["output"]["directory"]
+if not os.path.isabs(ABCD_INPUT_AUDIT_OUTPUT_DIR):
+    ABCD_INPUT_AUDIT_OUTPUT_DIR = (
+        f"{PERSONAL_WORK_SPACE}/{ABCD_INPUT_AUDIT_OUTPUT_DIR}"
+    )
+ABCD_INPUT_AUDIT_CSV = (
+    f"{ABCD_INPUT_AUDIT_OUTPUT_DIR}/{ABCD_INPUT_AUDIT['output']['csv']}"
+)
+ABCD_INPUT_AUDIT_REPORT = (
+    f"{ABCD_INPUT_AUDIT_OUTPUT_DIR}/{ABCD_INPUT_AUDIT['output']['report']}"
+)
 
 
 def _sanitize_partition_name(value):
@@ -201,6 +220,47 @@ rule region_feature_partitions:
 rule region_hit3d_partitions:
     input:
         REGION_PARTITION_HIT3D_ROW_TARGETS
+
+
+rule region_v1_abcd_input_audit:
+    input:
+        region_config=REGION_CONFIG,
+        audit_config=ABCD_INPUT_AUDIT_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "audit_abcd_region_inputs.py"
+        ),
+    params:
+        partition_catalogue=REGION_PARTITION_METADATA_CSV,
+    output:
+        csv=ABCD_INPUT_AUDIT_CSV,
+        report=ABCD_INPUT_AUDIT_REPORT,
+    resources:
+        runtime=10 * 60,
+        mem_mb=1000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import yaml; print(yaml.__version__)' >&2
+
+        python3 {input.script} \
+          --partition-catalogue {params.partition_catalogue} \
+          --region-config {input.region_config} \
+          --audit-config {input.audit_config} \
+          --output-csv {output.csv} \
+          --output-report {output.report}
+        """
 
 
 rule build_region_feature_partition:

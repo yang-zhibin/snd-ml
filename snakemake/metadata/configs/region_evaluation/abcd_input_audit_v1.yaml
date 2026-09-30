@@ -1,0 +1,93 @@
+version: abcd_input_audit_v1
+description: >
+  Frozen Region V1 real-data catalogue expectations used before constructing
+  ABCD estimates. Event counts are inclusive metadata n_events totals; they
+  are not histogram integrals.
+
+catalogue:
+  partition_version: partition_v1
+  region_version: region_v1
+  particle_group: real_data
+
+validation:
+  exposure_absolute_tolerance: 1.0e-9
+  require_feature_available: true
+  require_unique_partition_ids: true
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/abcd_input_audit_v1
+  csv: input_audit.csv
+  report: input_audit.md
+
+regions:
+  signal_no_veto_has_us_fiducial_inside:
+    label: Signal
+    expected_catalogue_rows: 100
+    expected_n_events: 158707
+    expected_exposure: 19.780680927948
+    expected_fraction: 1.0
+    expected_partitions_requested: 100
+    expected_partitions_written: 100
+
+  sideband_no_veto_no_us_fiducial_inside:
+    label: SB1
+    expected_catalogue_rows: 100
+    expected_n_events: 40300
+    expected_exposure: 19.780680927948
+    expected_fraction: 1.0
+    expected_partitions_requested: 100
+    expected_partitions_written: 100
+
+  sideband_no_veto_has_us_fiducial_outside:
+    label: SB2
+    expected_catalogue_rows: 100
+    expected_n_events: 447152
+    expected_exposure: 19.780680927948
+    expected_fraction: 1.0
+    expected_partitions_requested: 100
+    expected_partitions_written: 100
+
+  sideband_no_veto_no_us_fiducial_outside:
+    label: SB3
+    expected_catalogue_rows: 100
+    expected_n_events: 73186
+    expected_exposure: 19.780680927948
+    expected_fraction: 1.0
+    expected_partitions_requested: 100
+    expected_partitions_written: 100
+
+  sideband_has_veto_has_us_fiducial_inside:
+    label: SB4
+    expected_catalogue_rows: 96
+    expected_n_events: 20348106
+    expected_exposure: 1.960319252235
+    expected_fraction: 0.1
+    expected_partitions_requested: 100
+    expected_partitions_written: 100
+
+  sideband_has_veto_no_us_fiducial_inside:
+    label: SB5
+    expected_catalogue_rows: 96
+    expected_n_events: 26510
+    expected_exposure: 1.960319252235
+    expected_fraction: 0.1
+    expected_partitions_requested: 100
+    expected_partitions_written: 100
+
+  sideband_has_veto_has_us_fiducial_outside:
+    label: SB6
+    expected_catalogue_rows: 96
+    expected_n_events: 18928315
+    expected_exposure: 1.960319252235
+    expected_fraction: 0.1
+    expected_partitions_requested: 100
+    expected_partitions_written: 100
+
+  sideband_has_veto_no_us_fiducial_outside:
+    label: SB7
+    expected_catalogue_rows: 96
+    expected_n_events: 29142
+    expected_exposure: 1.960319252235
+    expected_fraction: 0.1
+    expected_partitions_requested: 100
+    expected_partitions_written: 100

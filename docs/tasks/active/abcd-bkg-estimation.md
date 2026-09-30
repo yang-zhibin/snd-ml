@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-09-30 16:34 Europe/Zurich
+Last updated: 2026-10-01 01:16 Europe/Zurich
 
 ## Goal
 
@@ -69,6 +69,17 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - Recorded the likelihood derivation, current arithmetic calculations, and
   the intended role of `cabinetry` / `pyhf` in
   `docs/analysis/regions/REGION_V1_ABCD_STATISTICAL_LIKELIHOOD_GUIDE.md`.
+- Implemented baseline-plan step 1 as the focused Snakemake rule
+  `region_v1_abcd_input_audit`, with a frozen input contract, atomic CSV and
+  Markdown outputs, and a synthetic pass/fail test. The realized audit passes
+  for all eight Region V1 real-data regions.
+- Added the short companion note
+  `docs/analysis/regions/ABCD_LIKELIHOOD_STEPS_AND_REFERENCES.md`, covering the
+  unbinned and binned likelihood sequence, ABCD parameterization, inference,
+  and core references.
+- Verified the realized catalogue and physical EOS feature files for real
+  data and all standard and EventBuilder CC/NC electron- and muon-neutrino MC
+  groups in every Region V1 region.
 
 ## Findings and decisions
 
@@ -90,6 +101,21 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   workspace, fits, scans, pulls, significance, and limits.
 - A likelihood propagates statistical and nuisance-parameter uncertainty but
   cannot repair an invalid ABCD independence assumption.
+- The Region V1 feature inputs are ready for data and neutrino MC. Every
+  catalogued feature path exists on EOS and is non-empty, and every catalogue
+  `feature_available` flag is true. Sparse MC groups can have fewer than ten
+  written partitions because empty partitions are intentionally omitted.
+- `CC_nue` is the target signal sample. `CC_numu`, `NC_nue`, and `NC_numu`
+  are separately modelled neutrino backgrounds; the corresponding
+  EventBuilder samples are alternate productions, not additional yields to
+  add to the standard samples.
+- The catalogue event totals are raw selected MC entries, not 2024 expected
+  yields. Signal-contamination tables still require the authoritative event
+  weights, with each yield calculated as `sum(w)` and MC statistical variance
+  as `sum(w^2)`.
+- No further ABCD inference was authorized or started. The inclusive
+  arithmetic values remain diagnostics from already inspected development
+  data, not a final background or signal result.
 
 ## Results and evidence
 
@@ -119,6 +145,28 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   | Baseline 2 nominal SR | 406767 | 158707 | 0.390167 |
   | Baseline 2 mixed validation | 78676 | 40300 | 0.512230 |
 
+- Realized standard neutrino-MC feature counts after Region V1 selection:
+
+  | Region | `CC_nue` | `CC_numu` | `NC_nue` | `NC_numu` |
+  | --- | ---: | ---: | ---: | ---: |
+  | Signal | 8072 | 20015 | 2475 | 5817 |
+  | SB1 | 183 | 12 | 50 | 295 |
+  | SB2 | 8886 | 22946 | 3106 | 6833 |
+  | SB3 | 148 | 23 | 54 | 277 |
+  | SB4 | 12249 | 22862 | 3667 | 6472 |
+  | SB5 | 527 | 26 | 118 | 488 |
+  | SB6 | 12899 | 22700 | 3642 | 6761 |
+  | SB7 | 281 | 39 | 86 | 336 |
+
+- The four EventBuilder neutrino groups also have available, existing,
+  non-empty feature files in every region. Their counts were checked
+  separately and must not be combined with the standard samples without an
+  explicit production choice.
+- The versioned audit outputs are:
+  - `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/abcd_input_audit_v1/input_audit.csv`
+  - `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/abcd_input_audit_v1/input_audit.md`
+  Both were written on 2026-09-30 at 20:17 Europe/Zurich and report `PASS`.
+
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
   uncertainty is derived, it requires secondary validation.
@@ -146,6 +194,30 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     directory, interpreter, Python version, and import preflights. Read-only
     Python CSV aggregation reproduced the metadata counts/exposures and the
     four diagnostic calculations above.
+  - Added the audit rule and first dry-ran its output target. Treating the
+    authoritative catalogue as a Snakemake input initially exposed an unsafe
+    dependency expansion of 802 jobs; no such jobs were executed. Moving the
+    catalogue path to a rule parameter reduced the DAG to exactly one local
+    audit job and prevents this audit target from regenerating partitions.
+  - Ran the focused synthetic audit test under the documented LCG environment:
+    `python3 evaluation_region_partitions/test_abcd_region_input_audit.py`.
+    The passing fixture succeeded, the intentional count-mismatch fixture
+    returned nonzero as required, and the test ended with
+    `Region V1 ABCD input audit synthetic test: OK`.
+  - Ran the single local Snakemake target through `snakemake/snakefile` with
+    one core. Log:
+    `.snakemake/log/2026-09-30T201714.122490.snakemake.log`. It scheduled only
+    `region_v1_abcd_input_audit`, completed `1 of 1 steps`, and wrote the two
+    versioned audit outputs. A subsequent dry-run reported nothing to do.
+  - `python3 -m py_compile` passed for the audit script and focused test;
+    `git diff --check` passed.
+  - On 2026-10-01, activated the same LCG 107 environment with preflight and
+    used a read-only Python `csv`/`os.path` audit of
+    `partition_v1_region_v1.csv`. For real data and the eight standard plus
+    EventBuilder neutrino groups, all catalogued feature paths existed and
+    had nonzero size in all eight regions. No output file was written.
+  - `condor_q -nobatch` on 2026-10-01 at about 01:07 Europe/Zurich reported
+    zero jobs for `zhibin`.
 
 ## Modified files
 
@@ -157,20 +229,56 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     profile-likelihood outline, and `cabinetry` / `pyhf` workflow boundary.
 - `docs/tasks/active/abcd-bkg-estimation.md`
   - Added this checkpoint.
+- `snakemake/rules/region_partitions.smk`
+  - Added the single-purpose `region_v1_abcd_input_audit` rule. The catalogue
+    is deliberately a parameter rather than an input so an audit cannot
+    trigger partition regeneration.
+- `snakemake/metadata/configs/region_evaluation/abcd_input_audit_v1.yaml`
+  - Added frozen Region V1 real-data counts, exposures, fractions, and
+    partition expectations plus versioned output paths.
+- `evaluation_region_partitions/audit_abcd_region_inputs.py`
+  - Added catalogue/schema/region/count/exposure/partition/availability checks
+    and atomic CSV/Markdown reporting.
+- `evaluation_region_partitions/test_abcd_region_input_audit.py`
+  - Added an end-to-end passing fixture and an intentional count-failure case.
+- `docs/analysis/regions/ABCD_LIKELIHOOD_STEPS_AND_REFERENCES.md`
+  - Added a compact likelihood/ABCD workflow and primary reading list.
 
 ## Validation
 
-- No code tests were run because this checkpoint contains documentation and
-  read-only analysis only.
+- At the earlier documentation-only checkpoint, no code tests were required;
+  the implementation added since then has the focused validation listed
+  below.
 - Verified the saved likelihood guide by reading its opening and final
   sections.
 - Verified the inclusive counts independently from the authoritative partition
   metadata and the existing evaluation summary.
+- The frozen Region V1 input audit reports `PASS` for all eight data regions;
+  every count difference is zero and every exposure difference is within the
+  configured absolute tolerance of `1e-9`.
+- The focused synthetic test, Python compilation, one-job Snakemake execution,
+  final no-op dry-run, and `git diff --check` all passed.
+- A separate physical-file check confirmed all catalogued real-data and
+  neutrino-MC feature ROOT files exist on EOS and have nonzero size.
 
 ## Running jobs
 
-- None. `condor_q -nobatch` reported zero jobs for `zhibin`; there are no job
-  IDs, logs, or expected batch outputs associated with this task.
+- None. `condor_q -nobatch` reported zero jobs for `zhibin` on 2026-10-01;
+  there are no scheduler job IDs, batch logs, or pending batch outputs for
+  this task. The completed input audit was a local Snakemake job, not an
+  HTCondor submission.
+
+## Current Git state
+
+- Branch: `task/abcd-bkg-estimation`.
+- HEAD before this checkpoint: `3e053cd` (`docs: record ABCD checkpoint
+  commit`).
+- Before updating this task record, the worktree contained five uncommitted
+  task-scoped paths; this task-record update is the sixth. No unrelated user
+  changes were present.
+- This stopping checkpoint is intended to commit those task-scoped changes
+  together with this updated task record. The resulting commit SHA and final
+  cleanliness check are reported in the stopping handoff.
 
 ## Blockers and open questions
 
@@ -184,9 +292,8 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 ## Exact next action
 
-Implement baseline-plan step 1 only: add a focused Region V1 ABCD input-audit
-command to the existing Snakemake workflow that reads the authoritative
-`partition_v1_region_v1.csv`, verifies per-region exposure and inclusive event
-count closure for all eight real-data regions, and writes a versioned CSV plus
-Markdown report. Do not implement the ABCD likelihood or start production in
-the same action.
+Implement baseline-plan step 2 only: propose and freeze one versioned common
+`density_sndsw_scifi` binning and explicit underflow/overflow policy using
+control-region statistics and signal MC, without materializing count tables,
+calculating new ABCD results, implementing a likelihood, or starting
+production in the same action.
