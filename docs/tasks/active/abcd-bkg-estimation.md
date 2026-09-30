@@ -126,6 +126,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   2026-06-16; the authoritative combined partition metadata was written
   2026-06-17. The inclusive summary counts still match the metadata exactly.
 - Commands and outcomes:
+  - Task-only checkpoint commit:
+    `924bf9e3b816f66488e99be2e2b2e2e0d705d624`
+    (`docs: checkpoint ABCD background estimation baseline`). It contains the
+    baseline plan, likelihood guide, and active task record. The worktree had
+    no unrelated changes and was clean immediately after this commit.
   - `git status --short --branch`, `git rev-parse HEAD`, and `git log -5`:
     branch was at starting commit `5793ce8`; only task documentation was
     untracked.
