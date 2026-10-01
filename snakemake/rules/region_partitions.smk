@@ -124,6 +124,25 @@ if not os.path.isabs(ABCD_DENSITY_TABLE_OUTPUT_DIR):
 ABCD_DENSITY_TABLE_CSV = (
     f"{ABCD_DENSITY_TABLE_OUTPUT_DIR}/{ABCD_DENSITY_TABLE['output']['csv']}"
 )
+ABCD_DENSITY_REPORT_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_density_analysis_report_v1.yaml"
+)
+
+with open(ABCD_DENSITY_REPORT_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DENSITY_REPORT = yaml.safe_load(handle)
+
+ABCD_DENSITY_REPORT_OUTPUT_DIR = ABCD_DENSITY_REPORT["output"]["directory"]
+if not os.path.isabs(ABCD_DENSITY_REPORT_OUTPUT_DIR):
+    ABCD_DENSITY_REPORT_OUTPUT_DIR = (
+        f"{PERSONAL_WORK_SPACE}/{ABCD_DENSITY_REPORT_OUTPUT_DIR}"
+    )
+ABCD_DENSITY_REPORT_TEX = (
+    f"{ABCD_DENSITY_REPORT_OUTPUT_DIR}/{ABCD_DENSITY_REPORT['output']['tex']}"
+)
+ABCD_DENSITY_REPORT_PDF = (
+    f"{ABCD_DENSITY_REPORT_OUTPUT_DIR}/{ABCD_DENSITY_REPORT['output']['pdf']}"
+)
 
 
 def _sanitize_partition_name(value):
@@ -495,6 +514,54 @@ rule region_v1_abcd_density_analysis_table:
           --mc-config {input.mc_config} \
           --product-directory {params.product_directory} \
           --output {output.table}
+        """
+
+
+rule region_v1_abcd_density_analysis_report:
+    input:
+        table=ABCD_DENSITY_TABLE_CSV,
+        config=ABCD_DENSITY_REPORT_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "make_abcd_density_analysis_report.py"
+        ),
+    output:
+        tex=ABCD_DENSITY_REPORT_TEX,
+        pdf=ABCD_DENSITY_REPORT_PDF,
+    params:
+        pdf_name=ABCD_DENSITY_REPORT["output"]["pdf"],
+    resources:
+        runtime=10 * 60,
+        mem_mb=1000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import yaml; print(yaml.__version__)' >&2
+        command -v pdflatex >&2
+
+        python3 {input.script} \
+          --input-table {input.table} \
+          --config {input.config} \
+          --output-tex {output.tex}
+
+        report_build_dir=$(mktemp -d /tmp/abcd_density_report.XXXXXX)
+        trap 'rm -rf "$report_build_dir"' EXIT
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir" {output.tex}
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir" {output.tex}
+        cp "$report_build_dir/{params.pdf_name}" {output.pdf}
         """
 
 

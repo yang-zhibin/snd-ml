@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 03:40 Europe/Zurich
+Last updated: 2026-10-01 03:50 Europe/Zurich
 
 ## Goal
 
@@ -95,6 +95,10 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   materializes raw data, exposure, and all four standard-neutrino MC
   raw/weighted/sumw2/effective-entry quantities without calculating ABCD
   closure or modifying the frozen 500-unit binning.
+- Rendered the Step 3 table as a versioned 31-page LaTeX/PDF report with an
+  inclusive region summary, inclusive sample-level MC audit, multipage
+  per-region density tables, and definitions/formulas for all reported field
+  families. The report contains no ABCD prediction or closure result.
 
 ## Findings and decisions
 
@@ -244,6 +248,12 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   regular-bin rows, and one inclusive row. Every row has source validation
   status `PASS`. No ABCD prediction, kappa, closure, or merged-bin column is
   present.
+- The human-readable report products are saved alongside the CSV as
+  `analysis_table_v1.tex` and `analysis_table_v1.pdf`. The PDF is 31 A4 pages
+  and 291491 bytes. It displays each MC yield with its MC-statistical
+  uncertainty `sqrt(sum(w^2))` and defines normalization, effective entries,
+  combined yields, contamination fractions, flow handling, versions, and
+  validation status below the tables.
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -352,6 +362,17 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   - An independent CSV audit verified 656 rows, 46 columns, 82 rows per
     region, all `PASS` statuses, explicit electron/muon source luminosities,
     and zero closure-result columns. A final clean-shell dry-run was a no-op.
+  - Generated a temporary LaTeX/PDF preview, compiled it twice with system
+    `pdflatex`, and inspected representative extracted pages. After improving
+    density-edge formatting and definition-section line breaking, the final
+    tables use readable labels such as `28,500--29,000`.
+  - Dry-ran and ran the one-job
+    `region_v1_abcd_density_analysis_report` target. The production log is
+    `.snakemake/log/2026-10-01T034824.820385.snakemake.log`. `pdfinfo` reports
+    31 A4 pages; `pdftotext` checks confirmed the inclusive table, per-bin
+    table, and definitions for exposure, raw MC, source luminosity, `sum(w)`,
+    `sum(w^2)`, effective entries, and validation status. The final dry-run
+    was a no-op.
 
 ## Modified files
 
@@ -412,6 +433,15 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - `snakemake/rules/region_partitions.smk`
   - Added the single-job `region_v1_abcd_density_analysis_table` target with
     all existing data/MC histogram products as explicit inputs.
+- `snakemake/metadata/configs/region_evaluation/abcd_density_analysis_report_v1.yaml`
+  - Added the versioned report title, source-table contract, scope statement,
+    and LaTeX/PDF output names.
+- `evaluation_region_partitions/make_abcd_density_analysis_report.py`
+  - Added validated CSV loading and LaTeX rendering for inclusive, MC-audit,
+    per-bin, and complete definition sections.
+- `snakemake/rules/region_partitions.smk`
+  - Added the one-job `region_v1_abcd_density_analysis_report` target with
+    two-pass isolated `pdflatex` compilation.
 
 ## Validation
 
@@ -440,22 +470,25 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - The Step 3 table synthetic test and compilation passed. The one-job dry-run,
   production run, independent schema/content audit, exact ROOT/summary
   reconstruction checks, `git diff --check`, and final no-op dry-run passed.
+- The report generator compiled, the LaTeX source passed two `pdflatex`
+  passes, representative PDF text was readable, requested definitions were
+  present, PDF metadata was valid, and the final report dry-run was a no-op.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 03:39 Europe/Zurich,
+- At the final check on 2026-10-01 at about 03:50 Europe/Zurich,
   `condor_q -nobatch` reported zero jobs for `zhibin`.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `adcd4e9c3fd19edd6da405c24b22fbb15117a25f`
-  (`feat: add normalized Region V1 neutrino MC histograms`).
-- Before updating this task record, the worktree contained four uncommitted
+- HEAD before this checkpoint: `c294b17f44fb1cf63da36729e9e4d68df65f6801`
+  (`feat: materialize Region V1 ABCD analysis table`).
+- Before updating this task record, the worktree contained three uncommitted
   task-scoped implementation paths and no unrelated user changes. This task
-  record is the fifth task-scoped path intended for the checkpoint commit.
+  record is the fourth task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 

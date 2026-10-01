@@ -1,0 +1,12 @@
+version: density_sndsw_scifi_analysis_report_v1
+table_version: density_sndsw_scifi_analysis_table_v1
+title: Region V1 ABCD Step 3 Density Analysis Tables
+description: >
+  Human-readable LaTeX/PDF rendering of the validated Step 3 analysis table.
+  It reports materialized data and MC inputs only and contains no ABCD
+  prediction, kappa, closure result, merged binning, or likelihood fit.
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/tables
+  tex: analysis_table_v1.tex
+  pdf: analysis_table_v1.pdf
