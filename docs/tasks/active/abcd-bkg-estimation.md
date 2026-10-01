@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 03:26 Europe/Zurich
+Last updated: 2026-10-01 03:40 Europe/Zurich
 
 ## Goal
 
@@ -91,6 +91,10 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   eight-region by four-sample MC density workflow. All 32 ROOT histograms and
   CSV summaries pass raw-count, finite-value, source-luminosity, weighted-yield,
   and sum-of-squared-weights closure.
+- Implemented and saved the versioned Step 3 density analysis table. It
+  materializes raw data, exposure, and all four standard-neutrino MC
+  raw/weighted/sumw2/effective-entry quantities without calculating ABCD
+  closure or modifying the frozen 500-unit binning.
 
 ## Findings and decisions
 
@@ -234,6 +238,12 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   | SB5 | 0.161842486653 |
   | SB6 | 6.54093100225 |
   | SB7 | 0.104207030429 |
+- The Step 3 table is saved at
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/tables/analysis_table_v1.csv`.
+  It has 656 rows and 46 columns: eight regions times one underflow row, 80
+  regular-bin rows, and one inclusive row. Every row has source validation
+  status `PASS`. No ABCD prediction, kappa, closure, or merged-bin column is
+  present.
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -329,6 +339,19 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     objects and embedded closure flags; checked all 32 CSV summaries and
     aggregated the yields above. A clean-shell final dry-run reported all
     requested files present and up to date.
+  - Under LCG 107, compiled and ran
+    `python3 evaluation_region_partitions/test_abcd_density_analysis_table.py`.
+    The synthetic fixture reconstructed data and all four MC samples exactly;
+    an intentionally corrupted weighted bin failed before output as required.
+  - Dry-ran `region_v1_abcd_density_analysis_table`; the DAG contained exactly
+    one local table job and no histogram or partition regeneration.
+  - Production command:
+    `/afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake --snakefile snakemake/snakefile region_v1_abcd_density_analysis_table --cores 1 --printshellcmds --rerun-incomplete`.
+    The finalized run completed 1 of 1 steps and wrote 656 validated rows.
+    Log: `.snakemake/log/2026-10-01T033751.195380.snakemake.log`.
+  - An independent CSV audit verified 656 rows, 46 columns, 82 rows per
+    region, all `PASS` statuses, explicit electron/muon source luminosities,
+    and zero closure-result columns. A final clean-shell dry-run was a no-op.
 
 ## Modified files
 
@@ -378,6 +401,17 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - `snakemake/rules/region_partitions.smk`
   - Added the 32-job MC aggregate and focused per-region/per-sample rule while
     keeping the catalogue as a parameter to prevent upstream regeneration.
+- `snakemake/metadata/configs/region_evaluation/abcd_density_analysis_table_v1.yaml`
+  - Added the versioned Step 3 table schema, sample roles/prefixes, output,
+    flow policy, and reconstruction tolerances.
+- `evaluation_region_partitions/make_abcd_density_analysis_table.py`
+  - Added source ROOT/summary validation, table materialization, exact
+    reconstruction checks, derived MC totals/fractions, and atomic CSV output.
+- `evaluation_region_partitions/test_abcd_density_analysis_table.py`
+  - Added a four-sample synthetic pass case and corrupted-weight failure case.
+- `snakemake/rules/region_partitions.smk`
+  - Added the single-job `region_v1_abcd_density_analysis_table` target with
+    all existing data/MC histogram products as explicit inputs.
 
 ## Validation
 
@@ -403,19 +437,22 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   dry-run contained exactly 32 builder jobs, production completed all 33
   steps, independent ROOT/CSV checks passed for all 32 products, and the
   final clean-shell dry-run was a no-op.
+- The Step 3 table synthetic test and compilation passed. The one-job dry-run,
+  production run, independent schema/content audit, exact ROOT/summary
+  reconstruction checks, `git diff --check`, and final no-op dry-run passed.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 03:23 Europe/Zurich,
+- At the final check on 2026-10-01 at about 03:39 Europe/Zurich,
   `condor_q -nobatch` reported zero jobs for `zhibin`.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `be0f4464f5c37ed57fa99a2c24d64efedeb5872a`
-  (`feat: add Region V1 ABCD density histograms`).
+- HEAD before this checkpoint: `adcd4e9c3fd19edd6da405c24b22fbb15117a25f`
+  (`feat: add normalized Region V1 neutrino MC histograms`).
 - Before updating this task record, the worktree contained four uncommitted
   task-scoped implementation paths and no unrelated user changes. This task
   record is the fifth task-scoped path intended for the checkpoint commit.
@@ -433,8 +470,7 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 ## Exact next action
 
-Materialize one versioned per-bin audit table that combines the existing raw
-real-data histogram counts with the four luminosity-normalized standard-
-neutrino MC components and their `sum(w^2)` values for all eight regions;
-validate exact reconstruction from the ROOT products, but do not calculate
-ABCD closure, tune bin merging, or build the likelihood in the same action.
+Using only control/validation-region counts in the saved Step 3 table, propose
+and freeze a versioned sparse-tail merge policy for `density_sndsw_scifi`.
+Do not inspect or calculate nominal signal-region closure, calculate either
+baseline's validation closure, or implement the likelihood in the same action.

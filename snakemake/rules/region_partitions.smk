@@ -108,6 +108,22 @@ ABCD_DENSITY_MC_SUMMARY_TARGETS = expand(
     region=ABCD_DENSITY_MC_REGIONS,
     particle_group=ABCD_DENSITY_MC_GROUPS,
 )
+ABCD_DENSITY_TABLE_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_density_analysis_table_v1.yaml"
+)
+
+with open(ABCD_DENSITY_TABLE_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DENSITY_TABLE = yaml.safe_load(handle)
+
+ABCD_DENSITY_TABLE_OUTPUT_DIR = ABCD_DENSITY_TABLE["output"]["directory"]
+if not os.path.isabs(ABCD_DENSITY_TABLE_OUTPUT_DIR):
+    ABCD_DENSITY_TABLE_OUTPUT_DIR = (
+        f"{PERSONAL_WORK_SPACE}/{ABCD_DENSITY_TABLE_OUTPUT_DIR}"
+    )
+ABCD_DENSITY_TABLE_CSV = (
+    f"{ABCD_DENSITY_TABLE_OUTPUT_DIR}/{ABCD_DENSITY_TABLE['output']['csv']}"
+)
 
 
 def _sanitize_partition_name(value):
@@ -434,6 +450,51 @@ rule build_region_v1_abcd_density_mc_hist:
           --output {output.hist} \
           --summary {output.summary} \
           --threads {threads}
+        """
+
+
+rule region_v1_abcd_density_analysis_table:
+    input:
+        config=ABCD_DENSITY_TABLE_CONFIG,
+        data_config=ABCD_DENSITY_CONFIG,
+        mc_config=ABCD_DENSITY_MC_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "make_abcd_density_analysis_table.py"
+        ),
+        data_hists=ABCD_DENSITY_HIST_TARGETS,
+        data_summaries=ABCD_DENSITY_SUMMARY_TARGETS,
+        mc_hists=ABCD_DENSITY_MC_HIST_TARGETS,
+        mc_summaries=ABCD_DENSITY_MC_SUMMARY_TARGETS,
+    params:
+        product_directory=ABCD_DENSITY_OUTPUT_DIR,
+    output:
+        table=ABCD_DENSITY_TABLE_CSV,
+    resources:
+        runtime=10 * 60,
+        mem_mb=2000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+
+        python3 {input.script} \
+          --config {input.config} \
+          --data-config {input.data_config} \
+          --mc-config {input.mc_config} \
+          --product-directory {params.product_directory} \
+          --output {output.table}
         """
 
 

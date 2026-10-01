@@ -1,0 +1,39 @@
+version: density_sndsw_scifi_analysis_table_v1
+description: >
+  Versioned Region V1 per-bin audit table combining raw real-data counts with
+  luminosity-normalized standard-neutrino MC. This product materializes inputs
+  only; it contains no ABCD prediction, closure statistic, or merged binning.
+
+binning_version: density_sndsw_scifi_v1
+
+rows:
+  include_underflow: true
+  include_regular_bins: true
+  include_inclusive: true
+  overflow_policy: folded_into_last_regular_bin
+
+samples:
+  CC_nue:
+    column_prefix: cc_nue
+    role: signal
+  CC_numu:
+    column_prefix: cc_numu
+    role: neutrino_background
+  NC_nue:
+    column_prefix: nc_nue
+    role: neutrino_background
+  NC_numu:
+    column_prefix: nc_numu
+    role: neutrino_background
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/tables
+  csv: analysis_table_v1.csv
+
+validation:
+  absolute_tolerance: 1.0e-12
+  relative_tolerance: 1.0e-10
+  require_source_status_pass: true
+  require_zero_overflow: true
+  require_integer_raw_counts: true
+  require_exact_table_reconstruction: true
