@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 04:59 Europe/Zurich
+Last updated: 2026-10-01 05:18 Europe/Zurich
 
 ## Goal
 
@@ -155,9 +155,10 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   yields. Signal-contamination tables still require the authoritative event
   weights, with each yield calculated as `sum(w)` and MC statistical variance
   as `sum(w^2)`.
-- No further ABCD inference was authorized or started. The inclusive
-  arithmetic values remain diagnostics from already inspected development
-  data, not a final background or signal result.
+- At the earlier planning checkpoint, no further ABCD inference was
+  authorized. The subsequently requested validation and explicitly unblinded
+  nominal calculations remain diagnostics, not a final background or signal
+  result.
 - The Region V2 plotting workflow uses
   `inspection_event_weight = target_luminosity / source_luminosity` with a
   run-9715 target of `0.6102 fb^-1`. That inspection-specific normalization
@@ -208,6 +209,21 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   Baseline 2 predicts about 2.56 times the observed count. This unblinded
   comparison cannot be used to tune a correction and later presented as an
   independent blind measurement.
+- `L_A`, `L_B`, `L_C`, and `L_D` are the effective real-data exposures for
+  the four regions, not event counts or fit parameters. The implemented
+  prediction applies ABCD to rates:
+  `A_pred=(B*C/D)*(L_A*L_D)/(L_B*L_C)`. No-veto regions have exposure
+  `19.780680927948`; veto-active regions have `1.960319252235`.
+- For every current nominal and validation mapping, the combined exposure
+  factor `(L_A*L_D)/(L_B*L_C)` is exactly one because the paired exposure
+  ratios cancel. Therefore an additional luminosity normalization cannot fix
+  the observed nonclosure. Unit-area normalization remains shape-only and is
+  invalid for Poisson yield estimation.
+- Decision: do not normalize an ABCD prediction directly to observed
+  signal-region data, because that would force closure by construction and
+  remove signal sensitivity. A correction may only be transported from
+  independent validation after demonstrating stability and secondary
+  closure. No correction is currently authorized or implemented.
 
 ## Results and evidence
 
@@ -357,6 +373,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - The inclusive normalized `CC_nue` MC yield in the signal region is
   `10.9064`, or `0.006872%` of the 158707 observed events. This diagnostic
   yield is reported in the output and was not subtracted.
+- Applying the Baseline 2 direct-inclusive validation factor
+  `kappa_VR=0.512230` only as a diagnostic would change the nominal prediction
+  from `406766.8` to approximately `208400`, still 31% above the observed
+  `158707`. Equivalently, the corrected closure factor would be about `0.762`.
+  This confirms that the validation normalization does not transfer reliably.
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -540,6 +561,13 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     `pdfinfo` reports a seven-page A4 PDF, extracted text contains the
     unblinding warning, four expected plots are present, and the final
     aggregate dry-run was a no-op.
+  - Checkpoint verification on 2026-10-01 at about 05:16 Europe/Zurich:
+    `git status --short --branch`, `git rev-parse HEAD`, and `git log -3`
+    confirmed clean commit `edc1e5210313a5da97a8e95906ea38b0ad935edd` before
+    this documentation update. `pdfinfo` reconfirmed the nominal report as a
+    seven-page A4 PDF; both closure CSVs have one header plus 16 data rows.
+    A clean-shell dry-run of `region_v1_abcd_density_closures` reported
+    nothing to do.
 
 ## Modified files
 
@@ -551,7 +579,8 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   - Added the from-scratch likelihood derivation, current arithmetic results,
     profile-likelihood outline, and `cabinetry` / `pyhf` workflow boundary.
 - `docs/tasks/active/abcd-bkg-estimation.md`
-  - Added this checkpoint.
+  - Added the continuing checkpoints, including the final normalization
+    interpretation and decision recorded here.
 - `snakemake/rules/region_partitions.smk`
   - Added the single-purpose `region_v1_abcd_input_audit` rule. The catalogue
     is deliberately a parameter rather than an input so an audit cannot
@@ -710,19 +739,17 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 04:57 Europe/Zurich,
-  `condor_q -nobatch` reported three unrelated jobs (`16300829.0` running;
-  `16300830.0` and `16300831.0` idle) from worktree
-  `snd-ml-3d-cnn-testbeam`; this task did not submit or modify them.
+- At the final check on 2026-10-01 at about 05:16 Europe/Zurich,
+  `condor_q -nobatch` reported zero jobs for user `zhibin`.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `fb03b75`
-  (`feat: calculate Region V1 validation closure`).
-- Before updating this task record, the worktree contained four uncommitted
-  task-scoped implementation paths and no unrelated user changes. This task
-  record is the fifth task-scoped path intended for the checkpoint commit.
+- HEAD before this checkpoint:
+  `edc1e5210313a5da97a8e95906ea38b0ad935edd`
+  (`feat: calculate nominal Region V1 ABCD closure`).
+- The worktree was clean before this task-record-only update. No code or
+  generated output was modified, and there were no unrelated user changes.
 
 ## Blockers and open questions
 
@@ -739,6 +766,9 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - Both original ABCD constructions fail the explicitly unblinded diagnostic.
   These signal-region comparisons are development data and are not an
   independent measurement.
+- Direct signal-region normalization is scientifically circular. The
+  validation-derived Baseline 2 normalization also fails transport, leaving a
+  roughly 31% overprediction, so it is not accepted as a correction.
 
 ## Exact next action
 
