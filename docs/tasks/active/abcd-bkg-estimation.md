@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 02:53 Europe/Zurich
+Last updated: 2026-10-01 03:26 Europe/Zurich
 
 ## Goal
 
@@ -87,6 +87,10 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - Implemented and ran the eight-region real-data density histogram workflow.
   All eight ROOT histograms and CSV summaries pass catalogue count and
   exposure closure.
+- Audited the standard-neutrino normalization source and implemented the
+  eight-region by four-sample MC density workflow. All 32 ROOT histograms and
+  CSV summaries pass raw-count, finite-value, source-luminosity, weighted-yield,
+  and sum-of-squared-weights closure.
 
 ## Findings and decisions
 
@@ -131,6 +135,18 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - The initial 500-unit density binning is now versioned and reproducible. It
   is suitable for materializing counts, but sparse-tail merging must still be
   decided before a final binned likelihood.
+- The complete updated source metadata is the normalization authority:
+  `MC_neutrino_2024_ve_metadata.csv` has 976 rows at 15 luminosity units per
+  row (`14640.0` total), and `MC_neutrino_2024_vm_metadata.csv` has 890 rows
+  at 15 units per row (`13350.0` total). Do not sum only non-empty Region V1
+  partition rows, because sparse samples intentionally omit empty partitions.
+- Representative standard-neutrino feature trees have no event-level weight,
+  luminosity, flux, or cross-section branch. The implemented weight is
+  therefore constant within each region and source flavour:
+  `target_data_exposure / source_mc_luminosity`, with unit event physics
+  weight. Electron-flavour weights are `0.0013511394076467214` without veto
+  and `0.00013390158826741803` with veto; muon-flavour weights are
+  `0.0014816989459137079` and `0.00014684039342584268`, respectively.
 
 ## Results and evidence
 
@@ -201,6 +217,23 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 - Every generated histogram has 80 bins from 0 to 40000, and its integral
   including preserved flow equals the authoritative catalogue event count.
+- The same output directory now contains 32 normalized standard-neutrino MC
+  ROOT files and 32 one-row CSV summaries. Each ROOT file contains
+  `h_density_sndsw_scifi_raw`, `h_density_sndsw_scifi_weighted`, and
+  `h_density_sndsw_scifi_sumw2` plus embedded normalization/closure metadata.
+  Independent validation opened every file and found all 32 statuses `PASS`.
+- Total luminosity-normalized standard-neutrino MC yields by region are:
+
+  | Region | Total weighted MC |
+  | --- | ---: |
+  | Signal | 52.5257145033 |
+  | SB1 | 0.769697058377 |
+  | SB2 | 60.3263766869 |
+  | SB3 | 0.717439844119 |
+  | SB4 | 6.43859377962 |
+  | SB5 | 0.161842486653 |
+  | SB6 | 6.54093100225 |
+  | SB7 | 0.104207030429 |
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -275,6 +308,27 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     binning, histogram objects, integrals, CSV status, count closure, and
     exposure closure. A final dry-run reported all requested files present
     and up to date.
+  - Under LCG 107 (Python 3.11.9, ROOT 6.34.02, PyYAML 6.0.1), compiled the
+    normalized-MC builder/test and ran
+    `python3 evaluation_region_partitions/test_abcd_density_mc_hist.py`.
+    The seven-event fixture passed with weight `0.2`, `sum(w)=1.4`, and
+    `sum(w^2)=0.28`; an intentional source-luminosity mismatch failed as
+    required.
+  - The dedicated Snakemake executable at
+    `/afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake`
+    dry-ran `region_v1_abcd_density_mc_hists` as exactly 32 builder jobs plus
+    one aggregate job and no upstream partition jobs. The default user-site
+    launcher was incomplete (`humanfriendly` missing), and launching the
+    dedicated executable from an already activated LCG shell caused a Python
+    runtime mismatch; neither failed attempt built a DAG or wrote outputs.
+  - Production command:
+    `/afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake --snakefile snakemake/snakefile region_v1_abcd_density_mc_hists --cores 4 --printshellcmds --rerun-incomplete`.
+    It completed 33 of 33 local steps. Log:
+    `.snakemake/log/2026-10-01T031735.883886.snakemake.log`.
+  - Independently opened all 32 MC ROOT files and checked all three histogram
+    objects and embedded closure flags; checked all 32 CSV summaries and
+    aggregated the yields above. A clean-shell final dry-run reported all
+    requested files present and up to date.
 
 ## Modified files
 
@@ -313,6 +367,17 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   - Added the eight-job `region_v1_abcd_density_hists` aggregate and focused
     per-region builder rule without a dependency that can regenerate source
     partitions.
+- `snakemake/metadata/configs/region_evaluation/abcd_density_neutrino_mc_v1.yaml`
+  - Added standard-neutrino samples, source luminosities, region exposures,
+    normalization formula, shared binning, outputs, and validation contract.
+- `evaluation_region_partitions/make_abcd_density_mc_hist.py`
+  - Added complete-source luminosity validation, raw/weighted/sumw2
+    histograms, atomic outputs, provenance, and closure metadata.
+- `evaluation_region_partitions/test_abcd_density_mc_hist.py`
+  - Added a weighted-yield/flow/sumw2 test and intentional luminosity failure.
+- `snakemake/rules/region_partitions.smk`
+  - Added the 32-job MC aggregate and focused per-region/per-sample rule while
+    keeping the catalogue as a parameter to prevent upstream regeneration.
 
 ## Validation
 
@@ -334,31 +399,26 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - The workflow dry-run contained exactly eight histogram jobs; the production
   target completed, independent ROOT/CSV checks passed for all regions, and
   the final dry-run was a no-op.
+- The normalized-MC synthetic test and compilation passed. The MC workflow
+  dry-run contained exactly 32 builder jobs, production completed all 33
+  steps, independent ROOT/CSV checks passed for all 32 products, and the
+  final clean-shell dry-run was a no-op.
 
 ## Running jobs
 
-- This task has no scheduler jobs. Its density histograms were produced by
-  local Snakemake jobs.
-- At the final check, `condor_q -nobatch` showed unrelated running job
-  `16300791.0` from worktree `snd-ml-3d-cnn-testbeam`; it was not submitted
-  or modified by this task.
+- This task has no scheduler jobs. Its histograms were produced by local
+  Snakemake jobs.
+- At the final check on 2026-10-01 at about 03:23 Europe/Zurich,
+  `condor_q -nobatch` reported zero jobs for `zhibin`.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `3e053cd` (`docs: record ABCD checkpoint
-  commit`).
-- Before updating this task record, the worktree contained five uncommitted
-  task-scoped paths; this task-record update is the sixth. No unrelated user
-  changes were present.
-- This stopping checkpoint is intended to commit those task-scoped changes
-  together with this updated task record. The resulting commit SHA and final
-  cleanliness check are reported in the stopping handoff.
-- HEAD at the start of the density implementation was
-  `e5b3abf63a4face736232b8714f091baf9f382ce`.
-- Before the density checkpoint commit, the worktree contains four new or
-  modified implementation paths plus this task-record update, all scoped to
-  this task; no unrelated changes are present.
+- HEAD before this checkpoint: `be0f4464f5c37ed57fa99a2c24d64efedeb5872a`
+  (`feat: add Region V1 ABCD density histograms`).
+- Before updating this task record, the worktree contained four uncommitted
+  task-scoped implementation paths and no unrelated user changes. This task
+  record is the fifth task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 
@@ -373,8 +433,8 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 ## Exact next action
 
-Audit the authoritative normalization and event-weight source for the standard
-`CC_nue`, `CC_numu`, `NC_nue`, and `NC_numu` Region V1 MC samples only.
-Record the formula and required branches/metadata for `sum(w)` and
-`sum(w^2)`; do not generate MC histograms, materialize ABCD tables, calculate
-new closure results, or implement a likelihood in the same action.
+Materialize one versioned per-bin audit table that combines the existing raw
+real-data histogram counts with the four luminosity-normalized standard-
+neutrino MC components and their `sum(w^2)` values for all eight regions;
+validate exact reconstruction from the ROOT products, but do not calculate
+ABCD closure, tune bin merging, or build the likelihood in the same action.

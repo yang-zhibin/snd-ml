@@ -1,0 +1,93 @@
+version: density_sndsw_scifi_neutrino_mc_v1
+binning_version: density_sndsw_scifi_v1
+description: >
+  Standard-neutrino Region V1 density histograms normalized to the real-data
+  exposure represented by each region. Source equivalent luminosity is
+  derived from the complete source metadata, not from non-empty output
+  partitions. No event-level physics-weight branch exists in this production.
+
+catalogue:
+  partition_version: partition_v1
+  region_version: region_v1
+
+input:
+  tree_name: sndData
+  feature: density_sndsw_scifi
+
+histogram:
+  raw_name: h_density_sndsw_scifi_raw
+  weighted_name: h_density_sndsw_scifi_weighted
+  sumw2_name: h_density_sndsw_scifi_sumw2
+  bins: 80
+  min: 0.0
+  max: 40000.0
+  bin_width: 500.0
+  underflow: preserve
+  overflow: fold_last
+
+normalization:
+  mode: constant_source_luminosity
+  formula: target_data_exposure / source_mc_luminosity
+  source_luminosity_column: lumi_per_file
+  event_physics_weight: 1.0
+  description: >
+    The updated standard-neutrino metadata assigns 15 luminosity units to
+    every source file. Representative Region V1 feature trees have no
+    event-level weight, luminosity, flux, or cross-section branch.
+
+samples:
+  CC_nue:
+    role: signal
+    source_metadata_csv: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_ve_metadata.csv
+    expected_source_luminosity: 14640.0
+  NC_nue:
+    role: neutrino_background
+    source_metadata_csv: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_ve_metadata.csv
+    expected_source_luminosity: 14640.0
+  CC_numu:
+    role: neutrino_background
+    source_metadata_csv: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_vm_metadata.csv
+    expected_source_luminosity: 13350.0
+  NC_numu:
+    role: neutrino_background
+    source_metadata_csv: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_vm_metadata.csv
+    expected_source_luminosity: 13350.0
+
+regions:
+  signal_no_veto_has_us_fiducial_inside:
+    label: Signal
+    target_data_exposure: 19.780680927948
+  sideband_no_veto_no_us_fiducial_inside:
+    label: SB1
+    target_data_exposure: 19.780680927948
+  sideband_no_veto_has_us_fiducial_outside:
+    label: SB2
+    target_data_exposure: 19.780680927948
+  sideband_no_veto_no_us_fiducial_outside:
+    label: SB3
+    target_data_exposure: 19.780680927948
+  sideband_has_veto_has_us_fiducial_inside:
+    label: SB4
+    target_data_exposure: 1.960319252235
+  sideband_has_veto_no_us_fiducial_inside:
+    label: SB5
+    target_data_exposure: 1.960319252235
+  sideband_has_veto_has_us_fiducial_outside:
+    label: SB6
+    target_data_exposure: 1.960319252235
+  sideband_has_veto_no_us_fiducial_outside:
+    label: SB7
+    target_data_exposure: 1.960319252235
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1
+  histogram_directory: hists
+  summary_directory: summaries
+
+validation:
+  luminosity_absolute_tolerance: 1.0e-9
+  require_feature_available: true
+  require_unique_partition_ids: true
+  require_finite_feature: true
+  require_count_closure: true
+
