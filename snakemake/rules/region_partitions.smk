@@ -167,6 +167,41 @@ ABCD_DENSITY_MERGE_MARKDOWN = (
     f"{ABCD_DENSITY_MERGE_OUTPUT_DIR}/"
     f"{ABCD_DENSITY_MERGE['output']['markdown']}"
 )
+ABCD_DENSITY_VALIDATION_CLOSURE_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_density_validation_closure_v1.yaml"
+)
+
+with open(ABCD_DENSITY_VALIDATION_CLOSURE_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DENSITY_VALIDATION_CLOSURE = yaml.safe_load(handle)
+
+ABCD_DENSITY_VALIDATION_CLOSURE_OUTPUT_DIR = (
+    ABCD_DENSITY_VALIDATION_CLOSURE["output"]["directory"]
+)
+if not os.path.isabs(ABCD_DENSITY_VALIDATION_CLOSURE_OUTPUT_DIR):
+    ABCD_DENSITY_VALIDATION_CLOSURE_OUTPUT_DIR = (
+        f"{PERSONAL_WORK_SPACE}/{ABCD_DENSITY_VALIDATION_CLOSURE_OUTPUT_DIR}"
+    )
+ABCD_DENSITY_VALIDATION_CLOSURE_CSV = (
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE['output']['csv']}"
+)
+ABCD_DENSITY_VALIDATION_CLOSURE_MARKDOWN = (
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE['output']['markdown']}"
+)
+ABCD_DENSITY_VALIDATION_CLOSURE_TEX = (
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE['output']['tex']}"
+)
+ABCD_DENSITY_VALIDATION_CLOSURE_PDF = (
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE['output']['pdf']}"
+)
+ABCD_DENSITY_VALIDATION_CLOSURE_PLOT_DIR = (
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY_VALIDATION_CLOSURE['output']['plot_directory']}"
+)
 
 
 def _sanitize_partition_name(value):
@@ -627,6 +662,64 @@ rule region_v1_abcd_density_merge_policy:
           --config {input.config} \
           --output-csv {output.csv} \
           --output-markdown {output.markdown}
+        """
+
+
+rule region_v1_abcd_density_validation_closure:
+    input:
+        merge_audit=ABCD_DENSITY_MERGE_CSV,
+        merge_config=ABCD_DENSITY_MERGE_CONFIG,
+        config=ABCD_DENSITY_VALIDATION_CLOSURE_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "calculate_abcd_density_validation_closure.py"
+        ),
+    output:
+        csv=ABCD_DENSITY_VALIDATION_CLOSURE_CSV,
+        markdown=ABCD_DENSITY_VALIDATION_CLOSURE_MARKDOWN,
+        tex=ABCD_DENSITY_VALIDATION_CLOSURE_TEX,
+        pdf=ABCD_DENSITY_VALIDATION_CLOSURE_PDF,
+        plot_dir=directory(ABCD_DENSITY_VALIDATION_CLOSURE_PLOT_DIR),
+    params:
+        table=ABCD_DENSITY_TABLE_CSV,
+        pdf_name=ABCD_DENSITY_VALIDATION_CLOSURE["output"]["pdf"],
+    resources:
+        runtime=10 * 60,
+        mem_mb=1000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import matplotlib, yaml; print(matplotlib.__version__, yaml.__version__)' >&2
+        command -v pdflatex >&2
+
+        python3 {input.script} \
+          --input-table {params.table} \
+          --merge-audit {input.merge_audit} \
+          --merge-config {input.merge_config} \
+          --config {input.config} \
+          --output-csv {output.csv} \
+          --output-markdown {output.markdown} \
+          --output-tex {output.tex} \
+          --output-plot-dir {output.plot_dir}
+
+        closure_build_dir=$(mktemp -d /tmp/abcd_validation_closure.XXXXXX)
+        trap 'rm -rf "$closure_build_dir"' EXIT
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$closure_build_dir" {output.tex}
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$closure_build_dir" {output.tex}
+        cp "$closure_build_dir/{params.pdf_name}" {output.pdf}
         """
 
 

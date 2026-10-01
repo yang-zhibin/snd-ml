@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 04:23 Europe/Zurich
+Last updated: 2026-10-01 04:43 Europe/Zurich
 
 ## Goal
 
@@ -111,6 +111,12 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   edges `[0, 500, 1000, 1500, 2000, 3000, 40000]`; every one of SB1--SB7 has
   at least 50 raw events in each bin. The selection did not use the signal
   region, an ABCD prediction, or a closure result.
+- Implemented and ran the arithmetic density-binned closure for the two
+  validation constructions only. The calculation uses the frozen six-bin
+  policy, exposure-aware ABCD arithmetic, approximate independent-Poisson
+  uncertainties, and diagnostic `CC_nue` leakage. It does not calculate a
+  nominal signal-region closure, subtract signal, apply a nonclosure
+  correction, retune bins, or implement a likelihood.
 
 ## Findings and decisions
 
@@ -181,6 +187,17 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   weight. Electron-flavour weights are `0.0013511394076467214` without veto
   and `0.00013390158826741803` with veto; muon-flavour weights are
   `0.0014816989459137079` and `0.00014684039342584268`, respectively.
+- Formal validation closure confirms that Baseline 1 is rejected: its direct
+  inclusive prediction is about 106 times the observed validation count, and
+  every frozen density bin has `kappa` far below one.
+- Baseline 2 is not closed as currently defined. Its direct inclusive
+  `kappa` is `0.512230`, and its binned values vary strongly with density,
+  from `0.495166` in the first bin through values above one in four middle
+  bins and `0.743605` in the final bin. These arithmetic diagnostics do not
+  authorize a correction or a nominal signal-region prediction.
+- The reported uncertainties and pulls use independent-Poisson delta-method
+  propagation. They are closure-screening diagnostics, not profile-likelihood
+  confidence intervals.
 
 ## Results and evidence
 
@@ -291,6 +308,25 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   rows (six bins times seven sidebands), contains no signal/prediction/closure
   fields, and reports `PASS` throughout. Per-bin minimum sideband counts are
   25132, 548, 133, 66, 50, and 52.
+- The validation-only closure outputs are saved under
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/validation_closure_v1/`
+  as `validation_closure.csv`, `.md`, `.tex`, and `.pdf`, with two PNG and two
+  vector-PDF plots under `plots/`. The report has seven A4 pages.
+- Inclusive validation results are:
+
+  | Construction | Summary | Observation | Prediction | Kappa | Fractional nonclosure |
+  | --- | --- | ---: | ---: | ---: | ---: |
+  | Baseline 1 outside-fiducial | Direct inclusive | 447152 | 47535778.7 | 0.00940664 | -99.059% |
+  | Baseline 1 outside-fiducial | Sum of binned predictions | 447152 | 49933273.2 | 0.00895499 | -99.105% |
+  | Baseline 2 mixed-category | Direct inclusive | 40300 | 78675.6 | 0.512230 | -48.777% |
+  | Baseline 2 mixed-category | Sum of binned predictions | 40300 | 77186.0 | 0.522115 | -47.788% |
+
+- Baseline 2 per-bin `kappa` values over the frozen bins are `0.495166`,
+  `1.023045`, `1.254592`, `1.267338`, `1.407881`, and `0.743605`. Baseline 1
+  per-bin values range from `0.0120041` down to `0.000463635`.
+- Inclusive target-signal leakage is negligible relative to the raw data in
+  all validation roles: the largest fraction is `0.002685%` in Baseline 1
+  region A (SB2). It is reported only and is not subtracted.
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -441,6 +477,22 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   - An independent output check verified exactly seven sideband labels, six
     bins, minimum count 50, all statuses `PASS`, and no closure, prediction,
     kappa, or signal fields. The final dry-run was a no-op.
+  - Previewed the validation closure report under LCG 107. The first LaTeX
+    pass exposed an interval cell immediately following `\\midrule` being
+    parsed as an optional rule argument; bracing the interval text fixed it.
+    The corrected preview passed two LaTeX runs with no errors or overfull
+    warnings.
+  - Dry-ran `region_v1_abcd_density_validation_closure`; it scheduled exactly
+    one local closure job and no upstream regeneration. Production command:
+    `env -u PYTHONHOME -u PYTHONPATH PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 /afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake --snakefile snakemake/snakefile region_v1_abcd_density_validation_closure --cores 1 --printshellcmds --rerun-incomplete`.
+    It completed 1 of 1 steps. Log:
+    `.snakemake/log/2026-10-01T043902.939333.snakemake.log`.
+  - Independently audited all 16 CSV rows under LCG 107: exactly two expected
+    baselines, six bins plus direct-inclusive and binned-sum rows each, only
+    SB1--SB7 mappings, all statuses `PASS`, and the frozen edges unchanged.
+    Recomputed transfer factors, predictions, variances, uncertainties,
+    `kappa`, fractional nonclosure, and pulls with a maximum relative
+    difference of `2.31e-16`. The final Snakemake dry-run was a no-op.
 
 ## Modified files
 
@@ -527,6 +579,20 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   - Added the focused `region_v1_abcd_density_merge_policy` rule, keeping the
     existing Step 3 table as a parameter so this audit cannot regenerate
     upstream products.
+- `snakemake/metadata/configs/region_evaluation/abcd_density_validation_closure_v1.yaml`
+  - Added the validation-only mappings, frozen input/output contracts,
+    arithmetic definitions, and prohibitions on signal-region use,
+    subtraction, correction, bin retuning, and likelihood inference.
+- `evaluation_region_partitions/calculate_abcd_density_validation_closure.py`
+  - Added strict input and scope validation, exposure-aware binned and
+    inclusive arithmetic, approximate statistical propagation, signal-leakage
+    diagnostics, atomic CSV/Markdown/LaTeX outputs, and two closure plots in
+    raster and vector formats.
+- `snakemake/rules/region_partitions.smk`
+  - Added the single-job
+    `region_v1_abcd_density_validation_closure` target. The frozen merge audit
+    is an explicit input, while the already materialized Step 3 table remains
+    a parameter so this action cannot trigger upstream regeneration.
 
 ## Validation
 
@@ -566,12 +632,18 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   production one-job target, an independent schema/content audit, count
   conservation and minimum-count checks, `git diff --check`, and a final
   no-op dry-run. No closure quantity was produced.
+- The closure calculator compiled and its isolated report preview passed two
+  LaTeX runs. The focused dry-run scheduled one job, production completed one
+  job, and the final dry-run was a no-op. Independent formula recomputation
+  matched every numeric result to relative precision better than `2.31e-16`;
+  the PDF, CSV schema/scope, six frozen bins, output plots, and all `PASS`
+  statuses were verified. `git diff --check` passed.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 04:22 Europe/Zurich,
+- At the final check on 2026-10-01 at about 04:40 Europe/Zurich,
   `condor_q -nobatch` reported three unrelated jobs (`16300829.0` running;
   `16300830.0` and `16300831.0` idle) from worktree
   `snd-ml-3d-cnn-testbeam`; this task did not submit or modify them.
@@ -579,11 +651,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `cc0a523`
-  (`feat: add normalized Region V1 density plots`).
-- Before updating this task record, the worktree contained four uncommitted
+- HEAD before this checkpoint: `d5c8f99`
+  (`feat: freeze Region V1 ABCD merged binning`).
+- Before updating this task record, the worktree contained three uncommitted
   task-scoped implementation paths and no unrelated user changes. This task
-  record is the fifth task-scoped path intended for the checkpoint commit.
+  record is the fourth task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 
@@ -592,14 +664,16 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - Baseline 2 requires quantitative density- and run-dependent validation and
   an independent secondary validation before any nonclosure correction can be
   transported to the signal region.
-- Formal density-binned validation closure has not yet been calculated. Its
-  implementation must use the frozen merged edges without retuning them.
+- Baseline 1 fails validation decisively and must not be transported to the
+  signal region.
+- Baseline 2 has strong inclusive nonclosure and density dependence. Run-block
+  and secondary validation are still required before making the formal
+  closure decision; no correction is authorized.
 
 ## Exact next action
 
-Using the frozen `density_sndsw_scifi_abcd_merged_v1` edges, implement and run
-the arithmetic density-binned closure for the two validation constructions
-only: Baseline 1 outside-fiducial and Baseline 2 mixed-category. Keep the
-nominal signal-region closure uncalculated, do not retune the merged edges,
-and do not apply a nonclosure correction or implement the likelihood in the
-same action.
+Define and freeze a run-block splitting policy using complete runs and their
+exposures, then materialize the run-block validation tables for the same two
+validation constructions. Do not apply a nonclosure correction, calculate a
+nominal signal-region closure, implement a likelihood, or make the formal
+closure decision in the same action.

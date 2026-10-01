@@ -1,0 +1,68 @@
+version: density_sndsw_scifi_validation_closure_v1
+description: >
+  Arithmetic density-binned closure for the two Region V1 validation
+  constructions only. The nominal signal region is excluded. No nonclosure
+  correction, signal subtraction, likelihood fit, or bin retuning is allowed.
+
+source:
+  table_version: density_sndsw_scifi_analysis_table_v1
+  merge_policy_version: density_sndsw_scifi_abcd_merged_v1
+
+scope:
+  validation_only: true
+  excluded_regions:
+    - signal_no_veto_has_us_fiducial_inside
+  signal_subtraction: false
+  nonclosure_correction: false
+  likelihood_fit: false
+
+baselines:
+  baseline_1_outside_fiducial:
+    label: Baseline 1 outside-fiducial validation
+    roles:
+      A:
+        region: sideband_no_veto_has_us_fiducial_outside
+        label: SB2
+      B:
+        region: sideband_has_veto_has_us_fiducial_outside
+        label: SB6
+      C:
+        region: sideband_no_veto_no_us_fiducial_outside
+        label: SB3
+      D:
+        region: sideband_has_veto_no_us_fiducial_outside
+        label: SB7
+  baseline_2_mixed_category:
+    label: Baseline 2 mixed-category validation
+    roles:
+      A:
+        region: sideband_no_veto_no_us_fiducial_inside
+        label: SB1
+      B:
+        region: sideband_no_veto_no_us_fiducial_outside
+        label: SB3
+      C:
+        region: sideband_has_veto_has_us_fiducial_inside
+        label: SB4
+      D:
+        region: sideband_has_veto_has_us_fiducial_outside
+        label: SB6
+
+calculation:
+  prediction: (B * C / D) * (L_A * L_D) / (L_B * L_C)
+  transfer_factor: (C / D) * (L_D / L_C)
+  prediction_relative_variance_approximation: 1/B + 1/C + 1/D
+  kappa: A_observed / A_predicted
+  kappa_relative_variance_approximation: 1/A + 1/B + 1/C + 1/D
+  pull_denominator: sqrt(A + prediction_variance)
+  require_positive_counts: true
+  include_direct_inclusive_abcd: true
+  include_sum_of_binned_predictions: true
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/validation_closure_v1
+  csv: validation_closure.csv
+  markdown: validation_closure.md
+  tex: validation_closure.tex
+  pdf: validation_closure.pdf
+  plot_directory: plots
