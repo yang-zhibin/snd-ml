@@ -1028,20 +1028,80 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - `git diff --check` passed. Implementation checkpoint commit:
   `4d4c354` (`fix: enforce strict blinded ABCD counting workflow`).
 
+## 2026-10-01 one-bin closure-table report checkpoint
+
+### Verified findings and decisions
+
+- The expected report now contains a single `[5000,40000)` closure row in the
+  style of `nominal_closure_v1/nominal_closure.pdf`. Because this workflow is
+  blinded, the row is explicitly the independent validation plane and uses
+  primed notation; it does not expose or use signal-region A data.
+- The production validation row is: residual
+  `A'_obs = 12.9459605`, `A'_pred = 32.4649396 +/- 6.9362650`,
+  `T = 1.47872254 +/- 0.00346355`,
+  `kappa_val = 0.39876743 +/- 0.13997597`, fractional nonclosure
+  `-60.1233%`, and pull `-2.49686`.
+- Definitions and calculation formulas are printed immediately below the
+  table for raw count `N_R'`, explicit neutrino MC `Q_R'`, residual
+  `R_R'`, exposure `L_R'`, transfer `T`, prediction `A'_pred`, propagated
+  uncertainties, `kappa_val`, nonclosure, and pull. The report also defines
+  the likelihood quantities `b_R`, `rho`, `u`, `v`, `nu_R`, `mu`, `S_R`,
+  `q_k,R`, and `gamma_k`, plus the input-table quantities.
+- A report-only formula typo was corrected from `b_B=L_D rho u` to the
+  implemented `b_B=L_B rho u`.
+
+### Modified files and commit
+
+- `evaluation_region_partitions/make_abcd_blinded_inputs.py` now materializes
+  the validation residuals, variances, exposures, transfer, prediction,
+  uncertainties, nonclosure, and pull.
+- `evaluation_region_partitions/run_abcd_blinded_expected.py` serializes those
+  quantities and renders the Markdown/LaTeX closure table and definitions.
+- `evaluation_region_partitions/test_abcd_blinded_expected.py` covers the new
+  schema, payload, table, and definition text.
+- Task-only implementation commit: `431931e`
+  (`feat: add one-bin closure table to blinded report`).
+
+### Commands, results, and outputs
+
+- LCG 107 compilation and the full focused synthetic test passed. The test
+  again exercised strict A masking, expected inference, the authorization
+  gate, simultaneous synthetic inference, and toy fits; the known weak-model
+  Minuit covariance warnings remained non-fatal.
+- An isolated real-sideband preview reproduced the closure values, expected
+  `Z=0.06557599`, and expected 95% upper limit `mu=6.9608563` without reading
+  observed A. Independent arithmetic matched every serialized closure value
+  to relative/absolute tolerance `1e-12`.
+- The preview and production LaTeX sources passed two `pdflatex` passes. The
+  final PDF is four-page A4 and its extracted text contains the closure row,
+  definitions, expected-only notice, and locked observed-results statement.
+- Production command:
+  `env -u PYTHONHOME -u PYTHONPATH PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 /afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake --snakefile snakemake/snakefile region_v1_abcd_density_blinded_expected_report --cores 1 --printshellcmds --rerun-incomplete`.
+  Both local jobs completed. The production freeze manifest records clean Git
+  commit `431931e`, `freeze_status=FROZEN`, and
+  `signal_region_observation_used=false`; all recorded artifact SHA256 hashes
+  were independently verified.
+- Final PDF:
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/blinded_counting_v2/expected/expected_report.pdf`.
+  The corresponding Markdown, LaTeX, JSON, workspaces, scans, covariance, and
+  plots are in the same `expected/` directory.
+- The final aggregate dry-run reported that every requested file is present
+  and up to date. No observed/unblinded target was run.
+
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at 14:02 Europe/Zurich,
+- At the final check on 2026-10-01 at 14:26 Europe/Zurich,
   `condor_q -nobatch` reported zero jobs for the user. This ABCD task submitted
   no scheduler jobs.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before updating this task record: `4d4c354`
-  (`fix: enforce strict blinded ABCD counting workflow`).
-- The implementation worktree was clean after that task-only commit. This
+- HEAD before updating this task record: `431931e`
+  (`feat: add one-bin closure table to blinded report`).
+- The implementation worktree was clean after the production run. This
   task-record update is the sole change intended for the documentation
   checkpoint commit.
 
@@ -1070,7 +1130,7 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 ## Exact next action
 
-Review and either approve or replace the provisional independent-validation
-`kappa = 0.398767 +/- 0.139976` transport and the placeholder 30% neutrino-MC
-normalization uncertainties before freezing or running the expected-only
-production target. Do not run observed unblinding.
+Review the generated expected-only report and decide whether to accept or
+replace the provisional independent-validation
+`kappa = 0.398767 +/- 0.139976` transport and placeholder 30% neutrino-MC
+normalization uncertainties. Do not run observed unblinding.
