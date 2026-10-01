@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 04:02 Europe/Zurich
+Last updated: 2026-10-01 04:09 Europe/Zurich
 
 ## Goal
 
@@ -102,6 +102,10 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   which each quantity is introduced, and headings share pages with their
   corresponding tables. The report contains no ABCD prediction or closure
   result.
+- Added one unit-area density-shape plot after each of the eight per-region
+  tables. Each plot compares Data, target `CC_nue`, summed neutrino background,
+  and total standard-neutrino MC, and is followed by the exact normalization
+  formula and flow policy. The revised report is 29 pages.
 
 ## Findings and decisions
 
@@ -146,6 +150,12 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - The initial 500-unit density binning is now versioned and reproducible. It
   is suitable for materializing counts, but sparse-tail merging must still be
   decided before a final binned likelihood.
+- The report's normalized plots are shape-only diagnostics. For each curve
+  `c`, regular-bin fractions are `f[c,i] = y[c,i] / sum_j(y[c,j])`, normalized
+  independently over the 80 regular bins. Data use raw counts; MC use the
+  table's luminosity-normalized yields. Underflow is excluded and overflow is
+  already folded into the final bin. Absolute counts and rates remain in the
+  tables and are not inferred from these plots.
 - The complete updated source metadata is the normalization authority:
   `MC_neutrino_2024_ve_metadata.csv` has 976 rows at 15 luminosity units per
   row (`14640.0` total), and `MC_neutrino_2024_vm_metadata.csv` has 890 rows
@@ -252,13 +262,16 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   status `PASS`. No ABCD prediction, kappa, closure, or merged-bin column is
   present.
 - The human-readable report products are saved alongside the CSV as
-  `analysis_table_v1.tex` and `analysis_table_v1.pdf`. The revised PDF is 21
-  A4 pages and 394392 bytes. It displays each MC yield with its MC-statistical
+  `analysis_table_v1.tex` and `analysis_table_v1.pdf`. The revised PDF is 29
+  A4 pages and 921042 bytes. It displays each MC yield with its MC-statistical
   uncertainty `sqrt(sum(w^2))`. Definitions for the inclusive quantities are
   directly below Table 1, normalization and MC-statistical quantities are
   directly below Table 2, and bin-level quantities are directly below the
   first per-bin table. Section/subsection headings are no longer stranded on
-  separate empty pages. The complete data dictionary remains at the end.
+  separate empty pages. Eight PNG shape plots are saved under
+  `normalized_distribution_plots_v1/` and embedded after their corresponding
+  region tables; each has its normalization explanation directly beneath it.
+  The complete data dictionary remains at the end.
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -389,6 +402,15 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     completed 1 of 1 steps, and produced a 21-page, 394392-byte A4 PDF.
     `pdftotext -layout` confirmed the table/definition ordering and table-page
     headings; the final dry-run reported all outputs up to date.
+  - Added normalized-plot generation to the report script and declared the
+    plot directory as a Snakemake output. An isolated preview initially caught
+    an over-escaped Matplotlib math label; after correction, Python compilation,
+    eight PNG renders, and two `pdflatex` passes succeeded. The focused dry-run
+    scheduled exactly one report job. Production completed 1 of 1 steps; log:
+    `.snakemake/log/2026-10-01T040707.517033.snakemake.log`. `pdfinfo` reports
+    29 A4 pages and 921042 bytes; eight PNG files were present, and
+    `pdftotext -layout` found eight plot headings and eight normalization
+    explanations. The final dry-run was a no-op.
 
 ## Modified files
 
@@ -451,15 +473,18 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     all existing data/MC histogram products as explicit inputs.
 - `snakemake/metadata/configs/region_evaluation/abcd_density_analysis_report_v1.yaml`
   - Added the versioned report title, source-table contract, scope statement,
-    and LaTeX/PDF output names.
+    LaTeX/PDF output names, and the unit-area plot/flow/output contract.
 - `evaluation_region_partitions/make_abcd_density_analysis_report.py`
   - Added validated CSV loading and LaTeX rendering for inclusive, MC-audit,
     per-bin, and complete definition sections; later moved headings inside
     their landscape table pages and placed concise definitions immediately
-    below the first table that introduces each quantity.
+    below the first table that introduces each quantity. It now also validates
+    and generates eight atomic unit-area PNG plots and embeds each plot plus
+    its normalization explanation after the corresponding table.
 - `snakemake/rules/region_partitions.smk`
   - Added the one-job `region_v1_abcd_density_analysis_report` target with
-    two-pass isolated `pdflatex` compilation.
+    two-pass isolated `pdflatex` compilation; the rule now declares the plot
+    directory and preflights Matplotlib.
 
 ## Validation
 
@@ -491,14 +516,16 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - The report generator compiled, the LaTeX source passed two `pdflatex`
   passes, representative PDF text was readable, requested definitions were
   present immediately below their first-use tables, PDF metadata was valid,
-  the page count decreased from 31 to 21 without empty heading pages, and the
+  and empty heading pages remained removed. All eight unit-area plots passed
+  finite/nonnegative input, positive-total, and sum-to-one checks; eight PNGs
+  were embedded, all eight normalization explanations were present, and the
   final report dry-run was a no-op.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 04:00 Europe/Zurich,
+- At the final check on 2026-10-01 at about 04:08 Europe/Zurich,
   `condor_q -nobatch` reported three unrelated idle jobs (`16300829.0`,
   `16300830.0`, and `16300831.0`) from worktree
   `snd-ml-3d-cnn-testbeam`; this task did not submit or modify them.
@@ -506,11 +533,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `67adb67`
-  (`docs: correct ABCD checkpoint scheduler state`).
-- Before updating this task record, the worktree contained one uncommitted
-  task-scoped implementation path and no unrelated user changes. This task
-  record is the second task-scoped path intended for the checkpoint commit.
+- HEAD before this checkpoint: `a21add6`
+  (`fix: improve Region V1 analysis report layout`).
+- Before updating this task record, the worktree contained three uncommitted
+  task-scoped implementation paths and no unrelated user changes. This task
+  record is the fourth task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 

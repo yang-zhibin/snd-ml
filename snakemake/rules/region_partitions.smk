@@ -143,6 +143,10 @@ ABCD_DENSITY_REPORT_TEX = (
 ABCD_DENSITY_REPORT_PDF = (
     f"{ABCD_DENSITY_REPORT_OUTPUT_DIR}/{ABCD_DENSITY_REPORT['output']['pdf']}"
 )
+ABCD_DENSITY_REPORT_PLOT_DIR = (
+    f"{ABCD_DENSITY_REPORT_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY_REPORT['output']['normalized_plot_directory']}"
+)
 
 
 def _sanitize_partition_name(value):
@@ -528,6 +532,7 @@ rule region_v1_abcd_density_analysis_report:
     output:
         tex=ABCD_DENSITY_REPORT_TEX,
         pdf=ABCD_DENSITY_REPORT_PDF,
+        plot_dir=directory(ABCD_DENSITY_REPORT_PLOT_DIR),
     params:
         pdf_name=ABCD_DENSITY_REPORT["output"]["pdf"],
     resources:
@@ -547,13 +552,14 @@ rule region_v1_abcd_density_analysis_report:
         pwd >&2
         command -v python3 >&2
         python3 --version >&2
-        python3 -c 'import yaml; print(yaml.__version__)' >&2
+        python3 -c 'import matplotlib, yaml; print(matplotlib.__version__, yaml.__version__)' >&2
         command -v pdflatex >&2
 
         python3 {input.script} \
           --input-table {input.table} \
           --config {input.config} \
-          --output-tex {output.tex}
+          --output-tex {output.tex} \
+          --output-plot-dir {output.plot_dir}
 
         report_build_dir=$(mktemp -d /tmp/abcd_density_report.XXXXXX)
         trap 'rm -rf "$report_build_dir"' EXIT

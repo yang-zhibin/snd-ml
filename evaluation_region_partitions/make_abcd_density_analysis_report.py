@@ -11,6 +11,10 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import yaml
 
 
@@ -61,6 +65,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-table", required=True)
     parser.add_argument("--config", required=True)
     parser.add_argument("--output-tex", required=True)
+    parser.add_argument("--output-plot-dir", required=True)
     return parser.parse_args()
 
 
@@ -131,6 +136,114 @@ def density_interval(row: dict[str, str]) -> str:
     low = int(round(float(row["bin_low"])))
     high = int(round(float(row["bin_high"])))
     return f"{low:,}--{high:,}"
+
+
+def safe_name(value: str) -> str:
+    return "".join(character if character.isalnum() else "_" for character in value).strip("_")
+
+
+def atomic_figure(fig: plt.Figure, path: str | Path, dpi: int) -> None:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{destination.stem}.", suffix=destination.suffix, dir=destination.parent
+    )
+    os.close(descriptor)
+    try:
+        fig.savefig(temporary, dpi=dpi, bbox_inches="tight")
+        os.replace(temporary, destination)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def normalized_distribution_plots(
+    rows: list[dict[str, str]],
+    region_order: list[str],
+    output_plot_dir: str | Path,
+    config: dict,
+) -> dict[str, Path]:
+    plot_config = config["normalized_plots"]
+    output_directory = Path(output_plot_dir)
+    series = [
+        ("Data", "data_raw_events", "black", "data"),
+        (r"CC $\nu_e$ signal", "cc_nue_sum_weights", "#d62728", "step"),
+        (r"$B_\nu$ background", "neutrino_background_sum_weights", "#1f77b4", "step"),
+        (r"$S+B$ standard $\nu$ MC", "standard_neutrino_sum_weights", "#2ca02c", "step"),
+    ]
+    outputs: dict[str, Path] = {}
+    for region in region_order:
+        regular_rows = [
+            row for row in rows if row["region"] == region and row["row_type"] == "bin"
+        ]
+        if len(regular_rows) != 80:
+            raise ValueError(f"Expected 80 regular rows for {region}, found {len(regular_rows)}")
+        regular_rows.sort(key=lambda row: int(row["root_bin_index"]))
+        edges = [float(regular_rows[0]["bin_low"])] + [
+            float(row["bin_high"]) for row in regular_rows
+        ]
+        centers = [0.5 * (edges[index] + edges[index + 1]) for index in range(80)]
+
+        normalized: dict[str, list[float]] = {}
+        for label, column, _, _ in series:
+            values = [float(row[column]) for row in regular_rows]
+            if any(not math.isfinite(value) or value < 0.0 for value in values):
+                raise ValueError(f"Invalid values in {column} for {region}")
+            total = sum(values)
+            if total <= 0.0:
+                raise ValueError(f"Cannot unit-normalize zero-total {column} for {region}")
+            fractions = [value / total for value in values]
+            if not math.isclose(sum(fractions), 1.0, rel_tol=1e-12, abs_tol=1e-12):
+                raise ValueError(f"Unit-area closure failed for {column} in {region}")
+            normalized[label] = fractions
+
+        label = regular_rows[0]["region_label"]
+        fig, axis = plt.subplots(figsize=(12.0, 4.8))
+        for series_label, _, color, style in series:
+            values = normalized[series_label]
+            if style == "data":
+                axis.plot(
+                    centers,
+                    values,
+                    linestyle="none",
+                    marker="o",
+                    markersize=3.0,
+                    color=color,
+                    label=series_label,
+                    zorder=5,
+                )
+            else:
+                axis.stairs(values, edges, color=color, linewidth=1.7, label=series_label)
+        if bool(plot_config.get("log_y", True)):
+            positive = [
+                value
+                for values in normalized.values()
+                for value in values
+                if value > 0.0
+            ]
+            axis.set_yscale("log")
+            axis.set_ylim(max(min(positive) * 0.5, 1e-8), min(max(positive) * 4.0, 1.0))
+        axis.set_xlim(edges[0], edges[-1])
+        axis.set_xlabel(r"density_sndsw_scifi")
+        axis.set_ylabel("Fraction of distribution per 500-unit bin")
+        axis.set_title(f"{label}: unit-area density shape")
+        axis.grid(True, which="both", axis="y", alpha=0.25)
+        axis.legend(ncol=2, frameon=False, fontsize=9)
+        axis.text(
+            0.99,
+            0.98,
+            r"Each curve: $\sum_i f_i=1$",
+            transform=axis.transAxes,
+            ha="right",
+            va="top",
+            fontsize=9,
+        )
+        fig.tight_layout()
+        destination = output_directory / f"{safe_name(region)}_unit_area.png"
+        atomic_figure(fig, destination, int(plot_config.get("dpi", 180)))
+        plt.close(fig)
+        outputs[region] = destination.resolve()
+    return outputs
 
 
 def inclusive_summary(inclusive: list[dict[str, str]]) -> str:
@@ -238,7 +351,11 @@ def inclusive_mc_audit(inclusive: list[dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def binned_tables(rows: list[dict[str, str]], region_order: list[str]) -> str:
+def binned_tables(
+    rows: list[dict[str, str]],
+    region_order: list[str],
+    plot_paths: dict[str, Path],
+) -> str:
     sections: list[str] = []
     for region_index, region in enumerate(region_order):
         region_rows = [
@@ -302,6 +419,22 @@ def binned_tables(rows: list[dict[str, str]], region_order: list[str]) -> str:
                     r"\end{minipage}",
                 ]
             )
+        sections.extend(
+            [
+                r"\clearpage",
+                r"\subsubsection*{Normalized density distribution}",
+                r"\begin{center}",
+                rf"\includegraphics[width=0.90\linewidth]{{{plot_paths[region]}}}",
+                r"\end{center}",
+                r"\begin{minipage}{\linewidth}",
+                r"\small\textbf{Normalization used in this plot.} For each displayed curve $c$, the plotted fraction in regular bin $i$ is "
+                r"$f_{c,i}=y_{c,i}/\sum_{j=1}^{80}y_{c,j}$, so the 80 plotted bins sum to one separately for Data, $\mathrm{CC}\nu_e$, $B_\nu$, and $S+B$. "
+                r"For Data, $y_{c,i}$ is the raw count; for MC it is the luminosity-normalized yield from the table. "
+                r"The separate underflow row is excluded, while overflow remains folded into the final regular bin. "
+                r"Because each curve is independently normalized, this figure compares shapes only; use the table for absolute counts and rates.",
+                r"\end{minipage}",
+            ]
+        )
         sections.append(r"\end{landscape}")
     return "\n".join(sections)
 
@@ -350,7 +483,12 @@ def definitions(input_table: str, rows: list[dict[str, str]]) -> str:
     )
 
 
-def document(config: dict, input_table: str, rows: list[dict[str, str]]) -> str:
+def document(
+    config: dict,
+    input_table: str,
+    rows: list[dict[str, str]],
+    plot_paths: dict[str, Path],
+) -> str:
     table_versions = {row["table_version"] for row in rows}
     if table_versions != {str(config["table_version"])}:
         raise ValueError(f"Unexpected table versions: {table_versions}")
@@ -364,7 +502,7 @@ def document(config: dict, input_table: str, rows: list[dict[str, str]]) -> str:
         [
             r"\documentclass[10pt,a4paper]{article}",
             r"\usepackage[margin=1.5cm]{geometry}",
-            r"\usepackage{booktabs,longtable,array,pdflscape}",
+            r"\usepackage{booktabs,longtable,array,pdflscape,graphicx}",
             r"\usepackage[T1]{fontenc}",
             r"\usepackage[hidelinks]{hyperref}",
             r"\usepackage{xcolor}",
@@ -385,7 +523,7 @@ def document(config: dict, input_table: str, rows: list[dict[str, str]]) -> str:
             preamble,
             inclusive_summary(inclusive),
             inclusive_mc_audit(inclusive),
-            binned_tables(rows, region_order),
+            binned_tables(rows, region_order, plot_paths),
             definitions(input_table, rows),
             r"\end{document}",
         ]
@@ -411,9 +549,18 @@ def main() -> None:
     args = parse_args()
     config = load_yaml(args.config)
     _, rows = load_table(args.input_table)
-    content = document(config, str(Path(args.input_table).resolve()), rows)
+    region_order = list(dict.fromkeys(row["region"] for row in rows))
+    plot_paths = normalized_distribution_plots(
+        rows, region_order, args.output_plot_dir, config
+    )
+    content = document(
+        config, str(Path(args.input_table).resolve()), rows, plot_paths
+    )
     atomic_text(args.output_tex, content)
-    print(f"Wrote LaTeX report with {len(rows)} materialized rows to {args.output_tex}")
+    print(
+        f"Wrote LaTeX report with {len(rows)} materialized rows and "
+        f"{len(plot_paths)} normalized plots to {args.output_tex}"
+    )
 
 
 if __name__ == "__main__":
