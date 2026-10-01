@@ -203,8 +203,11 @@ def make_input_row(
         if residual[name] <= 0:
             raise ValueError(f"Non-positive validation residual for {name}")
         row[f"validation_region_{suffix}"] = region
+        row[f"validation_exposure_{suffix}"] = f"{exposures[region]:.17g}"
         row[f"validation_observed_{suffix}"] = observed
         row[f"validation_other_neutrino_{suffix}"] = f"{q:.17g}"
+        row[f"validation_residual_{suffix}"] = f"{residual[name]:.17g}"
+        row[f"validation_residual_variance_{suffix}"] = f"{residual_variance[name]:.17g}"
         signal_yield = mc[region][config["source"]["signal_sample"]]["yield"]
         row[f"validation_signal_{suffix}"] = f"{signal_yield:.17g}"
         row[f"validation_signal_fraction_{suffix}"] = f"{signal_yield / observed:.17g}"
@@ -214,13 +217,37 @@ def make_input_row(
         / (exposures[validation_roles["transfer_b"]] * exposures[validation_roles["transfer_c"]])
     )
     prediction = residual["transfer_b"] * residual["transfer_c"] / residual["anchor_d"] * exposure_factor
+    prediction_relative_variance = sum(
+        residual_variance[name] / residual[name] ** 2
+        for name in ("transfer_b", "transfer_c", "anchor_d")
+    )
+    prediction_uncertainty = prediction * math.sqrt(prediction_relative_variance)
+    transfer = (
+        residual["transfer_c"] / residual["anchor_d"]
+        * exposures[validation_roles["anchor_d"]]
+        / exposures[validation_roles["transfer_c"]]
+    )
+    transfer_uncertainty = transfer * math.sqrt(
+        residual_variance["transfer_c"] / residual["transfer_c"] ** 2
+        + residual_variance["anchor_d"] / residual["anchor_d"] ** 2
+    )
     kappa = residual["numerator"] / prediction
     relative_variance = sum(
         residual_variance[name] / residual[name] ** 2 for name in validation_keys
     )
     sigma = kappa * math.sqrt(relative_variance)
     relative = sigma / kappa
+    pull = (residual["numerator"] - prediction) / math.sqrt(
+        residual_variance["numerator"] + prediction_uncertainty ** 2
+    )
     row.update({
+        "validation_exposure_factor": f"{exposure_factor:.17g}",
+        "validation_transfer": f"{transfer:.17g}",
+        "validation_transfer_uncertainty": f"{transfer_uncertainty:.17g}",
+        "validation_prediction": f"{prediction:.17g}",
+        "validation_prediction_uncertainty": f"{prediction_uncertainty:.17g}",
+        "validation_fractional_nonclosure": f"{kappa - 1.0:.17g}",
+        "validation_pull": f"{pull:.17g}",
         "kappa_central": f"{kappa:.17g}",
         "kappa_uncertainty": f"{sigma:.17g}",
         "kappa_relative_uncertainty": f"{relative:.17g}",

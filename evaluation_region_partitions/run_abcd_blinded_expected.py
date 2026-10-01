@@ -130,6 +130,47 @@ def control_covariance_rows(results) -> list[dict]:
     return rows
 
 
+def signed_value(row: dict, key: str) -> float:
+    result = float(row[key])
+    if not math.isfinite(result):
+        raise ValueError(f"Invalid finite signed value for {key}: {row[key]}")
+    return result
+
+
+def validation_closure_payload(row: dict) -> dict:
+    """Return the independently observed one-bin closure result (never signal A)."""
+    suffixes = ("numerator", "b", "c", "d")
+    return {
+        "density_interval": [value(row, "range_low"), value(row, "range_high")],
+        "regions": {suffix: row[f"validation_region_{suffix}"] for suffix in suffixes},
+        "exposures": {
+            suffix: value(row, f"validation_exposure_{suffix}") for suffix in suffixes
+        },
+        "raw_observed": {
+            suffix: value(row, f"validation_observed_{suffix}") for suffix in suffixes
+        },
+        "explicit_neutrino_background": {
+            suffix: value(row, f"validation_other_neutrino_{suffix}")
+            for suffix in suffixes
+        },
+        "residual_observed": {
+            suffix: value(row, f"validation_residual_{suffix}") for suffix in suffixes
+        },
+        "residual_variance": {
+            suffix: value(row, f"validation_residual_variance_{suffix}")
+            for suffix in suffixes
+        },
+        "transfer": value(row, "validation_transfer"),
+        "transfer_uncertainty": value(row, "validation_transfer_uncertainty"),
+        "prediction": value(row, "validation_prediction"),
+        "prediction_uncertainty": value(row, "validation_prediction_uncertainty"),
+        "kappa": value(row, "kappa_central"),
+        "kappa_uncertainty": value(row, "kappa_uncertainty"),
+        "fractional_nonclosure": signed_value(row, "validation_fractional_nonclosure"),
+        "pull": signed_value(row, "validation_pull"),
+    }
+
+
 def save_plots(
     output: Path,
     config: dict,
@@ -267,6 +308,7 @@ def make_payload(
             "source": row["kappa_constraint_source"],
             "transport_status": row["kappa_transport_status"],
         },
+        "validation_closure": validation_closure_payload(row),
         "control_fit": fit_payload(control_fit),
         "a_prediction": {
             "total_background": a_prediction[0],
@@ -307,6 +349,8 @@ def report_markdown(payload: dict) -> str:
     discovery = payload["expected_discovery"]
     measurement = payload["expected_measurement"]
     exclusion = payload["expected_exclusion"]
+    closure = payload["validation_closure"]
+    low, high = closure["density_interval"]
     return "\n".join(
         [
             "# Strict one-bin blinded ABCD expected report",
@@ -316,6 +360,22 @@ def report_markdown(payload: dict) -> str:
             f"Control-fit label: **{payload['control_fit_label']}**.",
             "",
             f"Kappa: `{payload['kappa']['central']:.6g} +/- {payload['kappa']['uncertainty']:.6g}` from `{payload['kappa']['source']}`.",
+            "",
+            "## Independent validation-plane one-bin closure",
+            "",
+            "This is A-prime in the validation plane, not the masked signal-region A observation.",
+            "",
+            "| Density interval | A'obs residual | A'pred +/- sigma_pred | Transfer T +/- sigma_T | kappa +/- sigma_kappa | Nonclosure | Pull |",
+            "|---|---:|---:|---:|---:|---:|---:|",
+            (
+                f"| [{low:g}, {high:g}) | {closure['residual_observed']['numerator']:.6g} | "
+                f"{closure['prediction']:.6g} +/- {closure['prediction_uncertainty']:.6g} | "
+                f"{closure['transfer']:.6g} +/- {closure['transfer_uncertainty']:.6g} | "
+                f"{closure['kappa']:.6g} +/- {closure['kappa_uncertainty']:.6g} | "
+                f"{closure['fractional_nonclosure']:.3%} | {closure['pull']:.6g} |"
+            ),
+            "",
+            "Definitions: `N_R'` is the raw validation-region data count; `Q_R'` is the explicit CC-numu + NC-nue + NC-numu MC yield; `R_R'=N_R'-Q_R'` is the residual count used by ABCD; and `L_R'` is the region exposure. `T=(R_C'/R_D')(L_D'/L_C')`, `A'pred=R_B'(L_A'/L_B')T`, `kappa=A'obs/A'pred`, nonclosure is `kappa-1`, and pull is `(A'obs-A'pred)/sqrt(V_A'+sigma_pred^2)`. Uncertainties use first-order propagation of validation-data Poisson variance, MC statistical variance, and the configured MC-normalization terms.",
             "",
             f"Expected discovery at mu=1: `q0={discovery['q0']:.6g}`, `p0={discovery['p0_asymptotic']:.6g}`, `Z={discovery['z_asymptotic']:.6g}`.",
             "",
@@ -334,6 +394,7 @@ def report_latex(config: dict, row: dict, payload: dict, plot_dir: Path) -> str:
     measurement = payload["expected_measurement"]
     discovery = payload["expected_discovery"]
     exclusion = payload["expected_exclusion"]
+    closure = payload["validation_closure"]
     interval = measurement["profile_interval"]
     interval_text = "[{}, {}]".format(
         "open" if interval[0] is None else f"{interval[0]:.5g}",
@@ -359,7 +420,8 @@ def report_latex(config: dict, row: dict, payload: dict, plot_dir: Path) -> str:
         r"\section{Analysis definition and strict blinding}",
         r"The primary analysis is one count over $5000\leq\texttt{density\_scifi\_sndsw}<40000$. There is no density-bin index in the statistical model. Observed inputs are B, C, D, plus an independent validation plane used for $\kappa$.",
         r"\section{ABCD likelihood and component separation}",
-        r"The residual non-neutrino component is $b_D=L_D\rho$, $b_B=L_D\rho u$, $b_C=L_C\rho v$, and $b_A=L_A\rho u v\kappa$. The channel expectation is $\nu_R=b_R+\mu S_R+\sum_k\gamma_k q_{k,R}$. Explicit CC $\nu_\mu$, NC $\nu_e$, and NC $\nu_\mu$ MC components are not included in the residual ABCD component.",
+        r"The residual non-neutrino component is $b_D=L_D\rho$, $b_B=L_B\rho u$, $b_C=L_C\rho v$, and $b_A=L_A\rho u v\kappa$. The channel expectation is $\nu_R=b_R+\mu S_R+\sum_k\gamma_k q_{k,R}$. Explicit CC $\nu_\mu$, NC $\nu_e$, and NC $\nu_\mu$ MC components are not included in the residual ABCD component.",
+        r"Here $R\in\{A,B,C,D\}$ labels a region; $L_R$ is its integrated data exposure; $\rho$ is the residual-background rate per unit exposure in D; $u$ and $v$ are transfer factors along the two ABCD axes; and $\kappa$ is the validation-derived nonclosure correction. The total expected count $\nu_R$ contains residual background $b_R$, CC $\nu_e$ signal template $S_R$ multiplied by signal strength $\mu$, and explicit neutrino-background template $q_{k,R}$ multiplied by nuisance scale $\gamma_k$ for component $k$.",
         r"\section{One-bin inputs and signal contamination}",
         r"\begin{center}\small\begin{tabular}{lrrrr}\toprule",
         latex_row("Quantity", "A", "B", "C", "D"), r"\midrule",
@@ -367,9 +429,34 @@ def report_latex(config: dict, row: dict, payload: dict, plot_dir: Path) -> str:
         latex_row("CC nue signal, mu=1", *[f"{value(row, f'cc_nue_{role.lower()}'):.5g}" for role in ROLES]),
         latex_row("Other-neutrino MC", *[f"{sum(value(row, f'{sample.lower()}_{role.lower()}') for sample in config['source']['background_samples']):.5g}" for role in ROLES]),
         r"\bottomrule\end{tabular}\end{center}",
-        rf"The CC $\nu_e$ contamination fractions in B/C/D are {value(row, 'signal_contamination_fraction_b'):.3%}, {value(row, 'signal_contamination_fraction_c'):.3%}, and {value(row, 'signal_contamination_fraction_d'):.3%}. The 1\% criterion therefore classifies contamination as \texttt{{{tex_escape(row['signal_contamination_decision'])}}}. The blinded background-only control fit fixes $\mu=0$; the final simultaneous model releases it.",
+        r"In this table, observed data are raw event counts $N_R$; A is masked, while B, C, and D are control regions. ``CC $\nu_e$ signal, $\mu=1$'' is $S_R$, the nominal signal-MC yield. ``Other-neutrino MC'' is $Q_R=\sum_k q_{k,R}$ for CC $\nu_\mu$, NC $\nu_e$, and NC $\nu_\mu$. All MC yields are normalized to the corresponding data exposure $L_R$.",
+        rf"The CC $\nu_e$ contamination fractions in B/C/D are {100.0 * value(row, 'signal_contamination_fraction_b'):.3f}\%, {100.0 * value(row, 'signal_contamination_fraction_c'):.3f}\%, and {100.0 * value(row, 'signal_contamination_fraction_d'):.3f}\%. The 1\% criterion therefore classifies contamination as \texttt{{{tex_escape(row['signal_contamination_decision'])}}}. The blinded background-only control fit fixes $\mu=0$; the final simultaneous model releases it.",
         r"\section{Independent nonclosure constraint}",
-        rf"The validation plane gives $\kappa={payload['kappa']['central']:.5g}\pm{payload['kappa']['uncertainty']:.5g}$, represented by a HistFactory normsys constraint. Its source is {tex_escape(payload['kappa']['source'])}. The transport status is \texttt{{{tex_escape(payload['kappa']['transport_status'])}}}.",
+        r"The table below is the one-bin analogue of the nominal-closure table. Every primed quantity belongs to the independent validation plane; $A'$ is not the masked signal region A.",
+        r"\begin{center}\scriptsize\begin{tabular}{lrrrrrr}\toprule",
+        latex_row(r"Density interval", r"$A'_{\rm obs}$", r"$A'_{\rm pred}\pm\sigma_{\rm pred}$", r"$T\pm\sigma_T$", r"$\kappa_{\rm val}\pm\sigma_\kappa$", r"Nonclosure", r"Pull"),
+        r"\midrule",
+        latex_row(
+            rf"{{[{closure['density_interval'][0]:g}, {closure['density_interval'][1]:g})}}",
+            f"{closure['residual_observed']['numerator']:.6g}",
+            rf"${closure['prediction']:.6g}\pm{closure['prediction_uncertainty']:.6g}$",
+            rf"${closure['transfer']:.6g}\pm{closure['transfer_uncertainty']:.6g}$",
+            rf"${closure['kappa']:.6g}\pm{closure['kappa_uncertainty']:.6g}$",
+            rf"{100.0 * closure['fractional_nonclosure']:.3f}\%",
+            f"{closure['pull']:.6g}",
+        ),
+        r"\bottomrule\end{tabular}\end{center}",
+        r"The validation-region mapping is:",
+        r"\begin{description}",
+        rf"\item[$A'$ (numerator)] \nolinkurl{{{closure['regions']['numerator']}}}",
+        rf"\item[$B'$] \nolinkurl{{{closure['regions']['b']}}}",
+        rf"\item[$C'$] \nolinkurl{{{closure['regions']['c']}}}",
+        rf"\item[$D'$ (anchor)] \nolinkurl{{{closure['regions']['d']}}}",
+        r"\end{description}",
+        r"For validation region $R'$, $N_{R'}$ is the raw data count, $Q_{R'}$ is the explicit CC $\nu_\mu$+NC $\nu_e$+NC $\nu_\mu$ MC yield, and $R_{R'}=N_{R'}-Q_{R'}$ is the residual count. The table's $A'_{\rm obs}$ means $R_{A'}$; it is not the raw count and is unrelated to signal-region data. $L_{R'}$ is the validation-region exposure.",
+        r"The transfer and prediction are $T=(R_{C'}/R_{D'})(L_{D'}/L_{C'})$ and $A'_{\rm pred}=R_{B'}(L_{A'}/L_{B'})T$. With residual variance $V_{R'}=N_{R'}+\sum_k\sigma^2_{\mathrm{MCstat},k,R'}+\sum_k(\delta_k q_{k,R'})^2$, first-order propagation gives $\sigma_T^2=T^2(V_{C'}/R_{C'}^2+V_{D'}/R_{D'}^2)$ and $\sigma_{\rm pred}^2=A_{\rm pred}'^2(V_{B'}/R_{B'}^2+V_{C'}/R_{C'}^2+V_{D'}/R_{D'}^2)$.",
+        r"The closure factor is $\kappa_{\rm val}=A'_{\rm obs}/A'_{\rm pred}$; $\sigma_\kappa$ additionally includes $V_{A'}$; fractional nonclosure is $\kappa_{\rm val}-1$; and pull is $(A'_{\rm obs}-A'_{\rm pred})/\sqrt{V_{A'}+\sigma_{\rm pred}^2}$. The configured $\delta_k=30\%$ MC-normalization terms remain placeholders.",
+        rf"Thus the validation plane gives $\kappa_{{\rm val}}={payload['kappa']['central']:.5g}\pm{payload['kappa']['uncertainty']:.5g}$, represented by a HistFactory normsys constraint. Its source is {tex_escape(payload['kappa']['source'])}. The transport status is \texttt{{{tex_escape(payload['kappa']['transport_status'])}}}.",
         r"\section{Blinded control-region fit}",
         r"The following is a \textbf{control-region post-fit prediction}, not a signal-region post-fit result.",
         r"\begin{center}", rf"\includegraphics[width=0.82\linewidth]{{{plot('control_region_fit.pdf')}}}", r"\end{center}",

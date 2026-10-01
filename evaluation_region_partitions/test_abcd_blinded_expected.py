@@ -100,7 +100,27 @@ def input_row(cfg: dict) -> dict:
         "kappa_constraint_form": "histfactory_normsys",
         "kappa_constraint_source": "synthetic independent validation plane",
         "kappa_transport_status": "TEST",
+        "validation_exposure_factor": 1.0,
+        "validation_transfer": 2.0,
+        "validation_transfer_uncertainty": 0.4898979485566356,
+        "validation_prediction": 50.0,
+        "validation_prediction_uncertainty": 15.0,
+        "validation_fractional_nonclosure": -0.6,
+        "validation_pull": -1.948557158514987,
     }
+    validation = {
+        "numerator": ("va", 21.0, 1.0, 20.0, 12.0),
+        "b": ("vb", 26.0, 1.0, 25.0, 18.75),
+        "c": ("vc", 21.0, 1.0, 20.0, 12.0),
+        "d": ("vd", 11.0, 1.0, 10.0, 3.0),
+    }
+    for suffix, (region, observed, other_nu, residual, variance) in validation.items():
+        row[f"validation_region_{suffix}"] = region
+        row[f"validation_exposure_{suffix}"] = 1.0
+        row[f"validation_observed_{suffix}"] = observed
+        row[f"validation_other_neutrino_{suffix}"] = other_nu
+        row[f"validation_residual_{suffix}"] = residual
+        row[f"validation_residual_variance_{suffix}"] = variance
     yields = {
         "cc_nue": {"a": 10.0, "b": 10.0, "c": 0.07, "d": 0.04},
         "cc_numu": {"a": 0.5, "b": 0.3, "c": 0.1, "d": 0.1},
@@ -179,6 +199,8 @@ def main() -> None:
         assert payload["expected_exclusion"]["background_asimov_upper_limit"] > 0.0
         assert payload["expected_measurement"]["profile_interval"][0] == 0.0
         assert payload["expected_measurement"]["profile_interval"][1] is not None
+        assert payload["validation_closure"]["prediction"] == 50.0
+        assert payload["validation_closure"]["residual_observed"]["numerator"] == 20.0
         expected_dir = root / "expected"
         model_inputs = list(csv.DictReader((expected_dir / "model_inputs.csv").open()))
         assert len(model_inputs) == 1
@@ -186,6 +208,13 @@ def main() -> None:
         for artifact in ("control_workspace.json", "expected_background_workspace.json", "expected_signal_workspace.json", "expected_results.json"):
             content = json.loads((expected_dir / artifact).read_text())
             assert not nested_forbidden_keys(content)
+        markdown = (expected_dir / "expected_report.md").read_text()
+        latex = (expected_dir / "expected_report.tex").read_text()
+        assert "Independent validation-plane one-bin closure" in markdown
+        assert "A'obs residual" in markdown
+        assert r"$A'_{\rm pred}\pm\sigma_{\rm pred}$" in latex
+        assert r"fractional nonclosure is $\kappa_{\rm val}-1$" in latex
+        assert "signal-region A data" in latex
 
         manifest = root / "freeze_manifest.json"
         manifest.write_text(json.dumps({
