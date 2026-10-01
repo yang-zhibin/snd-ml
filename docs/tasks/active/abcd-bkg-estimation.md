@@ -479,7 +479,9 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
 - At the final check on 2026-10-01 at about 03:50 Europe/Zurich,
-  `condor_q -nobatch` reported zero jobs for `zhibin`.
+  `condor_q -nobatch` reported three unrelated idle jobs (`16300829.0`,
+  `16300830.0`, and `16300831.0`) from worktree
+  `snd-ml-3d-cnn-testbeam`; this task did not submit or modify them.
 
 ## Current Git state
 
