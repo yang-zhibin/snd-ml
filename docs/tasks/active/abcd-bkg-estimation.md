@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 12:03 Europe/Zurich
+Last updated: 2026-10-01 13:28 Europe/Zurich
 
 ## Goal
 
@@ -143,6 +143,13 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   shape edges `[5000,7000,40000]`. Both consume the validated Step-3 table,
   include standard `CC_nue` leakage in A/B/C/D, fix unvalidated nonclosure
   `kappa=1`, and leave all existing baseline outputs untouched.
+- Implemented a separate expected-only reblinded-development workflow. Its
+  sanitized input rule reads observed data only for B/C/D and MC for A/B/C/D;
+  the A data histogram and summary are absent from the Snakemake DAG and the
+  sanitized table has blank A observations. It builds control-only and full
+  Asimov workspaces, performs expected discovery inference, produces plots
+  and two structured reports, and writes a checksum freeze manifest. No real
+  signal-region fit or unblinding target was run.
 
 ## Findings and decisions
 
@@ -268,6 +275,13 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   `u[0]` to its lower boundary. The two-bin model has one degree of freedom
   and goodness-of-fit `p=0.008064`, rejecting the requested factorized shape.
   Neither result supports a discovery claim or limit.
+- The technically masked workflow is labelled `REBLINDED_DEVELOPMENT`, not a
+  historically blind analysis, because A-region data were inspected in prior
+  development. Its default `kappa=1` is explicitly `UNVALIDATED`, its 30%
+  other-neutrino normalization constraints are explicitly `PLACEHOLDER`, MC
+  statistical uncertainties are not yet included, and observed inference is
+  disabled. Expected significance values are therefore software/model
+  diagnostics only.
 
 ## Results and evidence
 
@@ -678,7 +692,7 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     simultaneous fit returns `mu=7.12809 +/- 0.60454`, has zero goodness-of-fit
     degrees of freedom, and places `u[0]` at zero; its covariance warnings and
     saturated status are reported explicitly.
-  - The exploratory two-bin fit returns `mu=2.53404 +/- 1.10213` with one
+- The exploratory two-bin fit returns `mu=2.53404 +/- 1.10213` with one
     goodness-of-fit degree of freedom and `p=0.00806437`. The report states
     that the factorized model is incompatible with the observations.
   - Independent validation schema-checked both saved pyhf workspaces,
@@ -687,8 +701,35 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     ten nonempty plots per output tree, readable five- and six-page PDFs, and
     all expected warning/parameter/result text. The new and frozen baseline
     targets jointly dry-run as a no-op.
+- An isolated real-input test under `/tmp/abcd_blinded_real_test` created 320
+  sanitized rows with zero A observations, valid control/background/signal
+  pyhf workspaces, eight plots per analysis, and two four-page PDFs. With the
+  explicitly provisional model, the Asimov injected-`mu=1` asymptotic
+  sensitivities were `Z=0.216406` for `[5000,40000]` and `Z=0.510738` for
+  `[5000,7000,40000]`. These are not production or observed results.
 
 ## Modified files
+
+- `snakemake/metadata/configs/region_evaluation/abcd_density_blinded_inference_v1.yaml`
+  - Added the reblinded status, A/B/C/D mapping, two high-density binnings,
+    provisional nonclosure/systematic declarations, fit settings, blinding
+    guards, and isolated expected-report outputs.
+- `evaluation_region_partitions/make_abcd_blinded_inputs.py`
+  - Added a ROOT histogram reader that deliberately never resolves an A-data
+    path, validates B/C/D data plus A/B/C/D standard-neutrino MC, and writes a
+    sanitized 320-row table with blank A observations.
+- `evaluation_region_partitions/run_abcd_blinded_expected.py`
+  - Added B/C/D control fitting with `mu=0`, residual-ABCD plus explicit
+    other-neutrino components, background-only and signal-injected Asimov
+    workspaces, asymptotic expected `p0`/`Z`, scans, plots, structured
+    Markdown/LaTeX reports, and a checksum freeze manifest.
+- `evaluation_region_partitions/test_abcd_blinded_expected.py`
+  - Added synthetic aggregation/workspace/inference/report checks and an
+    intentional failure when any A observation appears.
+- `snakemake/rules/region_partitions.smk`
+  - Added `region_v1_abcd_density_blinded_inputs` and
+    `region_v1_abcd_density_blinded_expected_report`. The expected DAG names
+    only the three B/C/D real-data products and all four regions' MC products.
 
 - `docs/analysis/regions/REGION_V1_ABCD_BASELINE_PLAN.md`
   - Added the approved two-baseline plan, validation mappings, signal leakage,
@@ -902,23 +943,34 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   isolation, `git diff --check`, and final no-op DAG checks passed. The
   optimizer covariance warnings for the saturated cut-count model are a
   documented scientific limitation rather than a missing output.
+- The blinded builder/runner/test compiled under LCG 107. The focused
+  synthetic test passed expected inference and rejected an injected A
+  observation. A Snakemake summary scheduled only the sanitized-input and
+  expected-report rules and showed no signal-region real-data dependency.
+- The isolated real-input builder and expected runner passed. Independent
+  checks verified 320 sanitized rows, blank A observations, valid workspace
+  schemas, the locked observed-result section, four PDF plus four PNG plots
+  per analysis, a manifest with `unblinding_authorized=false`, and two-pass
+  compilation of both four-page PDFs. `git diff --check` passed. Minuit
+  covariance warnings were observed and are consistent with the saturated,
+  weakly constrained diagnostic model.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 12:02 Europe/Zurich,
+- At the final check on 2026-10-01 at 13:28 Europe/Zurich,
   `condor_q -nobatch` reported zero jobs for the user. This ABCD task submitted
   no scheduler jobs.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `b98e32d`
-  (`fix: plot ABCD fit against density`).
-- Before updating this task record, the worktree contained four task-scoped
+- HEAD before this checkpoint: `6ef08d5`
+  (`feat: add high-density ABCD fit reports`).
+- Before updating this task record, the worktree contained five task-scoped
   implementation paths and no unrelated user changes. This task record is the
-  fifth task-scoped path intended for the checkpoint commit.
+  sixth task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 
@@ -945,7 +997,7 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 ## Exact next action
 
-Review the two PDFs under `high_density_fits_v1/` with the user, emphasizing
-the saturated cut-count model and rejected two-bin goodness of fit. Obtain an
-explicit decision on redesigning/validating the background and constraining
-nonclosure before adding uncertainties, significance, limits, or another fit.
+Review the reblinded implementation and choose whether to first replace the
+unvalidated `kappa=1` and placeholder 30% neutrino uncertainties, or to run
+the expected-only production target as an explicitly provisional diagnostic.
+Do not implement or run observed unblinding until that decision is recorded.

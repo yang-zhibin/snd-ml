@@ -330,6 +330,75 @@ ABCD_HIGH_SHAPE_MARKDOWN = _abcd_density_high_density_output("shape", "report_ma
 ABCD_HIGH_SHAPE_TEX = _abcd_density_high_density_output("shape", "report_tex")
 ABCD_HIGH_SHAPE_PDF = _abcd_density_high_density_output("shape", "report_pdf")
 ABCD_HIGH_SHAPE_PLOTS = _abcd_density_high_density_output("shape", "plot_directory")
+ABCD_DENSITY_BLINDED_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_density_blinded_inference_v1.yaml"
+)
+
+with open(ABCD_DENSITY_BLINDED_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DENSITY_BLINDED = yaml.safe_load(handle)
+
+ABCD_DENSITY_BLINDED_OUTPUT_DIR = ABCD_DENSITY_BLINDED["output"]["directory"]
+if not os.path.isabs(ABCD_DENSITY_BLINDED_OUTPUT_DIR):
+    ABCD_DENSITY_BLINDED_OUTPUT_DIR = (
+        f"{PERSONAL_WORK_SPACE}/{ABCD_DENSITY_BLINDED_OUTPUT_DIR}"
+    )
+ABCD_BLINDED_SANITIZED = (
+    f"{ABCD_DENSITY_BLINDED_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY_BLINDED['output']['sanitized_inputs']}"
+)
+ABCD_BLINDED_MANIFEST = (
+    f"{ABCD_DENSITY_BLINDED_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY_BLINDED['output']['freeze_manifest']}"
+)
+ABCD_BLINDED_ROLE_REGIONS = ABCD_DENSITY_BLINDED["source"]["roles"]
+ABCD_BLINDED_CONTROL_REGIONS = [
+    ABCD_BLINDED_ROLE_REGIONS[role] for role in ("B", "C", "D")
+]
+ABCD_BLINDED_ALL_REGIONS = [
+    ABCD_BLINDED_ROLE_REGIONS[role] for role in ("A", "B", "C", "D")
+]
+ABCD_BLINDED_DATA_HISTS = expand(
+    ABCD_DENSITY_HIST_PATTERN, region=ABCD_BLINDED_CONTROL_REGIONS
+)
+ABCD_BLINDED_DATA_SUMMARIES = expand(
+    ABCD_DENSITY_SUMMARY_PATTERN, region=ABCD_BLINDED_CONTROL_REGIONS
+)
+ABCD_BLINDED_MC_HISTS = expand(
+    ABCD_DENSITY_MC_HIST_PATTERN,
+    region=ABCD_BLINDED_ALL_REGIONS,
+    particle_group=ABCD_DENSITY_MC_GROUPS,
+)
+ABCD_BLINDED_MC_SUMMARIES = expand(
+    ABCD_DENSITY_MC_SUMMARY_PATTERN,
+    region=ABCD_BLINDED_ALL_REGIONS,
+    particle_group=ABCD_DENSITY_MC_GROUPS,
+)
+
+
+def _abcd_density_blinded_output(analysis, key):
+    analysis_dir = ABCD_DENSITY_BLINDED["analyses"][analysis]["output_directory"]
+    return (
+        f"{ABCD_DENSITY_BLINDED_OUTPUT_DIR}/{analysis_dir}/"
+        f"{ABCD_DENSITY_BLINDED['output'][key]}"
+    )
+
+
+ABCD_BLINDED_OUTPUT_KEYS = [
+    "model_inputs", "control_workspace", "expected_background_workspace",
+    "expected_signal_workspace", "expected_results", "mu_scan",
+    "report_markdown", "report_tex", "report_pdf",
+]
+ABCD_BLINDED_CUT_OUTPUTS = {
+    key: _abcd_density_blinded_output("cutcount", key)
+    for key in ABCD_BLINDED_OUTPUT_KEYS
+}
+ABCD_BLINDED_SHAPE_OUTPUTS = {
+    key: _abcd_density_blinded_output("shape", key)
+    for key in ABCD_BLINDED_OUTPUT_KEYS
+}
+ABCD_BLINDED_CUT_PLOTS = _abcd_density_blinded_output("cutcount", "plot_directory")
+ABCD_BLINDED_SHAPE_PLOTS = _abcd_density_blinded_output("shape", "plot_directory")
 
 
 def _sanitize_partition_name(value):
@@ -1036,6 +1105,126 @@ rule region_v1_abcd_density_high_density_reports:
           --output-root {params.output_root}
 
         report_build_dir=$(mktemp -d /tmp/abcd_high_density_reports.XXXXXX)
+        trap 'rm -rf "$report_build_dir"' EXIT
+        mkdir -p "$report_build_dir/cutcount" "$report_build_dir/shape"
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir/cutcount" {output.cut_tex}
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir/cutcount" {output.cut_tex}
+        cp "$report_build_dir/cutcount/{params.cut_pdf_name}" {output.cut_pdf}
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir/shape" {output.shape_tex}
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir/shape" {output.shape_tex}
+        cp "$report_build_dir/shape/{params.shape_pdf_name}" {output.shape_pdf}
+        """
+
+
+rule region_v1_abcd_density_blinded_inputs:
+    input:
+        config=ABCD_DENSITY_BLINDED_CONFIG,
+        data_config=ABCD_DENSITY_CONFIG,
+        mc_config=ABCD_DENSITY_MC_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "make_abcd_blinded_inputs.py"
+        ),
+        data_hists=ABCD_BLINDED_DATA_HISTS,
+        data_summaries=ABCD_BLINDED_DATA_SUMMARIES,
+        mc_hists=ABCD_BLINDED_MC_HISTS,
+        mc_summaries=ABCD_BLINDED_MC_SUMMARIES,
+    output:
+        sanitized=ABCD_BLINDED_SANITIZED,
+    params:
+        product_directory=ABCD_DENSITY_OUTPUT_DIR,
+    resources:
+        runtime=10 * 60,
+        mem_mb=1500,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+
+        python3 {input.script} \
+          --config {input.config} \
+          --data-config {input.data_config} \
+          --mc-config {input.mc_config} \
+          --product-directory {params.product_directory} \
+          --output {output.sanitized}
+        """
+
+
+rule region_v1_abcd_density_blinded_expected_report:
+    input:
+        sanitized=ABCD_BLINDED_SANITIZED,
+        config=ABCD_DENSITY_BLINDED_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "run_abcd_blinded_expected.py"
+        ),
+    output:
+        manifest=ABCD_BLINDED_MANIFEST,
+        cut_inputs=ABCD_BLINDED_CUT_OUTPUTS["model_inputs"],
+        cut_control=ABCD_BLINDED_CUT_OUTPUTS["control_workspace"],
+        cut_background=ABCD_BLINDED_CUT_OUTPUTS["expected_background_workspace"],
+        cut_signal=ABCD_BLINDED_CUT_OUTPUTS["expected_signal_workspace"],
+        cut_results=ABCD_BLINDED_CUT_OUTPUTS["expected_results"],
+        cut_scan=ABCD_BLINDED_CUT_OUTPUTS["mu_scan"],
+        cut_markdown=ABCD_BLINDED_CUT_OUTPUTS["report_markdown"],
+        cut_tex=ABCD_BLINDED_CUT_OUTPUTS["report_tex"],
+        cut_pdf=ABCD_BLINDED_CUT_OUTPUTS["report_pdf"],
+        cut_plots=directory(ABCD_BLINDED_CUT_PLOTS),
+        shape_inputs=ABCD_BLINDED_SHAPE_OUTPUTS["model_inputs"],
+        shape_control=ABCD_BLINDED_SHAPE_OUTPUTS["control_workspace"],
+        shape_background=ABCD_BLINDED_SHAPE_OUTPUTS["expected_background_workspace"],
+        shape_signal=ABCD_BLINDED_SHAPE_OUTPUTS["expected_signal_workspace"],
+        shape_results=ABCD_BLINDED_SHAPE_OUTPUTS["expected_results"],
+        shape_scan=ABCD_BLINDED_SHAPE_OUTPUTS["mu_scan"],
+        shape_markdown=ABCD_BLINDED_SHAPE_OUTPUTS["report_markdown"],
+        shape_tex=ABCD_BLINDED_SHAPE_OUTPUTS["report_tex"],
+        shape_pdf=ABCD_BLINDED_SHAPE_OUTPUTS["report_pdf"],
+        shape_plots=directory(ABCD_BLINDED_SHAPE_PLOTS),
+    params:
+        output_root=ABCD_DENSITY_BLINDED_OUTPUT_DIR,
+        cut_pdf_name=ABCD_DENSITY_BLINDED["output"]["report_pdf"],
+        shape_pdf_name=ABCD_DENSITY_BLINDED["output"]["report_pdf"],
+    resources:
+        runtime=20 * 60,
+        mem_mb=2000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import cabinetry, matplotlib, numpy, pyhf, scipy, yaml; print(pyhf.__version__, matplotlib.__version__, numpy.__version__)' >&2
+        command -v pdflatex >&2
+
+        python3 {input.script} \
+          --input {input.sanitized} \
+          --config {input.config} \
+          --output-root {params.output_root}
+
+        report_build_dir=$(mktemp -d /tmp/abcd_blinded_expected.XXXXXX)
         trap 'rm -rf "$report_build_dir"' EXIT
         mkdir -p "$report_build_dir/cutcount" "$report_build_dir/shape"
         pdflatex -interaction=nonstopmode -halt-on-error \
