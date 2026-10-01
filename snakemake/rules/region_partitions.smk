@@ -291,6 +291,45 @@ ABCD_DENSITY_SIGNAL_REGION_FIT_REPORT_PDF = _abcd_density_signal_region_fit_outp
 ABCD_DENSITY_SIGNAL_REGION_FIT_PLOT_DIR = _abcd_density_signal_region_fit_output(
     "plot_directory"
 )
+ABCD_DENSITY_HIGH_DENSITY_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_density_high_density_fits_v1.yaml"
+)
+
+with open(ABCD_DENSITY_HIGH_DENSITY_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DENSITY_HIGH_DENSITY = yaml.safe_load(handle)
+
+ABCD_DENSITY_HIGH_DENSITY_OUTPUT_DIR = ABCD_DENSITY_HIGH_DENSITY["output"]["directory"]
+if not os.path.isabs(ABCD_DENSITY_HIGH_DENSITY_OUTPUT_DIR):
+    ABCD_DENSITY_HIGH_DENSITY_OUTPUT_DIR = (
+        f"{PERSONAL_WORK_SPACE}/{ABCD_DENSITY_HIGH_DENSITY_OUTPUT_DIR}"
+    )
+
+
+def _abcd_density_high_density_output(analysis, key):
+    analysis_dir = ABCD_DENSITY_HIGH_DENSITY["analyses"][analysis]["output_directory"]
+    return (
+        f"{ABCD_DENSITY_HIGH_DENSITY_OUTPUT_DIR}/{analysis_dir}/"
+        f"{ABCD_DENSITY_HIGH_DENSITY['output'][key]}"
+    )
+
+
+ABCD_HIGH_CUT_INPUTS = _abcd_density_high_density_output("cutcount", "inputs_csv")
+ABCD_HIGH_CUT_WORKSPACE = _abcd_density_high_density_output("cutcount", "workspace_json")
+ABCD_HIGH_CUT_RESULTS = _abcd_density_high_density_output("cutcount", "fit_results_json")
+ABCD_HIGH_CUT_SCAN = _abcd_density_high_density_output("cutcount", "mu_scan_csv")
+ABCD_HIGH_CUT_MARKDOWN = _abcd_density_high_density_output("cutcount", "report_markdown")
+ABCD_HIGH_CUT_TEX = _abcd_density_high_density_output("cutcount", "report_tex")
+ABCD_HIGH_CUT_PDF = _abcd_density_high_density_output("cutcount", "report_pdf")
+ABCD_HIGH_CUT_PLOTS = _abcd_density_high_density_output("cutcount", "plot_directory")
+ABCD_HIGH_SHAPE_INPUTS = _abcd_density_high_density_output("shape", "inputs_csv")
+ABCD_HIGH_SHAPE_WORKSPACE = _abcd_density_high_density_output("shape", "workspace_json")
+ABCD_HIGH_SHAPE_RESULTS = _abcd_density_high_density_output("shape", "fit_results_json")
+ABCD_HIGH_SHAPE_SCAN = _abcd_density_high_density_output("shape", "mu_scan_csv")
+ABCD_HIGH_SHAPE_MARKDOWN = _abcd_density_high_density_output("shape", "report_markdown")
+ABCD_HIGH_SHAPE_TEX = _abcd_density_high_density_output("shape", "report_tex")
+ABCD_HIGH_SHAPE_PDF = _abcd_density_high_density_output("shape", "report_pdf")
+ABCD_HIGH_SHAPE_PLOTS = _abcd_density_high_density_output("shape", "plot_directory")
 
 
 def _sanitize_partition_name(value):
@@ -939,6 +978,76 @@ rule region_v1_abcd_density_signal_region_fit:
         pdflatex -interaction=nonstopmode -halt-on-error \
           -output-directory "$report_build_dir" {output.report_tex}
         cp "$report_build_dir/{params.pdf_name}" {output.report_pdf}
+        """
+
+
+rule region_v1_abcd_density_high_density_reports:
+    input:
+        table=ABCD_DENSITY_TABLE_CSV,
+        config=ABCD_DENSITY_HIGH_DENSITY_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "fit_abcd_high_density_reports.py"
+        ),
+    output:
+        cut_inputs=ABCD_HIGH_CUT_INPUTS,
+        cut_workspace=ABCD_HIGH_CUT_WORKSPACE,
+        cut_results=ABCD_HIGH_CUT_RESULTS,
+        cut_scan=ABCD_HIGH_CUT_SCAN,
+        cut_markdown=ABCD_HIGH_CUT_MARKDOWN,
+        cut_tex=ABCD_HIGH_CUT_TEX,
+        cut_pdf=ABCD_HIGH_CUT_PDF,
+        cut_plots=directory(ABCD_HIGH_CUT_PLOTS),
+        shape_inputs=ABCD_HIGH_SHAPE_INPUTS,
+        shape_workspace=ABCD_HIGH_SHAPE_WORKSPACE,
+        shape_results=ABCD_HIGH_SHAPE_RESULTS,
+        shape_scan=ABCD_HIGH_SHAPE_SCAN,
+        shape_markdown=ABCD_HIGH_SHAPE_MARKDOWN,
+        shape_tex=ABCD_HIGH_SHAPE_TEX,
+        shape_pdf=ABCD_HIGH_SHAPE_PDF,
+        shape_plots=directory(ABCD_HIGH_SHAPE_PLOTS),
+    params:
+        output_root=ABCD_DENSITY_HIGH_DENSITY_OUTPUT_DIR,
+        cut_pdf_name=ABCD_DENSITY_HIGH_DENSITY["output"]["report_pdf"],
+        shape_pdf_name=ABCD_DENSITY_HIGH_DENSITY["output"]["report_pdf"],
+    resources:
+        runtime=15 * 60,
+        mem_mb=1500,
+        disk_mb=1500,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import importlib.metadata as m; import cabinetry, matplotlib, numpy, pyhf, yaml; print("cabinetry", m.version("cabinetry"), "pyhf", pyhf.__version__, "matplotlib", matplotlib.__version__, "numpy", numpy.__version__, "yaml", yaml.__version__)' >&2
+        command -v pdflatex >&2
+
+        python3 {input.script} \
+          --input-table {input.table} \
+          --config {input.config} \
+          --output-root {params.output_root}
+
+        report_build_dir=$(mktemp -d /tmp/abcd_high_density_reports.XXXXXX)
+        trap 'rm -rf "$report_build_dir"' EXIT
+        mkdir -p "$report_build_dir/cutcount" "$report_build_dir/shape"
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir/cutcount" {output.cut_tex}
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir/cutcount" {output.cut_tex}
+        cp "$report_build_dir/cutcount/{params.cut_pdf_name}" {output.cut_pdf}
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir/shape" {output.shape_tex}
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir/shape" {output.shape_tex}
+        cp "$report_build_dir/shape/{params.shape_pdf_name}" {output.shape_pdf}
         """
 
 

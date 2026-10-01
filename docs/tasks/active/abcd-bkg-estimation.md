@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 11:37 Europe/Zurich
+Last updated: 2026-10-01 12:03 Europe/Zurich
 
 ## Goal
 
@@ -138,6 +138,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   `[0, 500, 1000, 1500, 2000, 3000, 40000]`, rather than six equal-width bin
   indices. The cabinetry predictions, fitted parameters, and likelihood are
   unchanged.
+- Implemented and produced two isolated high-density simultaneous A/B/C/D
+  diagnostic reports: cut-and-count edges `[5000,40000]` and exploratory
+  shape edges `[5000,7000,40000]`. Both consume the validated Step-3 table,
+  include standard `CC_nue` leakage in A/B/C/D, fix unvalidated nonclosure
+  `kappa=1`, and leave all existing baseline outputs untouched.
 
 ## Findings and decisions
 
@@ -258,6 +263,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - The comparison plots must preserve the physical density-bin widths. The
   final `[3000,40000)` tail therefore occupies its actual x range; equal-width
   categorical bins are not used for these three plots.
+- The high-density fit must be interpreted as diagnostic. The cut-and-count
+  model is saturated with zero goodness-of-fit degrees of freedom and drives
+  `u[0]` to its lower boundary. The two-bin model has one degree of freedom
+  and goodness-of-fit `p=0.008064`, rejecting the requested factorized shape.
+  Neither result supports a discovery claim or limit.
 
 ## Results and evidence
 
@@ -659,6 +669,24 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     from all three comparison PDFs contains `density_scifi_sndsw` and the
     40000 endpoint, the report states that true unequal widths are used, and
     the final Snakemake dry-run was a no-op.
+  - The new `region_v1_abcd_density_high_density_reports` dry-run scheduled
+    exactly one local job and no upstream regeneration. Production completed
+    1 of 1 steps; final log:
+    `.snakemake/log/2026-10-01T120011.237368.snakemake.log`.
+  - Cut-and-count inputs are `A=59`, `B=80`, `C=36`, `D=18`, arithmetic
+    `A_pred=160.0 +/- 49.5`, and standard `CC_nue` A yield `9.70118`. The
+    simultaneous fit returns `mu=7.12809 +/- 0.60454`, has zero goodness-of-fit
+    degrees of freedom, and places `u[0]` at zero; its covariance warnings and
+    saturated status are reported explicitly.
+  - The exploratory two-bin fit returns `mu=2.53404 +/- 1.10213` with one
+    goodness-of-fit degree of freedom and `p=0.00806437`. The report states
+    that the factorized model is incompatible with the observations.
+  - Independent validation schema-checked both saved pyhf workspaces,
+    reproduced the exact saved likelihood values (`25.2797262` and
+    `45.9862770`), verified 81 finite nonnegative scan points per analysis,
+    ten nonempty plots per output tree, readable five- and six-page PDFs, and
+    all expected warning/parameter/result text. The new and frozen baseline
+    targets jointly dry-run as a no-op.
 
 ## Modified files
 
@@ -689,6 +717,19 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     environment and the existing nominal-closure CSV as its sole data input;
     the rule now preflights `pdflatex` and compiles the report twice in an
     isolated temporary directory.
+- `snakemake/metadata/configs/region_evaluation/abcd_density_high_density_fits_v1.yaml`
+  - Added the two frozen high-density edge sets, standard-signal choice,
+    simultaneous-model contract, diagnostic boundary, and isolated outputs.
+- `evaluation_region_partitions/fit_abcd_high_density_reports.py`
+  - Added strict Step-3 aggregation, four-channel HistFactory workspace
+    construction, signal leakage, simultaneous fits, scans, physical-axis
+    plots, machine-readable outputs, and two complete LaTeX reports.
+- `evaluation_region_partitions/test_abcd_high_density_reports.py`
+  - Added focused aggregation, ABCD arithmetic, workspace-dimension/schema,
+    POI/sample/channel, and zero-control-count failure checks.
+- `snakemake/rules/region_partitions.smk`
+  - Added the one-job `region_v1_abcd_density_high_density_reports` target and
+    isolated two-pass compilation of both PDFs.
 - `snakemake/rules/region_partitions.smk`
   - Added the single-purpose `region_v1_abcd_input_audit` rule. The catalogue
     is deliberately a parameter rather than an input so an audit cannot
@@ -855,23 +896,29 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   x-axis from 0 to 40000 and use the configured variable edges. The regenerated
   seven-page report passed two LaTeX runs, text checks, `git diff --check`, and
   a final no-op dry-run; numerical fit results were unchanged.
+- The high-density scripts compiled and the focused synthetic test passed.
+  Production generated and compiled both reports. Independent artifact,
+  schema, exact-likelihood, scan, plot-count, PDF metadata/text, baseline
+  isolation, `git diff --check`, and final no-op DAG checks passed. The
+  optimizer covariance warnings for the saturated cut-count model are a
+  documented scientific limitation rather than a missing output.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 11:36 Europe/Zurich,
+- At the final check on 2026-10-01 at about 12:02 Europe/Zurich,
   `condor_q -nobatch` reported zero jobs for the user. This ABCD task submitted
   no scheduler jobs.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `9cc70d1`
-  (`feat: add ABCD fit PDF report`).
-- Before updating this task record, the worktree contained two task-scoped
+- HEAD before this checkpoint: `b98e32d`
+  (`fix: plot ABCD fit against density`).
+- Before updating this task record, the worktree contained four task-scoped
   implementation paths and no unrelated user changes. This task record is the
-  third task-scoped path intended for the checkpoint commit.
+  fifth task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 
@@ -898,7 +945,7 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 ## Exact next action
 
-Review `signal_region_fit_v1/fit_report.pdf` with the user and obtain an
-explicit choice between stopping to redesign/validate the background model and
-implementing a full simultaneous A/B/C/D diagnostic. Do not add uncertainties,
-significance, limits, or another fit before that choice.
+Review the two PDFs under `high_density_fits_v1/` with the user, emphasizing
+the saturated cut-count model and rejected two-bin goodness of fit. Obtain an
+explicit decision on redesigning/validating the background and constraining
+nonclosure before adding uncertainties, significance, limits, or another fit.

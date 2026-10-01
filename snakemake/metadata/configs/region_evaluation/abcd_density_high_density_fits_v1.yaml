@@ -1,0 +1,53 @@
+version: density_sndsw_scifi_high_density_fits_v1
+description: >
+  Two explicitly unblinded high-density simultaneous A/B/C/D diagnostics.
+  The existing six-bin signal-region fit remains frozen and untouched.
+
+source:
+  table_version: density_sndsw_scifi_analysis_table_v1
+  observable: density_scifi_sndsw
+  signal_sample: cc_nue
+  regions:
+    A: signal_no_veto_has_us_fiducial_inside
+    B: sideband_no_veto_has_us_fiducial_outside
+    C: sideband_has_veto_no_us_fiducial_inside
+    D: sideband_has_veto_no_us_fiducial_outside
+
+model:
+  signal_parameter: mu
+  signal_initial: 1.0
+  signal_bounds: [0.0, 100.0]
+  nonclosure_kappa: 1.0
+  nonclosure_constraint: none
+  include_signal_leakage_all_regions: true
+  include_other_mc_backgrounds: false
+
+fit:
+  maxiter: 100000
+  tolerance: 0.1
+  boundary_tolerance: 1.0e-4
+  mu_scan_range: [0.0, 20.0]
+  mu_scan_points: 81
+
+analyses:
+  cutcount:
+    title: High-density ABCD cut-and-count diagnostic
+    role: primary high-density diagnostic
+    bin_edges: [5000, 40000]
+    output_directory: cutcount_v1
+  shape:
+    title: High-density ABCD two-bin shape diagnostic
+    role: exploratory shape diagnostic
+    bin_edges: [5000, 7000, 40000]
+    output_directory: shape_v1
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/high_density_fits_v1
+  inputs_csv: model_inputs.csv
+  workspace_json: workspace.json
+  fit_results_json: fit_results.json
+  mu_scan_csv: mu_scan.csv
+  report_markdown: fit_report.md
+  report_tex: fit_report.tex
+  report_pdf: fit_report.pdf
+  plot_directory: plots
