@@ -957,23 +957,93 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   covariance warnings were observed and are consistent with the saturated,
   weakly constrained diagnostic model.
 
+## 2026-10-01 strict one-bin reblinding checkpoint
+
+### Verified findings and decisions
+
+- The primary analysis is now exactly one counting bin,
+  `density_scifi_sndsw` in `[5000, 40000]`; density-bin indices and the former
+  two-bin expected fit are absent. `[5000, 7000, 40000]` is retained only as a
+  disabled future extension in configuration.
+- The blinded expected DAG reads real data from B, C, D and the independent
+  validation plane only. It does not declare, resolve, open, serialize, or
+  otherwise consume the signal-region A observation. The sanitized one-row
+  schema rejects `A_data`, `count_a`, `observed_a`, and equivalent fields.
+- The likelihood uses one shared residual-background parameterization,
+  `L_D rho`, `L_B rho u`, `L_C rho v`, and `L_A rho u v kappa`, plus explicit
+  CC-nue signal and CC-numu/NC-nue/NC-numu components. These explicit MC
+  components are subtracted when the residual ABCD initialization is formed,
+  so they are not counted twice.
+- The control-only B+C+D fit fixes `mu=0`. This is explicitly conditional
+  because the measured CC-nue contamination fractions are 12.25% in B,
+  0.182% in C, and 0.189% in D; B exceeds the configured 1% negligible
+  threshold. The separately gated final A+B+C+D fit releases `mu` and profiles
+  every nuisance again rather than freezing the control-fit estimates.
+- The provisional nonclosure constraint is derived without A data from the
+  independent Baseline-2 validation plane. For `[5000,40000]`, its residual
+  result is `kappa = 0.398767 +/- 0.139976` (relative uncertainty 0.351022),
+  including validation-data Poisson, MC-statistical, and configured 30% MC
+  normalization contributions. Transport of this constraint and the 30% MC
+  normalization uncertainties remain explicitly provisional.
+- The isolated real-input expected-only run (not production) gave a
+  control-post-fit A background of 65.5042 +/- 26.4625 events, expected
+  `mu=1` discovery `Z=0.0656`, and median background-only 95% CL upper limit
+  `mu=6.9609`. These are sensitivity diagnostics, not observed results.
+- The unblinding authorization file remains `authorized: false`. No observed
+  A fit and no production target were run in this checkpoint.
+
+### Modified files
+
+- Replaced
+  `snakemake/metadata/configs/region_evaluation/abcd_density_blinded_inference_v1.yaml`
+  with the one-bin
+  `abcd_density_blinded_counting_v2.yaml` and added the disabled
+  `abcd_density_unblind_authorization_v2.yaml` gate.
+- Reworked `evaluation_region_partitions/make_abcd_blinded_inputs.py` and
+  `run_abcd_blinded_expected.py`; added `abcd_blinded_model.py` and
+  `run_abcd_unblinded.py`; expanded
+  `test_abcd_blinded_expected.py`; and split expected/unblinded targets in
+  `snakemake/rules/region_partitions.smk`.
+
+### Commands and results
+
+- Under the documented LCG 107 environment, preflight recorded host
+  `lxplus913.cern.ch`, Python 3.11.9, ROOT 6.34.02, NumPy 1.26.4, pyhf 0.7.6,
+  cabinetry 0.5.2, and PyYAML 6.0.1. `python3 -m py_compile` passed for all
+  five Python implementation/test files.
+- `python3 evaluation_region_partitions/test_abcd_blinded_expected.py`
+  passed. It checks the forbidden-A dependency/schema boundary, four one-bin
+  channels, independent-kappa modifier, no explicit-MC double counting,
+  control/Asimov outputs, a downward fluctuation with one-sided `q0=0`, denial
+  by the disabled authorization, authorized synthetic A+B+C+D inference, and
+  full nuisance profiling in five toy fits. SciPy/Minuit boundary and
+  non-positive covariance warnings were emitted for this deliberately weak,
+  saturated synthetic model; the assertions completed successfully.
+- The documented Snakemake executable dry-ran
+  `region_v1_abcd_density_blinded_expected_report`: exactly the sanitized
+  input and expected report rules were scheduled, and its real-data inputs
+  were the seven sideband/validation regions only. A separate summary dry-run
+  of `region_v1_abcd_density_unblind_one_bin` confirmed that the signal-region
+  real-data ROOT/CSV inputs appear only in that explicit target.
+- `git diff --check` passed. Implementation checkpoint commit:
+  `4d4c354` (`fix: enforce strict blinded ABCD counting workflow`).
+
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at 13:28 Europe/Zurich,
+- At the final check on 2026-10-01 at 14:02 Europe/Zurich,
   `condor_q -nobatch` reported zero jobs for the user. This ABCD task submitted
   no scheduler jobs.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `6ef08d5`
-  (`feat: add high-density ABCD fit reports`).
-- Blinded-workflow implementation commit: `11c714a`.
-- Before updating this task record, the worktree contained five task-scoped
-  implementation paths and no unrelated user changes. This task record is the
-  sixth task-scoped path intended for the checkpoint commit.
+- HEAD before updating this task record: `4d4c354`
+  (`fix: enforce strict blinded ABCD counting workflow`).
+- The implementation worktree was clean after that task-only commit. This
+  task-record update is the sole change intended for the documentation
+  checkpoint commit.
 
 ## Blockers and open questions
 
@@ -1000,7 +1070,7 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 ## Exact next action
 
-Review the reblinded implementation and choose whether to first replace the
-unvalidated `kappa=1` and placeholder 30% neutrino uncertainties, or to run
-the expected-only production target as an explicitly provisional diagnostic.
-Do not implement or run observed unblinding until that decision is recorded.
+Review and either approve or replace the provisional independent-validation
+`kappa = 0.398767 +/- 0.139976` transport and the placeholder 30% neutrino-MC
+normalization uncertainties before freezing or running the expected-only
+production target. Do not run observed unblinding.
