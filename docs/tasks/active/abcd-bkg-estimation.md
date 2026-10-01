@@ -1088,19 +1088,62 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - The final aggregate dry-run reported that every requested file is present
   and up to date. No observed/unblinded target was run.
 
+## 2026-10-01 expanded definitions and methodology checkpoint
+
+### Report changes and references
+
+- Replaced the large definition paragraphs with more than 30 individual
+  entries. Every entry has separate `Definition`, `Why it is used`, and
+  `Interpretation` text. The entries cover the ABCD likelihood, input table,
+  validation closure, nuisance parameters, and expected-inference quantities.
+- Added eight explicit procedure steps: freeze/blind, materialize inputs,
+  validation closure, likelihood construction, conditional B+C+D fit,
+  Asimov construction, profile-likelihood inference, and freeze/unblinding
+  boundary. Every step contains `Why`, `How`, and applicable formulas or
+  numerical substitutions.
+- Added primary references and in-text citations: HistFactory
+  (CERN-OPEN-2012-016, including its ABCD example), Choi and Oh's ABCD
+  extrapolation paper (arXiv:1906.10831), Cowan--Cranmer--Gross--Vitells
+  (arXiv:1007.1727), and the peer-reviewed pyhf paper
+  (doi:10.21105/joss.02823).
+
+### Modified files, validation, and production
+
+- Modified `evaluation_region_partitions/run_abcd_blinded_expected.py` and
+  `evaluation_region_partitions/test_abcd_blinded_expected.py`. Task-only
+  implementation commit: `f9db4a5`
+  (`docs: expand blinded report methodology and definitions`).
+- LCG compilation and the complete focused synthetic test passed. The test
+  now requires at least 30 entries of each explanation type, all eight steps,
+  and all four bibliography records, in addition to the existing likelihood,
+  blinding, authorization, and toy-fit checks. Known weak-model optimizer
+  warnings remained non-fatal.
+- An isolated preview compiled in two LaTeX passes with no overfull/underfull
+  boxes, undefined citations, or LaTeX warnings. Extracted text verified all
+  explanation labels, steps 1 and 8, the reference list, and the locked
+  observed-results statement.
+- Production reran only
+  `region_v1_abcd_density_blinded_expected_report`; the sanitized input was
+  unchanged. The final PDF is seven-page A4, and the numerical expected and
+  closure results are unchanged. The new freeze manifest records clean commit
+  `f9db4a5`, `freeze_status=FROZEN`, and no signal-region observation use; all
+  recorded hashes passed verification.
+- The final aggregate dry-run is a no-op. No observed/unblinded target was
+  run.
+
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at 14:26 Europe/Zurich,
+- At the final check on 2026-10-01 at 14:48 Europe/Zurich,
   `condor_q -nobatch` reported zero jobs for the user. This ABCD task submitted
   no scheduler jobs.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before updating this task record: `431931e`
-  (`feat: add one-bin closure table to blinded report`).
+- HEAD before updating this task record: `f9db4a5`
+  (`docs: expand blinded report methodology and definitions`).
 - The implementation worktree was clean after the production run. This
   task-record update is the sole change intended for the documentation
   checkpoint commit.
