@@ -1,0 +1,107 @@
+version: density_sndsw_scifi_blinded_counting_v2
+description: >
+  Strictly blinded, one-bin Region V1 ABCD counting analysis. The expected
+  path reads observed data in B/C/D and the independent validation plane, but
+  never reads or declares observed signal-region A data.
+
+source:
+  binning_version: density_sndsw_scifi_v1
+  observable: density_scifi_sndsw
+  counting_range: [5000, 40000]
+  event_selection: count_scifi > 35 plus Region V1 definitions
+  roles:
+    A: signal_no_veto_has_us_fiducial_inside
+    B: sideband_no_veto_has_us_fiducial_outside
+    C: sideband_has_veto_no_us_fiducial_inside
+    D: sideband_has_veto_no_us_fiducial_outside
+  validation_roles:
+    numerator: sideband_no_veto_no_us_fiducial_inside
+    transfer_b: sideband_no_veto_no_us_fiducial_outside
+    transfer_c: sideband_has_veto_has_us_fiducial_inside
+    anchor_d: sideband_has_veto_has_us_fiducial_outside
+  signal_sample: CC_nue
+  background_samples: [CC_numu, NC_nue, NC_numu]
+
+model:
+  signal_parameter: mu
+  signal_initial: 1.0
+  signal_bounds: [0.0, 100.0]
+  signal_injection: 1.0
+  signal_contamination_negligible_threshold: 0.01
+  nonclosure:
+    source: independent Baseline-2 validation plane in the same counting range
+    central_value_source: residual-rate ABCD closure factor
+    uncertainty_source: delta method with data Poisson and explicit-MC terms
+    constraint: histfactory_normsys
+    transport_status: PROVISIONAL_NOT_SECONDARILY_VALIDATED
+  background_mc_normalization:
+    CC_numu: 0.30
+    NC_nue: 0.30
+    NC_numu: 0.30
+  background_mc_uncertainty_status: PLACEHOLDER
+  include_mc_statistical_uncertainty: true
+
+fit:
+  maxiter: 100000
+  tolerance: 0.1
+  mu_scan_range: [0.0, 20.0]
+  mu_scan_points: 161
+  confidence_level: 0.68
+  upper_limit_level: 0.05
+  upper_limit_scan: [0.0, 25.0, 101]
+
+toy_mc:
+  default_toys: 2000
+  seed: 8329
+  max_failed_fraction: 0.01
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/blinded_counting_v2
+  sanitized_inputs: sanitized_blinded_inputs.csv
+  expected_directory: expected
+  model_inputs: model_inputs.csv
+  control_workspace: control_workspace.json
+  expected_background_workspace: expected_background_workspace.json
+  expected_signal_workspace: expected_signal_workspace.json
+  control_fit: control_fit.json
+  control_covariance: control_covariance.csv
+  expected_results: expected_results.json
+  mu_scan: expected_mu_scan.csv
+  report_markdown: expected_report.md
+  report_tex: expected_report.tex
+  report_pdf: expected_report.pdf
+  plot_directory: plots
+  freeze_manifest: freeze_manifest.json
+  unblinded_directory: unblinded
+  observed_workspace: observed_workspace.json
+  observed_results: observed_results.json
+  observed_mu_scan: observed_mu_scan.csv
+  toy_q0: toy_q0.csv
+  final_report_markdown: final_report.md
+  final_report_tex: final_report.tex
+  final_report_pdf: final_report.pdf
+  final_plot_directory: plots
+
+blinding:
+  status: REBLINDED_DEVELOPMENT
+  signal_region_observation_allowed_in_expected_inputs: false
+  observed_inference_authorized: false
+  note: >
+    Region A was inspected in earlier development. This workflow enforces
+    technical masking from this point forward but cannot restore historical
+    blindness.
+
+freeze:
+  require_clean_git_for_production: true
+  unblinding_criteria:
+    - sanitized input contains no observed signal-region field
+    - expected workspaces contain only Asimov A observations
+    - one-bin model and inference procedure reviewed
+    - kappa transport limitation explicitly accepted
+    - placeholder MC normalization uncertainties explicitly accepted or replaced
+    - authorization file names the exact freeze-manifest SHA256
+
+extensions:
+  enabled: false
+  documented_future_edges: [5000, 7000, 40000]
+  note: No multi-bin workspace or report is produced by this version.

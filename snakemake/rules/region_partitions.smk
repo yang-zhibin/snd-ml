@@ -332,7 +332,11 @@ ABCD_HIGH_SHAPE_PDF = _abcd_density_high_density_output("shape", "report_pdf")
 ABCD_HIGH_SHAPE_PLOTS = _abcd_density_high_density_output("shape", "plot_directory")
 ABCD_DENSITY_BLINDED_CONFIG = (
     f"{workflow.basedir}/metadata/configs/region_evaluation/"
-    "abcd_density_blinded_inference_v1.yaml"
+    "abcd_density_blinded_counting_v2.yaml"
+)
+ABCD_DENSITY_UNBLIND_AUTHORIZATION = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_density_unblind_authorization_v2.yaml"
 )
 
 with open(ABCD_DENSITY_BLINDED_CONFIG, "r", encoding="utf-8") as handle:
@@ -352,12 +356,17 @@ ABCD_BLINDED_MANIFEST = (
     f"{ABCD_DENSITY_BLINDED['output']['freeze_manifest']}"
 )
 ABCD_BLINDED_ROLE_REGIONS = ABCD_DENSITY_BLINDED["source"]["roles"]
-ABCD_BLINDED_CONTROL_REGIONS = [
-    ABCD_BLINDED_ROLE_REGIONS[role] for role in ("B", "C", "D")
-]
-ABCD_BLINDED_ALL_REGIONS = [
-    ABCD_BLINDED_ROLE_REGIONS[role] for role in ("A", "B", "C", "D")
-]
+ABCD_BLINDED_VALIDATION_REGIONS = list(
+    ABCD_DENSITY_BLINDED["source"]["validation_roles"].values()
+)
+ABCD_BLINDED_CONTROL_REGIONS = list(dict.fromkeys(
+    [ABCD_BLINDED_ROLE_REGIONS[role] for role in ("B", "C", "D")]
+    + ABCD_BLINDED_VALIDATION_REGIONS
+))
+ABCD_BLINDED_ALL_REGIONS = list(dict.fromkeys(
+    [ABCD_BLINDED_ROLE_REGIONS[role] for role in ("A", "B", "C", "D")]
+    + ABCD_BLINDED_VALIDATION_REGIONS
+))
 ABCD_BLINDED_DATA_HISTS = expand(
     ABCD_DENSITY_HIST_PATTERN, region=ABCD_BLINDED_CONTROL_REGIONS
 )
@@ -376,8 +385,8 @@ ABCD_BLINDED_MC_SUMMARIES = expand(
 )
 
 
-def _abcd_density_blinded_output(analysis, key):
-    analysis_dir = ABCD_DENSITY_BLINDED["analyses"][analysis]["output_directory"]
+def _abcd_density_blinded_output(directory_key, key):
+    analysis_dir = ABCD_DENSITY_BLINDED["output"][directory_key]
     return (
         f"{ABCD_DENSITY_BLINDED_OUTPUT_DIR}/{analysis_dir}/"
         f"{ABCD_DENSITY_BLINDED['output'][key]}"
@@ -386,19 +395,34 @@ def _abcd_density_blinded_output(analysis, key):
 
 ABCD_BLINDED_OUTPUT_KEYS = [
     "model_inputs", "control_workspace", "expected_background_workspace",
-    "expected_signal_workspace", "expected_results", "mu_scan",
+    "expected_signal_workspace", "control_fit", "control_covariance",
+    "expected_results", "mu_scan",
     "report_markdown", "report_tex", "report_pdf",
 ]
-ABCD_BLINDED_CUT_OUTPUTS = {
-    key: _abcd_density_blinded_output("cutcount", key)
+ABCD_BLINDED_EXPECTED_OUTPUTS = {
+    key: _abcd_density_blinded_output("expected_directory", key)
     for key in ABCD_BLINDED_OUTPUT_KEYS
 }
-ABCD_BLINDED_SHAPE_OUTPUTS = {
-    key: _abcd_density_blinded_output("shape", key)
-    for key in ABCD_BLINDED_OUTPUT_KEYS
+ABCD_BLINDED_EXPECTED_PLOTS = _abcd_density_blinded_output(
+    "expected_directory", "plot_directory"
+)
+ABCD_UNBLINDED_OUTPUT_KEYS = [
+    "observed_workspace", "observed_results", "observed_mu_scan", "toy_q0",
+    "final_report_markdown", "final_report_tex", "final_report_pdf",
+]
+ABCD_UNBLINDED_OUTPUTS = {
+    key: _abcd_density_blinded_output("unblinded_directory", key)
+    for key in ABCD_UNBLINDED_OUTPUT_KEYS
 }
-ABCD_BLINDED_CUT_PLOTS = _abcd_density_blinded_output("cutcount", "plot_directory")
-ABCD_BLINDED_SHAPE_PLOTS = _abcd_density_blinded_output("shape", "plot_directory")
+ABCD_UNBLINDED_PLOTS = _abcd_density_blinded_output(
+    "unblinded_directory", "final_plot_directory"
+)
+ABCD_SIGNAL_DATA_HIST = ABCD_DENSITY_HIST_PATTERN.format(
+    region=ABCD_BLINDED_ROLE_REGIONS["A"]
+)
+ABCD_SIGNAL_DATA_SUMMARY = ABCD_DENSITY_SUMMARY_PATTERN.format(
+    region=ABCD_BLINDED_ROLE_REGIONS["A"]
+)
 
 
 def _sanitize_partition_name(value):
@@ -1161,6 +1185,7 @@ rule region_v1_abcd_density_blinded_inputs:
           --data-config {input.data_config} \
           --mc-config {input.mc_config} \
           --product-directory {params.product_directory} \
+          --declared-data-inputs {input.data_hists} {input.data_summaries} \
           --output {output.sanitized}
         """
 
@@ -1175,30 +1200,21 @@ rule region_v1_abcd_density_blinded_expected_report:
         ),
     output:
         manifest=ABCD_BLINDED_MANIFEST,
-        cut_inputs=ABCD_BLINDED_CUT_OUTPUTS["model_inputs"],
-        cut_control=ABCD_BLINDED_CUT_OUTPUTS["control_workspace"],
-        cut_background=ABCD_BLINDED_CUT_OUTPUTS["expected_background_workspace"],
-        cut_signal=ABCD_BLINDED_CUT_OUTPUTS["expected_signal_workspace"],
-        cut_results=ABCD_BLINDED_CUT_OUTPUTS["expected_results"],
-        cut_scan=ABCD_BLINDED_CUT_OUTPUTS["mu_scan"],
-        cut_markdown=ABCD_BLINDED_CUT_OUTPUTS["report_markdown"],
-        cut_tex=ABCD_BLINDED_CUT_OUTPUTS["report_tex"],
-        cut_pdf=ABCD_BLINDED_CUT_OUTPUTS["report_pdf"],
-        cut_plots=directory(ABCD_BLINDED_CUT_PLOTS),
-        shape_inputs=ABCD_BLINDED_SHAPE_OUTPUTS["model_inputs"],
-        shape_control=ABCD_BLINDED_SHAPE_OUTPUTS["control_workspace"],
-        shape_background=ABCD_BLINDED_SHAPE_OUTPUTS["expected_background_workspace"],
-        shape_signal=ABCD_BLINDED_SHAPE_OUTPUTS["expected_signal_workspace"],
-        shape_results=ABCD_BLINDED_SHAPE_OUTPUTS["expected_results"],
-        shape_scan=ABCD_BLINDED_SHAPE_OUTPUTS["mu_scan"],
-        shape_markdown=ABCD_BLINDED_SHAPE_OUTPUTS["report_markdown"],
-        shape_tex=ABCD_BLINDED_SHAPE_OUTPUTS["report_tex"],
-        shape_pdf=ABCD_BLINDED_SHAPE_OUTPUTS["report_pdf"],
-        shape_plots=directory(ABCD_BLINDED_SHAPE_PLOTS),
+        model_inputs=ABCD_BLINDED_EXPECTED_OUTPUTS["model_inputs"],
+        control_workspace=ABCD_BLINDED_EXPECTED_OUTPUTS["control_workspace"],
+        background_workspace=ABCD_BLINDED_EXPECTED_OUTPUTS["expected_background_workspace"],
+        signal_workspace=ABCD_BLINDED_EXPECTED_OUTPUTS["expected_signal_workspace"],
+        control_fit=ABCD_BLINDED_EXPECTED_OUTPUTS["control_fit"],
+        control_covariance=ABCD_BLINDED_EXPECTED_OUTPUTS["control_covariance"],
+        results=ABCD_BLINDED_EXPECTED_OUTPUTS["expected_results"],
+        scan=ABCD_BLINDED_EXPECTED_OUTPUTS["mu_scan"],
+        markdown=ABCD_BLINDED_EXPECTED_OUTPUTS["report_markdown"],
+        tex=ABCD_BLINDED_EXPECTED_OUTPUTS["report_tex"],
+        pdf=ABCD_BLINDED_EXPECTED_OUTPUTS["report_pdf"],
+        plots=directory(ABCD_BLINDED_EXPECTED_PLOTS),
     params:
         output_root=ABCD_DENSITY_BLINDED_OUTPUT_DIR,
-        cut_pdf_name=ABCD_DENSITY_BLINDED["output"]["report_pdf"],
-        shape_pdf_name=ABCD_DENSITY_BLINDED["output"]["report_pdf"],
+        pdf_name=ABCD_DENSITY_BLINDED["output"]["report_pdf"],
     resources:
         runtime=20 * 60,
         mem_mb=2000,
@@ -1226,17 +1242,76 @@ rule region_v1_abcd_density_blinded_expected_report:
 
         report_build_dir=$(mktemp -d /tmp/abcd_blinded_expected.XXXXXX)
         trap 'rm -rf "$report_build_dir"' EXIT
-        mkdir -p "$report_build_dir/cutcount" "$report_build_dir/shape"
         pdflatex -interaction=nonstopmode -halt-on-error \
-          -output-directory "$report_build_dir/cutcount" {output.cut_tex}
+          -output-directory "$report_build_dir" {output.tex}
         pdflatex -interaction=nonstopmode -halt-on-error \
-          -output-directory "$report_build_dir/cutcount" {output.cut_tex}
-        cp "$report_build_dir/cutcount/{params.cut_pdf_name}" {output.cut_pdf}
+          -output-directory "$report_build_dir" {output.tex}
+        cp "$report_build_dir/{params.pdf_name}" {output.pdf}
+        """
+
+
+rule region_v1_abcd_density_unblind_one_bin:
+    input:
+        sanitized=ABCD_BLINDED_SANITIZED,
+        manifest=ABCD_BLINDED_MANIFEST,
+        config=ABCD_DENSITY_BLINDED_CONFIG,
+        authorization=ABCD_DENSITY_UNBLIND_AUTHORIZATION,
+        data_config=ABCD_DENSITY_CONFIG,
+        signal_data_root=ABCD_SIGNAL_DATA_HIST,
+        signal_data_summary=ABCD_SIGNAL_DATA_SUMMARY,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "run_abcd_unblinded.py"
+        ),
+    output:
+        workspace=ABCD_UNBLINDED_OUTPUTS["observed_workspace"],
+        results=ABCD_UNBLINDED_OUTPUTS["observed_results"],
+        scan=ABCD_UNBLINDED_OUTPUTS["observed_mu_scan"],
+        toys=ABCD_UNBLINDED_OUTPUTS["toy_q0"],
+        markdown=ABCD_UNBLINDED_OUTPUTS["final_report_markdown"],
+        tex=ABCD_UNBLINDED_OUTPUTS["final_report_tex"],
+        pdf=ABCD_UNBLINDED_OUTPUTS["final_report_pdf"],
+        plots=directory(ABCD_UNBLINDED_PLOTS),
+    params:
+        output_root=ABCD_DENSITY_BLINDED_OUTPUT_DIR,
+        pdf_name=ABCD_DENSITY_BLINDED["output"]["final_report_pdf"],
+    resources:
+        runtime=8 * 60 * 60,
+        mem_mb=2500,
+        disk_mb=2500,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, cabinetry, matplotlib, numpy, pyhf, scipy, yaml; print(ROOT.__version__, pyhf.__version__)' >&2
+        command -v pdflatex >&2
+
+        python3 {input.script} \
+          --input {input.sanitized} \
+          --config {input.config} \
+          --freeze-manifest {input.manifest} \
+          --authorization {input.authorization} \
+          --signal-data-root {input.signal_data_root} \
+          --signal-data-summary {input.signal_data_summary} \
+          --data-config {input.data_config} \
+          --output-root {params.output_root}
+
+        report_build_dir=$(mktemp -d /tmp/abcd_unblinded.XXXXXX)
+        trap 'rm -rf "$report_build_dir"' EXIT
         pdflatex -interaction=nonstopmode -halt-on-error \
-          -output-directory "$report_build_dir/shape" {output.shape_tex}
+          -output-directory "$report_build_dir" {output.tex}
         pdflatex -interaction=nonstopmode -halt-on-error \
-          -output-directory "$report_build_dir/shape" {output.shape_tex}
-        cp "$report_build_dir/shape/{params.shape_pdf_name}" {output.shape_pdf}
+          -output-directory "$report_build_dir" {output.tex}
+        cp "$report_build_dir/{params.pdf_name}" {output.pdf}
         """
 
 
