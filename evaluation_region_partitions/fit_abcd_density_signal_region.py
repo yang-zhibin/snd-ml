@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyhf
 import yaml
+from cabinetry.fit.results_containers import FitResults
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,6 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-alpha-scan-csv", required=True)
     parser.add_argument("--output-likelihood-2d-csv", required=True)
     parser.add_argument("--output-report-markdown", required=True)
+    parser.add_argument("--output-report-tex", required=True)
     parser.add_argument("--output-plot-dir", required=True)
     return parser.parse_args()
 
@@ -378,9 +380,29 @@ def save_cabinetry_plots(
     alpha_scan,
 ) -> None:
     output_directory.mkdir(parents=True, exist_ok=True)
+    parameter_labels = list(model.config.par_names)
+    before_values = np.asarray(model.config.suggested_init(), dtype=float)
+    before_values[parameter_labels.index("alpha_bkg")] = 1.0
+    before_values[parameter_labels.index("mu")] = 0.0
+    before_fit_results = FitResults(
+        bestfit=before_values,
+        uncertainty=np.zeros_like(before_values),
+        labels=parameter_labels,
+        corr_mat=np.eye(len(parameter_labels)),
+        best_twice_nll=float("nan"),
+        goodness_of_fit=None,
+        minos_uncertainty={},
+    )
+    before_fit = cabinetry.model_utils.prediction(
+        model, fit_results=before_fit_results, label="Before fit: raw ABCD"
+    )
     prefit = cabinetry.model_utils.prediction(model, label="Pre-fit")
     postfit = cabinetry.model_utils.prediction(model, fit_results=fit_results, label="Post-fit")
-    for label, prediction in (("prefit", prefit), ("postfit", postfit)):
+    for label, prediction in (
+        ("before_fit", before_fit),
+        ("prefit", prefit),
+        ("postfit", postfit),
+    ):
         plots = cabinetry.visualize.data_mc(
             prediction, data, save_figure=False, close_figure=False
         )
@@ -515,6 +537,334 @@ def markdown_report(
     return "\n".join(lines)
 
 
+def tex_escape(value: object) -> str:
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+    }
+    return "".join(replacements.get(character, character) for character in str(value))
+
+
+def latex_row(*cells: object) -> str:
+    return " & ".join(str(cell) for cell in cells) + r" \\"
+
+
+def latex_report(
+    config: dict,
+    inputs: list[dict],
+    fit_payload: dict,
+    workspace_path: str,
+    closure_path: str,
+    plot_directory: Path,
+) -> str:
+    parameters = {item["name"]: item for item in fit_payload["parameters"]}
+    alpha_name = config["model"]["background_parameter"]
+    mu_name = config["model"]["signal_parameter"]
+    alpha = parameters[alpha_name]
+    mu = parameters[mu_name]
+    labels = fit_payload["correlation_matrix"]["labels"]
+    correlation = fit_payload["correlation_matrix"]["values"]
+    corr_value = correlation[labels.index(alpha_name)][labels.index(mu_name)]
+    sums = fit_payload["input_sums"]
+    postfit = fit_payload["postfit_sums"]
+    software = fit_payload["software"]
+    plot_paths = {
+        name: (plot_directory / filename).resolve().as_posix()
+        for name, filename in {
+            "before": "before_fit_data_model.pdf",
+            "prefit": "prefit_data_model.pdf",
+            "postfit": "postfit_data_model.pdf",
+            "mu_scan": "likelihood_scan_mu.pdf",
+            "alpha_scan": "likelihood_scan_alpha_bkg.pdf",
+            "likelihood_2d": "likelihood_2d.pdf",
+            "correlation": "correlation_matrix.pdf",
+        }.items()
+    }
+    lines = [
+        r"\documentclass[10pt,a4paper]{article}",
+        r"\usepackage[margin=1.5cm]{geometry}",
+        r"\usepackage{booktabs,array,graphicx,xcolor}",
+        r"\usepackage[T1]{fontenc}",
+        r"\usepackage[hidelinks]{hyperref}",
+        r"\setlength{\parindent}{0pt}",
+        r"\setlength{\parskip}{5pt}",
+        r"\begin{document}",
+        r"\title{ABCD background and CC electron-neutrino signal fit}",
+        r"\author{SND@LHC analysis workflow}",
+        r"\date{}",
+        r"\maketitle",
+        (
+            r"\begin{center}\fcolorbox{black}{yellow!12}{"
+            r"\parbox{0.92\textwidth}{\textbf{Diagnostic, explicitly unblinded "
+            r"result.} The signal-region data were used in model development. "
+            r"The ABCD shape has not passed validation, and template "
+            r"uncertainties are not included. This is not a discovery "
+            r"significance or an exclusion-limit result.}}\end{center}"
+        ),
+        r"\tableofcontents",
+        r"\section{Analysis question and model}",
+        (
+            r"The six bins of the \texttt{density\_scifi\_sndsw} observable in "
+            r"signal region A are fitted with the HistFactory expectation"
+        ),
+        (
+            r"\[\nu_i(\alpha_{\mathrm{bkg}},\mu)="
+            r"\alpha_{\mathrm{bkg}}b_i^{\mathrm{ABCD}}+"
+            r"\mu s_i^{\mathrm{CC}\,\nu_e}.\]"
+        ),
+        (
+            r"The observed count in bin $i$ is modeled as "
+            r"$n_i\sim\mathrm{Pois}(\nu_i)$. A single freely floating "
+            r"$\alpha_{\mathrm{bkg}}$ scales all six background bins; $\mu$ "
+            r"scales the normalized charged-current electron-neutrino MC "
+            r"template. Both parameters are constrained to be nonnegative. "
+            r"No per-bin background scales or template-statistical/systematic "
+            r"nuisance parameters are present in this v1 diagnostic."
+        ),
+        r"\subsection{Definitions}",
+        r"\begin{tabular}{p{0.20\textwidth}p{0.72\textwidth}}",
+        r"\toprule",
+        latex_row("Symbol", "Definition and calculation"),
+        r"\midrule",
+        latex_row(
+            r"$n_i$",
+            "Raw 2024 skim-data count in signal region A and density bin $i$.",
+        ),
+        latex_row(
+            r"$b_i^{\mathrm{ABCD}}$",
+            "ABCD prediction from the frozen A/B/C/D construction in bin $i$.",
+        ),
+        latex_row(
+            r"$s_i^{\mathrm{CC}\,\nu_e}$",
+            "Luminosity-normalized charged-current electron-neutrino MC yield.",
+        ),
+        latex_row(
+            r"$\alpha_{\mathrm{bkg}}$",
+            r"One global ABCD-background multiplier; initial 1, bounds $[0,5]$.",
+        ),
+        latex_row(
+            r"$\mu$",
+            r"Signal strength and parameter of interest; initial 1, bounds $[0,100]$.",
+        ),
+        latex_row(
+            r"$\nu_i$",
+            "Expected total supplied to the Poisson likelihood in bin $i$.",
+        ),
+        r"\bottomrule",
+        r"\end{tabular}",
+        r"\section{Inputs}",
+        r"\begin{center}\small",
+        r"\begin{tabular}{rrrr}",
+        r"\toprule",
+        latex_row(
+            "Density interval",
+            r"Observed $n_i$",
+            r"ABCD $b_i$",
+            r"CC $\nu_e$ $s_i$",
+        ),
+        r"\midrule",
+    ]
+    for row in inputs:
+        lines.append(
+            latex_row(
+                "{" + f"[{row['bin_low']:g}, {row['bin_high']:g})" + "}",
+                f"{row['observed_data']:,}",
+                f"{row['abcd_background']:.6g}",
+                f"{row['cc_nue_signal']:.6g}",
+            )
+        )
+    lines.extend(
+        [
+            r"\midrule",
+            latex_row(
+                "Total",
+                f"{sums['observed_data']:,}",
+                f"{sums['abcd_background']:.6g}",
+                f"{sums['cc_nue_signal']:.6g}",
+            ),
+            r"\bottomrule",
+            r"\end{tabular}",
+            r"\end{center}",
+            (
+                r"The intervals are left-inclusive and right-exclusive. ABCD "
+                r"and signal entries are expected yields and need not be "
+                r"integers. The fit uses all six rows, not only the totals."
+            ),
+            r"\section{Tools, runtime, and reproducibility}",
+            r"\begin{tabular}{p{0.25\textwidth}p{0.65\textwidth}}",
+            r"\toprule",
+            latex_row("Tool or artifact", "Role and setup"),
+            r"\midrule",
+            latex_row(
+                f"cabinetry {tex_escape(software['cabinetry'])}",
+                (
+                    "Predictions, fit, one-dimensional profile-likelihood "
+                    "scans, goodness of fit, and statistical plots."
+                ),
+            ),
+            latex_row(
+                f"pyhf {tex_escape(software['pyhf'])}",
+                (
+                    "HistFactory backend for the binned Poisson likelihood and "
+                    "two-parameter likelihood grid."
+                ),
+            ),
+            latex_row(
+                "Matplotlib",
+                "Rendering backend used by cabinetry and the two-dimensional scan.",
+            ),
+            latex_row(
+                "ROOT inputs",
+                (
+                    "Earlier stages materialized and validated histogram yields. "
+                    "This fit consumes the tabular closure product; ROOT does not "
+                    "refit or redraw this statistical model."
+                ),
+            ),
+            latex_row(
+                "Snakemake",
+                (
+                    "Orchestration, LCG activation, preflight checks, output "
+                    "tracking, and LaTeX compilation."
+                ),
+            ),
+            r"\bottomrule",
+            r"\end{tabular}",
+            r"\subsection{Input provenance}",
+            r"\small",
+            "Closure CSV: \\path{" + str(Path(closure_path).resolve()) + "}",
+            r"\par",
+            "HistFactory workspace: \\path{"
+            + str(Path(workspace_path).resolve())
+            + "}",
+            r"\normalsize",
+            r"\section{Fit results}",
+            r"\begin{center}",
+            r"\begin{tabular}{lrrrr}",
+            r"\toprule",
+            latex_row(
+                "Parameter", "Best fit", "Hesse uncertainty", "Bounds", "Boundary"
+            ),
+            r"\midrule",
+            latex_row(
+                tex_escape(alpha_name),
+                f"{alpha['bestfit']:.7g}",
+                f"{alpha['uncertainty_hesse']:.7g}",
+                f"[{alpha['lower_bound']:g}, {alpha['upper_bound']:g}]",
+                str(alpha["at_lower_bound"] or alpha["at_upper_bound"]),
+            ),
+            latex_row(
+                tex_escape(mu_name),
+                f"{mu['bestfit']:.7g}",
+                f"{mu['uncertainty_hesse']:.7g}",
+                f"[{mu['lower_bound']:g}, {mu['upper_bound']:g}]",
+                str(mu["at_lower_bound"] or mu["at_upper_bound"]),
+            ),
+            r"\bottomrule",
+            r"\end{tabular}",
+            r"\end{center}",
+            r"\begin{center}",
+            r"\begin{tabular}{lr}",
+            r"\toprule",
+            latex_row("Quantity", "Value"),
+            r"\midrule",
+            latex_row(
+                r"Best-fit $-2\log L$", f"{fit_payload['best_twice_nll']:.7g}"
+            ),
+            latex_row(
+                r"Goodness-of-fit $p$-value",
+                f"{fit_payload['goodness_of_fit_p_value']:.7g}",
+            ),
+            latex_row(
+                r"$\mathrm{corr}(\alpha_{\mathrm{bkg}},\mu)$",
+                f"{corr_value:.7g}",
+            ),
+            latex_row("Post-fit background total", f"{postfit['background']:.7g}"),
+            latex_row("Post-fit signal total", f"{postfit['signal']:.7g}"),
+            latex_row("Post-fit total expectation", f"{postfit['total']:.7g}"),
+            r"\bottomrule",
+            r"\end{tabular}",
+            r"\end{center}",
+            (
+                r"The global scale brings the total background close to the "
+                r"observed total, but the goodness-of-fit $p$-value is "
+                r"effectively zero. The six-bin ABCD shape is therefore "
+                r"incompatible with the observed density distribution in this "
+                r"model. The fitted signal is effectively at its nonnegative "
+                r"boundary and must not be interpreted as evidence against or "
+                r"for a signal while the background model fails."
+            ),
+            r"\clearpage",
+            r"\section{Before-fit, pre-fit, and post-fit comparisons}",
+            (
+                r"\textbf{Before fit} is an extra input diagnostic defined here "
+                r"as raw ABCD background only: $\alpha_{\mathrm{bkg}}=1$, "
+                r"$\mu=0$. \textbf{Pre-fit} is the standard configured nominal "
+                r"model at $\alpha_{\mathrm{bkg}}=1$, $\mu=1$. "
+                r"\textbf{Post-fit} uses the simultaneous maximum-likelihood "
+                r"estimates."
+            ),
+        ]
+    )
+    for title, name in (
+        ("Before fit: raw ABCD background", "before"),
+        ("Pre-fit: nominal signal plus background", "prefit"),
+        ("Post-fit: simultaneous fitted model", "postfit"),
+    ):
+        lines.extend(
+            [
+                rf"\subsection{{{tex_escape(title)}}}",
+                r"\begin{center}",
+                rf"\includegraphics[width=0.80\linewidth]{{{plot_paths[name]}}}",
+                r"\end{center}",
+            ]
+        )
+    lines.extend(
+        [
+            r"\clearpage",
+            r"\section{Likelihood diagnostics}",
+            (
+                r"The one-dimensional curves are profile-likelihood scans: at "
+                r"each displayed value, the other parameter is refitted. The "
+                r"vertical scale is the increase in $-2\log L$ from the best "
+                r"fit. The two-dimensional surface evaluates both displayed "
+                r"values together. White contours, when present, mark "
+                r"$\Delta(-2\log L)=2.30$ and 5.99."
+            ),
+            r"\begin{center}",
+            rf"\includegraphics[width=0.72\linewidth]{{{plot_paths['mu_scan']}}}",
+            r"\end{center}",
+            r"\begin{center}",
+            rf"\includegraphics[width=0.72\linewidth]{{{plot_paths['alpha_scan']}}}",
+            r"\end{center}",
+            r"\begin{center}",
+            rf"\includegraphics[width=0.76\linewidth]{{{plot_paths['likelihood_2d']}}}",
+            r"\end{center}",
+            r"\subsection{Fitted-parameter correlation}",
+            r"\begin{center}",
+            rf"\includegraphics[width=0.62\linewidth]{{{plot_paths['correlation']}}}",
+            r"\end{center}",
+            r"\section{Conclusion and analysis boundary}",
+            (
+                r"The machinery is operational and reproducible, and a "
+                r"simultaneous two-parameter fit is returned. It does not yet "
+                r"provide a defensible physics measurement: a freely floating "
+                r"global normalization cannot repair the strong bin-to-bin ABCD "
+                r"nonclosure. An independently validated background-shape "
+                r"treatment is required before a significance or limit."
+            ),
+            r"\end{document}",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def main() -> None:
     args = parse_args()
     config = load_yaml(args.config)
@@ -597,6 +947,17 @@ def main() -> None:
             fit_payload,
             args.output_workspace_json,
             args.closure_csv,
+        ),
+    )
+    atomic_text(
+        args.output_report_tex,
+        latex_report(
+            config,
+            inputs,
+            fit_payload,
+            args.output_workspace_json,
+            args.closure_csv,
+            plot_directory,
         ),
     )
     print(

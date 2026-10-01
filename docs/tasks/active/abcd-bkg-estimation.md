@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 11:08 Europe/Zurich
+Last updated: 2026-10-01 11:25 Europe/Zurich
 
 ## Goal
 
@@ -128,6 +128,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   strength `mu` simultaneously to the already unblinded signal-region data.
   It includes the workspace, fit, pre/post-fit plots, correlation matrix,
   profiled one-dimensional scans, and a two-dimensional likelihood surface.
+- Extended that same unchanged fit into a seven-page LaTeX/PDF report. The
+  report records the model, variable definitions, six-bin input and result
+  tables, runtime/tool setup, a distinct raw-ABCD before-fit plot, cabinetry
+  pre-fit and post-fit plots, both profile-likelihood scans, the two-parameter
+  likelihood surface, the correlation plot, and the interpretation boundary.
 
 ## Findings and decisions
 
@@ -239,6 +244,12 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   total count, but it does not make the ABCD density shape compatible with the
   data. Therefore the fit cannot be interpreted as a signal measurement,
   discovery significance, or limit.
+- For report terminology, `before fit` is explicitly defined as the raw ABCD
+  background-only prediction at `alpha_bkg=1, mu=0`; standard `pre-fit` is
+  the configured nominal signal-plus-background model at
+  `alpha_bkg=1, mu=1`; and `post-fit` uses the simultaneous maximum-likelihood
+  estimates. Cabinetry draws all three statistical comparisons. ROOT was used
+  in upstream histogram materialization, not to refit or redraw this model.
 
 ## Results and evidence
 
@@ -620,6 +631,21 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     initial point for this large-count model, while cabinetry's supported
     Minuit-backed path and direct likelihood checks agreed. The final focused
     Snakemake dry-run was a no-op and `git diff --check` passed.
+  - Added `fit_report.tex` and `fit_report.pdf` to the same versioned output
+    directory and added `before_fit_data_model.{pdf,png}` to the plot
+    directory. The final directory contains nine non-plot artifacts and 14
+    nonempty plot files: seven vector PDFs and seven PNGs.
+  - The reporting production run used the same clean-environment Snakemake
+    command and completed 1 of 1 local steps. Final successful log:
+    `.snakemake/log/2026-10-01T112302.645524.snakemake.log`. Preflight recorded
+    LCG 107 Python 3.11.9, cabinetry 0.5.2, pyhf 0.7.6, Matplotlib 3.8.3,
+    NumPy 1.26.4, PyYAML 6.0.1, and `/usr/bin/pdflatex`.
+  - Independent report validation found seven A4 pages, readable extracted
+    text for every required section, all requested tables and plot headings,
+    exact reproduction of `alpha_bkg=0.3857392452578279`,
+    `mu=3.134482636180059e-05`, and goodness-of-fit `p=0`. The scan CSVs
+    contain 81, 89, and 6561 rows as configured. The final target dry-run was
+    a no-op and `git diff --check` passed.
 
 ## Modified files
 
@@ -635,15 +661,20 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     interpretation and decision recorded here.
 - `snakemake/metadata/configs/region_evaluation/abcd_density_signal_region_fit_v1.yaml`
   - Added the frozen source mapping, six-bin model, global background and
-    signal parameters, fit/scan settings, scope boundary, and output paths.
+    signal parameters, fit/scan settings, scope boundary, and output paths;
+    now also declares the LaTeX and PDF report outputs.
 - `evaluation_region_partitions/fit_abcd_density_signal_region.py`
   - Added strict source validation, workspace construction, cabinetry fit,
     pre/post-fit predictions, goodness-of-fit, correlation and likelihood
     scans, deterministic plots, and atomic machine-readable/report outputs.
+    It now also creates the raw-ABCD before-fit prediction and the complete
+    LaTeX report.
 - `snakemake/rules/region_partitions.smk`
   - Added the focused one-job
     `region_v1_abcd_density_signal_region_fit` target using the documented LCG
-    environment and the existing nominal-closure CSV as its sole data input.
+    environment and the existing nominal-closure CSV as its sole data input;
+    the rule now preflights `pdflatex` and compiles the report twice in an
+    isolated temporary directory.
 - `snakemake/rules/region_partitions.smk`
   - Added the single-purpose `region_v1_abcd_input_audit` rule. The catalogue
     is deliberately a parameter rather than an input so an audit cannot
@@ -801,21 +832,25 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   and independent workspace/input/likelihood/scan/plot validation passed. The
   final dry-run was a no-op. The zero goodness-of-fit value is a scientific
   model failure, not a workflow or optimizer failure.
+- The report extension compiled, regenerated the fit reproducibly, completed
+  two `pdflatex` passes, and produced a readable seven-page A4 PDF. Independent
+  checks verified all nine declared non-plot artifacts, 14 nonempty plot
+  files, exact fit values, configured scan-grid sizes, required report
+  sections, `git diff --check`, and a final no-op dry-run.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 11:06 Europe/Zurich,
-  `condor_q -nobatch` reported one unrelated running job, `16304684.0`, from
-  worktree `snd-ml-3d-cnn-testbeam` for rule `evaluate_testbeam_full_pool`.
-  This ABCD task submitted no scheduler jobs and did not modify that job.
+- At the final check on 2026-10-01 at about 11:24 Europe/Zurich,
+  `condor_q -nobatch` reported zero jobs for the user. This ABCD task submitted
+  no scheduler jobs.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `2bfb837`
-  (`docs: checkpoint ABCD normalization decision`).
+- HEAD before this checkpoint: `d03a374`
+  (`feat: add ABCD signal-region cabinetry fit`).
 - Before updating this task record, the worktree contained three task-scoped
   implementation paths and no unrelated user changes. This task record is the
   fourth task-scoped path intended for the checkpoint commit.
@@ -845,8 +880,7 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 ## Exact next action
 
-Review `signal_region_fit_v1/fit_report.md` and its likelihood plots with the
-user, then obtain an explicit choice between stopping to redesign/validate the
-background model and implementing a full simultaneous A/B/C/D diagnostic.
-Do not add uncertainties, significance, limits, or another fit before that
-choice.
+Review `signal_region_fit_v1/fit_report.pdf` with the user and obtain an
+explicit choice between stopping to redesign/validate the background model and
+implementing a full simultaneous A/B/C/D diagnostic. Do not add uncertainties,
+significance, limits, or another fit before that choice.

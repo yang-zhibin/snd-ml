@@ -60,4 +60,6 @@ output:
   alpha_scan_csv: alpha_scan.csv
   likelihood_2d_csv: likelihood_2d.csv
   report_markdown: fit_report.md
+  report_tex: fit_report.tex
+  report_pdf: fit_report.pdf
   plot_directory: plots

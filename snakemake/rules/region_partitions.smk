@@ -282,6 +282,12 @@ ABCD_DENSITY_SIGNAL_REGION_FIT_2D_CSV = _abcd_density_signal_region_fit_output(
 ABCD_DENSITY_SIGNAL_REGION_FIT_REPORT = _abcd_density_signal_region_fit_output(
     "report_markdown"
 )
+ABCD_DENSITY_SIGNAL_REGION_FIT_REPORT_TEX = _abcd_density_signal_region_fit_output(
+    "report_tex"
+)
+ABCD_DENSITY_SIGNAL_REGION_FIT_REPORT_PDF = _abcd_density_signal_region_fit_output(
+    "report_pdf"
+)
 ABCD_DENSITY_SIGNAL_REGION_FIT_PLOT_DIR = _abcd_density_signal_region_fit_output(
     "plot_directory"
 )
@@ -888,7 +894,11 @@ rule region_v1_abcd_density_signal_region_fit:
         alpha_scan_csv=ABCD_DENSITY_SIGNAL_REGION_FIT_ALPHA_SCAN_CSV,
         likelihood_2d_csv=ABCD_DENSITY_SIGNAL_REGION_FIT_2D_CSV,
         report=ABCD_DENSITY_SIGNAL_REGION_FIT_REPORT,
+        report_tex=ABCD_DENSITY_SIGNAL_REGION_FIT_REPORT_TEX,
+        report_pdf=ABCD_DENSITY_SIGNAL_REGION_FIT_REPORT_PDF,
         plot_dir=directory(ABCD_DENSITY_SIGNAL_REGION_FIT_PLOT_DIR),
+    params:
+        pdf_name=ABCD_DENSITY_SIGNAL_REGION_FIT["output"]["report_pdf"],
     resources:
         runtime=10 * 60,
         mem_mb=1000,
@@ -907,6 +917,7 @@ rule region_v1_abcd_density_signal_region_fit:
         command -v python3 >&2
         python3 --version >&2
         python3 -c 'import importlib.metadata as m; import cabinetry, matplotlib, numpy, pyhf, yaml; print("cabinetry", m.version("cabinetry"), "pyhf", pyhf.__version__, "matplotlib", matplotlib.__version__, "numpy", numpy.__version__, "yaml", yaml.__version__)' >&2
+        command -v pdflatex >&2
 
         python3 {input.script} \
           --closure-csv {input.closure_csv} \
@@ -918,7 +929,16 @@ rule region_v1_abcd_density_signal_region_fit:
           --output-alpha-scan-csv {output.alpha_scan_csv} \
           --output-likelihood-2d-csv {output.likelihood_2d_csv} \
           --output-report-markdown {output.report} \
+          --output-report-tex {output.report_tex} \
           --output-plot-dir {output.plot_dir}
+
+        report_build_dir=$(mktemp -d /tmp/abcd_signal_fit_report.XXXXXX)
+        trap 'rm -rf "$report_build_dir"' EXIT
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir" {output.report_tex}
+        pdflatex -interaction=nonstopmode -halt-on-error \
+          -output-directory "$report_build_dir" {output.report_tex}
+        cp "$report_build_dir/{params.pdf_name}" {output.report_pdf}
         """
 
 
