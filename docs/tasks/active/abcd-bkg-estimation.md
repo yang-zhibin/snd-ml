@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 05:18 Europe/Zurich
+Last updated: 2026-10-01 11:08 Europe/Zurich
 
 ## Goal
 
@@ -122,6 +122,12 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   It reuses the already frozen six density bins and labels the observed signal
   region as development data. No signal subtraction, correction, retuning, or
   likelihood fit was performed.
+- Implemented and ran the requested first six-bin cabinetry likelihood
+  diagnostic for nominal Baseline 2. The model fits one global unconstrained
+  ABCD background scale `alpha_bkg` and the nonnegative `CC_nue` signal
+  strength `mu` simultaneously to the already unblinded signal-region data.
+  It includes the workspace, fit, pre/post-fit plots, correlation matrix,
+  profiled one-dimensional scans, and a two-dimensional likelihood surface.
 
 ## Findings and decisions
 
@@ -224,6 +230,15 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   remove signal sensitivity. A correction may only be transported from
   independent validation after demonstrating stability and secondary
   closure. No correction is currently authorized or implemented.
+- For the explicitly requested first fit, use one global `alpha_bkg` shared by
+  all six density bins and one shared `mu`; do not introduce freely floating
+  per-bin background scales. This v1 model intentionally has no ABCD-template,
+  MC-statistical, or systematic nuisance parameters and is diagnostic only.
+- The fitted `mu` is effectively at its physical lower boundary and the
+  goodness-of-fit p-value underflows to zero. The global scale matches the
+  total count, but it does not make the ABCD density shape compatible with the
+  data. Therefore the fit cannot be interpreted as a signal measurement,
+  discovery significance, or limit.
 
 ## Results and evidence
 
@@ -378,6 +393,22 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   from `406766.8` to approximately `208400`, still 31% above the observed
   `158707`. Equivalently, the corrected closure factor would be about `0.762`.
   This confirms that the validation normalization does not transfer reliably.
+- The cabinetry fit outputs are saved under
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/signal_region_fit_v1/`.
+  They include `workspace.json`, `model_inputs.csv`, `fit_results.json`, the
+  two one-dimensional scan CSVs, `likelihood_2d.csv`, `fit_report.md`, and 12
+  PNG/PDF plot files under `plots/`.
+- The realized fit result is `alpha_bkg = 0.385739245 +/- 0.000968279` and
+  `mu = 3.13448e-05 +/- 2.06155` from the local Hesse estimate. `mu` is
+  classified as effectively at the configured lower boundary, so the Hesse
+  uncertainty is not a symmetric physical interval; use the saved profile
+  likelihood scan for interpretation. The fitted background total is
+  `158706.211`, the fitted signal total is `0.000342`,
+  `corr(alpha_bkg,mu) = -0.000655`, twice negative log-likelihood is
+  `1856.42506`, and cabinetry reports goodness-of-fit p-value `0.0`.
+- The saved likelihood products contain 81 `mu` scan points, 89 resolved
+  `alpha_bkg` scan points, and an 81 by 81 two-dimensional grid (6561 rows).
+  The signal scan minimum is at `mu=0` within optimizer tolerance.
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -568,6 +599,27 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     seven-page A4 PDF; both closure CSVs have one header plus 16 data rows.
     A clean-shell dry-run of `region_v1_abcd_density_closures` reported
     nothing to do.
+  - Under LCG 107, preflight recorded Python 3.11.9, cabinetry 0.5.2, pyhf
+    0.7.6, Matplotlib 3.8.3, NumPy 1.26.4, and PyYAML 6.0.1. An isolated
+    preview compiled the new script and completed the workspace, fit, both
+    one-dimensional scans, 6561-point two-dimensional scan, Markdown report,
+    and 12 plots.
+  - The focused Snakemake dry-run scheduled exactly one
+    `region_v1_abcd_density_signal_region_fit` job and no upstream work.
+    Production command:
+    `env -u PYTHONHOME -u PYTHONPATH PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 /afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake --snakefile snakemake/snakefile region_v1_abcd_density_signal_region_fit --cores 1 --printshellcmds --rerun-incomplete`.
+    It completed 1 of 1 local steps. Log:
+    `.snakemake/log/2026-10-01T110247.237306.snakemake.log`.
+  - Independent output validation reconstructed the three template sums,
+    loaded and schema-validated the saved pyhf workspace, checked its one
+    channel, two samples, two normfactors, six bins, and POI, reproduced the
+    saved likelihood at the best-fit point, and compared `alpha_bkg` with the
+    analytic zero-signal normalization. All scan grids were finite,
+    nonnegative, and had their configured sizes; all 12 plots were nonempty.
+    A bare SciPy-backed `pyhf.infer.mle.fit` cross-check remained at its
+    initial point for this large-count model, while cabinetry's supported
+    Minuit-backed path and direct likelihood checks agreed. The final focused
+    Snakemake dry-run was a no-op and `git diff --check` passed.
 
 ## Modified files
 
@@ -581,6 +633,17 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - `docs/tasks/active/abcd-bkg-estimation.md`
   - Added the continuing checkpoints, including the final normalization
     interpretation and decision recorded here.
+- `snakemake/metadata/configs/region_evaluation/abcd_density_signal_region_fit_v1.yaml`
+  - Added the frozen source mapping, six-bin model, global background and
+    signal parameters, fit/scan settings, scope boundary, and output paths.
+- `evaluation_region_partitions/fit_abcd_density_signal_region.py`
+  - Added strict source validation, workspace construction, cabinetry fit,
+    pre/post-fit predictions, goodness-of-fit, correlation and likelihood
+    scans, deterministic plots, and atomic machine-readable/report outputs.
+- `snakemake/rules/region_partitions.smk`
+  - Added the focused one-job
+    `region_v1_abcd_density_signal_region_fit` target using the documented LCG
+    environment and the existing nominal-closure CSV as its sole data input.
 - `snakemake/rules/region_partitions.smk`
   - Added the single-purpose `region_v1_abcd_input_audit` rule. The catalogue
     is deliberately a parameter rather than an input so an audit cannot
@@ -734,22 +797,28 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   completed all three aggregate steps; independent nominal arithmetic agreed
   to `2.16e-16` relative precision; PDF/text/plot checks passed; the final
   aggregate dry-run was a no-op; and `git diff --check` passed.
+- The fit script compiled, the isolated preview and production target passed,
+  and independent workspace/input/likelihood/scan/plot validation passed. The
+  final dry-run was a no-op. The zero goodness-of-fit value is a scientific
+  model failure, not a workflow or optimizer failure.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 05:16 Europe/Zurich,
-  `condor_q -nobatch` reported zero jobs for user `zhibin`.
+- At the final check on 2026-10-01 at about 11:06 Europe/Zurich,
+  `condor_q -nobatch` reported one unrelated running job, `16304684.0`, from
+  worktree `snd-ml-3d-cnn-testbeam` for rule `evaluate_testbeam_full_pool`.
+  This ABCD task submitted no scheduler jobs and did not modify that job.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint:
-  `edc1e5210313a5da97a8e95906ea38b0ad935edd`
-  (`feat: calculate nominal Region V1 ABCD closure`).
-- The worktree was clean before this task-record-only update. No code or
-  generated output was modified, and there were no unrelated user changes.
+- HEAD before this checkpoint: `2bfb837`
+  (`docs: checkpoint ABCD normalization decision`).
+- Before updating this task record, the worktree contained three task-scoped
+  implementation paths and no unrelated user changes. This task record is the
+  fourth task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 
@@ -769,11 +838,15 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - Direct signal-region normalization is scientifically circular. The
   validation-derived Baseline 2 normalization also fails transport, leaving a
   roughly 31% overprediction, so it is not accepted as a correction.
+- The first global-scale fit has unacceptable shape goodness-of-fit and a
+  boundary signal estimate. Adding significance or limits to this model is
+  not justified. A decision is required before either redesigning the
+  background or constructing the full simultaneous four-region diagnostic.
 
 ## Exact next action
 
-Define and freeze a run-block splitting policy using complete runs and their
-exposures, then materialize the run-block validation tables for the same two
-validation constructions. Do not apply a nonclosure correction, calculate a
-nominal signal-region closure, implement a likelihood, or make the formal
-closure decision in the same action.
+Review `signal_region_fit_v1/fit_report.md` and its likelihood plots with the
+user, then obtain an explicit choice between stopping to redesign/validate the
+background model and implementing a full simultaneous A/B/C/D diagnostic.
+Do not add uncertainties, significance, limits, or another fit before that
+choice.

@@ -1,0 +1,63 @@
+version: density_sndsw_scifi_signal_region_fit_v1
+description: >
+  Explicitly unblinded six-bin diagnostic fit of a globally scaled Baseline 2
+  ABCD background template and the normalized CC_nue MC signal template.
+  This first model intentionally contains no template uncertainties and is
+  not a discovery or limit result.
+
+source:
+  baseline: baseline_2_nominal
+  row_type: bin
+  expected_roles:
+    A: signal_no_veto_has_us_fiducial_inside
+    B: sideband_no_veto_has_us_fiducial_outside
+    C: sideband_has_veto_no_us_fiducial_inside
+    D: sideband_has_veto_no_us_fiducial_outside
+  merged_regular_bin_edges: [0, 500, 1000, 1500, 2000, 3000, 40000]
+
+model:
+  channel: signal_region
+  background_sample: abcd_background
+  signal_sample: cc_nue_signal
+  background_parameter: alpha_bkg
+  signal_parameter: mu
+  parameter_of_interest: mu
+  parameters:
+    alpha_bkg:
+      initial: 1.0
+      bounds: [0.0, 5.0]
+    mu:
+      initial: 1.0
+      bounds: [0.0, 100.0]
+  include_template_uncertainties: false
+  background_scale_scope: global_across_six_bins
+
+fit:
+  goodness_of_fit: true
+  maxiter: 100000
+  tolerance: 0.1
+  boundary_tolerance: 1.0e-4
+
+scans:
+  mu:
+    range: [0.0, 20.0]
+    points: 81
+  alpha_bkg:
+    range: [0.375, 0.397]
+    points: 89
+  two_dimensional:
+    mu_range: [0.0, 20.0]
+    mu_points: 81
+    alpha_uncertainty_span: 8.0
+    alpha_points: 81
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/signal_region_fit_v1
+  inputs_csv: model_inputs.csv
+  workspace_json: workspace.json
+  fit_results_json: fit_results.json
+  mu_scan_csv: mu_scan.csv
+  alpha_scan_csv: alpha_scan.csv
+  likelihood_2d_csv: likelihood_2d.csv
+  report_markdown: fit_report.md
+  plot_directory: plots

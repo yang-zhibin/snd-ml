@@ -237,6 +237,54 @@ ABCD_DENSITY_NOMINAL_CLOSURE_PLOT_DIR = (
     f"{ABCD_DENSITY_NOMINAL_CLOSURE_OUTPUT_DIR}/"
     f"{ABCD_DENSITY_NOMINAL_CLOSURE['output']['plot_directory']}"
 )
+ABCD_DENSITY_SIGNAL_REGION_FIT_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_density_signal_region_fit_v1.yaml"
+)
+
+with open(ABCD_DENSITY_SIGNAL_REGION_FIT_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DENSITY_SIGNAL_REGION_FIT = yaml.safe_load(handle)
+
+ABCD_DENSITY_SIGNAL_REGION_FIT_OUTPUT_DIR = (
+    ABCD_DENSITY_SIGNAL_REGION_FIT["output"]["directory"]
+)
+if not os.path.isabs(ABCD_DENSITY_SIGNAL_REGION_FIT_OUTPUT_DIR):
+    ABCD_DENSITY_SIGNAL_REGION_FIT_OUTPUT_DIR = (
+        f"{PERSONAL_WORK_SPACE}/{ABCD_DENSITY_SIGNAL_REGION_FIT_OUTPUT_DIR}"
+    )
+
+
+def _abcd_density_signal_region_fit_output(key):
+    return (
+        f"{ABCD_DENSITY_SIGNAL_REGION_FIT_OUTPUT_DIR}/"
+        f"{ABCD_DENSITY_SIGNAL_REGION_FIT['output'][key]}"
+    )
+
+
+ABCD_DENSITY_SIGNAL_REGION_FIT_INPUTS_CSV = _abcd_density_signal_region_fit_output(
+    "inputs_csv"
+)
+ABCD_DENSITY_SIGNAL_REGION_FIT_WORKSPACE_JSON = _abcd_density_signal_region_fit_output(
+    "workspace_json"
+)
+ABCD_DENSITY_SIGNAL_REGION_FIT_RESULTS_JSON = _abcd_density_signal_region_fit_output(
+    "fit_results_json"
+)
+ABCD_DENSITY_SIGNAL_REGION_FIT_MU_SCAN_CSV = _abcd_density_signal_region_fit_output(
+    "mu_scan_csv"
+)
+ABCD_DENSITY_SIGNAL_REGION_FIT_ALPHA_SCAN_CSV = _abcd_density_signal_region_fit_output(
+    "alpha_scan_csv"
+)
+ABCD_DENSITY_SIGNAL_REGION_FIT_2D_CSV = _abcd_density_signal_region_fit_output(
+    "likelihood_2d_csv"
+)
+ABCD_DENSITY_SIGNAL_REGION_FIT_REPORT = _abcd_density_signal_region_fit_output(
+    "report_markdown"
+)
+ABCD_DENSITY_SIGNAL_REGION_FIT_PLOT_DIR = _abcd_density_signal_region_fit_output(
+    "plot_directory"
+)
 
 
 def _sanitize_partition_name(value):
@@ -822,6 +870,56 @@ rule region_v1_abcd_density_closures:
         validation_pdf=ABCD_DENSITY_VALIDATION_CLOSURE_PDF,
         nominal_csv=ABCD_DENSITY_NOMINAL_CLOSURE_CSV,
         nominal_pdf=ABCD_DENSITY_NOMINAL_CLOSURE_PDF,
+
+
+rule region_v1_abcd_density_signal_region_fit:
+    input:
+        closure_csv=ABCD_DENSITY_NOMINAL_CLOSURE_CSV,
+        config=ABCD_DENSITY_SIGNAL_REGION_FIT_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "fit_abcd_density_signal_region.py"
+        ),
+    output:
+        inputs_csv=ABCD_DENSITY_SIGNAL_REGION_FIT_INPUTS_CSV,
+        workspace_json=ABCD_DENSITY_SIGNAL_REGION_FIT_WORKSPACE_JSON,
+        fit_json=ABCD_DENSITY_SIGNAL_REGION_FIT_RESULTS_JSON,
+        mu_scan_csv=ABCD_DENSITY_SIGNAL_REGION_FIT_MU_SCAN_CSV,
+        alpha_scan_csv=ABCD_DENSITY_SIGNAL_REGION_FIT_ALPHA_SCAN_CSV,
+        likelihood_2d_csv=ABCD_DENSITY_SIGNAL_REGION_FIT_2D_CSV,
+        report=ABCD_DENSITY_SIGNAL_REGION_FIT_REPORT,
+        plot_dir=directory(ABCD_DENSITY_SIGNAL_REGION_FIT_PLOT_DIR),
+    resources:
+        runtime=10 * 60,
+        mem_mb=1000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import importlib.metadata as m; import cabinetry, matplotlib, numpy, pyhf, yaml; print("cabinetry", m.version("cabinetry"), "pyhf", pyhf.__version__, "matplotlib", matplotlib.__version__, "numpy", numpy.__version__, "yaml", yaml.__version__)' >&2
+
+        python3 {input.script} \
+          --closure-csv {input.closure_csv} \
+          --config {input.config} \
+          --output-inputs-csv {output.inputs_csv} \
+          --output-workspace-json {output.workspace_json} \
+          --output-fit-json {output.fit_json} \
+          --output-mu-scan-csv {output.mu_scan_csv} \
+          --output-alpha-scan-csv {output.alpha_scan_csv} \
+          --output-likelihood-2d-csv {output.likelihood_2d_csv} \
+          --output-report-markdown {output.report} \
+          --output-plot-dir {output.plot_dir}
+        """
 
 
 rule build_region_feature_partition:
