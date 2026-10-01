@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 01:16 Europe/Zurich
+Last updated: 2026-10-01 02:53 Europe/Zurich
 
 ## Goal
 
@@ -80,6 +80,13 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - Verified the realized catalogue and physical EOS feature files for real
   data and all standard and EventBuilder CC/NC electron- and muon-neutrino MC
   groups in every Region V1 region.
+- Froze the initial Region V1 ABCD density histogram definition as
+  `density_sndsw_scifi_v1`: 80 uniform bins over `[0, 40000)`, bin width
+  500, underflow preserved, overflow folded into the final bin, and unit event
+  weights for raw Poisson data counts.
+- Implemented and ran the eight-region real-data density histogram workflow.
+  All eight ROOT histograms and CSV summaries pass catalogue count and
+  exposure closure.
 
 ## Findings and decisions
 
@@ -116,6 +123,14 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - No further ABCD inference was authorized or started. The inclusive
   arithmetic values remain diagnostics from already inspected development
   data, not a final background or signal result.
+- The Region V2 plotting workflow uses
+  `inspection_event_weight = target_luminosity / source_luminosity` with a
+  run-9715 target of `0.6102 fb^-1`. That inspection-specific normalization
+  is not used for Region V1 ABCD counts. The new Region V1 density histograms
+  contain raw unit-weight data counts and store exposure as metadata.
+- The initial 500-unit density binning is now versioned and reproducible. It
+  is suitable for materializing counts, but sparse-tail merging must still be
+  decided before a final binned likelihood.
 
 ## Results and evidence
 
@@ -166,6 +181,26 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   - `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/abcd_input_audit_v1/input_audit.csv`
   - `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/abcd_input_audit_v1/input_audit.md`
   Both were written on 2026-09-30 at 20:17 Europe/Zurich and report `PASS`.
+
+- The versioned real-data density outputs are under:
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/`.
+  It contains eight ROOT files under `hists/` and eight one-row CSV files
+  under `summaries/`.
+- Independent ROOT/CSV verification of the generated histograms:
+
+  | Region | Events | Underflow | Overflow folded into last bin | Status |
+  | --- | ---: | ---: | ---: | --- |
+  | Signal | 158707 | 0 | 0 | PASS |
+  | SB1 | 40300 | 0 | 0 | PASS |
+  | SB2 | 447152 | 0 | 0 | PASS |
+  | SB3 | 73186 | 0 | 0 | PASS |
+  | SB4 | 20348106 | 0 | 104 | PASS |
+  | SB5 | 26510 | 0 | 0 | PASS |
+  | SB6 | 18928315 | 0 | 5 | PASS |
+  | SB7 | 29142 | 0 | 0 | PASS |
+
+- Every generated histogram has 80 bins from 0 to 40000, and its integral
+  including preserved flow equals the authoritative catalogue event count.
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -218,6 +253,28 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     had nonzero size in all eight regions. No output file was written.
   - `condor_q -nobatch` on 2026-10-01 at about 01:07 Europe/Zurich reported
     zero jobs for `zhibin`.
+  - Inspected the Region V2 veto-inspection config and histogram/plot scripts.
+    Confirmed the 80-bin `[0, 40000)` density definition, overflow folding,
+    raw versus `inspection_event_weight` histograms, and unit-area plotting
+    normalization. The Region V2 constant luminosity weight was deliberately
+    not reused.
+  - Under LCG 107 (Python 3.11.9, ROOT 6.34.02, PyYAML 6.0.1), ran
+    `python3 -m py_compile` for the new builder/test and
+    `python3 evaluation_region_partitions/test_abcd_density_hist.py`. The
+    synthetic test passed the seven-event flow/count fixture and confirmed an
+    intentional catalogue mismatch fails.
+  - Dry-run command:
+    `snakemake --snakefile snakemake/snakefile region_v1_abcd_density_hists --cores 8 --dry-run --printshellcmds`.
+    It scheduled exactly eight `build_region_v1_abcd_density_hist` jobs plus
+    the aggregate target and no partition-production jobs.
+  - Production command:
+    `snakemake --snakefile snakemake/snakefile region_v1_abcd_density_hists --cores 4 --printshellcmds --rerun-incomplete`.
+    It completed 9 of 9 local steps. Log:
+    `.snakemake/log/2026-10-01T024951.126989.snakemake.log`.
+  - Independently opened all eight ROOT files under LCG, verified their
+    binning, histogram objects, integrals, CSV status, count closure, and
+    exposure closure. A final dry-run reported all requested files present
+    and up to date.
 
 ## Modified files
 
@@ -243,6 +300,19 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   - Added an end-to-end passing fixture and an intentional count-failure case.
 - `docs/analysis/regions/ABCD_LIKELIHOOD_STEPS_AND_REFERENCES.md`
   - Added a compact likelihood/ABCD workflow and primary reading list.
+- `snakemake/metadata/configs/region_evaluation/abcd_density_sndsw_scifi_v1.yaml`
+  - Added the frozen initial density binning, raw-count normalization, flow
+    policies, region expectations, output location, and validation contract.
+- `evaluation_region_partitions/make_abcd_density_hist.py`
+  - Added the catalogue-driven, one-region raw ROOT histogram builder with
+    atomic ROOT/CSV outputs and embedded audit metadata.
+- `evaluation_region_partitions/test_abcd_density_hist.py`
+  - Added synthetic tests for binning, underflow preservation, overflow
+    folding, count closure, embedded metadata, and intentional failure.
+- `snakemake/rules/region_partitions.smk`
+  - Added the eight-job `region_v1_abcd_density_hists` aggregate and focused
+    per-region builder rule without a dependency that can regenerate source
+    partitions.
 
 ## Validation
 
@@ -260,13 +330,18 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   final no-op dry-run, and `git diff --check` all passed.
 - A separate physical-file check confirmed all catalogued real-data and
   neutrino-MC feature ROOT files exist on EOS and have nonzero size.
+- The density builder synthetic test and Python compilation passed.
+- The workflow dry-run contained exactly eight histogram jobs; the production
+  target completed, independent ROOT/CSV checks passed for all regions, and
+  the final dry-run was a no-op.
 
 ## Running jobs
 
-- None. `condor_q -nobatch` reported zero jobs for `zhibin` on 2026-10-01;
-  there are no scheduler job IDs, batch logs, or pending batch outputs for
-  this task. The completed input audit was a local Snakemake job, not an
-  HTCondor submission.
+- This task has no scheduler jobs. Its density histograms were produced by
+  local Snakemake jobs.
+- At the final check, `condor_q -nobatch` showed unrelated running job
+  `16300791.0` from worktree `snd-ml-3d-cnn-testbeam`; it was not submitted
+  or modified by this task.
 
 ## Current Git state
 
@@ -279,6 +354,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - This stopping checkpoint is intended to commit those task-scoped changes
   together with this updated task record. The resulting commit SHA and final
   cleanliness check are reported in the stopping handoff.
+- HEAD at the start of the density implementation was
+  `e5b3abf63a4face736232b8714f091baf9f382ce`.
+- Before the density checkpoint commit, the worktree contains four new or
+  modified implementation paths plus this task-record update, all scoped to
+  this task; no unrelated changes are present.
 
 ## Blockers and open questions
 
@@ -287,13 +367,14 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - Baseline 2 requires quantitative density- and run-dependent validation and
   an independent secondary validation before any nonclosure correction can be
   transported to the signal region.
-- The final `density_sndsw_scifi` binning and sparse-tail merge policy are not
-  yet frozen.
+- The initial 500-unit `density_sndsw_scifi` binning and flow policy are
+  frozen. The final sparse-tail merge policy remains pending until the
+  per-bin control-region statistics are tabulated.
 
 ## Exact next action
 
-Implement baseline-plan step 2 only: propose and freeze one versioned common
-`density_sndsw_scifi` binning and explicit underflow/overflow policy using
-control-region statistics and signal MC, without materializing count tables,
-calculating new ABCD results, implementing a likelihood, or starting
-production in the same action.
+Audit the authoritative normalization and event-weight source for the standard
+`CC_nue`, `CC_numu`, `NC_nue`, and `NC_numu` Region V1 MC samples only.
+Record the formula and required branches/metadata for `sum(w)` and
+`sum(w^2)`; do not generate MC histograms, materialize ABCD tables, calculate
+new closure results, or implement a likelihood in the same action.

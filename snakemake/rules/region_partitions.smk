@@ -42,6 +42,37 @@ ABCD_INPUT_AUDIT_CSV = (
 ABCD_INPUT_AUDIT_REPORT = (
     f"{ABCD_INPUT_AUDIT_OUTPUT_DIR}/{ABCD_INPUT_AUDIT['output']['report']}"
 )
+ABCD_DENSITY_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_density_sndsw_scifi_v1.yaml"
+)
+
+with open(ABCD_DENSITY_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DENSITY = yaml.safe_load(handle)
+
+ABCD_DENSITY_OUTPUT_DIR = ABCD_DENSITY["output"]["directory"]
+if not os.path.isabs(ABCD_DENSITY_OUTPUT_DIR):
+    ABCD_DENSITY_OUTPUT_DIR = f"{PERSONAL_WORK_SPACE}/{ABCD_DENSITY_OUTPUT_DIR}"
+ABCD_DENSITY_PARTICLE_GROUP = ABCD_DENSITY["catalogue"]["particle_group"]
+ABCD_DENSITY_REGIONS = list(ABCD_DENSITY["regions"])
+ABCD_DENSITY_HIST_PATTERN = (
+    f"{ABCD_DENSITY_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY['output']['histogram_directory']}/"
+    f"{{region}}__{ABCD_DENSITY_PARTICLE_GROUP}.root"
+)
+ABCD_DENSITY_SUMMARY_PATTERN = (
+    f"{ABCD_DENSITY_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY['output']['summary_directory']}/"
+    f"{{region}}__{ABCD_DENSITY_PARTICLE_GROUP}.csv"
+)
+ABCD_DENSITY_HIST_TARGETS = expand(
+    ABCD_DENSITY_HIST_PATTERN,
+    region=ABCD_DENSITY_REGIONS,
+)
+ABCD_DENSITY_SUMMARY_TARGETS = expand(
+    ABCD_DENSITY_SUMMARY_PATTERN,
+    region=ABCD_DENSITY_REGIONS,
+)
 
 
 def _sanitize_partition_name(value):
@@ -260,6 +291,58 @@ rule region_v1_abcd_input_audit:
           --audit-config {input.audit_config} \
           --output-csv {output.csv} \
           --output-report {output.report}
+        """
+
+
+rule region_v1_abcd_density_hists:
+    input:
+        ABCD_DENSITY_HIST_TARGETS,
+        ABCD_DENSITY_SUMMARY_TARGETS,
+
+
+rule build_region_v1_abcd_density_hist:
+    input:
+        config=ABCD_DENSITY_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "make_abcd_density_hist.py"
+        ),
+    params:
+        partition_catalogue=REGION_PARTITION_METADATA_CSV,
+        particle_group=ABCD_DENSITY_PARTICLE_GROUP,
+    output:
+        hist=ABCD_DENSITY_HIST_PATTERN,
+        summary=ABCD_DENSITY_SUMMARY_PATTERN,
+    wildcard_constraints:
+        region="|".join(re.escape(region) for region in ABCD_DENSITY_REGIONS)
+    threads: 2
+    resources:
+        runtime=60 * 60,
+        mem_mb=3000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+
+        python3 {input.script} \
+          --partition-catalogue {params.partition_catalogue} \
+          --config {input.config} \
+          --region {wildcards.region} \
+          --particle-group {params.particle_group} \
+          --output {output.hist} \
+          --summary {output.summary} \
+          --threads {threads}
         """
 
 
