@@ -707,6 +707,8 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   explicitly provisional model, the Asimov injected-`mu=1` asymptotic
   sensitivities were `Z=0.216406` for `[5000,40000]` and `Z=0.510738` for
   `[5000,7000,40000]`. These are not production or observed results.
+- Task-only implementation commit: `11c714a`
+  (`feat: add blinded ABCD expected workflow`).
 
 ## Modified files
 
@@ -968,6 +970,7 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - Branch: `task/abcd-bkg-estimation`.
 - HEAD before this checkpoint: `6ef08d5`
   (`feat: add high-density ABCD fit reports`).
+- Blinded-workflow implementation commit: `11c714a`.
 - Before updating this task record, the worktree contained five task-scoped
   implementation paths and no unrelated user changes. This task record is the
   sixth task-scoped path intended for the checkpoint commit.
