@@ -10,6 +10,7 @@ source:
 
 scope:
   validation_only: true
+  unblinded_signal_region: false
   excluded_regions:
     - signal_no_veto_has_us_fiducial_inside
   signal_subtraction: false

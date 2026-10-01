@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Calculate arithmetic ABCD closure for frozen validation constructions only."""
+"""Calculate arithmetic ABCD closure for frozen Region V1 constructions."""
 
 from __future__ import annotations
 
@@ -73,18 +73,32 @@ def atomic_figure(fig: plt.Figure, path: str | Path, dpi: int = 180) -> None:
             os.unlink(temporary)
 
 
-def validate_scope(config: dict, merge_config: dict) -> tuple[dict, set[str]]:
+def validate_scope(config: dict, merge_config: dict) -> tuple[dict, dict, set[str]]:
     scope = config["scope"]
     required_false = ("signal_subtraction", "nonclosure_correction", "likelihood_fit")
-    if not bool(scope.get("validation_only")) or any(bool(scope.get(key)) for key in required_false):
-        raise ValueError("Closure configuration violates the validation-only scope")
+    if any(bool(scope.get(key)) for key in required_false):
+        raise ValueError("Closure configuration enables a forbidden inference step")
     excluded = {str(region) for region in scope["excluded_regions"]}
-    allowed = {
+    audit_regions = {
         str(item["region"]): str(item["label"])
         for item in merge_config["selection"]["regions"]
     }
-    if not excluded or excluded != set(merge_config["selection"]["excluded_regions"]):
-        raise ValueError("Closure exclusions do not match the frozen merge policy")
+    signal_regions = {str(region) for region in merge_config["selection"]["excluded_regions"]}
+    validation_only = bool(scope.get("validation_only"))
+    if validation_only:
+        if not excluded or excluded != signal_regions or scope.get("unblinded_signal_region"):
+            raise ValueError("Closure configuration violates the validation-only scope")
+        allowed = dict(audit_regions)
+    else:
+        if excluded or not bool(scope.get("unblinded_signal_region")):
+            raise ValueError("Nominal closure must explicitly declare an unblinded signal region")
+        additional = {
+            str(item["region"]): str(item["label"])
+            for item in scope.get("additional_regions", [])
+        }
+        if set(additional) != signal_regions:
+            raise ValueError("Nominal closure must add exactly the merge-policy excluded region")
+        allowed = {**audit_regions, **additional}
     for baseline, baseline_config in config["baselines"].items():
         roles = baseline_config["roles"]
         if set(roles) != set(ROLES):
@@ -94,13 +108,17 @@ def validate_scope(config: dict, merge_config: dict) -> tuple[dict, set[str]]:
             raise ValueError(f"{baseline} uses invalid or repeated validation regions")
         if any(region in excluded for region in regions):
             raise ValueError(f"{baseline} includes an excluded nominal region")
-    return allowed, excluded
+        if not validation_only and set(regions) & signal_regions != signal_regions:
+            raise ValueError(f"{baseline} does not use the nominal signal region as A")
+        if not validation_only and regions[0] not in signal_regions:
+            raise ValueError(f"{baseline} must map A to the nominal signal region")
+    return allowed, audit_regions, excluded
 
 
 def load_merge_audit(
-    path: str | Path, policy_version: str, allowed: dict[str, str], edges: list[float]
+    path: str | Path, policy_version: str, audit_regions: dict[str, str], edges: list[float]
 ) -> dict[str, list[int]]:
-    counts: dict[str, dict[int, int]] = {region: {} for region in allowed}
+    counts: dict[str, dict[int, int]] = {region: {} for region in audit_regions}
     with open(path, encoding="utf-8", newline="") as stream:
         reader = csv.DictReader(stream)
         required = {
@@ -118,7 +136,7 @@ def load_merge_audit(
             raise ValueError("Merge audit is missing columns: " + ", ".join(sorted(missing)))
         for row in reader:
             region = row["region"]
-            if region not in allowed:
+            if region not in audit_regions:
                 raise ValueError(f"Unexpected region in merge audit: {region}")
             if row["policy_version"] != policy_version or row["validation_status"] != "PASS":
                 raise ValueError("Merge audit has an invalid version or status")
@@ -127,7 +145,7 @@ def load_merge_audit(
                 raise ValueError("Merge-audit lower edge mismatch")
             if not math.isclose(float(row["bin_high"]), edges[index], abs_tol=1e-9):
                 raise ValueError("Merge-audit upper edge mismatch")
-            if row["region_label"] != allowed[region]:
+            if row["region_label"] != audit_regions[region]:
                 raise ValueError("Merge-audit region-label mismatch")
             counts[region][index] = int(row["raw_data_count"])
     expected = set(range(1, len(edges)))
@@ -225,7 +243,7 @@ def load_validation_inputs(
                 "signal": sum(row["signal"] for row in selected),
                 "signal_sumw2": sum(row["signal_sumw2"] for row in selected),
             }
-            if item["count"] != audit_counts[region][index]:
+            if region in audit_counts and item["count"] != audit_counts[region][index]:
                 raise ValueError(f"Merged raw count disagrees with frozen audit for {region}")
             merged.append(item)
         if sum(item["count"] for item in merged) != inclusive[region]["count"]:
@@ -426,10 +444,29 @@ def interval(row: dict) -> str:
     return f"[{float(row['bin_low']):g}, {float(row['bin_high']):g})"
 
 
+def scope_phrases(config: dict) -> dict[str, str]:
+    if bool(config["scope"]["validation_only"]):
+        return {
+            "kind": "validation",
+            "title": "Region V1 ABCD Validation Closure",
+            "scope": "arithmetic closure for the two validation constructions only. The nominal signal region was excluded",
+            "banner": "Validation-only arithmetic result. The nominal signal region is excluded.",
+            "boundary": "These arithmetic values quantify validation nonclosure. They do not authorize a correction or a nominal signal-region prediction.",
+        }
+    return {
+        "kind": "nominal signal-region diagnostic",
+        "title": "Region V1 ABCD Nominal Signal-Region Diagnostic",
+        "scope": "explicitly unblinded arithmetic closure for the two original ABCD constructions. Region A is the nominal signal region and its observed data are development data",
+        "banner": "Unblinded development diagnostic. Region A is the nominal signal region; this is not an independent blind measurement.",
+        "boundary": "These arithmetic values compare the original ABCD predictions with already inspected signal-region data. They must not be used to tune a correction and then presented as an independent blind result.",
+    }
+
+
 def make_plots(
-    results: dict[str, list[dict]], output_plot_dir: str | Path
+    config: dict, results: dict[str, list[dict]], output_plot_dir: str | Path
 ) -> dict[str, Path]:
     output_directory = Path(output_plot_dir)
+    phrases = scope_phrases(config)
     paths = {}
     for baseline, rows in results.items():
         bins = [row for row in rows if row["row_type"] == "bin"]
@@ -456,7 +493,7 @@ def make_plots(
             yerr=[math.sqrt(value) for value in observed],
             fmt="o",
             color="black",
-            label="Observed validation A",
+            label="Observed A",
         )
         axes[0].errorbar(
             x,
@@ -468,7 +505,7 @@ def make_plots(
         )
         axes[0].set_yscale("log")
         axes[0].set_ylabel("Events")
-        axes[0].set_title(rows[0]["baseline_label"] + " (arithmetic, validation only)")
+        axes[0].set_title(rows[0]["baseline_label"] + f" (arithmetic, {phrases['kind']})")
         axes[0].legend(frameon=False)
         axes[0].grid(True, which="both", axis="y", alpha=0.25)
 
@@ -499,12 +536,13 @@ def markdown_content(
     input_table: str,
     merge_audit: str,
 ) -> str:
+    phrases = scope_phrases(config)
     lines = [
         f"# {config['version']}",
         "",
         "Status: **PASS**",
         "",
-        "Scope: arithmetic closure for the two validation constructions only. The nominal signal region was excluded; no signal subtraction, nonclosure correction, bin retuning, or likelihood fit was performed.",
+        f"Scope: {phrases['scope']}; no signal subtraction, nonclosure correction, bin retuning, or likelihood fit was performed.",
         "",
         f"Source table: `{Path(input_table).resolve()}`",
         "",
@@ -514,7 +552,7 @@ def markdown_content(
         "",
         "## Inclusive summary",
         "",
-        "| Validation | Summary | A observed | A predicted | Stat. uncertainty | Kappa | Kappa stat. uncertainty | Nonclosure | Pull |",
+        "| Construction | Summary | A observed | A predicted | Stat. uncertainty | Kappa | Kappa stat. uncertainty | Nonclosure | Pull |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for rows in results.values():
@@ -595,7 +633,7 @@ def markdown_content(
             "",
             "## Interpretation boundary",
             "",
-            "These arithmetic values quantify validation nonclosure. They do not authorize a correction or a nominal signal-region prediction. Sparse/non-Gaussian inference and nuisance parameters require the later simultaneous likelihood step.",
+            phrases["boundary"] + " Sparse/non-Gaussian inference and nuisance parameters require the later simultaneous likelihood step.",
             "",
         ]
     )
@@ -619,6 +657,7 @@ def tex_escape(value: object) -> str:
 def latex_content(
     config: dict, results: dict[str, list[dict]], plot_paths: dict[str, Path]
 ) -> str:
+    phrases = scope_phrases(config)
     lines = [
         r"\documentclass[10pt,a4paper]{article}",
         r"\usepackage[margin=1.5cm]{geometry}",
@@ -629,17 +668,17 @@ def latex_content(
         r"\setlength{\parindent}{0pt}",
         r"\setlength{\parskip}{5pt}",
         r"\begin{document}",
-        r"\title{Region V1 ABCD Validation Closure}",
+        rf"\title{{{tex_escape(phrases['title'])}}}",
         r"\author{SND@LHC analysis workflow}",
         r"\date{}",
         r"\maketitle",
-        r"\begin{center}\fcolorbox{black}{gray!10}{\parbox{0.92\textwidth}{\textbf{Validation-only arithmetic result.} The nominal signal region is excluded. No signal subtraction, nonclosure correction, bin retuning, or likelihood fit is included.}}\end{center}",
+        rf"\begin{{center}}\fcolorbox{{black}}{{gray!10}}{{\parbox{{0.92\textwidth}}{{\textbf{{{tex_escape(phrases['banner'])}}} No signal subtraction, nonclosure correction, bin retuning, or likelihood fit is included.}}}}\end{{center}}",
         r"\begin{landscape}",
         r"\section{Inclusive summary}",
         r"\scriptsize",
         r"\begin{tabular}{llrrrrr}",
         r"\toprule",
-        r"Validation & Summary & $A_{obs}$ & $A_{pred}\pm\sigma$ & $\kappa\pm\sigma$ & Nonclosure & Pull \\",
+        r"Construction & Summary & $A_{obs}$ & $A_{pred}\pm\sigma$ & $\kappa\pm\sigma$ & Nonclosure & Pull \\",
         r"\midrule",
     ]
     for rows in results.values():
@@ -708,7 +747,7 @@ def latex_content(
             r"\section{Calculation definitions and boundary}",
             r"For each frozen density bin, $T=(C/D)(L_D/L_C)$ and $A_{pred}=B(L_A/L_B)T$. The closure factor is $\kappa=A_{obs}/A_{pred}$, fractional nonclosure is $\kappa-1$, and the diagnostic pull denominator is $\sqrt{A_{obs}+\sigma_{pred}^{2}}$.",
             r"The direct-inclusive result applies the ABCD formula to region totals. The binned-sum result sums the six independently calculated bin predictions and their approximate variances.",
-            r"These results quantify validation nonclosure only. They do not constitute a nominal signal-region prediction, a nonclosure correction, or a likelihood result.",
+            tex_escape(phrases["boundary"]) + r" No nonclosure correction or likelihood result is included.",
             r"\end{document}",
         ]
     )
@@ -721,9 +760,11 @@ def main() -> None:
     merge_config = load_yaml(args.merge_config)
     if config["source"]["merge_policy_version"] != merge_config["version"]:
         raise ValueError("Closure and merge-policy versions do not match")
-    allowed, _ = validate_scope(config, merge_config)
+    allowed, audit_regions, _ = validate_scope(config, merge_config)
     edges = [float(edge) for edge in merge_config["merged_regular_bin_edges"]]
-    audit_counts = load_merge_audit(args.merge_audit, merge_config["version"], allowed, edges)
+    audit_counts = load_merge_audit(
+        args.merge_audit, merge_config["version"], audit_regions, edges
+    )
     inputs = load_validation_inputs(
         args.input_table,
         str(config["source"]["table_version"]),
@@ -732,7 +773,7 @@ def main() -> None:
         audit_counts,
     )
     results = calculate_results(config, edges, inputs)
-    plot_paths = make_plots(results, args.output_plot_dir)
+    plot_paths = make_plots(config, results, args.output_plot_dir)
     atomic_text(args.output_csv, csv_content(results))
     atomic_text(
         args.output_markdown,
@@ -740,8 +781,8 @@ def main() -> None:
     )
     atomic_text(args.output_tex, latex_content(config, results, plot_paths))
     print(
-        f"Calculated {len(config['baselines'])} validation constructions with "
-        f"{len(edges) - 1} frozen bins; nominal signal region excluded"
+        f"Calculated {len(config['baselines'])} {scope_phrases(config)['kind']} "
+        f"constructions with {len(edges) - 1} frozen bins"
     )
 
 

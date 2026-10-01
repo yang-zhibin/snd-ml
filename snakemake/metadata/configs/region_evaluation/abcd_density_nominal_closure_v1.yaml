@@ -1,0 +1,72 @@
+version: density_sndsw_scifi_nominal_closure_v1
+description: >
+  Explicitly unblinded arithmetic density-binned diagnostic for the two
+  original Region V1 ABCD constructions. The nominal signal-region data were
+  already inspected and are development data. No nonclosure correction,
+  signal subtraction, likelihood fit, or bin retuning is allowed.
+
+source:
+  table_version: density_sndsw_scifi_analysis_table_v1
+  merge_policy_version: density_sndsw_scifi_abcd_merged_v1
+
+scope:
+  validation_only: false
+  unblinded_signal_region: true
+  excluded_regions: []
+  additional_regions:
+    - region: signal_no_veto_has_us_fiducial_inside
+      label: Signal
+  signal_subtraction: false
+  nonclosure_correction: false
+  likelihood_fit: false
+
+baselines:
+  baseline_1_nominal:
+    label: Baseline 1 nominal signal-region diagnostic
+    roles:
+      A:
+        region: signal_no_veto_has_us_fiducial_inside
+        label: Signal
+      B:
+        region: sideband_has_veto_has_us_fiducial_inside
+        label: SB4
+      C:
+        region: sideband_no_veto_no_us_fiducial_inside
+        label: SB1
+      D:
+        region: sideband_has_veto_no_us_fiducial_inside
+        label: SB5
+  baseline_2_nominal:
+    label: Baseline 2 nominal signal-region diagnostic
+    roles:
+      A:
+        region: signal_no_veto_has_us_fiducial_inside
+        label: Signal
+      B:
+        region: sideband_no_veto_has_us_fiducial_outside
+        label: SB2
+      C:
+        region: sideband_has_veto_no_us_fiducial_inside
+        label: SB5
+      D:
+        region: sideband_has_veto_no_us_fiducial_outside
+        label: SB7
+
+calculation:
+  prediction: (B * C / D) * (L_A * L_D) / (L_B * L_C)
+  transfer_factor: (C / D) * (L_D / L_C)
+  prediction_relative_variance_approximation: 1/B + 1/C + 1/D
+  kappa: A_observed / A_predicted
+  kappa_relative_variance_approximation: 1/A + 1/B + 1/C + 1/D
+  pull_denominator: sqrt(A + prediction_variance)
+  require_positive_counts: true
+  include_direct_inclusive_abcd: true
+  include_sum_of_binned_predictions: true
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/nominal_closure_v1
+  csv: nominal_closure.csv
+  markdown: nominal_closure.md
+  tex: nominal_closure.tex
+  pdf: nominal_closure.pdf
+  plot_directory: plots
