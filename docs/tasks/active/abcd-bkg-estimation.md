@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 03:50 Europe/Zurich
+Last updated: 2026-10-01 04:02 Europe/Zurich
 
 ## Goal
 
@@ -95,10 +95,13 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   materializes raw data, exposure, and all four standard-neutrino MC
   raw/weighted/sumw2/effective-entry quantities without calculating ABCD
   closure or modifying the frozen 500-unit binning.
-- Rendered the Step 3 table as a versioned 31-page LaTeX/PDF report with an
+- Rendered the Step 3 table as a versioned 21-page LaTeX/PDF report with an
   inclusive region summary, inclusive sample-level MC audit, multipage
   per-region density tables, and definitions/formulas for all reported field
-  families. The report contains no ABCD prediction or closure result.
+  families. First-use definitions now appear immediately below the table in
+  which each quantity is introduced, and headings share pages with their
+  corresponding tables. The report contains no ABCD prediction or closure
+  result.
 
 ## Findings and decisions
 
@@ -249,11 +252,13 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   status `PASS`. No ABCD prediction, kappa, closure, or merged-bin column is
   present.
 - The human-readable report products are saved alongside the CSV as
-  `analysis_table_v1.tex` and `analysis_table_v1.pdf`. The PDF is 31 A4 pages
-  and 291491 bytes. It displays each MC yield with its MC-statistical
-  uncertainty `sqrt(sum(w^2))` and defines normalization, effective entries,
-  combined yields, contamination fractions, flow handling, versions, and
-  validation status below the tables.
+  `analysis_table_v1.tex` and `analysis_table_v1.pdf`. The revised PDF is 21
+  A4 pages and 394392 bytes. It displays each MC yield with its MC-statistical
+  uncertainty `sqrt(sum(w^2))`. Definitions for the inclusive quantities are
+  directly below Table 1, normalization and MC-statistical quantities are
+  directly below Table 2, and bin-level quantities are directly below the
+  first per-bin table. Section/subsection headings are no longer stranded on
+  separate empty pages. The complete data dictionary remains at the end.
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -373,6 +378,17 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     table, and definitions for exposure, raw MC, source luminosity, `sum(w)`,
     `sum(w^2)`, effective entries, and validation status. The final dry-run
     was a no-op.
+  - Revised the report layout so landscape sections begin before their
+    headings and added first-use definition blocks directly beneath Tables 1,
+    2, and 3. Regenerated the one-job report target; production log:
+    `.snakemake/log/2026-10-01T035854.766679.snakemake.log`. The first launch
+    attempt stopped before DAG construction because an LCG-activated shell
+    was incorrectly mixed with the Snakemake Conda interpreter
+    (`ModuleNotFoundError: encodings`); it wrote no output. The successful
+    clean-shell run kept Snakemake and the rule's LCG environment separate,
+    completed 1 of 1 steps, and produced a 21-page, 394392-byte A4 PDF.
+    `pdftotext -layout` confirmed the table/definition ordering and table-page
+    headings; the final dry-run reported all outputs up to date.
 
 ## Modified files
 
@@ -438,7 +454,9 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     and LaTeX/PDF output names.
 - `evaluation_region_partitions/make_abcd_density_analysis_report.py`
   - Added validated CSV loading and LaTeX rendering for inclusive, MC-audit,
-    per-bin, and complete definition sections.
+    per-bin, and complete definition sections; later moved headings inside
+    their landscape table pages and placed concise definitions immediately
+    below the first table that introduces each quantity.
 - `snakemake/rules/region_partitions.smk`
   - Added the one-job `region_v1_abcd_density_analysis_report` target with
     two-pass isolated `pdflatex` compilation.
@@ -472,13 +490,15 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   reconstruction checks, `git diff --check`, and final no-op dry-run passed.
 - The report generator compiled, the LaTeX source passed two `pdflatex`
   passes, representative PDF text was readable, requested definitions were
-  present, PDF metadata was valid, and the final report dry-run was a no-op.
+  present immediately below their first-use tables, PDF metadata was valid,
+  the page count decreased from 31 to 21 without empty heading pages, and the
+  final report dry-run was a no-op.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 03:50 Europe/Zurich,
+- At the final check on 2026-10-01 at about 04:00 Europe/Zurich,
   `condor_q -nobatch` reported three unrelated idle jobs (`16300829.0`,
   `16300830.0`, and `16300831.0`) from worktree
   `snd-ml-3d-cnn-testbeam`; this task did not submit or modify them.
@@ -486,11 +506,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `c294b17f44fb1cf63da36729e9e4d68df65f6801`
-  (`feat: materialize Region V1 ABCD analysis table`).
-- Before updating this task record, the worktree contained three uncommitted
-  task-scoped implementation paths and no unrelated user changes. This task
-  record is the fourth task-scoped path intended for the checkpoint commit.
+- HEAD before this checkpoint: `67adb67`
+  (`docs: correct ABCD checkpoint scheduler state`).
+- Before updating this task record, the worktree contained one uncommitted
+  task-scoped implementation path and no unrelated user changes. This task
+  record is the second task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 

@@ -135,8 +135,8 @@ def density_interval(row: dict[str, str]) -> str:
 
 def inclusive_summary(inclusive: list[dict[str, str]]) -> str:
     lines = [
-        r"\section{Inclusive region summary}",
         r"\begin{landscape}",
+        r"\section{Inclusive region summary}",
         r"\begin{longtable}{lrrrrrr}",
         r"\caption{Inclusive data and luminosity-normalized standard-neutrino MC.}\label{tab:inclusive}\\",
         r"\toprule",
@@ -164,14 +164,31 @@ def inclusive_summary(inclusive: list[dict[str, str]]) -> str:
             )
             + r" \\" 
         )
-    lines.extend([r"\bottomrule", r"\end{longtable}", r"\end{landscape}"])
+    lines.extend(
+        [
+            r"\bottomrule",
+            r"\end{longtable}",
+            r"\begin{minipage}{\linewidth}",
+            r"\small\textbf{Definitions used in Table~\ref{tab:inclusive}.}",
+            r"\textbf{Region} is the short label for one of the eight mutually exclusive Region V1 selections. "
+            r"$L_{\mathrm{data}}$ is the real-data exposure represented by that region. "
+            r"$N_{\mathrm{data}}$ is the inclusive unweighted data count. "
+            r"$S_{\mathrm{CC}\nu_e}$ is the luminosity-normalized target-signal MC yield. "
+            r"$B_\nu$ is the sum of the normalized $\mathrm{CC}\nu_\mu$, $\mathrm{NC}\nu_e$, and $\mathrm{NC}\nu_\mu$ background yields. "
+            r"$S+B$ is $S_{\mathrm{CC}\nu_e}+B_\nu$. "
+            r"$S/N_{\mathrm{data}}$ is the nominal $\mathrm{CC}\nu_e$ signal-MC yield divided by the observed data count, reported as a percentage. "
+            r"The MC totals are diagnostic expectations and are not subtracted from data.",
+            r"\end{minipage}",
+            r"\end{landscape}",
+        ]
+    )
     return "\n".join(lines)
 
 
 def inclusive_mc_audit(inclusive: list[dict[str, str]]) -> str:
     lines = [
-        r"\section{Inclusive MC normalization and statistical audit}",
         r"\begin{landscape}",
+        r"\section{Inclusive MC normalization and statistical audit}",
         r"\scriptsize",
         r"\begin{longtable}{llrrrrrr}",
         r"\caption{Per-sample raw entries, normalization, weighted yields, and MC statistical information.}\label{tab:mc-audit}\\",
@@ -202,13 +219,28 @@ def inclusive_mc_audit(inclusive: list[dict[str, str]]) -> str:
                 + r" \\" 
             )
         lines.append(r"\addlinespace")
-    lines.extend([r"\bottomrule", r"\end{longtable}", r"\end{landscape}"])
+    lines.extend(
+        [
+            r"\bottomrule",
+            r"\end{longtable}",
+            r"\begin{minipage}{\linewidth}",
+            r"\small\textbf{Definitions used in Table~\ref{tab:mc-audit}.}",
+            r"\textbf{Sample} identifies the target signal $\mathrm{CC}\nu_e$ or one of the three standard-neutrino backgrounds. "
+            r"$N_{\mathrm{MC}}$ is the unweighted selected MC entry count. "
+            r"$L_{\mathrm{MC}}$ is the complete production's equivalent source luminosity. "
+            r"The constant event normalization is $w=L_{\mathrm{data}}/L_{\mathrm{MC}}$. "
+            r"The expected yield is $\sum w$ and its MC statistical variance is $\sum w^2$. "
+            r"The effective number of MC entries is $N_{\mathrm{eff}}=(\sum w)^2/(\sum w^2)$, or zero when $\sum w^2=0$.",
+            r"\end{minipage}",
+            r"\end{landscape}",
+        ]
+    )
     return "\n".join(lines)
 
 
 def binned_tables(rows: list[dict[str, str]], region_order: list[str]) -> str:
-    sections = [r"\section{Per-bin density tables}"]
-    for region in region_order:
+    sections: list[str] = []
+    for region_index, region in enumerate(region_order):
         region_rows = [
             row
             for row in rows
@@ -217,8 +249,9 @@ def binned_tables(rows: list[dict[str, str]], region_order: list[str]) -> str:
         label = region_rows[0]["region_label"]
         sections.extend(
             [
-                rf"\subsection{{{tex_escape(label)}: {tex_escape(region)}}}",
                 r"\begin{landscape}",
+                *([r"\section{Per-bin density tables}"] if region_index == 0 else []),
+                rf"\subsection{{{tex_escape(label)}: {tex_escape(region)}}}",
                 r"\scriptsize",
                 r"\setlength{\tabcolsep}{3pt}",
                 r"\begin{longtable}{lrrrrrrr}",
@@ -255,7 +288,21 @@ def binned_tables(rows: list[dict[str, str]], region_order: list[str]) -> str:
                 )
                 + r" \\" 
             )
-        sections.extend([r"\bottomrule", r"\end{longtable}", r"\end{landscape}"])
+        sections.extend([r"\bottomrule", r"\end{longtable}"])
+        if region_index == 0:
+            sections.extend(
+                [
+                    r"\begin{minipage}{\linewidth}",
+                    r"\small\textbf{Definitions first used in the per-bin tables.}",
+                    r"\textbf{Density interval} is a lower-inclusive, upper-exclusive bin of \texttt{density\_sndsw\_scifi}; the separate underflow row contains $x<0$. "
+                    r"\textbf{Data} is the raw integer event count in the bin. "
+                    r"Each sample column displays the normalized yield $Y=\sum w$ followed by its MC-only statistical uncertainty $\sqrt{\sum w^2}$. "
+                    r"$B_\nu$ and $S+B$ have the meanings defined below Table~\ref{tab:inclusive}; their variances are sums of the independent component $\sum w^2$ values. "
+                    r"Overflow is already folded into the final interval $39{,}500$--$40{,}000$.",
+                    r"\end{minipage}",
+                ]
+            )
+        sections.append(r"\end{landscape}")
     return "\n".join(sections)
 
 
@@ -266,7 +313,7 @@ def definitions(input_table: str, rows: list[dict[str, str]]) -> str:
         sample_lines.append(rf"\item {display} (\texttt{{{tex_escape(key)}}}): {role}.")
     return "\n".join(
         [
-            r"\section{Definitions and calculation methods}",
+            r"\section{Complete data dictionary and calculation methods}",
             r"\sloppy",
             r"\subsection{Scope}",
             r"This report is a human-readable rendering of the validated Step~3 input table. It does not contain an ABCD prediction, transfer factor, $\kappa$, closure test, merged binning, hypothesis test, or likelihood fit.",
