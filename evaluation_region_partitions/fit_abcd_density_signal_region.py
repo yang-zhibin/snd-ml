@@ -373,6 +373,7 @@ def two_dimensional_likelihood(
 
 def save_cabinetry_plots(
     output_directory: Path,
+    config: dict,
     model: pyhf.pdf.Model,
     data: list[float],
     fit_results,
@@ -380,6 +381,18 @@ def save_cabinetry_plots(
     alpha_scan,
 ) -> None:
     output_directory.mkdir(parents=True, exist_ok=True)
+    bin_edges = [float(edge) for edge in config["source"]["merged_regular_bin_edges"]]
+    if len(bin_edges) != model.config.nmaindata + 1:
+        raise ValueError("Density bin edges do not match the model bin count")
+    cabinetry_plot_config = {
+        "Regions": [
+            {
+                "Name": str(config["model"]["channel"]),
+                "Variable": str(config["source"]["observable"]),
+                "Binning": bin_edges,
+            }
+        ]
+    }
     parameter_labels = list(model.config.par_names)
     before_values = np.asarray(model.config.suggested_init(), dtype=float)
     before_values[parameter_labels.index("alpha_bkg")] = 1.0
@@ -404,7 +417,11 @@ def save_cabinetry_plots(
         ("postfit", postfit),
     ):
         plots = cabinetry.visualize.data_mc(
-            prediction, data, save_figure=False, close_figure=False
+            prediction,
+            data,
+            config=cabinetry_plot_config,
+            save_figure=False,
+            close_figure=False,
         )
         if not plots or len(plots) != 1:
             raise ValueError("Expected exactly one cabinetry data/MC figure")
@@ -808,7 +825,10 @@ def latex_report(
                 r"$\mu=0$. \textbf{Pre-fit} is the standard configured nominal "
                 r"model at $\alpha_{\mathrm{bkg}}=1$, $\mu=1$. "
                 r"\textbf{Post-fit} uses the simultaneous maximum-likelihood "
-                r"estimates."
+                r"estimates. The horizontal axis uses the physical "
+                r"\texttt{density\_scifi\_sndsw} edges "
+                r"$[0,500,1000,1500,2000,3000,40000]$; consequently the bins "
+                r"are drawn with their true unequal widths."
             ),
         ]
     )
@@ -922,7 +942,7 @@ def main() -> None:
 
     plot_directory = Path(args.output_plot_dir)
     save_cabinetry_plots(
-        plot_directory, model, data, fit_results, mu_scan, alpha_scan
+        plot_directory, config, model, data, fit_results, mu_scan, alpha_scan
     )
     save_two_dimensional_plot(
         plot_directory,

@@ -8,6 +8,7 @@ description: >
 source:
   baseline: baseline_2_nominal
   row_type: bin
+  observable: density_scifi_sndsw
   expected_roles:
     A: signal_no_veto_has_us_fiducial_inside
     B: sideband_no_veto_has_us_fiducial_outside

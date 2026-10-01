@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 11:25 Europe/Zurich
+Last updated: 2026-10-01 11:37 Europe/Zurich
 
 ## Goal
 
@@ -133,6 +133,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   tables, runtime/tool setup, a distinct raw-ABCD before-fit plot, cabinetry
   pre-fit and post-fit plots, both profile-likelihood scans, the two-parameter
   likelihood surface, the correlation plot, and the interpretation boundary.
+- Corrected the before-fit, pre-fit, and post-fit comparison plots to use
+  `density_scifi_sndsw` as the physical x-axis with the frozen unequal edges
+  `[0, 500, 1000, 1500, 2000, 3000, 40000]`, rather than six equal-width bin
+  indices. The cabinetry predictions, fitted parameters, and likelihood are
+  unchanged.
 
 ## Findings and decisions
 
@@ -250,6 +255,9 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   `alpha_bkg=1, mu=1`; and `post-fit` uses the simultaneous maximum-likelihood
   estimates. Cabinetry draws all three statistical comparisons. ROOT was used
   in upstream histogram materialization, not to refit or redraw this model.
+- The comparison plots must preserve the physical density-bin widths. The
+  final `[3000,40000)` tail therefore occupies its actual x range; equal-width
+  categorical bins are not used for these three plots.
 
 ## Results and evidence
 
@@ -646,6 +654,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     `mu=3.134482636180059e-05`, and goodness-of-fit `p=0`. The scan CSVs
     contain 81, 89, and 6561 rows as configured. The final target dry-run was
     a no-op and `git diff --check` passed.
+  - The physical-axis correction completed 1 of 1 local steps; final log:
+    `.snakemake/log/2026-10-01T113535.219832.snakemake.log`. Extracted text
+    from all three comparison PDFs contains `density_scifi_sndsw` and the
+    40000 endpoint, the report states that true unequal widths are used, and
+    the final Snakemake dry-run was a no-op.
 
 ## Modified files
 
@@ -662,13 +675,14 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - `snakemake/metadata/configs/region_evaluation/abcd_density_signal_region_fit_v1.yaml`
   - Added the frozen source mapping, six-bin model, global background and
     signal parameters, fit/scan settings, scope boundary, and output paths;
-    now also declares the LaTeX and PDF report outputs.
+    now also declares the physical observable name and LaTeX/PDF outputs.
 - `evaluation_region_partitions/fit_abcd_density_signal_region.py`
   - Added strict source validation, workspace construction, cabinetry fit,
     pre/post-fit predictions, goodness-of-fit, correlation and likelihood
     scans, deterministic plots, and atomic machine-readable/report outputs.
     It now also creates the raw-ABCD before-fit prediction and the complete
-    LaTeX report.
+    LaTeX report, passing the physical observable and unequal bin edges to
+    cabinetry visualization.
 - `snakemake/rules/region_partitions.smk`
   - Added the focused one-job
     `region_v1_abcd_density_signal_region_fit` target using the documented LCG
@@ -837,23 +851,27 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   checks verified all nine declared non-plot artifacts, 14 nonempty plot
   files, exact fit values, configured scan-grid sizes, required report
   sections, `git diff --check`, and a final no-op dry-run.
+- All three corrected comparison PDFs expose `density_scifi_sndsw` on the
+  x-axis from 0 to 40000 and use the configured variable edges. The regenerated
+  seven-page report passed two LaTeX runs, text checks, `git diff --check`, and
+  a final no-op dry-run; numerical fit results were unchanged.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 11:24 Europe/Zurich,
+- At the final check on 2026-10-01 at about 11:36 Europe/Zurich,
   `condor_q -nobatch` reported zero jobs for the user. This ABCD task submitted
   no scheduler jobs.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `d03a374`
-  (`feat: add ABCD signal-region cabinetry fit`).
-- Before updating this task record, the worktree contained three task-scoped
+- HEAD before this checkpoint: `9cc70d1`
+  (`feat: add ABCD fit PDF report`).
+- Before updating this task record, the worktree contained two task-scoped
   implementation paths and no unrelated user changes. This task record is the
-  fourth task-scoped path intended for the checkpoint commit.
+  third task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 
