@@ -213,8 +213,15 @@ def main() -> None:
         assert "Independent validation-plane one-bin closure" in markdown
         assert "A'obs residual" in markdown
         assert r"$A'_{\rm pred}\pm\sigma_{\rm pred}$" in latex
-        assert r"fractional nonclosure is $\kappa_{\rm val}-1$" in latex
+        assert r"The fractional quantity $\kappa_{\rm val}-1$" in latex
         assert "signal-region A data" in latex
+        assert latex.count(r"\textbf{Definition:}") >= 30
+        assert latex.count(r"\textbf{Why it is used:}") >= 30
+        assert latex.count(r"\textbf{Interpretation:}") >= 30
+        for step in range(1, 9):
+            assert rf"Step {step}:" in latex
+        for reference in ("histfactory", "choi-oh", "cowan", "pyhf"):
+            assert rf"\bibitem{{{reference}}}" in latex
 
         manifest = root / "freeze_manifest.json"
         manifest.write_text(json.dumps({
