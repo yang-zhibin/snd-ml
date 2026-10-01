@@ -147,6 +147,26 @@ ABCD_DENSITY_REPORT_PLOT_DIR = (
     f"{ABCD_DENSITY_REPORT_OUTPUT_DIR}/"
     f"{ABCD_DENSITY_REPORT['output']['normalized_plot_directory']}"
 )
+ABCD_DENSITY_MERGE_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_density_merged_binning_v1.yaml"
+)
+
+with open(ABCD_DENSITY_MERGE_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DENSITY_MERGE = yaml.safe_load(handle)
+
+ABCD_DENSITY_MERGE_OUTPUT_DIR = ABCD_DENSITY_MERGE["output"]["directory"]
+if not os.path.isabs(ABCD_DENSITY_MERGE_OUTPUT_DIR):
+    ABCD_DENSITY_MERGE_OUTPUT_DIR = (
+        f"{PERSONAL_WORK_SPACE}/{ABCD_DENSITY_MERGE_OUTPUT_DIR}"
+    )
+ABCD_DENSITY_MERGE_CSV = (
+    f"{ABCD_DENSITY_MERGE_OUTPUT_DIR}/{ABCD_DENSITY_MERGE['output']['csv']}"
+)
+ABCD_DENSITY_MERGE_MARKDOWN = (
+    f"{ABCD_DENSITY_MERGE_OUTPUT_DIR}/"
+    f"{ABCD_DENSITY_MERGE['output']['markdown']}"
+)
 
 
 def _sanitize_partition_name(value):
@@ -568,6 +588,45 @@ rule region_v1_abcd_density_analysis_report:
         pdflatex -interaction=nonstopmode -halt-on-error \
           -output-directory "$report_build_dir" {output.tex}
         cp "$report_build_dir/{params.pdf_name}" {output.pdf}
+        """
+
+
+rule region_v1_abcd_density_merge_policy:
+    input:
+        config=ABCD_DENSITY_MERGE_CONFIG,
+        script=(
+            f"{Path(workflow.basedir).parent}/evaluation_region_partitions/"
+            "audit_abcd_density_merge_policy.py"
+        ),
+    output:
+        csv=ABCD_DENSITY_MERGE_CSV,
+        markdown=ABCD_DENSITY_MERGE_MARKDOWN,
+    params:
+        table=ABCD_DENSITY_TABLE_CSV,
+    resources:
+        runtime=5 * 60,
+        mem_mb=500,
+        disk_mb=500,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import yaml; print(yaml.__version__)' >&2
+
+        python3 {input.script} \
+          --input-table {params.table} \
+          --config {input.config} \
+          --output-csv {output.csv} \
+          --output-markdown {output.markdown}
         """
 
 

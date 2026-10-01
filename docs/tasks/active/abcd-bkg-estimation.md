@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 04:09 Europe/Zurich
+Last updated: 2026-10-01 04:23 Europe/Zurich
 
 ## Goal
 
@@ -106,6 +106,11 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   tables. Each plot compares Data, target `CC_nue`, summed neutrino background,
   and total standard-neutrino MC, and is followed by the exact normalization
   formula and flow policy. The revised report is 29 pages.
+- Froze the sideband-only sparse-tail policy as
+  `density_sndsw_scifi_abcd_merged_v1`. It uses six common regular bins with
+  edges `[0, 500, 1000, 1500, 2000, 3000, 40000]`; every one of SB1--SB7 has
+  at least 50 raw events in each bin. The selection did not use the signal
+  region, an ABCD prediction, or a closure result.
 
 ## Findings and decisions
 
@@ -148,8 +153,16 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   is not used for Region V1 ABCD counts. The new Region V1 density histograms
   contain raw unit-weight data counts and store exposure as metadata.
 - The initial 500-unit density binning is now versioned and reproducible. It
-  is suitable for materializing counts, but sparse-tail merging must still be
-  decided before a final binned likelihood.
+  remains the materialization binning. The frozen closure-study binning is
+  `density_sndsw_scifi_abcd_merged_v1`: `[0,500)`, `[500,1000)`,
+  `[1000,1500)`, `[1500,2000)`, `[2000,3000)`, and `[3000,40000)`, with
+  underflow separate and overflow already folded into the final bin.
+- The merge policy requires at least 50 raw events in every selected sideband
+  per regular bin. The conservative four-count design proxy is therefore at
+  most `sqrt(4/50) = 0.2829`, below the frozen 0.30 target. This is only a
+  bin-design bound; it is not a closure calculation or the uncertainty model
+  for the final likelihood. The edges must not be retuned after closure is
+  inspected.
 - The report's normalized plots are shape-only diagnostics. For each curve
   `c`, regular-bin fractions are `f[c,i] = y[c,i] / sum_j(y[c,j])`, normalized
   independently over the 80 regular bins. Data use raw counts; MC use the
@@ -272,6 +285,12 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   `normalized_distribution_plots_v1/` and embedded after their corresponding
   region tables; each has its normalization explanation directly beneath it.
   The complete data dictionary remains at the end.
+- The frozen merge-policy evidence is saved under
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/merged_binning_v1/`
+  as `sideband_count_audit.csv` and `sideband_count_audit.md`. The CSV has 42
+  rows (six bins times seven sidebands), contains no signal/prediction/closure
+  fields, and reports `PASS` throughout. Per-bin minimum sideband counts are
+  25132, 548, 133, 66, 50, and 52.
 
 - The cited ABCD guide requires at least a nominal ABCD plane plus an
   independent validation construction. If a nonclosure correction or
@@ -411,12 +430,24 @@ I would like to do is to apply the ABCD method to estimate the background in sig
     29 A4 pages and 921042 bytes; eight PNG files were present, and
     `pdftotext -layout` found eight plot headings and eight normalization
     explanations. The final dry-run was a no-op.
+  - Inspected only SB1--SB7 raw regular-bin counts from the Step 3 table and
+    compared deterministic minimum-count thresholds of 10, 25, and 50. Froze
+    50 because `sqrt(4/50)=0.2829` satisfies the predeclared 0.30 design target.
+  - Under LCG 107 (Python 3.11.9, PyYAML 6.0.1), compiled and preview-ran
+    `audit_abcd_density_merge_policy.py`; it reproduced all six frozen bins
+    and wrote a 42-row audit. The focused Snakemake dry-run scheduled exactly
+    one local job and no upstream production. Production completed 1 of 1
+    steps; log: `.snakemake/log/2026-10-01T042128.439013.snakemake.log`.
+  - An independent output check verified exactly seven sideband labels, six
+    bins, minimum count 50, all statuses `PASS`, and no closure, prediction,
+    kappa, or signal fields. The final dry-run was a no-op.
 
 ## Modified files
 
 - `docs/analysis/regions/REGION_V1_ABCD_BASELINE_PLAN.md`
   - Added the approved two-baseline plan, validation mappings, signal leakage,
-    density binning, required outputs, and interpretation rules.
+    density binning, required outputs, and interpretation rules; recorded the
+    frozen sideband-only merged edges and no-retuning rule.
 - `docs/analysis/regions/REGION_V1_ABCD_STATISTICAL_LIKELIHOOD_GUIDE.md`
   - Added the from-scratch likelihood derivation, current arithmetic results,
     profile-likelihood outline, and `cabinetry` / `pyhf` workflow boundary.
@@ -485,6 +516,17 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   - Added the one-job `region_v1_abcd_density_analysis_report` target with
     two-pass isolated `pdflatex` compilation; the rule now declares the plot
     directory and preflights Matplotlib.
+- `snakemake/metadata/configs/region_evaluation/abcd_density_merged_binning_v1.yaml`
+  - Added the selected/excluded regions, deterministic minimum-50 merge
+    algorithm, six frozen regular bins, flow policy, freeze declarations, and
+    versioned audit outputs.
+- `evaluation_region_partitions/audit_abcd_density_merge_policy.py`
+  - Added sideband-only source validation, deterministic edge reconstruction,
+    minimum-count and conservation checks, and atomic CSV/Markdown evidence.
+- `snakemake/rules/region_partitions.smk`
+  - Added the focused `region_v1_abcd_density_merge_policy` rule, keeping the
+    existing Step 3 table as a parameter so this audit cannot regenerate
+    upstream products.
 
 ## Validation
 
@@ -520,24 +562,28 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   finite/nonnegative input, positive-total, and sum-to-one checks; eight PNGs
   were embedded, all eight normalization explanations were present, and the
   final report dry-run was a no-op.
+- The merge-policy auditor compiled and passed an isolated preview, the
+  production one-job target, an independent schema/content audit, count
+  conservation and minimum-count checks, `git diff --check`, and a final
+  no-op dry-run. No closure quantity was produced.
 
 ## Running jobs
 
 - This task has no scheduler jobs. Its histograms were produced by local
   Snakemake jobs.
-- At the final check on 2026-10-01 at about 04:08 Europe/Zurich,
-  `condor_q -nobatch` reported three unrelated idle jobs (`16300829.0`,
-  `16300830.0`, and `16300831.0`) from worktree
+- At the final check on 2026-10-01 at about 04:22 Europe/Zurich,
+  `condor_q -nobatch` reported three unrelated jobs (`16300829.0` running;
+  `16300830.0` and `16300831.0` idle) from worktree
   `snd-ml-3d-cnn-testbeam`; this task did not submit or modify them.
 
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before this checkpoint: `a21add6`
-  (`fix: improve Region V1 analysis report layout`).
-- Before updating this task record, the worktree contained three uncommitted
+- HEAD before this checkpoint: `cc0a523`
+  (`feat: add normalized Region V1 density plots`).
+- Before updating this task record, the worktree contained four uncommitted
   task-scoped implementation paths and no unrelated user changes. This task
-  record is the fourth task-scoped path intended for the checkpoint commit.
+  record is the fifth task-scoped path intended for the checkpoint commit.
 
 ## Blockers and open questions
 
@@ -546,13 +592,14 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 - Baseline 2 requires quantitative density- and run-dependent validation and
   an independent secondary validation before any nonclosure correction can be
   transported to the signal region.
-- The initial 500-unit `density_sndsw_scifi` binning and flow policy are
-  frozen. The final sparse-tail merge policy remains pending until the
-  per-bin control-region statistics are tabulated.
+- Formal density-binned validation closure has not yet been calculated. Its
+  implementation must use the frozen merged edges without retuning them.
 
 ## Exact next action
 
-Using only control/validation-region counts in the saved Step 3 table, propose
-and freeze a versioned sparse-tail merge policy for `density_sndsw_scifi`.
-Do not inspect or calculate nominal signal-region closure, calculate either
-baseline's validation closure, or implement the likelihood in the same action.
+Using the frozen `density_sndsw_scifi_abcd_merged_v1` edges, implement and run
+the arithmetic density-binned closure for the two validation constructions
+only: Baseline 1 outside-fiducial and Baseline 2 mixed-category. Keep the
+nominal signal-region closure uncalculated, do not retune the merged edges,
+and do not apply a nonclosure correction or implement the likelihood in the
+same action.

@@ -168,6 +168,29 @@ fine in the tail. The binning must be common to all regions, merge sparse tail
 bins, and document underflow/overflow handling. Record raw counts, weighted
 yields, sum of squared weights, and effective counts.
 
+### Frozen sideband-only merged binning
+
+The versioned policy `density_sndsw_scifi_abcd_merged_v1` was frozen using
+only raw regular-bin counts from SB1--SB7. The signal-region distribution,
+ABCD predictions, and closure results were not used. Starting from the 80
+500-unit bins, the policy preserves consecutive bins from zero while every
+sideband has at least 50 events, then merges the remaining tail from high to
+low until the same criterion holds in every common bin. The frozen regular-bin
+edges are:
+
+```text
+[0, 500, 1000, 1500, 2000, 3000, 40000]
+```
+
+Thus the six regular bins are `[0,500)`, `[500,1000)`, `[1000,1500)`,
+`[1500,2000)`, `[2000,3000)`, and `[3000,40000)`. The final bin includes
+the already-folded overflow. Underflow remains separate and is not subject to
+the minimum-count criterion. Every sideband has at least 50 raw events in
+each regular bin. This bounds the conservative four-count statistical design
+proxy at `sqrt(4/50) = 0.2829`, below the frozen 0.30 target; it is not a
+closure calculation or the uncertainty model for the final likelihood. These
+edges must not be retuned after inspecting closure.
+
 ## Required outputs
 
 For each baseline produce:

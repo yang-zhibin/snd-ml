@@ -1,0 +1,71 @@
+version: density_sndsw_scifi_abcd_merged_v1
+description: >
+  Sideband-only sparse-tail merge policy for Region V1 ABCD density studies.
+  The policy was frozen before formal binned closure calculation and does not
+  use the signal-region distribution, an ABCD prediction, or a closure result.
+
+source:
+  table_version: density_sndsw_scifi_analysis_table_v1
+  binning_version: density_sndsw_scifi_v1
+  regular_bins: 80
+  min: 0.0
+  max: 40000.0
+  bin_width: 500.0
+
+selection:
+  regions:
+    - region: sideband_no_veto_no_us_fiducial_inside
+      label: SB1
+    - region: sideband_no_veto_has_us_fiducial_outside
+      label: SB2
+    - region: sideband_no_veto_no_us_fiducial_outside
+      label: SB3
+    - region: sideband_has_veto_has_us_fiducial_inside
+      label: SB4
+    - region: sideband_has_veto_no_us_fiducial_inside
+      label: SB5
+    - region: sideband_has_veto_has_us_fiducial_outside
+      label: SB6
+    - region: sideband_has_veto_no_us_fiducial_outside
+      label: SB7
+  excluded_regions:
+    - signal_no_veto_has_us_fiducial_inside
+
+policy:
+  mode: common_sideband_minimum_count_tail_merge
+  minimum_raw_data_count_per_sideband: 50
+  maximum_four_count_relative_statistical_design_proxy: 0.30
+  algorithm:
+    - Preserve consecutive 500-unit bins from zero while every selected sideband has at least 50 raw events.
+    - From 40000 downward, merge adjacent remaining bins until every selected sideband has at least 50 raw events.
+    - Merge any insufficient low-edge remainder with its adjacent merged tail bin.
+    - Apply the resulting common edges unchanged to every analysis region.
+  rationale: >
+    Requiring at least 50 events in every selected sideband bounds the
+    conservative four-count relative statistical proxy sqrt(4/50) to 0.2829,
+    below the frozen 0.30 target. This is a bin-design criterion, not a closure
+    calculation or uncertainty model for the final likelihood.
+
+merged_regular_bin_edges:
+  - 0.0
+  - 500.0
+  - 1000.0
+  - 1500.0
+  - 2000.0
+  - 3000.0
+  - 40000.0
+
+flow_policy:
+  underflow: separate_not_subject_to_minimum_count
+  overflow: folded_into_last_regular_bin
+
+freeze:
+  selected_without_signal_region: true
+  selected_without_abcd_prediction: true
+  selected_without_closure_result: true
+  do_not_retune_after_closure_inspection: true
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/merged_binning_v1
+  csv: sideband_count_audit.csv
+  markdown: sideband_count_audit.md
