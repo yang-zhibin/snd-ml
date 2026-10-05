@@ -1,0 +1,26 @@
+version: em_shower_neutrino_v1
+description: Isolated 2024 MC-neutrino production for SciFi shower clustering studies.
+
+source_metadata:
+  - /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_ve_metadata.csv
+  - /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_vm_metadata.csv
+
+outputs:
+  feature_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/features
+  partition_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/partitions
+  hist_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/hists
+  workspace_root: evaluation_region_partitions/em_shower_neutrino_v1
+
+feature:
+  tree_name: cbmsim
+  data_type: MC_neutrino
+  filename_template: feature_scifi_cluster_v1_MC_neutrino_{subfolder}_{partition}.root
+  require_external_cutflow: true
+
+partition_count: 10
+classes:
+  - CC_nue
+  - CC_numu
+  - NC_nue
+  - NC_numu
+

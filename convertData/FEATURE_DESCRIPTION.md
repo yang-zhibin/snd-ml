@@ -41,6 +41,7 @@ z
 px
 py
 pz
+mc_incoming_energy
 ```
 
 These are MC truth-level quantities.
@@ -50,6 +51,10 @@ tracks exist.
 
 `px`, `py`, `pz`: truth momentum from `MCTrack[0]` when at least one MC track
 exists.
+
+`mc_incoming_energy`: truth energy from `MCTrack[0].GetEnergy()` when at least
+one MC track exists. This is the incoming neutrino energy for the 2024
+neutrino MC samples.
 
 For real data these remain at the sentinel value `-999`.
 
@@ -809,3 +814,31 @@ vetoHits
 ```
 
 They are no longer written.
+
+### 14. SciFi orientation-cluster shower features
+
+Selected, valid, time-filtered SciFi hits are clustered independently in each
+station and orientation. A cluster is a maximal run in
+`layer_channel = channel + 128 * sipm + 512 * mat`; therefore consecutive
+channels across die, SiPM, and mat boundaries remain connected, while a truly
+missing channel splits the run.
+
+All clusters from the five planes of an orientation are ranked by integrated
+QDC, then hit count, station, and first channel. The first two are stored under
+`scifi_{vertical|horizontal}_cluster{1|2}_*`. These branches include hit/QDC
+totals, per-hit QDC, plane and orientation fractions, population QDC standard
+deviation and CV, and normalized adjacent-channel roughness. The remaining
+clusters are represented by `other_cluster_*` summaries; no variable-length
+cluster vectors are written.
+
+Each orientation also records fragmentation effective counts, across-cluster
+population statistics, five-station hit/QDC/cluster fractions, weighted station
+moments, maxima, and quadratic-profile slope and curvature. Event branches
+compare vertical and horizontal totals and provide exact all-cluster and
+remaining-cluster closure.
+
+Missing cluster slots use `exists=0`, station `-999`, zero
+sums/fractions/ratios, and `-999` for unavailable shape values. Zero
+denominators produce zero. Unavailable station moments and fit coefficients use
+`-999`. Output files carry
+`metadata_scifi_cluster_schema=scifi_orientation_clusters_v1`.

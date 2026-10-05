@@ -134,6 +134,7 @@ include: "rules/data_driven_3d_cnn_muondis_features.smk"
 include: "rules/data_driven_3d_classifier_training.smk"
 include: "rules/train.smk"
 include: "rules/region_evaluation.smk"
+include: "rules/em_shower_neutrino_evaluation.smk"
 include: "rules/region_v2_inspection_inputs.smk"
 include: "rules/region_v2_inspection_plots.smk"
 

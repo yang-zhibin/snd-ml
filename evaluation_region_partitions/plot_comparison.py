@@ -870,7 +870,7 @@ def build_curves_for_page(
         hist_scaled, scale_factor = normalized_hist_for_plot(
             source_hist=loaded["hist"],
             clone_name=f"h_scaled_{safe_name(item['group_name'])}",
-            feature_cfg=hist_cfg["features"][args.feature],
+            feature_cfg=get_feature_config(hist_cfg, args.feature),
             reference_lumi_value=reference_lumi_value,
             lumi=lumi,
         )
@@ -940,7 +940,7 @@ def build_curves_for_items(
         hist_scaled, scale_factor = normalized_hist_for_plot(
             source_hist=loaded["hist"],
             clone_name=f"h_scaled_{safe_name(item['group_name'])}_{index}",
-            feature_cfg=hist_cfg["features"][args.feature],
+            feature_cfg=get_feature_config(hist_cfg, args.feature),
             reference_lumi_value=reference_lumi_value,
             lumi=lumi,
         )
@@ -1271,7 +1271,7 @@ def build_curves_for_overall_overlay(
             continue
 
         scale_factor = "per_source_lumi"
-        if plot_normalization(hist_cfg["features"][feature]) == "unit_area":
+        if plot_normalization(get_feature_config(hist_cfg, feature)) == "unit_area":
             integral = float(combined_hist.Integral())
             unit_area_scale = 1.0 / integral if integral > 0.0 else 1.0
             combined_hist.Scale(unit_area_scale)

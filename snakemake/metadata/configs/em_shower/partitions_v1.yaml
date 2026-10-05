@@ -1,0 +1,137 @@
+partition_version: em_shower_partition_v1
+description: Feature-only partitions for the isolated EM-shower neutrino comparison.
+seed: null
+shuffle: false
+split_method: contiguous_chunks_in_source_order
+fraction_selection: first_n_in_source_order
+
+products:
+  feature: {enabled: true, default_process: true}
+  hit3d: {enabled: false, default_process: false}
+
+input:
+  feature_tree: sndData
+  cutflow_tree: cutFlowSummary
+  hit3d_tree: hit3D
+
+alignment:
+  mode: entrywise
+  keys: [runId, eventId, eventIndex]
+  require_same_entries: true
+  fail_on_mismatch: true
+
+event_identity:
+  preserve_source_file_index: true
+  event_uid_template: "{source_metadata_file}:{source_feature_path}:{original_entry}"
+  unique_keys: [source_metadata_file, source_feature_path, original_entry, runId, eventId, eventIndex]
+
+output:
+  root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/partitions
+  metadata_csv: evaluation_region_partitions/em_shower_neutrino_v1/metadata/partitions.csv
+  feature_prefix: feature
+  hit3d_prefix: hit3d
+  compression_level: 1
+  write_only_non_empty_partitions: true
+  copy_event_identity_branches: true
+  write_cutflow: true
+  added_event_branches: [event_uid, original_entry, source_file_index, particle_group, particle_id]
+
+performance:
+  rdf_threads: 4
+
+validation:
+  skip_missing_files: false
+  check_entry_counts: false
+
+grouping:
+  group_by: [region, particle_group]
+  output_partition_id_template: "{region}__{particle_group}__part{part_index:03d}"
+
+defaults:
+  process: true
+  produce_feature: true
+  produce_hit3d: false
+  n_partitions: 10
+  fraction: 1.0
+  max_events: null
+
+classification:
+  particle_id_branch: particle_id
+  particle_group_branch: particle_group
+  labels: {CC_nue: 1, CC_numu: 2, NC_nue: 3, NC_numu: 4}
+
+particle_group_rules:
+  CC_nue:
+    source_data_type: MC_neutrino
+    source_subfolders: [2024_ve]
+    particle_id: 1
+    particle_family: neutrino
+    interaction: CC
+    flavor: nue
+    event_filter: "(pdgCode == 12 || pdgCode == -12)"
+  CC_numu:
+    source_data_type: MC_neutrino
+    source_subfolders: [2024_vm]
+    particle_id: 2
+    particle_family: neutrino
+    interaction: CC
+    flavor: numu
+    event_filter: "(pdgCode == 14 || pdgCode == -14)"
+  NC_nue:
+    source_data_type: MC_neutrino
+    source_subfolders: [2024_ve]
+    particle_id: 3
+    particle_family: neutrino
+    interaction: NC
+    flavor: nue
+    event_filter: "(pdgCode == 112 || pdgCode == -112)"
+  NC_numu:
+    source_data_type: MC_neutrino
+    source_subfolders: [2024_vm]
+    particle_id: 4
+    particle_family: neutrino
+    interaction: NC
+    flavor: numu
+    event_filter: "(pdgCode == 114 || pdgCode == -114)"
+
+regions:
+  inclusive_selected: {process: true}
+  scifi35: {process: true}
+  signal_region: {process: true}
+
+metadata_columns:
+  required: [data_type, subfolder, partition, output_base_path, feature_path, hit3d_path]
+  optional: [lumi_per_file, source_metadata_file]
+
+metadata_output_columns:
+  - partition_version
+  - region_version
+  - region
+  - particle_group
+  - particle_family
+  - particle_id
+  - partition_id
+  - feature_partition_path
+  - hit3d_partition_path
+  - feature_available
+  - hit3d_available
+  - hit3d_required
+  - products_written
+  - n_events
+  - lumi_per_partition
+  - fraction
+  - max_events
+  - n_partitions_requested
+  - n_partitions_written
+  - selection_expression
+  - particle_filter_expression
+  - source_metadata_csv
+  - source_feature_paths
+  - source_hit3d_paths
+  - source_file_indices
+  - first_original_entry
+  - last_original_entry
+  - shuffle
+  - split_method
+  - seed
+

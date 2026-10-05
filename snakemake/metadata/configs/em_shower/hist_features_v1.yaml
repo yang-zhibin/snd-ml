@@ -1,0 +1,209 @@
+version: em_shower_hist_features_v1
+description: Curated SciFi clustering observables for four-class neutrino comparisons.
+
+defaults:
+  fold_underflow: false
+  fold_overflow: true
+  feature_cut: ""
+  plot_normalization: unit_area
+  logy: false
+
+features:
+  count_scifi:
+    x_min: 0
+    x_max: 1000
+    bin_width: 20
+    axis_title: Selected SciFi hits
+  qdc_scifi:
+    x_min: 0
+    x_max: 10000
+    bin_width: 200
+    axis_title: Total selected SciFi QDC
+  scifi_cluster_qdc_per_hit:
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: All-cluster SciFi QDC / hit
+  scifi_cluster_total_count:
+    x_min: 0
+    x_max: 100
+    bin_width: 2
+    axis_title: SciFi cluster count
+  scifi_other_clusters_qdc_fraction:
+    x_min: 0
+    x_max: 1
+    bin_width: 0.025
+    axis_title: Other-cluster QDC fraction
+
+  scifi_vertical_cluster1_nhits: &cluster_nhits
+    x_min: 0
+    x_max: 500
+    bin_width: 10
+    axis_title: Vertical leading-cluster hits
+    feature_cut: scifi_vertical_cluster1_exists == 1
+  scifi_horizontal_cluster1_nhits:
+    <<: *cluster_nhits
+    axis_title: Horizontal leading-cluster hits
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+  scifi_vertical_cluster1_qdc_per_hit: &cluster_qdc_per_hit
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Vertical leading-cluster QDC / hit
+    feature_cut: scifi_vertical_cluster1_exists == 1
+  scifi_horizontal_cluster1_qdc_per_hit:
+    <<: *cluster_qdc_per_hit
+    axis_title: Horizontal leading-cluster QDC / hit
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+  scifi_vertical_cluster1_orientation_qdc_fraction: &leading_fraction
+    x_min: 0
+    x_max: 1
+    bin_width: 0.025
+    axis_title: Vertical leading-cluster QDC fraction
+    feature_cut: scifi_vertical_cluster1_exists == 1
+  scifi_horizontal_cluster1_orientation_qdc_fraction:
+    <<: *leading_fraction
+    axis_title: Horizontal leading-cluster QDC fraction
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+  scifi_vertical_cluster1_qdc_cv: &shape
+    x_min: 0
+    x_max: 2
+    bin_width: 0.04
+    axis_title: Vertical leading-cluster QDC CV
+    feature_cut: scifi_vertical_cluster1_exists == 1
+  scifi_horizontal_cluster1_qdc_cv:
+    <<: *shape
+    axis_title: Horizontal leading-cluster QDC CV
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+  scifi_vertical_cluster1_qdc_roughness:
+    <<: *shape
+    axis_title: Vertical leading-cluster QDC roughness
+    feature_cut: scifi_vertical_cluster1_exists == 1
+  scifi_horizontal_cluster1_qdc_roughness:
+    <<: *shape
+    axis_title: Horizontal leading-cluster QDC roughness
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+
+  scifi_vertical_effective_qdc_cluster_count: &effective_count
+    x_min: 0
+    x_max: 20
+    bin_width: 0.4
+    axis_title: Vertical effective QDC cluster count
+  scifi_horizontal_effective_qdc_cluster_count:
+    <<: *effective_count
+    axis_title: Horizontal effective QDC cluster count
+  scifi_vertical_other_cluster_qdc_fraction: &other_fraction
+    x_min: 0
+    x_max: 1
+    bin_width: 0.025
+    axis_title: Vertical other-cluster QDC fraction
+  scifi_horizontal_other_cluster_qdc_fraction:
+    <<: *other_fraction
+    axis_title: Horizontal other-cluster QDC fraction
+
+  scifi_vertical_qdc_mean_station: &mean_station
+    x_min: 1
+    x_max: 5
+    bin_width: 0.1
+    axis_title: Vertical QDC-weighted mean station
+    feature_cut: scifi_vertical_total_qdc > 0
+  scifi_horizontal_qdc_mean_station:
+    <<: *mean_station
+    axis_title: Horizontal QDC-weighted mean station
+    feature_cut: scifi_horizontal_total_qdc > 0
+  scifi_vertical_qdc_station_slope: &station_slope
+    x_min: -0.3
+    x_max: 0.3
+    bin_width: 0.012
+    axis_title: Vertical QDC station-profile slope
+    feature_cut: scifi_vertical_total_qdc > 0
+  scifi_horizontal_qdc_station_slope:
+    <<: *station_slope
+    axis_title: Horizontal QDC station-profile slope
+    feature_cut: scifi_horizontal_total_qdc > 0
+  scifi_vertical_qdc_station_curvature: &station_curvature
+    x_min: -0.2
+    x_max: 0.2
+    bin_width: 0.008
+    axis_title: Vertical QDC station-profile curvature
+    feature_cut: scifi_vertical_total_qdc > 0
+  scifi_horizontal_qdc_station_curvature:
+    <<: *station_curvature
+    axis_title: Horizontal QDC station-profile curvature
+    feature_cut: scifi_horizontal_total_qdc > 0
+  scifi_orientation_qdc_asymmetry:
+    x_min: -1
+    x_max: 1
+    bin_width: 0.04
+    axis_title: Vertical-horizontal QDC asymmetry
+
+features2d:
+  total_qdc_vs_hits:
+    x_expression: count_scifi
+    y_expression: qdc_scifi
+    x_min: 0
+    x_max: 1000
+    x_bins: 50
+    y_min: 0
+    y_max: 10000
+    y_bins: 50
+    x_title: Selected SciFi hits
+    y_title: Total selected SciFi QDC
+  vertical_cluster1_qdc_vs_hits: &cluster_qdc_vs_hits
+    x_expression: scifi_vertical_cluster1_nhits
+    y_expression: scifi_vertical_cluster1_qdc
+    x_min: 0
+    x_max: 500
+    x_bins: 50
+    y_min: 0
+    y_max: 5000
+    y_bins: 50
+    x_title: Vertical leading-cluster hits
+    y_title: Vertical leading-cluster QDC
+    feature_cut: scifi_vertical_cluster1_exists == 1
+  horizontal_cluster1_qdc_vs_hits:
+    <<: *cluster_qdc_vs_hits
+    x_expression: scifi_horizontal_cluster1_nhits
+    y_expression: scifi_horizontal_cluster1_qdc
+    x_title: Horizontal leading-cluster hits
+    y_title: Horizontal leading-cluster QDC
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+  vertical_roughness_vs_qdc_per_hit: &roughness_vs_qdc
+    x_expression: scifi_vertical_cluster1_qdc_per_hit
+    y_expression: scifi_vertical_cluster1_qdc_roughness
+    x_min: 0
+    x_max: 15
+    x_bins: 50
+    y_min: 0
+    y_max: 2
+    y_bins: 50
+    x_title: Vertical leading-cluster QDC / hit
+    y_title: Vertical leading-cluster roughness
+    feature_cut: scifi_vertical_cluster1_exists == 1
+  horizontal_roughness_vs_qdc_per_hit:
+    <<: *roughness_vs_qdc
+    x_expression: scifi_horizontal_cluster1_qdc_per_hit
+    y_expression: scifi_horizontal_cluster1_qdc_roughness
+    x_title: Horizontal leading-cluster QDC / hit
+    y_title: Horizontal leading-cluster roughness
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+  vertical_fragmentation_vs_leading_fraction: &fragmentation
+    x_expression: scifi_vertical_cluster1_orientation_qdc_fraction
+    y_expression: scifi_vertical_effective_qdc_cluster_count
+    x_min: 0
+    x_max: 1
+    x_bins: 40
+    y_min: 0
+    y_max: 20
+    y_bins: 40
+    x_title: Vertical leading-cluster QDC fraction
+    y_title: Vertical effective QDC cluster count
+    feature_cut: scifi_vertical_cluster1_exists == 1
+  horizontal_fragmentation_vs_leading_fraction:
+    <<: *fragmentation
+    x_expression: scifi_horizontal_cluster1_orientation_qdc_fraction
+    y_expression: scifi_horizontal_effective_qdc_cluster_count
+    x_title: Horizontal leading-cluster QDC fraction
+    y_title: Horizontal effective QDC cluster count
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+
