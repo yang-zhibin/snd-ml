@@ -428,6 +428,17 @@ Recorded at 2026-10-05 18:29 Europe/Zurich.
   to this task; no unrelated user changes were found.
 - `git diff --check` exited successfully.
 
+### Checkpoint commit
+
+- Implementation commit:
+  `299906f6971db28f0c4e856d1dcd7603ca861e4c`
+  (`Add SciFi shower clustering feature workflow`).
+- The implementation commit contains 25 task files with 3,036 insertions and
+  3 deletions. Generated ROOT files, plots, scheduler logs, and `/tmp` canaries
+  are not committed.
+- Immediately after the implementation commit, `git status --short` was empty
+  and `condor_q -nobatch` still returned no jobs.
+
 ### Reproducible commands and results
 
 Root-free tests in the documented LCG environment:
