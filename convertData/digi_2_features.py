@@ -16,9 +16,16 @@ from hit_time_selection import (
 )
 from sample_selection import (
     EXTERNAL_CUTFLOW,
+    IDENTITY_CUTFLOW,
     SELECTION_MODES,
+    applies_collision_data_quality,
     resolve_selection_mode,
     uses_external_cutflow,
+)
+from source_provenance import (
+    UNIFIED_SCHEMA_VERSION,
+    event_source_values,
+    validate_source_options,
 )
 from reco_track_features import (
     FLAT_V1,
@@ -1421,6 +1428,7 @@ def process_hits(
 
 
 def main(args):
+    validate_source_options(args)
     reco_track_schema = getattr(args, "reco_track_schema", FLAT_V1)
     if not args.extract_reco_tracks and reco_track_schema != FLAT_V1:
         raise ValueError(
@@ -1440,7 +1448,7 @@ def main(args):
     selection_mode = resolve_selection_mode(
         args.type, getattr(args, "selection_mode", None)
     )
-    direct_selection = selection_mode != EXTERNAL_CUTFLOW
+    direct_selection = not uses_external_cutflow(args.type, selection_mode)
     if uses_external_cutflow(args.type, selection_mode) and not args.preSelect_path:
         raise ValueError("--preSelectPath is required for external_cutflow mode")
 
@@ -1471,8 +1479,14 @@ def main(args):
 
 
     step_start = time.perf_counter()
-    selection = None if direct_selection or skip_scifi_minhits_selection(args) else "SciFiMinHits == 1"
-    if not direct_selection and "MC" not in args.type:
+    selection = (
+        None
+        if direct_selection
+        or selection_mode == IDENTITY_CUTFLOW
+        or skip_scifi_minhits_selection(args)
+        else "SciFiMinHits == 1"
+    )
+    if applies_collision_data_quality(args.type, selection_mode) and "MC" not in args.type:
         if not event_deltat_branch:
             raise RuntimeError("No EventDeltat cut branch found for real-data selection")
         data_selection = "StableBeams == 1 && IP1 == 1 && EventDeltat_m1_100 == 1"
@@ -1516,6 +1530,9 @@ def main(args):
         ("nPrimary", 'i'), ("nSecondaryRaw", 'i'), ("nSecondary", 'i'),
         ("px", 'f'), ("py", 'f'), ("pz", 'f'),  # Floats
         ("mc_incoming_energy", 'd'),
+        ("source_energy_gev", 'd'),
+        ("source_pdg_code", 'i'),
+        ("source_domain_id", 'i'),
         ("x", 'f'), ("y", 'f'), ("z", 'f'),    # Floats
         
         ("count_veto1", 'i'), ("count_veto2", 'i'), ("count_veto3", 'i'),  ("count_veto", 'i'), 
@@ -1635,7 +1652,13 @@ def main(args):
     record_timing(timing, timing_counts, "setup.branches", step_start)
 
     
-    n_selected_entries = elist.GetN()
+    n_available_entries = int(elist.GetN())
+    max_events = int(getattr(args, "max_events", 0) or 0)
+    if max_events < 0:
+        raise ValueError("--max-events must be non-negative")
+    n_selected_entries = min(n_available_entries, max_events) if max_events else n_available_entries
+    if max_events:
+        print(f"Smoke-test event limit: {n_selected_entries}/{n_available_entries}")
     n_written_entries = 0
     kept_cutflow_entries = ROOT.TEntryList("elist_kept", "elist_kept")
     direct_cutflow = None
@@ -1719,6 +1742,7 @@ def main(args):
         
         branch_vars["eventIndex"][0] = raw_entry
         branch_vars["runId"][0] = raw_tree.EventHeader.GetRunId()
+        branch_vars["source_domain_id"][0] = int(args.source_domain_id)
         record_timing(timing, timing_counts, "event.metadata_base", step_start)
         
         
@@ -1734,8 +1758,12 @@ def main(args):
             n_mc_tracks = int(mc_tracks.GetEntriesFast())
             neutrino_pdgCode = [12, -12, 14, -14, 16, -16]
 
+            track0 = mc_tracks[0] if n_mc_tracks >= 1 else None
+            source_energy, source_pdg = event_source_values(args, track0)
+            branch_vars["source_energy_gev"][0] = source_energy
+            branch_vars["source_pdg_code"][0] = source_pdg
+
             if n_mc_tracks >= 1:
-                track0 = mc_tracks[0]
                 event_pdg0 = track0.GetPdgCode()
                 branch_vars["pdgCode"][0] = event_pdg0
                 branch_vars["px"][0] = track0.GetPx()
@@ -1770,6 +1798,9 @@ def main(args):
             branch_vars["isMC"][0] = 0
             branch_vars["pdgCode"][0] = 0
             branch_vars["eventId"][0] = raw_tree.EventHeader.GetEventNumber()
+            source_energy, source_pdg = event_source_values(args)
+            branch_vars["source_energy_gev"][0] = source_energy
+            branch_vars["source_pdg_code"][0] = source_pdg
             record_timing(timing, timing_counts, "event.real_metadata", step_start)
 
         process_hits(
@@ -1811,7 +1842,16 @@ def main(args):
     ).Write()
     ROOT.TNamed("metadata_input_tree", str(args.tree_name)).Write()
     ROOT.TNamed("metadata_external_cutflow_used", "0" if direct_selection else "1").Write()
+    ROOT.TParameter("Long64_t")("metadata_available_selected_entries", n_available_entries).Write()
+    ROOT.TParameter("Long64_t")("metadata_max_events", max_events).Write()
     ROOT.TNamed("metadata_scifi_cluster_schema", SCIFI_CLUSTER_SCHEMA_VERSION).Write()
+    ROOT.TNamed("metadata_unified_shower_feature_schema", UNIFIED_SCHEMA_VERSION).Write()
+    ROOT.TNamed("metadata_source_uid", str(args.source_uid or "")).Write()
+    ROOT.TNamed("metadata_source_geometry_id", str(args.source_geometry_id or "")).Write()
+    ROOT.TNamed(
+        "metadata_source_geometry_checksum",
+        str(args.source_geometry_checksum or ""),
+    ).Write()
     ROOT.TNamed(
         "metadata_reco_track_features",
         reco_track_schema if args.extract_reco_tracks else "disabled",
@@ -1849,6 +1889,18 @@ if __name__ == "__main__":
     parser.add_argument("-mo", "--mode", dest="mode", help="open root file mode", default='RECREATE')
     parser.add_argument("-t", "--type", dest='type', help='data type, MC or real', required=True)
     parser.add_argument("--tree-name", default="cbmsim", help="Input event-tree name (default: cbmsim)")
+    parser.add_argument("--source-domain-id", type=int, default=0)
+    parser.add_argument("--source-pdg-code", type=int)
+    parser.add_argument("--source-energy-gev", type=float)
+    parser.add_argument("--source-uid", default="")
+    parser.add_argument("--source-geometry-id", default="")
+    parser.add_argument("--source-geometry-checksum", default="")
+    parser.add_argument(
+        "--max-events",
+        type=int,
+        default=0,
+        help="Process at most this many selected events; zero means all events.",
+    )
     parser.add_argument(
         "--selection-mode",
         choices=SELECTION_MODES,

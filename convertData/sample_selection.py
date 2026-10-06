@@ -3,9 +3,15 @@
 
 PASSING_MUON_REAL_DATA = "passing_muon_real_data"
 EXTERNAL_CUTFLOW = "external_cutflow"
+IDENTITY_CUTFLOW = "identity_cutflow"
 PASSING_MUON_DIRECT = "passing_muon_direct"
 DIRECT_INPUT = "direct_input"
-SELECTION_MODES = (EXTERNAL_CUTFLOW, PASSING_MUON_DIRECT, DIRECT_INPUT)
+SELECTION_MODES = (
+    EXTERNAL_CUTFLOW,
+    IDENTITY_CUTFLOW,
+    PASSING_MUON_DIRECT,
+    DIRECT_INPUT,
+)
 
 
 def normalized_sample_type(value):
@@ -33,7 +39,15 @@ def resolve_selection_mode(sample_type, requested_mode=None):
 
 
 def uses_external_cutflow(value, requested_mode=None):
-    return resolve_selection_mode(value, requested_mode) == EXTERNAL_CUTFLOW
+    return resolve_selection_mode(value, requested_mode) in {
+        EXTERNAL_CUTFLOW,
+        IDENTITY_CUTFLOW,
+    }
+
+
+def applies_collision_data_quality(sample_type, requested_mode=None):
+    """Return whether collision-only cutflow requirements must be applied."""
+    return resolve_selection_mode(sample_type, requested_mode) == EXTERNAL_CUTFLOW
 
 
 def is_direct_selection(sample_type, requested_mode=None):

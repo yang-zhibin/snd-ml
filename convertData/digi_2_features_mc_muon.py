@@ -41,6 +41,13 @@ def parse_args():
     parser.add_argument("-mo", "--mode", dest="mode", default="RECREATE")
     parser.add_argument("-t", "--type", dest="type", required=True)
     parser.add_argument("--tree-name", default="cbmsim")
+    parser.add_argument("--source-domain-id", type=int, default=0)
+    parser.add_argument("--source-pdg-code", type=int)
+    parser.add_argument("--source-energy-gev", type=float)
+    parser.add_argument("--source-uid", default="")
+    parser.add_argument("--source-geometry-id", default="")
+    parser.add_argument("--source-geometry-checksum", default="")
+    parser.add_argument("--max-events", type=int, default=0)
     parser.add_argument(
         "--selection-mode", choices=converter.SELECTION_MODES, default=None
     )

@@ -1,0 +1,79 @@
+version: unified_shower_features_v1
+manifest_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests
+local_smoke:
+  output_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/local_smoke
+  max_events:
+    mc_neutrino: 48
+    mc_muon_up: 100
+
+feature_roots:
+  mc_neutrino: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features/mc_neutrino
+  mc_muon_up: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features/mc_muon_up
+  real_data_2024_skim: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features/real_data_2024_skim
+  testbeam_mc_2024: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features/testbeam_mc_2024
+  testbeam_data_2024: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features/testbeam_data_2024
+
+families:
+  mc_neutrino:
+    source_metadata:
+      - /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_ve_metadata.csv
+      - /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_vm_metadata.csv
+    expected_source_files: 1866
+    sample_type: MC_neutrino
+    selection_mode: external_cutflow
+    input_tree: cbmsim
+    source_domain_id: 1
+    source_domain: mc_neutrino
+    exposure_kind: simulated_luminosity_fb
+    canonical_labels: [CC_nue, CC_numu, NC_nue, NC_numu]
+    canary:
+      source_metadata_suffix: MC_neutrino_2024_ve_metadata.csv
+      source_metadata_row: 0
+
+  mc_muon_up:
+    source_metadata: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_muon_up_metadata.csv
+    expected_source_files: 15
+    sample_type: MC_muon
+    selection_mode: direct_input
+    input_tree: cbmsim
+    source_domain_id: 2
+    source_domain: mc_muon_up
+    exposure_kind: unvalidated_equivalent_luminosity
+    canonical_labels: [MC_muon_up]
+
+  real_data_2024_skim:
+    source_metadata: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/real_data_2024_skim_runs_metadata.csv
+    expected_source_files: 11368
+    sample_type: real_data
+    selection_mode: external_cutflow
+    input_tree: cbmsim
+    source_domain_id: 3
+    source_domain: real_data_2024_skim
+    exposure_kind: recorded_luminosity_fb
+    canonical_labels: [real_data]
+
+  testbeam_mc_2024:
+    source_metadata: /eos/user/z/zhibin/TestBeam/binary_full_v1/catalog/master_sources.csv
+    source_metadata_sha256: b57ee0e8f8404de2ae665a84360aff79c2b6dc6e12116a6dcf3afe61b52fc735
+    catalog_domain: mc_2024
+    expected_source_files: 75
+    sample_type: MC_testbeam
+    selection_mode: identity_cutflow
+    input_tree: cbmsim
+    source_domain_id: 4
+    source_domain: testbeam_mc_2024
+    exposure_kind: event_count_only
+    canonical_labels: [testbeam_mc_electron, testbeam_mc_pion]
+
+  testbeam_data_2024:
+    source_metadata: /eos/user/z/zhibin/TestBeam/binary_full_v1/catalog/master_sources.csv
+    source_metadata_sha256: b57ee0e8f8404de2ae665a84360aff79c2b6dc6e12116a6dcf3afe61b52fc735
+    catalog_domain: data_2024
+    expected_source_files: 15
+    sample_type: real_testbeam
+    selection_mode: identity_cutflow
+    input_tree: cbmsim
+    source_domain_id: 5
+    source_domain: testbeam_data_2024
+    exposure_kind: event_count_only
+    canonical_labels: [testbeam_data_electron, testbeam_data_pion]

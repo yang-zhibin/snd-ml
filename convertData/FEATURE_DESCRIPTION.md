@@ -854,3 +854,27 @@ sums/fractions/ratios, and `-999` for unavailable shape values. Zero
 denominators produce zero. Unavailable station moments and fit coefficients use
 `-999`. Output files carry
 `metadata_scifi_cluster_schema=scifi_orientation_clusters_v1`.
+
+### 15. Unified source provenance
+
+Unified shower-feature products add three dataset-neutral scalar branches:
+
+```text
+source_energy_gev
+source_pdg_code
+source_domain_id
+```
+
+For MC neutrino, MC muon-up, and testbeam MC, energy and PDG code come from
+incoming `MCTrack[0]` truth. Testbeam-MC catalogue values are validation inputs
+and must agree with that truth. For testbeam data, the paired energy and PDG
+code come from the validated source catalogue. Skimmed collision data uses
+`source_energy_gev=-1.0` and `source_pdg_code=0`.
+
+The stable domain IDs are `1=mc_neutrino`, `2=mc_muon_up`,
+`3=real_data_2024_skim`, `4=testbeam_mc_2024`, and
+`5=testbeam_data_2024`; zero is reserved for legacy or unknown inputs.
+
+Unified files retain the SciFi cluster schema marker and additionally carry
+`metadata_unified_shower_feature_schema=unified_shower_features_v1`, together
+with source UID and optional geometry provenance metadata.

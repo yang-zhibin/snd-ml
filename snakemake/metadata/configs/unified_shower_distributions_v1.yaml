@@ -1,0 +1,84 @@
+version: unified_shower_distributions_v1
+description: >
+  Stage-1 comparison of the three frozen SciFi shower observables for
+  neutrino MC and upward-going muon MC. Raw histograms are immutable;
+  normalization is applied only to plot clones.
+
+tree_name: sndData
+selection:
+  name: scifi35
+  expression: count_scifi > 35
+  label: Selected SciFi hits > 35
+
+features:
+  density_sndsw_scifi:
+    expression: density_sndsw_scifi
+    x_min: 0
+    x_max: 40000
+    bin_width: 500
+    axis_title: SciFi density (SND getSumDensity)
+    log_y: true
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_cluster_qdc_per_hit:
+    expression: scifi_cluster_qdc_per_hit
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: All-cluster SciFi QDC / hit
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_qdc_per_hit_direct:
+    expression: scifi_qdc_per_hit_direct
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Direct selected SciFi QDC / hit
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+
+groups:
+  CC_nue:
+    family: mc_neutrino
+    source_subfolders: [2024_ve]
+    expression: pdgCode == 12 || pdgCode == -12
+    label: MC CC nue
+  CC_numu:
+    family: mc_neutrino
+    source_subfolders: [2024_vm]
+    expression: pdgCode == 14 || pdgCode == -14
+    label: MC CC numu
+  NC_nue:
+    family: mc_neutrino
+    source_subfolders: [2024_ve]
+    expression: pdgCode == 112 || pdgCode == -112
+    label: MC NC nue
+  NC_numu:
+    family: mc_neutrino
+    source_subfolders: [2024_vm]
+    expression: pdgCode == 114 || pdgCode == -114
+    label: MC NC numu
+  MC_muon_up:
+    family: mc_muon_up
+    expression: ""
+    label: MC muon up
+
+normalizations:
+  unit_area:
+    y_axis_title: Probability density
+  common_exposure_19fb:
+    target_exposure_fb: 19.0
+    allowed_exposure_kinds: [simulated_luminosity_fb, recorded_luminosity_fb]
+    y_axis_title: Events scaled to 19 fb^{-1}
+
+stages:
+  stage1:
+    unit_area_groups: [CC_nue, CC_numu, NC_nue, NC_numu, MC_muon_up]
+    common_exposure_groups: [CC_nue, CC_numu, NC_nue, NC_numu]
+
+outputs:
+  metadata_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/distributions
+  histogram_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/histograms
+  plot_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/plots
