@@ -1,14 +1,23 @@
 #!/usr/bin/python3
 
 import sys
-import htcondor
+import htcondor2 as htcondor
 from os import makedirs
 from os.path import join
 from uuid import uuid4
 from datetime import datetime
 import os
+import json
 
-from snakemake.utils import read_job_properties
+
+def read_job_properties(path):
+    """Read Snakemake's standard JSON job-properties header."""
+    prefix = "# properties = "
+    with open(path, encoding="utf-8") as stream:
+        for _, line in zip(range(100), stream):
+            if line.startswith(prefix):
+                return json.loads(line[len(prefix):])
+    raise ValueError(f"No Snakemake job properties found in {path}")
 
 
 jobscript = sys.argv[1]

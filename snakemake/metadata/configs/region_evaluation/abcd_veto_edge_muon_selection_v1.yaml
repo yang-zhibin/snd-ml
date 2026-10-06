@@ -1,0 +1,88 @@
+version: abcd_veto_edge_muon_selection_v1
+description: Select and retain Veto edge-muon candidates in existing Region V1 data partitions.
+input:
+  tree_name: sndData
+  density_feature: density_sndsw_scifi
+  partition_version: partition_v1
+  region_version: region_v1
+  data_particle_group: real_data
+  data_scope_label: Region V1 data partitions at configured exposures
+  partition_catalogue: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/region_partitions/partition_v1_region_v1.csv
+  expected_full_data_luminosity: 19.780680927948
+selection:
+  mode: veto_edge_muon
+  base_expression: count_scifi > 35
+  selected_name: edge_muon
+  complement_name: non_edge
+  edge:
+    valid_position_min_exclusive: -900.0
+    inward_distance_cm: 10.0
+    boundaries_cm:
+      veto1_y:
+        physical_min: 14.835139
+        physical_max: 56.867571
+        low_edge_max: 24.835139
+        high_edge_min: 46.867571
+      veto2_y:
+        physical_min: 12.784356
+        physical_max: 54.816788
+        low_edge_max: 22.784356
+        high_edge_min: 44.816788
+      veto3_x:
+        physical_min: -47.370290
+        physical_max: -5.755074
+        low_edge_max: -37.370290
+        high_edge_min: -15.755074
+histograms:
+  analysis:
+    bins: 80
+    min: 0.0
+    max: 40000.0
+    underflow: preserve
+    overflow: fold_last
+  original_plot:
+    bins: 80
+    min: 100.0
+    max: 40000.0
+    underflow: preserve
+    overflow: preserve
+statistics:
+  confidence_level: 0.682689492137
+regions:
+  signal_no_veto_has_us_fiducial_inside: Signal
+  sideband_no_veto_no_us_fiducial_inside: SB1
+  sideband_no_veto_has_us_fiducial_outside: SB2
+  sideband_no_veto_no_us_fiducial_outside: SB3
+  sideband_has_veto_has_us_fiducial_inside: SB4
+  sideband_has_veto_no_us_fiducial_inside: SB5
+  sideband_has_veto_has_us_fiducial_outside: SB6
+  sideband_has_veto_no_us_fiducial_outside: SB7
+mc_samples:
+  CC_nue:
+    role: signal
+    source_luminosity: 14640.0
+region_exposures:
+  signal_no_veto_has_us_fiducial_inside: 19.780680927948
+  sideband_no_veto_no_us_fiducial_inside: 19.780680927948
+  sideband_no_veto_has_us_fiducial_outside: 19.780680927948
+  sideband_no_veto_no_us_fiducial_outside: 19.780680927948
+  sideband_has_veto_has_us_fiducial_inside: 1.960319252235
+  sideband_has_veto_no_us_fiducial_inside: 1.960319252235
+  sideband_has_veto_has_us_fiducial_outside: 1.960319252235
+  sideband_has_veto_no_us_fiducial_outside: 1.960319252235
+validation:
+  require_all_branches: true
+  require_nonnegative_detector_counts: true
+  require_count_closure: true
+  require_region_total_closure: true
+  require_histogram_count_closure: true
+  luminosity_absolute_tolerance: 1.0e-09
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/veto_edge_muon_selection_v1
+  mc_directory: mc
+  data_root: data_full.root
+  data_summary: data_efficiencies.csv
+  combined_summary: efficiencies.csv
+  plot_root: veto_edge_muon_selection.root
+  report_markdown: report.md
+  report_pdf: veto_edge_muon_selection.pdf

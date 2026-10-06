@@ -1,0 +1,92 @@
+version: abcd_signal_ratio_comparisons_v1
+description: Region-distribution overview followed by six matched ratio comparisons.
+
+source:
+  histogram_name: hist
+  expected_n_bins: 80
+  expected_x_min: 100.0
+  expected_x_max: 40000.0
+  flow_policy: exclude_underflow_and_overflow
+  roles:
+    signal: signal_no_veto_has_us_fiducial_inside
+    sb1: sideband_no_veto_no_us_fiducial_inside
+    sb2: sideband_no_veto_has_us_fiducial_outside
+    sb3: sideband_no_veto_no_us_fiducial_outside
+    sb4: sideband_has_veto_has_us_fiducial_inside
+    sb5: sideband_has_veto_no_us_fiducial_inside
+    sb6: sideband_has_veto_has_us_fiducial_outside
+    sb7: sideband_has_veto_no_us_fiducial_outside
+
+front_page:
+  title: Region comparison for Real data
+  reference_lumi_fb: 19.78
+  preselection_label: "Region preselection: SciFi count > 35"
+  x_axis_title: Sum of SciFi Density Weight (SNDSW)
+  y_axis_title: Events / 500
+  y_min: 0.1
+  y_max: 1.0e9
+  regions:
+    - {role: sb4, label: "SB4 Sideband: veto, US, inside", color: "#b2180b", marker: 22}
+    - {role: sb6, label: "SB6 Sideband: veto, US, outside", color: "#ff55cc", marker: 26}
+    - {role: sb5, label: "SB5 Sideband: veto, no US, inside", color: "#ff5a00", marker: 23}
+    - {role: sb7, label: "SB7 Sideband: veto, no US, outside", color: "#ffb000", marker: 32}
+    - {role: sb2, label: "SB2 Sideband: no veto, US, outside", color: "#55bfff", marker: 24}
+    - {role: sb1, label: "SB1 Sideband: no veto, no US, inside", color: "#187a1c", marker: 21}
+    - {role: sb3, label: "SB3 Sideband: no veto, no US, outside", color: "#8dcc2f", marker: 25}
+    - {role: signal, label: "Signal region: no veto, has US, inside", color: "#0000aa", marker: 20}
+
+comparisons:
+  - id: S1
+    transfer_title: Inside / outside
+    subtitle: Compare veto categories; has US
+    transfer_y_max: 40.0
+    top_scale: linear
+    left: {numerator: signal, denominator: sb2, label: "Signal (no veto, has US, inside) / SB2 (no veto, has US, outside)"}
+    right: {numerator: sb4, denominator: sb6, label: "SB4 (veto, has US, inside) / SB6 (veto, has US, outside)"}
+  - id: S6
+    transfer_title: No veto / veto
+    subtitle: Compare fiducial categories; has US
+    transfer_y_max: 0.003
+    left: {numerator: signal, denominator: sb4, label: "Signal (no veto, has US, inside) / SB4 (veto, has US, inside)"}
+    right: {numerator: sb2, denominator: sb6, label: "SB2 (no veto, has US, outside) / SB6 (veto, has US, outside)"}
+  - id: S2
+    transfer_title: Inside / outside
+    subtitle: Compare US categories; no veto
+    transfer_y_max: 4.0
+    left: {numerator: signal, denominator: sb2, label: "Signal (no veto, has US, inside) / SB2 (no veto, has US, outside)"}
+    right: {numerator: sb1, denominator: sb3, label: "SB1 (no veto, no US, inside) / SB3 (no veto, no US, outside)"}
+  - id: S4
+    transfer_title: Has US / no US
+    subtitle: Compare fiducial categories; no veto
+    transfer_y_max: 12.0
+    left: {numerator: signal, denominator: sb1, label: "Signal (no veto, has US, inside) / SB1 (no veto, no US, inside)"}
+    right: {numerator: sb2, denominator: sb3, label: "SB2 (no veto, has US, outside) / SB3 (no veto, no US, outside)"}
+  - id: S3
+    transfer_title: Has US / no US
+    subtitle: Compare veto categories; inside
+    transfer_y_max: 25000.0
+    left: {numerator: signal, denominator: sb1, label: "Signal (no veto, has US, inside) / SB1 (no veto, no US, inside)"}
+    right: {numerator: sb4, denominator: sb5, label: "SB4 (veto, has US, inside) / SB5 (veto, no US, inside)"}
+  - id: S5
+    transfer_title: No veto / veto
+    subtitle: Compare US categories; inside
+    transfer_y_max: 0.4
+    left: {numerator: signal, denominator: sb4, label: "Signal (no veto, has US, inside) / SB4 (veto, has US, inside)"}
+    right: {numerator: sb1, denominator: sb5, label: "SB1 (no veto, no US, inside) / SB5 (veto, no US, inside)"}
+
+calculation:
+  error_bar: symmetric_independent_poisson_sqrt_n_propagation
+  individual_ratio_support: positive_denominator
+  ratio_of_ratios_support: all_four_counts_positive
+
+plot:
+  top_log_dynamic_range_threshold: 100.0
+  lower_log_value_threshold: 0.05
+  lower_log_dynamic_range_threshold: 100.0
+  log_floor_fraction: 0.3
+
+output:
+  directory: evaluation_region_partitions/plots/partition_v1_region_v1/hist_features_v1__evaluation_options_v1/density_sndsw_scifi/none/none/signal_ratio_comparisons_v1
+  csv: signal_ratio_comparisons.csv
+  root: signal_ratio_comparisons.root
+  pdf: signal_ratio_comparisons.pdf

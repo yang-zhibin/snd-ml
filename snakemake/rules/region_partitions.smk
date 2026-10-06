@@ -1585,3 +1585,817 @@ rule combine_region_partition_metadata:
             pd.DataFrame(rows, columns=fieldnames).to_csv(output[0], index=False)
         else:
             pd.DataFrame(columns=fieldnames).to_csv(output[0], index=False)
+
+
+# Isolated Region V1 DS--SciFi passing-muon-like rejection diagnostic.
+# This target is intentionally not part of a broad/default aggregate.
+ABCD_DS_SCIFI_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_ds_scifi_muon_rejection_v1.yaml"
+)
+with open(ABCD_DS_SCIFI_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DS_SCIFI = yaml.safe_load(handle)
+
+ABCD_DS_SCIFI_OUTPUT_DIR = ABCD_DS_SCIFI["output"]["directory"]
+if not os.path.isabs(ABCD_DS_SCIFI_OUTPUT_DIR):
+    ABCD_DS_SCIFI_OUTPUT_DIR = f"{PERSONAL_WORK_SPACE}/{ABCD_DS_SCIFI_OUTPUT_DIR}"
+ABCD_DS_SCIFI_DATA_SHARD_COUNT = int(ABCD_DS_SCIFI["input"]["data_shards"])
+ABCD_DS_SCIFI_SHARDS = list(range(ABCD_DS_SCIFI_DATA_SHARD_COUNT))
+ABCD_DS_SCIFI_REGIONS = list(ABCD_DS_SCIFI["regions"])
+ABCD_DS_SCIFI_SAMPLES = list(ABCD_DS_SCIFI["mc_samples"])
+ABCD_DS_SCIFI_DATA_SHARD_ROOT = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/data_shards/shard_{{shard}}.root"
+ABCD_DS_SCIFI_DATA_SHARD_CSV = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/data_shards/shard_{{shard}}.csv"
+ABCD_DS_SCIFI_DATA_ROOTS = expand(ABCD_DS_SCIFI_DATA_SHARD_ROOT, shard=ABCD_DS_SCIFI_SHARDS)
+ABCD_DS_SCIFI_DATA_CSVS = expand(ABCD_DS_SCIFI_DATA_SHARD_CSV, shard=ABCD_DS_SCIFI_SHARDS)
+ABCD_DS_SCIFI_DATA_ROOT = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/{ABCD_DS_SCIFI['output']['data_root']}"
+ABCD_DS_SCIFI_DATA_SUMMARY = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/{ABCD_DS_SCIFI['output']['data_summary']}"
+ABCD_DS_SCIFI_MC_ROOT = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/mc/{{region}}__{{sample}}.root"
+ABCD_DS_SCIFI_MC_CSV = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/mc/{{region}}__{{sample}}.csv"
+ABCD_DS_SCIFI_MC_ROOTS = expand(ABCD_DS_SCIFI_MC_ROOT, region=ABCD_DS_SCIFI_REGIONS, sample=ABCD_DS_SCIFI_SAMPLES)
+ABCD_DS_SCIFI_MC_CSVS = expand(ABCD_DS_SCIFI_MC_CSV, region=ABCD_DS_SCIFI_REGIONS, sample=ABCD_DS_SCIFI_SAMPLES)
+ABCD_DS_SCIFI_COMBINED_SUMMARY = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/{ABCD_DS_SCIFI['output']['combined_summary']}"
+ABCD_DS_SCIFI_PLOT_ROOT = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/{ABCD_DS_SCIFI['output']['plot_root']}"
+ABCD_DS_SCIFI_REPORT_PDF = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/{ABCD_DS_SCIFI['output']['report_pdf']}"
+ABCD_DS_SCIFI_REPORT_MD = f"{ABCD_DS_SCIFI_OUTPUT_DIR}/{ABCD_DS_SCIFI['output']['report_markdown']}"
+
+
+rule region_v1_abcd_ds_scifi_muon_rejection_v1:
+    input:
+        ABCD_DS_SCIFI_COMBINED_SUMMARY,
+        ABCD_DS_SCIFI_PLOT_ROOT,
+        ABCD_DS_SCIFI_REPORT_PDF,
+        ABCD_DS_SCIFI_REPORT_MD,
+
+
+rule region_v1_abcd_ds_scifi_data_shards_v1:
+    input:
+        ABCD_DS_SCIFI_DATA_ROOTS,
+        ABCD_DS_SCIFI_DATA_CSVS,
+
+
+rule build_region_v1_abcd_ds_scifi_data_shard:
+    input:
+        config=ABCD_DS_SCIFI_CONFIG,
+        metadata=ABCD_DS_SCIFI["input"]["full_data_metadata"],
+        region_config=f"{workflow.basedir}/{ABCD_DS_SCIFI['input']['region_config'].removeprefix('snakemake/')}",
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_data_shard.py",
+    output:
+        root=ABCD_DS_SCIFI_DATA_SHARD_ROOT,
+        summary=ABCD_DS_SCIFI_DATA_SHARD_CSV,
+    wildcard_constraints:
+        shard=r"\d+"
+    threads: 2
+    resources:
+        runtime=2 * 60 * 60,
+        mem_mb=4000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} \
+          --metadata {input.metadata} \
+          --config {input.config} \
+          --region-config {input.region_config} \
+          --shard-index {wildcards.shard} \
+          --shard-count {ABCD_DS_SCIFI_DATA_SHARD_COUNT} \
+          --output-root {output.root} \
+          --output-summary {output.summary} \
+          --threads {threads}
+        """
+
+
+rule merge_region_v1_abcd_ds_scifi_data:
+    input:
+        config=ABCD_DS_SCIFI_CONFIG,
+        roots=ABCD_DS_SCIFI_DATA_ROOTS,
+        summaries=ABCD_DS_SCIFI_DATA_CSVS,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/merge_abcd_ds_scifi_rejection_data.py",
+    output:
+        root=ABCD_DS_SCIFI_DATA_ROOT,
+        summary=ABCD_DS_SCIFI_DATA_SUMMARY,
+    params:
+        roots=" ".join(f"--input-root {path}" for path in ABCD_DS_SCIFI_DATA_ROOTS),
+        summaries=" ".join(f"--input-summary {path}" for path in ABCD_DS_SCIFI_DATA_CSVS),
+    resources:
+        runtime=30 * 60,
+        mem_mb=3000,
+        disk_mb=3000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --config {input.config} {params.roots} {params.summaries} \
+          --output-root {output.root} --output-summary {output.summary}
+        """
+
+
+rule build_region_v1_abcd_ds_scifi_mc:
+    input:
+        config=ABCD_DS_SCIFI_CONFIG,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_mc.py",
+    params:
+        # The study consumes this existing frozen catalogue as authoritative
+        # state and must never enter its producer DAG.
+        catalogue=ABCD_DS_SCIFI["input"]["partition_catalogue"],
+    output:
+        root=ABCD_DS_SCIFI_MC_ROOT,
+        summary=ABCD_DS_SCIFI_MC_CSV,
+    wildcard_constraints:
+        region="|".join(re.escape(value) for value in ABCD_DS_SCIFI_REGIONS),
+        sample="|".join(re.escape(value) for value in ABCD_DS_SCIFI_SAMPLES)
+    threads: 2
+    resources:
+        runtime=60 * 60,
+        mem_mb=3000,
+        disk_mb=1500,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --partition-catalogue {params.catalogue} --config {input.config} \
+          --region {wildcards.region} --sample {wildcards.sample} \
+          --output-root {output.root} --output-summary {output.summary} --threads {threads}
+        """
+
+
+rule region_v1_abcd_ds_scifi_rejection_report_v1:
+    input:
+        config=ABCD_DS_SCIFI_CONFIG,
+        data_root=ABCD_DS_SCIFI_DATA_ROOT,
+        data_summary=ABCD_DS_SCIFI_DATA_SUMMARY,
+        mc_roots=ABCD_DS_SCIFI_MC_ROOTS,
+        mc_summaries=ABCD_DS_SCIFI_MC_CSVS,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_report.py",
+    output:
+        summary=ABCD_DS_SCIFI_COMBINED_SUMMARY,
+        root=ABCD_DS_SCIFI_PLOT_ROOT,
+        pdf=ABCD_DS_SCIFI_REPORT_PDF,
+        markdown=ABCD_DS_SCIFI_REPORT_MD,
+    params:
+        mc_roots=" ".join(f"--mc-root {path}" for path in ABCD_DS_SCIFI_MC_ROOTS),
+        mc_summaries=" ".join(f"--mc-summary {path}" for path in ABCD_DS_SCIFI_MC_CSVS),
+    resources:
+        runtime=30 * 60,
+        mem_mb=3000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --config {input.config} \
+          --data-root {input.data_root} --data-summary {input.data_summary} \
+          {params.mc_roots} {params.mc_summaries} \
+          --output-summary {output.summary} --output-root {output.root} \
+          --output-pdf {output.pdf} --output-markdown {output.markdown}
+        """
+
+
+# Isolated Region V1 exact V7 SciFi--DS loose-projection diagnostic.
+# This target consumes frozen Region V1 partitions and is not broad/default.
+ABCD_DS_SCIFI_LOOSE_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_ds_scifi_loose_projection_v1.yaml"
+)
+with open(ABCD_DS_SCIFI_LOOSE_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_DS_SCIFI_LOOSE = yaml.safe_load(handle)
+
+ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR = ABCD_DS_SCIFI_LOOSE["output"]["directory"]
+if not os.path.isabs(ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR):
+    ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR = f"{PERSONAL_WORK_SPACE}/{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}"
+ABCD_DS_SCIFI_LOOSE_REGIONS = list(ABCD_DS_SCIFI_LOOSE["regions"])
+ABCD_DS_SCIFI_LOOSE_SAMPLES = list(ABCD_DS_SCIFI_LOOSE["mc_samples"])
+ABCD_DS_SCIFI_LOOSE_DATA_GROUP = ABCD_DS_SCIFI_LOOSE["input"].get("data_particle_group", "real_data")
+ABCD_DS_SCIFI_LOOSE_DATA_REGION_ROOT = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/data_regions/{{region}}.root"
+ABCD_DS_SCIFI_LOOSE_DATA_REGION_CSV = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/data_regions/{{region}}.csv"
+ABCD_DS_SCIFI_LOOSE_DATA_ROOTS = expand(ABCD_DS_SCIFI_LOOSE_DATA_REGION_ROOT, region=ABCD_DS_SCIFI_LOOSE_REGIONS)
+ABCD_DS_SCIFI_LOOSE_DATA_CSVS = expand(ABCD_DS_SCIFI_LOOSE_DATA_REGION_CSV, region=ABCD_DS_SCIFI_LOOSE_REGIONS)
+ABCD_DS_SCIFI_LOOSE_DATA_ROOT = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/{ABCD_DS_SCIFI_LOOSE['output']['data_root']}"
+ABCD_DS_SCIFI_LOOSE_DATA_SUMMARY = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/{ABCD_DS_SCIFI_LOOSE['output']['data_summary']}"
+ABCD_DS_SCIFI_LOOSE_MC_ROOT = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/mc/{{region}}__{{sample}}.root"
+ABCD_DS_SCIFI_LOOSE_MC_CSV = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/mc/{{region}}__{{sample}}.csv"
+ABCD_DS_SCIFI_LOOSE_MC_ROOTS = expand(ABCD_DS_SCIFI_LOOSE_MC_ROOT, region=ABCD_DS_SCIFI_LOOSE_REGIONS, sample=ABCD_DS_SCIFI_LOOSE_SAMPLES)
+ABCD_DS_SCIFI_LOOSE_MC_CSVS = expand(ABCD_DS_SCIFI_LOOSE_MC_CSV, region=ABCD_DS_SCIFI_LOOSE_REGIONS, sample=ABCD_DS_SCIFI_LOOSE_SAMPLES)
+ABCD_DS_SCIFI_LOOSE_COMBINED_SUMMARY = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/{ABCD_DS_SCIFI_LOOSE['output']['combined_summary']}"
+ABCD_DS_SCIFI_LOOSE_PLOT_ROOT = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/{ABCD_DS_SCIFI_LOOSE['output']['plot_root']}"
+ABCD_DS_SCIFI_LOOSE_REPORT_PDF = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/{ABCD_DS_SCIFI_LOOSE['output']['report_pdf']}"
+ABCD_DS_SCIFI_LOOSE_REPORT_MD = f"{ABCD_DS_SCIFI_LOOSE_OUTPUT_DIR}/{ABCD_DS_SCIFI_LOOSE['output']['report_markdown']}"
+
+
+rule region_v1_abcd_ds_scifi_loose_projection_v1:
+    input:
+        ABCD_DS_SCIFI_LOOSE_COMBINED_SUMMARY,
+        ABCD_DS_SCIFI_LOOSE_PLOT_ROOT,
+        ABCD_DS_SCIFI_LOOSE_REPORT_PDF,
+        ABCD_DS_SCIFI_LOOSE_REPORT_MD,
+
+
+rule region_v1_abcd_ds_scifi_loose_data_regions_v1:
+    input:
+        ABCD_DS_SCIFI_LOOSE_DATA_ROOTS,
+        ABCD_DS_SCIFI_LOOSE_DATA_CSVS,
+
+
+rule build_region_v1_abcd_ds_scifi_loose_data_region:
+    input:
+        config=ABCD_DS_SCIFI_LOOSE_CONFIG,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_mc.py",
+    params:
+        catalogue=ABCD_DS_SCIFI_LOOSE["input"]["partition_catalogue"],
+        sample=ABCD_DS_SCIFI_LOOSE_DATA_GROUP,
+    output:
+        root=ABCD_DS_SCIFI_LOOSE_DATA_REGION_ROOT,
+        summary=ABCD_DS_SCIFI_LOOSE_DATA_REGION_CSV,
+    wildcard_constraints:
+        region="|".join(re.escape(value) for value in ABCD_DS_SCIFI_LOOSE_REGIONS)
+    threads: 2
+    resources:
+        runtime=60 * 60,
+        mem_mb=3000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --partition-catalogue {params.catalogue} --config {input.config} \
+          --region {wildcards.region} --sample {params.sample} \
+          --output-root {output.root} --output-summary {output.summary} --threads {threads}
+        """
+
+
+rule merge_region_v1_abcd_ds_scifi_loose_data:
+    input:
+        config=ABCD_DS_SCIFI_LOOSE_CONFIG,
+        roots=ABCD_DS_SCIFI_LOOSE_DATA_ROOTS,
+        summaries=ABCD_DS_SCIFI_LOOSE_DATA_CSVS,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/merge_abcd_ds_scifi_rejection_data_partitions.py",
+    output:
+        root=ABCD_DS_SCIFI_LOOSE_DATA_ROOT,
+        summary=ABCD_DS_SCIFI_LOOSE_DATA_SUMMARY,
+    params:
+        roots=" ".join(f"--input-root {path}" for path in ABCD_DS_SCIFI_LOOSE_DATA_ROOTS),
+        summaries=" ".join(f"--input-summary {path}" for path in ABCD_DS_SCIFI_LOOSE_DATA_CSVS),
+    resources:
+        runtime=15 * 60,
+        mem_mb=3000,
+        disk_mb=3000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --config {input.config} {params.roots} {params.summaries} \
+          --output-root {output.root} --output-summary {output.summary}
+        """
+
+
+rule build_region_v1_abcd_ds_scifi_loose_mc:
+    input:
+        config=ABCD_DS_SCIFI_LOOSE_CONFIG,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_mc.py",
+    params:
+        catalogue=ABCD_DS_SCIFI_LOOSE["input"]["partition_catalogue"],
+    output:
+        root=ABCD_DS_SCIFI_LOOSE_MC_ROOT,
+        summary=ABCD_DS_SCIFI_LOOSE_MC_CSV,
+    wildcard_constraints:
+        region="|".join(re.escape(value) for value in ABCD_DS_SCIFI_LOOSE_REGIONS),
+        sample="|".join(re.escape(value) for value in ABCD_DS_SCIFI_LOOSE_SAMPLES)
+    threads: 1
+    resources:
+        runtime=60 * 60,
+        mem_mb=3000,
+        disk_mb=1500,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --partition-catalogue {params.catalogue} --config {input.config} \
+          --region {wildcards.region} --sample {wildcards.sample} \
+          --output-root {output.root} --output-summary {output.summary} --threads {threads}
+        """
+
+
+rule region_v1_abcd_ds_scifi_loose_report_v1:
+    input:
+        config=ABCD_DS_SCIFI_LOOSE_CONFIG,
+        data_root=ABCD_DS_SCIFI_LOOSE_DATA_ROOT,
+        data_summary=ABCD_DS_SCIFI_LOOSE_DATA_SUMMARY,
+        mc_roots=ABCD_DS_SCIFI_LOOSE_MC_ROOTS,
+        mc_summaries=ABCD_DS_SCIFI_LOOSE_MC_CSVS,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_report.py",
+    output:
+        summary=ABCD_DS_SCIFI_LOOSE_COMBINED_SUMMARY,
+        root=ABCD_DS_SCIFI_LOOSE_PLOT_ROOT,
+        pdf=ABCD_DS_SCIFI_LOOSE_REPORT_PDF,
+        markdown=ABCD_DS_SCIFI_LOOSE_REPORT_MD,
+    params:
+        mc_roots=" ".join(f"--mc-root {path}" for path in ABCD_DS_SCIFI_LOOSE_MC_ROOTS),
+        mc_summaries=" ".join(f"--mc-summary {path}" for path in ABCD_DS_SCIFI_LOOSE_MC_CSVS),
+    resources:
+        runtime=30 * 60,
+        mem_mb=3000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --config {input.config} \
+          --data-root {input.data_root} --data-summary {input.data_summary} \
+          {params.mc_roots} {params.mc_summaries} \
+          --output-summary {output.summary} --output-root {output.root} \
+          --output-pdf {output.pdf} --output-markdown {output.markdown}
+        """
+
+
+# Isolated Region V1 Veto edge-muon control-sample diagnostic. The selected
+# population is the edge tag itself; the complementary population is retained
+# in the backend products only for exact closure and comparison.
+ABCD_VETO_EDGE_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_veto_edge_muon_selection_v1.yaml"
+)
+with open(ABCD_VETO_EDGE_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_VETO_EDGE = yaml.safe_load(handle)
+
+ABCD_VETO_EDGE_OUTPUT_DIR = ABCD_VETO_EDGE["output"]["directory"]
+if not os.path.isabs(ABCD_VETO_EDGE_OUTPUT_DIR):
+    ABCD_VETO_EDGE_OUTPUT_DIR = f"{PERSONAL_WORK_SPACE}/{ABCD_VETO_EDGE_OUTPUT_DIR}"
+ABCD_VETO_EDGE_REGIONS = list(ABCD_VETO_EDGE["regions"])
+ABCD_VETO_EDGE_SAMPLES = list(ABCD_VETO_EDGE["mc_samples"])
+ABCD_VETO_EDGE_DATA_GROUP = ABCD_VETO_EDGE["input"].get("data_particle_group", "real_data")
+ABCD_VETO_EDGE_DATA_REGION_ROOT = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/data_regions/{{region}}.root"
+ABCD_VETO_EDGE_DATA_REGION_CSV = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/data_regions/{{region}}.csv"
+ABCD_VETO_EDGE_DATA_REGION_ROOTS = expand(
+    ABCD_VETO_EDGE_DATA_REGION_ROOT, region=ABCD_VETO_EDGE_REGIONS
+)
+ABCD_VETO_EDGE_DATA_REGION_CSVS = expand(
+    ABCD_VETO_EDGE_DATA_REGION_CSV, region=ABCD_VETO_EDGE_REGIONS
+)
+ABCD_VETO_EDGE_DATA_ROOT = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/{ABCD_VETO_EDGE['output']['data_root']}"
+ABCD_VETO_EDGE_DATA_SUMMARY = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/{ABCD_VETO_EDGE['output']['data_summary']}"
+ABCD_VETO_EDGE_MC_ROOT = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/mc/{{region}}__{{sample}}.root"
+ABCD_VETO_EDGE_MC_CSV = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/mc/{{region}}__{{sample}}.csv"
+ABCD_VETO_EDGE_MC_ROOTS = expand(
+    ABCD_VETO_EDGE_MC_ROOT,
+    region=ABCD_VETO_EDGE_REGIONS,
+    sample=ABCD_VETO_EDGE_SAMPLES,
+)
+ABCD_VETO_EDGE_MC_CSVS = expand(
+    ABCD_VETO_EDGE_MC_CSV,
+    region=ABCD_VETO_EDGE_REGIONS,
+    sample=ABCD_VETO_EDGE_SAMPLES,
+)
+ABCD_VETO_EDGE_COMBINED_SUMMARY = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/{ABCD_VETO_EDGE['output']['combined_summary']}"
+ABCD_VETO_EDGE_PLOT_ROOT = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/{ABCD_VETO_EDGE['output']['plot_root']}"
+ABCD_VETO_EDGE_REPORT_PDF = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/{ABCD_VETO_EDGE['output']['report_pdf']}"
+ABCD_VETO_EDGE_REPORT_MD = f"{ABCD_VETO_EDGE_OUTPUT_DIR}/{ABCD_VETO_EDGE['output']['report_markdown']}"
+
+
+rule region_v1_abcd_veto_edge_muon_selection_v1:
+    input:
+        ABCD_VETO_EDGE_COMBINED_SUMMARY,
+        ABCD_VETO_EDGE_PLOT_ROOT,
+        ABCD_VETO_EDGE_REPORT_PDF,
+        ABCD_VETO_EDGE_REPORT_MD,
+
+
+rule region_v1_abcd_veto_edge_data_regions_v1:
+    input:
+        ABCD_VETO_EDGE_DATA_REGION_ROOTS,
+        ABCD_VETO_EDGE_DATA_REGION_CSVS,
+
+
+rule build_region_v1_abcd_veto_edge_data_region:
+    input:
+        config=ABCD_VETO_EDGE_CONFIG,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_mc.py",
+    params:
+        catalogue=ABCD_VETO_EDGE["input"]["partition_catalogue"],
+        sample=ABCD_VETO_EDGE_DATA_GROUP,
+    output:
+        root=ABCD_VETO_EDGE_DATA_REGION_ROOT,
+        summary=ABCD_VETO_EDGE_DATA_REGION_CSV,
+    wildcard_constraints:
+        region="|".join(re.escape(value) for value in ABCD_VETO_EDGE_REGIONS)
+    threads: 1
+    resources:
+        runtime=60 * 60,
+        mem_mb=3000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --partition-catalogue {params.catalogue} --config {input.config} \
+          --region {wildcards.region} --sample {params.sample} \
+          --output-root {output.root} --output-summary {output.summary} --threads {threads}
+        """
+
+
+rule merge_region_v1_abcd_veto_edge_data:
+    input:
+        config=ABCD_VETO_EDGE_CONFIG,
+        roots=ABCD_VETO_EDGE_DATA_REGION_ROOTS,
+        summaries=ABCD_VETO_EDGE_DATA_REGION_CSVS,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/merge_abcd_ds_scifi_rejection_data_partitions.py",
+    output:
+        root=ABCD_VETO_EDGE_DATA_ROOT,
+        summary=ABCD_VETO_EDGE_DATA_SUMMARY,
+    params:
+        roots=" ".join(f"--input-root {path}" for path in ABCD_VETO_EDGE_DATA_REGION_ROOTS),
+        summaries=" ".join(f"--input-summary {path}" for path in ABCD_VETO_EDGE_DATA_REGION_CSVS),
+    resources:
+        runtime=15 * 60,
+        mem_mb=3000,
+        disk_mb=3000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --config {input.config} {params.roots} {params.summaries} \
+          --output-root {output.root} --output-summary {output.summary}
+        """
+
+
+rule build_region_v1_abcd_veto_edge_mc:
+    input:
+        config=ABCD_VETO_EDGE_CONFIG,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_mc.py",
+    params:
+        catalogue=ABCD_VETO_EDGE["input"]["partition_catalogue"],
+    output:
+        root=ABCD_VETO_EDGE_MC_ROOT,
+        summary=ABCD_VETO_EDGE_MC_CSV,
+    wildcard_constraints:
+        region="|".join(re.escape(value) for value in ABCD_VETO_EDGE_REGIONS),
+        sample="|".join(re.escape(value) for value in ABCD_VETO_EDGE_SAMPLES)
+    threads: 1
+    resources:
+        runtime=60 * 60,
+        mem_mb=3000,
+        disk_mb=1500,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --partition-catalogue {params.catalogue} --config {input.config} \
+          --region {wildcards.region} --sample {wildcards.sample} \
+          --output-root {output.root} --output-summary {output.summary} --threads {threads}
+        """
+
+
+rule region_v1_abcd_veto_edge_report_v1:
+    input:
+        config=ABCD_VETO_EDGE_CONFIG,
+        data_root=ABCD_VETO_EDGE_DATA_ROOT,
+        data_summary=ABCD_VETO_EDGE_DATA_SUMMARY,
+        mc_roots=ABCD_VETO_EDGE_MC_ROOTS,
+        mc_summaries=ABCD_VETO_EDGE_MC_CSVS,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        common_report=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_report.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_veto_edge_report.py",
+    output:
+        summary=ABCD_VETO_EDGE_COMBINED_SUMMARY,
+        root=ABCD_VETO_EDGE_PLOT_ROOT,
+        pdf=ABCD_VETO_EDGE_REPORT_PDF,
+        markdown=ABCD_VETO_EDGE_REPORT_MD,
+    params:
+        mc_roots=" ".join(f"--mc-root {path}" for path in ABCD_VETO_EDGE_MC_ROOTS),
+        mc_summaries=" ".join(f"--mc-summary {path}" for path in ABCD_VETO_EDGE_MC_CSVS),
+    resources:
+        runtime=30 * 60,
+        mem_mb=3000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --config {input.config} \
+          --data-root {input.data_root} --data-summary {input.data_summary} \
+          {params.mc_roots} {params.mc_summaries} \
+          --output-summary {output.summary} --output-root {output.root} \
+          --output-pdf {output.pdf} --output-markdown {output.markdown}
+        """
+
+
+# Isolated Region V1 central-muon rejection. A central muon requires both
+# central y information and a valid central x position; the complement is the
+# kept analysis population.
+ABCD_VETO_CENTRAL_CONFIG = (
+    f"{workflow.basedir}/metadata/configs/region_evaluation/"
+    "abcd_veto_central_muon_rejection_v1.yaml"
+)
+with open(ABCD_VETO_CENTRAL_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_VETO_CENTRAL = yaml.safe_load(handle)
+
+ABCD_VETO_CENTRAL_OUTPUT_DIR = ABCD_VETO_CENTRAL["output"]["directory"]
+if not os.path.isabs(ABCD_VETO_CENTRAL_OUTPUT_DIR):
+    ABCD_VETO_CENTRAL_OUTPUT_DIR = f"{PERSONAL_WORK_SPACE}/{ABCD_VETO_CENTRAL_OUTPUT_DIR}"
+ABCD_VETO_CENTRAL_REGIONS = list(ABCD_VETO_CENTRAL["regions"])
+ABCD_VETO_CENTRAL_SAMPLES = list(ABCD_VETO_CENTRAL["mc_samples"])
+ABCD_VETO_CENTRAL_DATA_GROUP = ABCD_VETO_CENTRAL["input"].get("data_particle_group", "real_data")
+ABCD_VETO_CENTRAL_DATA_REGION_ROOT = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/data_regions/{{region}}.root"
+ABCD_VETO_CENTRAL_DATA_REGION_CSV = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/data_regions/{{region}}.csv"
+ABCD_VETO_CENTRAL_DATA_REGION_ROOTS = expand(
+    ABCD_VETO_CENTRAL_DATA_REGION_ROOT, region=ABCD_VETO_CENTRAL_REGIONS
+)
+ABCD_VETO_CENTRAL_DATA_REGION_CSVS = expand(
+    ABCD_VETO_CENTRAL_DATA_REGION_CSV, region=ABCD_VETO_CENTRAL_REGIONS
+)
+ABCD_VETO_CENTRAL_DATA_ROOT = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/{ABCD_VETO_CENTRAL['output']['data_root']}"
+ABCD_VETO_CENTRAL_DATA_SUMMARY = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/{ABCD_VETO_CENTRAL['output']['data_summary']}"
+ABCD_VETO_CENTRAL_MC_ROOT = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/mc/{{region}}__{{sample}}.root"
+ABCD_VETO_CENTRAL_MC_CSV = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/mc/{{region}}__{{sample}}.csv"
+ABCD_VETO_CENTRAL_MC_ROOTS = expand(
+    ABCD_VETO_CENTRAL_MC_ROOT,
+    region=ABCD_VETO_CENTRAL_REGIONS,
+    sample=ABCD_VETO_CENTRAL_SAMPLES,
+)
+ABCD_VETO_CENTRAL_MC_CSVS = expand(
+    ABCD_VETO_CENTRAL_MC_CSV,
+    region=ABCD_VETO_CENTRAL_REGIONS,
+    sample=ABCD_VETO_CENTRAL_SAMPLES,
+)
+ABCD_VETO_CENTRAL_COMBINED_SUMMARY = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/{ABCD_VETO_CENTRAL['output']['combined_summary']}"
+ABCD_VETO_CENTRAL_PLOT_ROOT = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/{ABCD_VETO_CENTRAL['output']['plot_root']}"
+ABCD_VETO_CENTRAL_REPORT_PDF = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/{ABCD_VETO_CENTRAL['output']['report_pdf']}"
+ABCD_VETO_CENTRAL_REPORT_MD = f"{ABCD_VETO_CENTRAL_OUTPUT_DIR}/{ABCD_VETO_CENTRAL['output']['report_markdown']}"
+
+
+rule region_v1_abcd_veto_central_muon_rejection_v1:
+    input:
+        ABCD_VETO_CENTRAL_COMBINED_SUMMARY,
+        ABCD_VETO_CENTRAL_PLOT_ROOT,
+        ABCD_VETO_CENTRAL_REPORT_PDF,
+        ABCD_VETO_CENTRAL_REPORT_MD,
+
+
+rule build_region_v1_abcd_veto_central_data_region:
+    input:
+        config=ABCD_VETO_CENTRAL_CONFIG,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_mc.py",
+    params:
+        catalogue=ABCD_VETO_CENTRAL["input"]["partition_catalogue"],
+        sample=ABCD_VETO_CENTRAL_DATA_GROUP,
+    output:
+        root=ABCD_VETO_CENTRAL_DATA_REGION_ROOT,
+        summary=ABCD_VETO_CENTRAL_DATA_REGION_CSV,
+    wildcard_constraints:
+        region="|".join(re.escape(value) for value in ABCD_VETO_CENTRAL_REGIONS)
+    threads: 1
+    resources:
+        runtime=60 * 60,
+        mem_mb=3000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --partition-catalogue {params.catalogue} --config {input.config} \
+          --region {wildcards.region} --sample {params.sample} \
+          --output-root {output.root} --output-summary {output.summary} --threads {threads}
+        """
+
+
+rule merge_region_v1_abcd_veto_central_data:
+    input:
+        config=ABCD_VETO_CENTRAL_CONFIG,
+        roots=ABCD_VETO_CENTRAL_DATA_REGION_ROOTS,
+        summaries=ABCD_VETO_CENTRAL_DATA_REGION_CSVS,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/merge_abcd_ds_scifi_rejection_data_partitions.py",
+    output:
+        root=ABCD_VETO_CENTRAL_DATA_ROOT,
+        summary=ABCD_VETO_CENTRAL_DATA_SUMMARY,
+    params:
+        roots=" ".join(f"--input-root {path}" for path in ABCD_VETO_CENTRAL_DATA_REGION_ROOTS),
+        summaries=" ".join(f"--input-summary {path}" for path in ABCD_VETO_CENTRAL_DATA_REGION_CSVS),
+    resources:
+        runtime=15 * 60,
+        mem_mb=3000,
+        disk_mb=3000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --config {input.config} {params.roots} {params.summaries} \
+          --output-root {output.root} --output-summary {output.summary}
+        """
+
+
+rule build_region_v1_abcd_veto_central_mc:
+    input:
+        config=ABCD_VETO_CENTRAL_CONFIG,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_mc.py",
+    params:
+        catalogue=ABCD_VETO_CENTRAL["input"]["partition_catalogue"],
+    output:
+        root=ABCD_VETO_CENTRAL_MC_ROOT,
+        summary=ABCD_VETO_CENTRAL_MC_CSV,
+    wildcard_constraints:
+        region="|".join(re.escape(value) for value in ABCD_VETO_CENTRAL_REGIONS),
+        sample="|".join(re.escape(value) for value in ABCD_VETO_CENTRAL_SAMPLES)
+    threads: 1
+    resources:
+        runtime=60 * 60,
+        mem_mb=3000,
+        disk_mb=1500,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --partition-catalogue {params.catalogue} --config {input.config} \
+          --region {wildcards.region} --sample {wildcards.sample} \
+          --output-root {output.root} --output-summary {output.summary} --threads {threads}
+        """
+
+
+rule region_v1_abcd_veto_central_report_v1:
+    input:
+        config=ABCD_VETO_CENTRAL_CONFIG,
+        data_root=ABCD_VETO_CENTRAL_DATA_ROOT,
+        data_summary=ABCD_VETO_CENTRAL_DATA_SUMMARY,
+        mc_roots=ABCD_VETO_CENTRAL_MC_ROOTS,
+        mc_summaries=ABCD_VETO_CENTRAL_MC_CSVS,
+        helper=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/abcd_ds_scifi_selection.py",
+        common_report=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_ds_scifi_rejection_report.py",
+        script=f"{Path(workflow.basedir).parent}/evaluation_region_partitions/make_abcd_veto_central_report.py",
+    output:
+        summary=ABCD_VETO_CENTRAL_COMBINED_SUMMARY,
+        root=ABCD_VETO_CENTRAL_PLOT_ROOT,
+        pdf=ABCD_VETO_CENTRAL_REPORT_PDF,
+        markdown=ABCD_VETO_CENTRAL_REPORT_MD,
+    params:
+        mc_roots=" ".join(f"--mc-root {path}" for path in ABCD_VETO_CENTRAL_MC_ROOTS),
+        mc_summaries=" ".join(f"--mc-summary {path}" for path in ABCD_VETO_CENTRAL_MC_CSVS),
+    resources:
+        runtime=30 * 60,
+        mem_mb=3000,
+        disk_mb=2000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, yaml; print(ROOT.__version__, yaml.__version__)' >&2
+        python3 {input.script} --config {input.config} \
+          --data-root {input.data_root} --data-summary {input.data_summary} \
+          {params.mc_roots} {params.mc_summaries} \
+          --output-summary {output.summary} --output-root {output.root} \
+          --output-pdf {output.pdf} --output-markdown {output.markdown}
+        """

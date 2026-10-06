@@ -1,0 +1,101 @@
+version: abcd_ds_scifi_muon_rejection_v1
+description: >-
+  Frozen DS--SciFi passing-muon-like rejection study for Region V1. Veto and
+  US quantities remain exclusive ABCD axes and never enter this tag.
+
+input:
+  tree_name: sndData
+  density_feature: density_sndsw_scifi
+  partition_version: partition_v1
+  region_version: region_v1
+  data_particle_group: real_data
+  full_data_metadata: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/real_data_2024_skim_runs_metadata.csv
+  partition_catalogue: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/region_partitions/partition_v1_region_v1.csv
+  region_config: snakemake/metadata/configs/regions/region_v1.yaml
+  data_shards: 100
+  skip_missing_source_files: true
+  expected_full_data_luminosity: 19.780680927948
+
+selection:
+  base_expression: count_scifi > 35
+  scifi:
+    active_xy_stations_equal: 5
+    max_hits_per_station_exclusive: 20
+  ds:
+    require_all_stations: true
+    max_hits_per_station_inclusive: 2
+    max_hits_total_inclusive: 5
+  tag_name: ds_scifi_muon_like
+  retained_name: reject_ds_scifi_muon_like
+
+histograms:
+  analysis:
+    bins: 80
+    min: 0.0
+    max: 40000.0
+    underflow: preserve
+    overflow: fold_last
+  original_plot:
+    bins: 80
+    min: 100.0
+    max: 40000.0
+    underflow: preserve
+    overflow: preserve
+
+statistics:
+  confidence_level: 0.682689492137
+  efficiency_interval: clopper_pearson
+
+regions:
+  signal_no_veto_has_us_fiducial_inside: Signal
+  sideband_no_veto_no_us_fiducial_inside: SB1
+  sideband_no_veto_has_us_fiducial_outside: SB2
+  sideband_no_veto_no_us_fiducial_outside: SB3
+  sideband_has_veto_has_us_fiducial_inside: SB4
+  sideband_has_veto_no_us_fiducial_inside: SB5
+  sideband_has_veto_has_us_fiducial_outside: SB6
+  sideband_has_veto_no_us_fiducial_outside: SB7
+
+mc_samples:
+  CC_nue:
+    role: signal
+    source_luminosity: 14640.0
+  NC_nue:
+    role: neutrino_background
+    source_luminosity: 14640.0
+  CC_numu:
+    role: neutrino_background
+    source_luminosity: 13350.0
+  NC_numu:
+    role: neutrino_background
+    source_luminosity: 13350.0
+
+region_exposures:
+  signal_no_veto_has_us_fiducial_inside: 19.780680927948
+  sideband_no_veto_no_us_fiducial_inside: 19.780680927948
+  sideband_no_veto_has_us_fiducial_outside: 19.780680927948
+  sideband_no_veto_no_us_fiducial_outside: 19.780680927948
+  sideband_has_veto_has_us_fiducial_inside: 1.960319252235
+  sideband_has_veto_no_us_fiducial_inside: 1.960319252235
+  sideband_has_veto_has_us_fiducial_outside: 1.960319252235
+  sideband_has_veto_no_us_fiducial_outside: 1.960319252235
+
+validation:
+  require_all_branches: true
+  require_nonnegative_detector_counts: true
+  require_count_closure: true
+  require_region_total_closure: true
+  require_histogram_count_closure: true
+  luminosity_absolute_tolerance: 1.0e-9
+
+output:
+  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/ds_scifi_muon_rejection_v1
+  data_shard_directory: data_shards
+  mc_directory: mc
+  data_root: data_full.root
+  data_summary: data_efficiencies.csv
+  combined_summary: efficiencies.csv
+  plot_root: ds_scifi_muon_rejection.root
+  report_markdown: report.md
+  report_pdf: ds_scifi_muon_rejection.pdf
+

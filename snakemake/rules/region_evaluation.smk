@@ -18,6 +18,14 @@ REGION_EVAL_EVENT_DISPLAY_CONFIG = (
     f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
     "event_display_v1.yaml"
 )
+ABCD_ORIGINAL_BINNING_TRANSFER_CONFIG = (
+    f"{Path(workflow.basedir).parent}/snakemake/metadata/configs/region_evaluation/"
+    "abcd_original_binning_transfer_comparison_v1.yaml"
+)
+ABCD_SIGNAL_RATIO_COMPARISONS_CONFIG = (
+    f"{Path(workflow.basedir).parent}/snakemake/metadata/configs/region_evaluation/"
+    "abcd_signal_ratio_comparisons_v1.yaml"
+)
 
 with open(REGION_EVAL_HIST_CONFIG, "r", encoding="utf-8") as handle:
     REGION_EVAL_HIST_FEATURE_CONFIG = yaml.safe_load(handle)
@@ -33,6 +41,11 @@ with open(REGION_EVAL_CUTFLOW_QDC_TOTAL_CONFIG, "r", encoding="utf-8") as handle
 
 with open(REGION_EVAL_EVENT_DISPLAY_CONFIG, "r", encoding="utf-8") as handle:
     REGION_EVAL_EVENT_DISPLAY_CONFIG_DATA = yaml.safe_load(handle)
+
+with open(ABCD_ORIGINAL_BINNING_TRANSFER_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_ORIGINAL_BINNING_TRANSFER = yaml.safe_load(handle)
+with open(ABCD_SIGNAL_RATIO_COMPARISONS_CONFIG, "r", encoding="utf-8") as handle:
+    ABCD_SIGNAL_RATIO_COMPARISONS = yaml.safe_load(handle)
 
 REGION_EVAL_VERSION = REGION_EVAL_OPTIONS["version"]
 REGION_EVAL_HIST_VERSION = REGION_EVAL_HIST_FEATURE_CONFIG["version"]
@@ -53,6 +66,21 @@ def _region_eval_output_path(config_value):
 REGION_EVAL_OUTPUT_ROOT = _region_eval_output_path(REGION_EVAL_OPTIONS["outputs"]["root_dir"])
 REGION_EVAL_HIST_OUTPUT_DIR = _region_eval_output_path(REGION_EVAL_OPTIONS["outputs"]["hist_dir"])
 REGION_EVAL_PLOT_OUTPUT_DIR = _region_eval_output_path(REGION_EVAL_OPTIONS["outputs"]["plot_dir"])
+ABCD_ORIGINAL_BINNING_TRANSFER_OUTPUT_DIR = str(
+    Path(workflow.basedir).parent
+    / ABCD_ORIGINAL_BINNING_TRANSFER["output"]["directory"]
+)
+ABCD_ORIGINAL_BINNING_TRANSFER_OUTPUTS = {
+    key: f"{ABCD_ORIGINAL_BINNING_TRANSFER_OUTPUT_DIR}/{ABCD_ORIGINAL_BINNING_TRANSFER['output'][key]}"
+    for key in ("csv", "root", "pdf", "png")
+}
+ABCD_SIGNAL_RATIO_COMPARISONS_OUTPUT_DIR = str(
+    Path(workflow.basedir).parent / ABCD_SIGNAL_RATIO_COMPARISONS["output"]["directory"]
+)
+ABCD_SIGNAL_RATIO_COMPARISONS_OUTPUTS = {
+    key: f"{ABCD_SIGNAL_RATIO_COMPARISONS_OUTPUT_DIR}/{ABCD_SIGNAL_RATIO_COMPARISONS['output'][key]}"
+    for key in ("csv", "root", "pdf")
+}
 
 
 def _region_eval_study_output_dir(study_name):
@@ -609,6 +637,99 @@ rule region_eval_feature_comparison_plot:
 rule region_eval_comparison_plots:
     input:
         lambda wildcards: _region_eval_default_comparison_plot_targets()
+
+
+rule region_v1_abcd_original_binning_transfer_factor_comparison:
+    input:
+        config=ABCD_ORIGINAL_BINNING_TRANSFER_CONFIG,
+        script=(f"{Path(workflow.basedir).parent}/evaluation_region_partitions/plot_abcd_original_binning_transfer_comparison.py"),
+    params:
+        signal=(f"{REGION_EVAL_HIST_OUTPUT_DIR}/partition_v1_region_v1/{REGION_EVAL_HIST_VERSION}__{REGION_EVAL_VERSION}/density_sndsw_scifi/none/none/signal_no_veto_has_us_fiducial_inside/real_data.root"),
+        sb2=(f"{REGION_EVAL_HIST_OUTPUT_DIR}/partition_v1_region_v1/{REGION_EVAL_HIST_VERSION}__{REGION_EVAL_VERSION}/density_sndsw_scifi/none/none/sideband_no_veto_has_us_fiducial_outside/real_data.root"),
+        sb4=(f"{REGION_EVAL_HIST_OUTPUT_DIR}/partition_v1_region_v1/{REGION_EVAL_HIST_VERSION}__{REGION_EVAL_VERSION}/density_sndsw_scifi/none/none/sideband_has_veto_has_us_fiducial_inside/real_data.root"),
+        sb6=(f"{REGION_EVAL_HIST_OUTPUT_DIR}/partition_v1_region_v1/{REGION_EVAL_HIST_VERSION}__{REGION_EVAL_VERSION}/density_sndsw_scifi/none/none/sideband_has_veto_has_us_fiducial_outside/real_data.root"),
+    output:
+        csv=ABCD_ORIGINAL_BINNING_TRANSFER_OUTPUTS["csv"],
+        root=ABCD_ORIGINAL_BINNING_TRANSFER_OUTPUTS["root"],
+        pdf=ABCD_ORIGINAL_BINNING_TRANSFER_OUTPUTS["pdf"],
+        png=ABCD_ORIGINAL_BINNING_TRANSFER_OUTPUTS["png"],
+    resources:
+        runtime=5 * 60,
+        mem_mb=1000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, scipy, yaml; print(ROOT.__version__, scipy.__version__, yaml.__version__)' >&2
+
+        python3 {input.script} \
+          --config {input.config} \
+          --signal {params.signal} \
+          --sb2 {params.sb2} \
+          --sb4 {params.sb4} \
+          --sb6 {params.sb6} \
+          --output-csv {output.csv} \
+          --output-root {output.root} \
+          --output-pdf {output.pdf} \
+          --output-png {output.png}
+        """
+
+
+rule region_v1_abcd_signal_ratio_comparisons:
+    input:
+        config=ABCD_SIGNAL_RATIO_COMPARISONS_CONFIG,
+        script=(f"{Path(workflow.basedir).parent}/evaluation_region_partitions/plot_abcd_signal_ratio_comparisons.py"),
+        helper=(f"{Path(workflow.basedir).parent}/evaluation_region_partitions/plot_abcd_original_binning_transfer_comparison.py"),
+    params:
+        hist_dir=(f"{REGION_EVAL_HIST_OUTPUT_DIR}/partition_v1_region_v1/{REGION_EVAL_HIST_VERSION}__{REGION_EVAL_VERSION}/density_sndsw_scifi/none/none"),
+        roles=ABCD_SIGNAL_RATIO_COMPARISONS["source"]["roles"],
+    output:
+        csv=ABCD_SIGNAL_RATIO_COMPARISONS_OUTPUTS["csv"],
+        root=ABCD_SIGNAL_RATIO_COMPARISONS_OUTPUTS["root"],
+        pdf=ABCD_SIGNAL_RATIO_COMPARISONS_OUTPUTS["pdf"],
+    resources:
+        runtime=10 * 60,
+        mem_mb=1000,
+        disk_mb=1000,
+        nvidia_gpu=0
+    shell:
+        r"""
+        set +u
+        source {env_script_lcg}
+        set -euo pipefail
+        export PYTHONNOUSERSITE=1
+        export PYTHONDONTWRITEBYTECODE=1
+
+        hostname >&2
+        pwd >&2
+        command -v python3 >&2
+        python3 --version >&2
+        python3 -c 'import ROOT, scipy, yaml; print(ROOT.__version__, scipy.__version__, yaml.__version__)' >&2
+
+        python3 {input.script} \
+          --config {input.config} \
+          --signal {params.hist_dir}/{params.roles[signal]}/real_data.root \
+          --sb1 {params.hist_dir}/{params.roles[sb1]}/real_data.root \
+          --sb2 {params.hist_dir}/{params.roles[sb2]}/real_data.root \
+          --sb3 {params.hist_dir}/{params.roles[sb3]}/real_data.root \
+          --sb4 {params.hist_dir}/{params.roles[sb4]}/real_data.root \
+          --sb5 {params.hist_dir}/{params.roles[sb5]}/real_data.root \
+          --sb6 {params.hist_dir}/{params.roles[sb6]}/real_data.root \
+          --sb7 {params.hist_dir}/{params.roles[sb7]}/real_data.root \
+          --output-csv {output.csv} \
+          --output-root {output.root} \
+          --output-pdf {output.pdf}
+        """
 
 
 rule region_eval_fiducial_efficiency:

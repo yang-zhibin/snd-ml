@@ -1,7 +1,7 @@
 # Task: abcd-bkg-estimation
 
 Status: active
-Last updated: 2026-10-01 13:28 Europe/Zurich
+Last updated: 2026-10-02 Europe/Zurich
 
 ## Goal
 
@@ -1139,14 +1139,147 @@ I would like to do is to apply the ABCD method to estimate the background in sig
   `condor_q -nobatch` reported zero jobs for the user. This ABCD task submitted
   no scheduler jobs.
 
+## 2026-10-01 original-binning transfer-factor comparison checkpoint
+
+### Implementation and scope
+
+- Added an explicitly unblinded PyROOT diagnostic comparing the exposure-
+  corrected `Signal/SB2` and `SB4/SB6` inside/outside transfer factors in the
+  same canvas, with their double ratio in a lower panel.
+- The calculation consumes the four historical ROOT histograms behind the
+  original Region V1 comparison plot. It validates and preserves their exact
+  80-bin ROOT axis over `[100,40000]` (actual width `498.75`) and excludes
+  underflow and overflow, matching that plot rather than the later frozen
+  six-bin closure policy.
+- Each individual transfer graph now uses its own statistical support. A
+  transfer is shown whenever its denominator is positive; a zero numerator is
+  retained as a zero estimate with an asymmetric upper interval. Only the
+  lower ratio-of-ratios requires all four raw counts to be positive. All 80
+  bins remain in the CSV with an explicit per-quantity status.
+- The individual transfer-factor uncertainties are 68.27% exact conditional
+  intervals for the ratio of two independent Poisson rates, constructed by
+  conditioning on the total, evaluating the Clopper--Pearson binomial
+  interval with `ROOT.TEfficiency.ClopperPearson`, and transforming it back to
+  the exposure-corrected rate ratio. The lower-panel uncertainty is the
+  68.27% four-Poisson profile-likelihood interval (`-2 Delta log L = 1`), which
+  remains tractable for the million-event veto samples and is asymmetric in
+  sparse bins. The former symmetric `1/sqrt(N)` delta approximation is no
+  longer used.
+- The diagnostic is labelled `Explicitly unblinded development diagnostic`.
+  It does not subtract signal, derive a nonclosure correction, or authorize
+  transport into a final result.
+
+### Files and outputs
+
+- Added
+  `evaluation_region_partitions/plot_abcd_original_binning_transfer_comparison.py`,
+  its focused synthetic test, and
+  `snakemake/metadata/configs/region_evaluation/abcd_original_binning_transfer_comparison_v1.yaml`.
+- Added the one-job Snakemake target
+  `region_v1_abcd_original_binning_transfer_factor_comparison` in
+  `snakemake/rules/region_evaluation.smk`. Historical EOS histogram paths are
+  passed as frozen parameters so this diagnostic cannot rebuild or overwrite
+  the requested original inputs.
+- Generated `transfer_factor_comparison.{csv,root,pdf,png}` under
+  `evaluation_region_partitions/plots/partition_v1_region_v1/hist_features_v1__evaluation_options_v1/density_sndsw_scifi/none/none/transfer_factor_signal_sb2_vs_sb4_sb6_v1/`.
+  The CSV has 80 rows. The ROOT graphs contain 27 valid `Signal/SB2` points,
+  77 valid `SB4/SB6` points, and 22 ratio-of-ratios points for which all four
+  counts are positive. The ROOT file also contains the canvas, frames, and
+  scope/flow metadata. The regenerated PDF is one page and the PNG passed
+  visual inspection.
+- At user request, the regenerated upper transfer-factor panel uses the fixed
+  range `[0,40]`. This keeps every central estimate visible (maximum about
+  `32.67`) while clipping only very large sparse-bin upper interval bars; the
+  annotation states that clipping explicitly.
+
+### Commands and results
+
+- The documented LCG 107 preflight passed with Python `3.11.9`, ROOT
+  `6.34.02`, SciPy `1.15.0`, and PyYAML `6.0.1`.
+- `python3 evaluation_region_partitions/test_abcd_original_binning_transfer_comparison.py`
+  passed in the activated LCG environment, including the undefined-bin policy,
+  zero-numerator interval policy, distinct graph supports, and persisted ROOT
+  graph checks.
+- The task-recorded Snakemake executable was used with `PYTHONHOME` and
+  `PYTHONPATH` unset. The final dry-run contained exactly the new plotting
+  rule; the production target completed locally with one job; the subsequent
+  dry-run reported everything present and up to date. An initial exact
+  conditional odds-ratio implementation was stopped after it proved
+  impractical for the million-count veto samples; no process or partial
+  output remains from that attempt.
+- No HTCondor or other scheduler job was submitted.
+
+## 2026-10-01 six signal-ratio comparisons checkpoint
+
+- Added the six requested exposure-corrected comparisons: `Signal/SB2` versus
+  `SB4/SB6` and `SB1/SB3`; `Signal/SB1` versus `SB4/SB5` and `SB2/SB3`;
+  and `Signal/SB4` versus `SB1/SB5` and `SB2/SB6`. Each occupies one full page
+  of one PDF. Equal closure quantities are adjacent in the final page order:
+  `S1,S6`, `S2,S4`, then `S3,S5`.
+- Every individual ratio uses its own positive-denominator support. Each lower
+  ratio-of-ratios requires all four counts to be positive. At user request,
+  these six pages use the standard symmetric independent-Poisson propagation
+  from `sqrt(N)` for both individual transfer factors and ratios of transfer
+  factors, rather than the exact/profile intervals retained by the earlier
+  standalone plot.
+- Plot text was simplified: the y-axis reads `Transfer factor`; the upper-left
+  heading names the transfer direction (`Inside / outside`, `Has US / no US`,
+  or `No veto / veto`); legends spell out the complete selections of both
+  regions in each ratio; and the plotted unblinding/error-method annotations
+  were removed. The original 80-bin `[100,40000]` density axis and exposure
+  correction are unchanged.
+- The page layout now reserves a separate header band for the title, subtitle,
+  and two complete legend entries, so the legend cannot cover the transfer-
+  factor data. Axis scaling is selected from the calculated central values:
+  the upper panel switches to logarithmic scale when its positive-value
+  dynamic range exceeds 100, while the lower panel switches when its smallest
+  positive ratio is below 0.05 or its dynamic range exceeds 100. Zero-valued
+  individual transfers on logarithmic pages are retained as downward-triangle
+  markers at the plotting floor; the CSV value remains exactly zero.
+- At user request, a new front page overlays the signal region and all seven
+  sideband density distributions in the original 80-bin presentation. Every
+  histogram is normalized to the common reference exposure
+  `L_ref=19.78 fb^-1` with factor `L_ref/L_region`; the displayed integrals
+  reproduce the original comparison (`SB4=1.17097e8`, `SB6=1.05044e8`,
+  `SB5=95453.2`, `SB7=82689.1`, `SB2=174188`, `SB1=24847.1`,
+  `SB3=32965.9`, and `Signal=104185`). The page uses the original logarithmic
+  event-yield presentation and is stored as `c_region_distributions` together
+  with its scaled histograms in the ROOT output.
+- The first ratio comparison, `S1` (`Signal/SB2` versus `SB4/SB6`), now has an
+  explicit `top_scale: linear` override and retains its configured `[0,40]`
+  range. It is PDF page 2 after insertion of the distribution overview.
+- Added `evaluation_region_partitions/plot_abcd_signal_ratio_comparisons.py`,
+  its focused synthetic test, the versioned YAML configuration, and the named
+  Snakemake target `region_v1_abcd_signal_ratio_comparisons`. Outputs are
+  `signal_ratio_comparisons.{csv,root,pdf}` under the new
+  `.../density_sndsw_scifi/none/none/signal_ratio_comparisons_v1/` directory.
+- The production CSV contains 480 rows. Valid lower-panel bin counts are
+  `S1=22`, `S2=15`, `S3=15`, `S4=15`, `S5=15`, and `S6=22`. Independent
+  verification found `S1=S6`, `S2=S4`, and `S3=S5` bin by bin to tolerance
+  `1e-12`, as required for the alternative orientations of the same three
+  cube faces.
+- The LCG 107 preflight, focused synthetic test, `git diff --check`, ROOT
+  canvas/graph inspection, seven-page `pdfinfo` check, and rendered front-page
+  plus `S1` preview passed. Production uses logarithmic upper panels for `S6`,
+  `S3`, and `S5`, and logarithmic lower panels for `S3` and `S5`; `S1`, `S2`,
+  and `S4` remain linear. The header legends do not overlap the histograms and
+  the previously compressed small ratios are visible. ROOT `6.34.02` cannot
+  safely construct an empty `TGraphErrors(0)` through this PyROOT overload,
+  so empty zero-marker selections are skipped instead; the focused test and
+  production both pass with that guard. The final PDF has seven portrait pages,
+  the CSV has 481 lines including its header, and the ROOT file opens without
+  a zombie flag. The final Snakemake dry-run is a no-op. The production target
+  completed as one local job; no scheduler job is running or was submitted.
+
 ## Current Git state
 
 - Branch: `task/abcd-bkg-estimation`.
-- HEAD before updating this task record: `f9db4a5`
-  (`docs: expand blinded report methodology and definitions`).
-- The implementation worktree was clean after the production run. This
-  task-record update is the sole change intended for the documentation
-  checkpoint commit.
+- HEAD before this implementation: `5028eb3`
+  (`docs: checkpoint expanded blinded analysis report`).
+- The transfer-comparison and six-comparison scripts, tests, configurations,
+  Snakemake rule changes, and this task-record update are uncommitted task
+  changes. Generated plot products are ignored outputs. No unrelated tracked
+  changes were present.
 
 ## Blockers and open questions
 
@@ -1173,7 +1306,684 @@ I would like to do is to apply the ABCD method to estimate the background in sig
 
 ## Exact next action
 
-Review the generated expected-only report and decide whether to accept or
-replace the provisional independent-validation
-`kappa = 0.398767 +/- 0.139976` transport and placeholder 30% neutrino-MC
-normalization uncertainties. Do not run observed unblinding.
+Review the completed DS--SciFi efficiency and density report with the user and
+obtain a decision to accept this extremely low-rejection working point or
+redefine it. Do not start post-selection ABCD closure or change the frozen cut
+until that decision is recorded.
+
+## 2026-10-02 DS--SciFi rejection implementation checkpoint
+
+### Frozen decision and boundary
+
+- The user's instruction to implement the saved plan is recorded as
+  acceptance of its recommended inclusive DS definition: all four DS stations
+  active, every `count_dsN <= 2`, and `count_ds <= 5`.
+- The SciFi component requires five XY-active stations and every station count
+  below 20. The common base remains `count_scifi > 35`.
+- Veto and US variables are forbidden from the tag and remain Region V1 ABCD
+  axes. The existing V7 selection, partition products, baseline histograms,
+  and reports are not modified.
+
+### Implemented files
+
+- Added the frozen configuration
+  `snakemake/metadata/configs/region_evaluation/abcd_ds_scifi_muon_rejection_v1.yaml`.
+- Added the pure selection/configuration helper, full-source data shard
+  worker, validated shard merger, neutrino-MC acceptance worker, and PyROOT
+  report generator under `evaluation_region_partitions/`.
+- Added focused selection-boundary and synthetic end-to-end tests. The latter
+  covers two data shards, count and histogram-flow closure, region-total and
+  luminosity closure, exact Clopper--Pearson intervals, MC normalization with
+  `sum(w^2)`, combined CSV/ROOT outputs, and multipage PDF generation.
+- Added the isolated aggregate target
+  `region_v1_abcd_ds_scifi_muon_rejection_v1` to
+  `snakemake/rules/region_partitions.smk`. It comprises 100 full-data shards,
+  32 region/sample MC jobs, one merge, and one report job. It is not part of a
+  broad default target. The frozen partition catalogue is passed as a
+  parameter so Snakemake cannot rebuild its producer DAG.
+
+### Commands and verified results
+
+- LCG 107 preflight: host `lxplus9112.cern.ch`, Python `3.11.9`, ROOT
+  `6.34.02`, and PyYAML `6.0.1`.
+- `python3 -m py_compile` passed for all five implementation modules.
+- `python3 evaluation_region_partitions/test_abcd_ds_scifi_selection.py`
+  passed.
+- `python3 -u -X faulthandler evaluation_region_partitions/test_abcd_ds_scifi_rejection.py`
+  passed. Its synthetic counts closed as `8 = 4 + 4`; MC retained yield was
+  `2.0` after the configured `2/4` luminosity weight; all requested report
+  products were nonempty.
+- The first production DAG dry-run exposed an unwanted 800-job Region V1
+  partition regeneration. No jobs were run. The catalogue dependency was
+  severed from that producer and retained as an explicitly frozen parameter.
+- The final dry-run passed with exactly 135 DAG nodes: 100 data-shard jobs,
+  32 MC jobs, one merge, one report, and the aggregate target. No canonical
+  partition-building job appears.
+
+### Outputs and running jobs
+
+- Expected directory:
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/ds_scifi_muon_rejection_v1/`.
+- Final products will be `efficiencies.csv`, `data_efficiencies.csv`,
+  `data_full.root`, `ds_scifi_muon_rejection.root`,
+  `ds_scifi_muon_rejection.pdf`, and `report.md`, plus validated data-shard and
+  MC intermediates.
+- No scheduler job has yet been submitted at this checkpoint.
+
+### Git state
+
+- Branch `task/abcd-bkg-estimation`, HEAD `5028eb3`.
+- The DS--SciFi files and rule changes are uncommitted task work alongside the
+  already recorded uncommitted transfer-comparison work. No commit was made,
+  and no unrelated user change was altered.
+
+## 2026-10-02 DS--SciFi production completion checkpoint
+
+### Scheduler execution
+
+- The first two HTCondor submission attempts failed before any job entered the
+  scheduler: the profile's submit helper required the removed legacy
+  `htcondor` Python binding and then tried to import Snakemake from system
+  Python. Both retry loops were stopped; `condor_q` confirmed zero jobs.
+- Updated only the worktree profile helper
+  `snakemake/.config/snakemake/htcondor/grid-submit.py` to use the installed
+  `htcondor2` binding and to parse Snakemake's standard JSON properties header
+  directly. The submit semantics, credentials, resources, and CERN accounting
+  group are unchanged. System-Python compilation and object construction
+  checks passed.
+- Production command:
+  `env -u PYTHONHOME -u PYTHONPATH PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 /afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake --snakefile snakemake/snakefile --profile snakemake/.config/snakemake/htcondor region_v1_abcd_ds_scifi_muon_rejection_v1 --jobs 132 --rerun-incomplete --quiet progress rules`.
+- HTCondor data/MC clusters were the contiguous range `16337251` through
+  `16337382`; merge was `16338129`; the first report was `16338289`. Logs are
+  under `/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/htcondor_log/<jobid>_<uuid>/`.
+  All jobs completed, and the final `condor_q -totals` reported zero jobs.
+- The first report was valid but its 32-row MC table was too dense. The report
+  generator was corrected to use two 16-row MC pages and concise readable cut
+  definitions, its synthetic end-to-end test passed again, and only the report
+  rule was regenerated locally. The final aggregate dry-run is a no-op.
+
+### Validated production results
+
+- The full common-exposure scan used 100 shards and exactly
+  `19.780680927948 fb^-1`. All count, finite-value, histogram-flow,
+  region-union, fingerprint, and luminosity checks passed.
+- Total data after `count_scifi > 35`: `381486372` events; `6693` tagged;
+  `381479679` retained. The removed fraction is `1.75445323641e-5` and the
+  keep efficiency is `0.999982455468`.
+- Per-region tagged counts are: Signal `0`, SB1 `0`, SB2 `13`, SB3 `0`, SB4
+  `3249`, SB5 `3`, SB6 `3418`, and SB7 `10`. Exact 68.27% Clopper--Pearson
+  intervals are stored in `data_efficiencies.csv` and the report.
+- All 32 neutrino-MC region/sample populations have zero tagged events and
+  keep efficiency exactly `1` at available MC precision. In the signal
+  region, raw counts are `8072` CC nue, `2475` NC nue, `20015` CC numu, and
+  `5817` NC numu.
+- The combined table has 41 `PASS` rows and one selection fingerprint,
+  `0507841dbbdd561e`. `data_full.root` and
+  `ds_scifi_muon_rejection.root` open successfully with 62 and 41 keys.
+- The final report has 13 pages and includes the cut definition, data and MC
+  tables, retained all-region density overlay, and eight per-region
+  before/tagged/retained distributions with retention panels.
+
+### Final products
+
+- Directory:
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/ds_scifi_muon_rejection_v1/`.
+- Human-readable outputs: `ds_scifi_muon_rejection.pdf` and `report.md`.
+- Machine-readable outputs: `efficiencies.csv`, `data_efficiencies.csv`,
+  `data_full.root`, and `ds_scifi_muon_rejection.root`, plus the 100 data
+  shard and 32 MC ROOT/CSV pairs.
+
+### Final verification and Git state
+
+- Final module compilation, focused selection test, synthetic end-to-end
+  test, ROOT-open checks, 13-page `pdfinfo`, `git diff --check`, aggregate
+  no-op dry-run, and empty scheduler check passed.
+- Branch remains `task/abcd-bkg-estimation` at HEAD `5028eb3`. All task
+  implementation and previously recorded ratio-comparison changes remain
+  uncommitted; no commit was created and no unrelated work was modified.
+
+## 2026-10-02 DS--SciFi sequential-cutflow report checkpoint
+
+### Implemented scope
+
+- Added one shared ordered six-stage cutflow definition without changing the
+  frozen tag: `count_scifi > 35`, five SciFi XY-active stations, every SciFi
+  station below 20 hits, all four DS stations active, every DS station at most
+  two hits, and total DS hits at most five.
+- Data shards and every MC region/sample row now persist all six cumulative raw
+  counts in their CSV and ROOT metadata. The workers and data merger require a
+  monotonic cutflow, require the first count to equal `n_before`, and require
+  the final count to equal `n_tagged`.
+- The report aggregates the full-source data total and the configured signal
+  sample (`CC_nue`) over all eight mutually exclusive regions. It adds one PDF
+  and Markdown table for each, with remaining counts, events removed at the
+  step, step efficiency, and cumulative efficiency. It also writes
+  `cutflow_data` and `cutflow_signal_mc` ROOT histograms.
+- The report generator disables ROOT statistics boxes and uses shorter region
+  descriptions plus a smaller legend to address the previously observed plot
+  overlap and clipping. The frozen selection and fingerprint are unchanged.
+
+### Modified files
+
+- `evaluation_region_partitions/abcd_ds_scifi_selection.py`
+- `evaluation_region_partitions/make_abcd_ds_scifi_rejection_data_shard.py`
+- `evaluation_region_partitions/merge_abcd_ds_scifi_rejection_data.py`
+- `evaluation_region_partitions/make_abcd_ds_scifi_rejection_mc.py`
+- `evaluation_region_partitions/make_abcd_ds_scifi_rejection_report.py`
+- `evaluation_region_partitions/test_abcd_ds_scifi_selection.py`
+- `evaluation_region_partitions/test_abcd_ds_scifi_rejection.py`
+
+### Commands and verified results
+
+- Documented LCG 107 runtime: Python `3.11.9`, ROOT `6.34.02`, PyYAML
+  `6.0.1`.
+- `python3 -m py_compile` passed for all seven affected implementation and test
+  modules.
+- The focused selection test passed and verifies the ordered stage keys and
+  equivalence of the final cumulative expression to base plus the frozen tag.
+- The synthetic end-to-end test passed. Both data and signal MC have the
+  expected cutflow `[8, 8, 8, 8, 4, 4]`; the final count equals `n_tagged`.
+  The synthetic report contains seven pages, both Markdown sections, and the
+  two cutflow ROOT objects.
+- A temporary real signal-region `CC_nue` run passed with cutflow
+  `[8072, 117, 0, 0, 0, 0]`, reproducing the independent diagnosis.
+- A temporary real full-source data shard-0 run passed with cutflow
+  `[3739875, 3396793, 546828, 532724, 125925, 73]`; its first and final values
+  exactly match the previously verified `n_before` and `n_tagged`.
+- The ordinary aggregate Snakemake dry-run contains exactly 135 jobs: 100 data
+  shards, 32 MC jobs, one merge, one report, and the aggregate target. It
+  contains no partition rebuild.
+- `git diff --check` passed. No scheduler jobs are present for the user.
+
+### Output and Git state
+
+- Existing production products still use the earlier schema and 13-page
+  report. They were not overwritten or regenerated in this checkpoint.
+- Branch `task/abcd-bkg-estimation` remains at `5028eb3`. The task changes are
+  uncommitted alongside the previously recorded ratio-comparison work. No
+  commit was created.
+
+### Exact next action
+
+Run the named aggregate target
+`region_v1_abcd_ds_scifi_muon_rejection_v1` to regenerate the 100 data shards,
+32 MC products, merged summaries, and expected 15-page report; then validate
+the two production cutflow tables and visually inspect the revised PDF. Do not
+start post-selection ABCD closure in the same action.
+
+
+## 2026-10-02 exact loose SciFi--DS projection pre-production checkpoint
+
+### Decision and implemented scope
+
+- The requested new report uses exactly the SciFi and DS components of the V7
+  loose selection while preserving Veto and US for the Region V1 ABCD axes:
+  `count_scifi > 35`; all five SciFi stations have X and Y activity; each
+  SciFi station has fewer than 20 hits; and all four DS stations are active.
+- It intentionally does not apply the stricter experimental requirements of
+  at most two hits per DS station or `count_ds <= 5`.
+- Added the separate configuration
+  `snakemake/metadata/configs/region_evaluation/abcd_ds_scifi_loose_projection_v1.yaml`
+  and aggregate target `region_v1_abcd_ds_scifi_loose_projection_v1`. The new
+  output directory is
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/ds_scifi_loose_projection_v1/`,
+  so the existing strict result is not changed.
+- To limit scheduler load, the workflow uses 10 single-threaded full-data
+  shards and only the requested `CC_nue` signal sample in the eight Region V1
+  regions. The report code now derives its definition page and cutflow tables
+  from the configured stages, so it cannot label the loose result with the
+  omitted strict DS cuts.
+
+### Verification before production
+
+- LCG 107 preflight used Python `3.11.9`, ROOT `6.34.02`, and PyYAML `6.0.1`.
+- Compilation, the focused selection test, and the synthetic end-to-end
+  strict-plus-loose test passed. The loose synthetic cutflow is
+  `[8, 8, 8, 8]`, its final count equals `n_tagged`, and its seven-page report
+  contains no per-station or total DS multiplicity claim.
+- The dedicated Snakemake executable dry-run passed with exactly 21 nodes:
+  10 data workers, 8 `CC_nue` region workers, one data merge, one report, and
+  the aggregate target. No partition-production rule is present.
+- Branch `task/abcd-bkg-estimation` remains at HEAD `5028eb3`; the existing
+  task-related dirty changes are preserved. `condor_q` shows no running jobs.
+
+### Planned production action
+
+- Submit only `region_v1_abcd_ds_scifi_loose_projection_v1` through the
+  repository HTCondor profile with at most 10 concurrent jobs, then validate
+  its CSV/ROOT count closure and visually inspect its PDF. Do not regenerate
+  the strict workflow or begin post-selection ABCD closure.
+
+
+## 2026-10-02 loose-projection partition-input direction change
+
+- The user identified that the frozen Region V1 feature partitions already
+  contain every density, SciFi, and DS branch required by the loose cut. This
+  was verified directly for real data. Catalogue coverage is 100 files and
+  `19.780680927948 fb^-1` for each no-veto region, and 96 files and
+  `1.960319252235 fb^-1` for each veto region.
+- The original full-source clusters `16354305`, `16354307`, and
+  `16354309`--`16354316` were removed by the user, but the surviving
+  Snakemake controller retried them as `16358202`, `16358263`, `16358266`,
+  `16358269`, `16358278`, `16358283`, `16358286`, `16358292`, `16358298`,
+  and `16358303`. With the user's instruction to implement and generate the
+  partition-based report, controller PID `3269380` and all ten replacements
+  were explicitly stopped. A subsequent scoped `condor_q` was empty.
+- Frozen decision: replace only the separate loose target's full-source data
+  scan with eight direct `real_data` region-partition evaluations. Keep the
+  existing eight partition-based `CC_nue` evaluations, validate catalogue
+  counts and per-region exposure, merge the data products, and label the
+  aggregate data cutflow as a mixed-exposure stored-partition diagnostic.
+  Preserve the strict production workflow and its products.
+
+### Exact next action
+
+Implement the partition-based loose data worker/merge/rules and focused
+synthetic test; run compilation, tests, and a 19-node dry-run before generating
+and validating the separate loose PDF. Do not start post-selection ABCD
+closure.
+
+
+## 2026-10-02 partition-based loose workflow pre-production checkpoint
+
+### Implemented and verified
+
+- Generalized `make_abcd_ds_scifi_rejection_mc.py` into a validated Region V1
+  partition-population worker while preserving its MC behavior. For real data
+  it requires frozen partition/region versions, unique available paths,
+  catalogue/tree event-count equality, all required branches, the configured
+  per-region catalogue exposure, base-selection closure, finite density,
+  monotonic cutflow, count closure, and histogram closure.
+- Added `merge_abcd_ds_scifi_rejection_data_partitions.py`, which requires all
+  eight real-data regions, preserves their configured exposures, creates the
+  report's region and aggregate histograms, and explicitly labels the aggregate
+  as mixed exposure rather than a physics yield at one luminosity.
+- Replaced only the loose Snakemake block with eight real-data partition jobs,
+  eight `CC_nue` partition jobs, one merge, one report, and one aggregate node.
+  The frozen catalogue remains a parameter, so its producer cannot enter the
+  DAG. The strict target and products are unchanged.
+- Updated the report to show data exposure and use a configurable data-scope
+  label. The loose report states that the aggregate combines configured
+  exposures. Added the required catalogue identity to both strict and loose
+  configurations because the shared partition worker validates it.
+- `git diff --check`, compilation, the selection test, and the full synthetic
+  strict-plus-loose ROOT/CSV/PDF test passed. The loose test exercises direct
+  real-data partitions, the new merge, `CC_nue`, and a seven-page report.
+- The production dry-run contains exactly 19 nodes: 8 data regions, 8 `CC_nue`
+  regions, one merge, one report, and the aggregate. It contains no full-source
+  shard or partition-production rule.
+- A real SB1 preflight passed: catalogue/tree count `40300`, exposure
+  `19.7806809279 fb^-1`, cutflow `[40300, 141, 59, 0]`, tagged `0`, retained
+  `40300`, fingerprint `d2d51ef52665b47c`, and status `PASS`.
+- The stale Snakemake lock from the stopped controller was cleared only after
+  confirming the controller and scoped HTCondor jobs were absent.
+
+### Production action
+
+Run only `region_v1_abcd_ds_scifi_loose_projection_v1` locally through
+Snakemake with four cores, matching the earlier partition-histogram workflow;
+then audit CSV/ROOT closure, PDF text/pages, and representative rendered pages.
+
+
+## 2026-10-02 partition-based loose report completed
+
+### Generated products
+
+- Generated the separate loose-cut report at
+  `/afs/cern.ch/work/z/zhibin/snd-ml/evaluation_region_partitions/abcd/partition_v1_region_v1/ds_scifi_loose_projection_v1/ds_scifi_loose_projection.pdf`.
+  The PDF has 14 pages and contains the data and `CC_nue` cutflow tables,
+  rejection efficiencies, and before/after density distributions.
+- Supporting products are `report.md`, `data_efficiencies.csv`,
+  `efficiencies.csv`, `data_full.root`, the per-region `data_regions/` and
+  `mc/` products, and the merged `ds_scifi_loose_projection.root` in the same
+  output directory.
+- The loose selection is exactly `count_scifi > 35`, all five SciFi stations
+  with X and Y activity, fewer than 20 hits in every SciFi station, and all
+  four DS stations active. Veto and US remain available as ABCD axes. The
+  stricter DS multiplicity cuts are absent from the PDF.
+
+### Commands and verified results
+
+- Production completed locally through the named Snakemake target with four
+  cores: 19/19 nodes (eight data regions, eight `CC_nue` regions, one merge,
+  one report, and the aggregate target). The final report regeneration log is
+  `.snakemake/log/2026-10-02T151847.147390.snakemake.log`.
+- All nine rows in `data_efficiencies.csv` and all 17 rows in
+  `efficiencies.csv` have status `PASS`, fingerprint
+  `d2d51ef52665b47c`, monotonic cutflows, count closure, and histogram
+  closure. The merged ROOT files contain 67 data keys and 43 report keys.
+- Stored data totals are 40,051,418 before, 5,290,008 tagged, and 34,761,410
+  retained. This aggregate mixes the configured `19.7806809279 fb^-1`
+  no-veto exposure and `1.96031925223 fb^-1` veto exposure, so it is a stored
+  partition diagnostic rather than a yield at one luminosity.
+- Data keep efficiencies are 0.999899 (Signal), 1.000000 (SB1), 0.998504
+  (SB2), 1.000000 (SB3), 0.862245 (SB4), 0.999849 (SB5), 0.868649 (SB6),
+  and 0.999794 (SB7). No available `CC_nue` event is tagged in any region.
+- Visual inspection confirmed that the definition, distribution, and final
+  efficiency-table pages are readable after shortening the PDF-facing titles
+  and formatting the exposure column. `pdfinfo` reports 14 pages. Text audit
+  finds none of the omitted strict DS requirements.
+- The final Snakemake dry-run reports all outputs present and up to date.
+  `git diff --check` passes. Scoped `condor_q` is empty; there are no running
+  jobs for this workflow.
+
+### Modified files and Git state
+
+- The implementation files are the partition worker
+  `make_abcd_ds_scifi_rejection_mc.py`, the new data-partition merger
+  `merge_abcd_ds_scifi_rejection_data_partitions.py`, the report generator,
+  its synthetic tests, the loose/strict configuration metadata, and the loose
+  target block in `snakemake/rules/region_partitions.smk`.
+- Branch `task/abcd-bkg-estimation` remains at `5028eb3`. These task changes
+  remain uncommitted alongside previously recorded task-related work; no
+  commit was created.
+
+### Exact next action
+
+Have the user review the generated loose-cut PDF and decide whether to accept
+this selection/report. Do not begin post-selection ABCD closure or modify the
+selection before that decision.
+
+
+## 2026-10-02 loose-report table and plot formatting revision
+
+### Implemented presentation changes
+
+- The sequential-cutflow tables now report actual removal efficiencies:
+  `(N_(i-1)-N_i)/N_(i-1)` for the newly applied step and
+  `(N_0-N_i)/N_0` cumulatively. Their headers are explicitly `Removed step
+  eff.` and `Removed cumulative eff.` and use a two-line layout to avoid
+  overlap.
+- The PDF data-efficiency table no longer contains the exposure column. It
+  shows the eight physical Region V1 populations; event counts are scaled to
+  the common reference luminosity `19.780680927948 fb^-1` and formatted in
+  scientific notation with three significant digits. Per-region removal
+  fractions and exact 68.27% Clopper--Pearson keep-efficiency intervals remain
+  unchanged. The mixed-exposure aggregate row is omitted because after
+  reweighting it has no single exact binomial interval.
+- Removed the `Neutrino-MC acceptance after rejection` page from the PDF. The
+  validated MC CSV/ROOT products and Markdown information are preserved.
+- The retained-region overlay now reserves a separate right-hand pad for the
+  legend. Region labels contain definitions only, without event totals, and
+  the plot margin preserves the final `40000` x-axis label.
+
+### Verification and outputs
+
+- Under LCG 107, compilation and the full focused synthetic strict-plus-loose
+  end-to-end test passed twice after the semantic and final layout changes.
+  The synthetic report expectation is now six pages and explicitly checks
+  that the removed MC-acceptance page is absent.
+- Regenerated only the report rule and aggregate target through Snakemake;
+  no data scan, partition worker, or batch submission ran. Final log:
+  `.snakemake/log/2026-10-02T154939.765576.snakemake.log`.
+- The production PDF is now 13 pages. Text inspection confirms the normalized
+  luminosity label, removal headings, eight definition-only legend entries,
+  and absence of the MC-acceptance page. Rendered pages 2, 4, and 5 were
+  visually inspected and are readable without overlap or clipping.
+- The final Snakemake dry-run reports all products present and up to date;
+  `git diff --check` passes; scoped `condor_q` is empty.
+- Branch `task/abcd-bkg-estimation` remains at `5028eb3`. The report generator,
+  focused test, and this task record are uncommitted alongside the previously
+  recorded task-related changes. No commit was created.
+
+### Exact next action
+
+Have the user inspect the revised 13-page PDF. Do not change the selection or
+begin post-selection ABCD closure until the user provides the next instruction.
+
+
+## 2026-10-02 final six-page loose-report presentation
+
+### Implemented changes
+
+- Removed the `Interval: 68.27% Clopper--Pearson (nested binomial)` row from
+  the PDF definition page. Statistical interval values remain available in
+  the CSV and Markdown products.
+- Removed the `Keep efficiency [68% CI]` column from the PDF data-rejection
+  table. The remaining event-count columns stay normalized to
+  `L_ref = 19.780680927948 fb^-1` and use three significant digits.
+- Restored a wide comparison frame using separate `1500 x 800` retained and
+  removed canvases. Both legends are outside the plotting frame and now show
+  each histogram's total event count after its complete region definition.
+- Removed all eight individual before/tagged/retained PDF pages. Replaced them
+  with one combined removed-event overlay, giving the final PDF six pages.
+- Verified from the ROOT inputs that every removed event is below the previous
+  original-plot lower boundary of 100: the original tagged histograms contain
+  all tagged counts in underflow. The removed page therefore uses the existing
+  validated `h_analysis_*_tagged` histograms over `[0,40000]`; it shows all
+  rejected events in the first `[0,500]` bin without folding or redistributing
+  entries. The retained page continues to use the original `[100,40000]`
+  plotting histograms.
+
+### Verification, outputs, and Git state
+
+- LCG 107 compilation and the focused strict-plus-loose synthetic end-to-end
+  test passed after the final canvas and histogram-range fixes. The test
+  requires six pages and verifies removal of the interval text, keep-efficiency
+  column, MC-acceptance page, and individual region-page titles, plus presence
+  of both combined overlays.
+- Regenerated only the report and aggregate Snakemake nodes. Final log:
+  `.snakemake/log/2026-10-02T161620.435901.snakemake.log`.
+- `pdfinfo` reports six pages. PDF text contains the retained and removed
+  titles and complete count-bearing legend entries, while the removed interval,
+  keep-efficiency, and individual-page text are absent. Pages 1, 4, 5, and 6
+  were visually inspected; tables, axes, and both external legends are clean.
+- Final Snakemake dry-run is a no-op, `git diff --check` passes, and scoped
+  `condor_q` is empty.
+- Branch `task/abcd-bkg-estimation` remains at `5028eb3`. The report generator,
+  focused test, and task record remain uncommitted with the previously recorded
+  task changes. No commit was created.
+
+### Exact next action
+
+Have the user inspect the final six-page PDF. Do not alter the selection or
+begin post-selection ABCD closure until the user gives a new instruction.
+
+
+## 2026-10-02 removal-tag cutflow semantic correction
+
+### Correction
+
+- The previously displayed `Removed step eff.` and `Removed cumulative eff.`
+  values were complements of the removal-tag efficiencies and therefore
+  described events failing the tag requirements. Corrected the definitions to
+  `N_i/N_(i-1)` for removal-tag step efficiency and `N_i/N_0` for removal-tag
+  cumulative efficiency, because the cumulative cutflow constructs the final
+  removal tag.
+- Renamed the `N_(i-1)-N_i` count column from `Removed` to
+  `Failing requirement`; those events fail the newly applied removal-tag
+  requirement and are not themselves removed from the analysis at that step.
+- Updated both PDF headers and the Markdown formulas. Added an explicit
+  numerical regression probe using counts `[100,80,20]`, requiring step
+  efficiencies `[--,80%,25%]` and cumulative efficiencies
+  `[100%,80%,20%]`.
+
+### Verified production values
+
+- Region V1 data counts are `[40051418,33658402,5432006,5290008]`.
+  Correct removal-tag step efficiencies are `[--,84.0380%,16.1386%,97.3859%]`
+  and cumulative efficiencies are `[100%,84.0380%,13.5626%,13.2080%]`.
+  The final cumulative value equals `5290008/40051418`.
+- Aggregated `CC_nue` counts are `[43245,12821,0,0]`. Correct step
+  efficiencies are `[--,29.6474%,0%,n/a]` and cumulative efficiencies are
+  `[100%,29.6474%,0%,0%]`. The last step is undefined because its previous
+  denominator is zero.
+
+### Validation, output, and state
+
+- LCG 107 compilation and the focused strict-plus-loose synthetic end-to-end
+  test passed after updating one obsolete heading assertion.
+- Regenerated only the report and aggregate Snakemake nodes. Log:
+  `.snakemake/log/2026-10-02T170056.406435.snakemake.log`.
+- The production PDF remains six pages. Pages 2 and 3 were rendered and
+  visually inspected; extracted text reproduces every verified count and
+  efficiency above without overlap.
+- Final Snakemake dry-run is a no-op, `git diff --check` passes, and scoped
+  `condor_q` is empty. Branch HEAD remains `5028eb3`; task changes are still
+  uncommitted and no commit was created.
+
+### Exact next action
+
+Have the user inspect corrected PDF pages 2 and 3. Do not begin the proposed
+new ABCD-region development until the user gives the next instruction.
+
+
+## 2026-10-02 proposed Veto edge-muon selection recorded
+
+### Decision
+
+- Saved the requested selection definition in
+  `docs/analysis/regions/REGION_V1_VETO_EDGE_MUON_SELECTION.md`.
+- The selection keeps edge-muon candidates. With both horizontal Veto planes
+  available, they must identify the same physical y edge. A single available
+  y plane is used alone. Missing y or x information is neutral so that the
+  other orientation decides, but an explicit `any_valid` guard rejects events
+  with no valid Veto position from the edge-muon sample.
+- The 10 cm edge thresholds are derived from the frozen 2024 detector
+  geometry and are recorded with their physical plane boundaries.
+- This checkpoint is documentation only. No analysis code, configuration,
+  generated output, job, or existing baseline was changed or run.
+
+### Git state
+
+- The worktree already contained the task-related uncommitted changes recorded
+  above. This checkpoint adds the new selection note and updates this task
+  record; no commit was created.
+
+### Exact next action
+
+Have the user review and approve the saved Veto edge-muon definition. Do not
+implement or evaluate it until the user explicitly requests that next action.
+
+
+## 2026-10-02 Veto edge-muon workflow implemented and tested
+
+### Implemented scope
+
+- Added the isolated configuration
+  `snakemake/metadata/configs/region_evaluation/abcd_veto_edge_muon_selection_v1.yaml`
+  and aggregate target
+  `region_v1_abcd_veto_edge_muon_selection_v1`.
+- Extended the existing partition worker and data merger with a separate
+  `veto_edge_muon` mode. The frozen DS--SciFi path and its selection
+  fingerprint are unchanged.
+- The selected/kept population is the edge tag itself. Output CSVs expose the
+  unambiguous fields `n_selected_edge`, `n_nonedge`,
+  `edge_efficiency`, `sumw_selected_edge`, and
+  `sumw2_selected_edge`; the backend `tagged`/complement objects remain
+  only for compatibility with the validated histogram machinery.
+- Added exclusive Veto-position availability counts for both orientations,
+  y only, x only, and no position, plus diagnostics for the individual y-plane
+  availability cases. The four orientation categories must sum exactly to the
+  input population.
+- Added the dedicated PyROOT report generator
+  `evaluation_region_partitions/make_abcd_veto_edge_report.py`. Its
+  eight-page report contains the geometry/logic definition, data and
+  `CC_nue` cutflows, availability table, luminosity-normalized data table,
+  signal-MC acceptance, selected edge-muon density overlay, and complementary
+  non-edge overlay. It reports point efficiencies only and contains no
+  confidence-interval presentation.
+- Added
+  `evaluation_region_partitions/test_abcd_veto_edge_selection.py`, covering
+  same-edge, opposite-edge, central-position, one-y-plane, missing-y,
+  missing-x, and all-missing cases, plus count/category/histogram closure and
+  ROOT/CSV/Markdown/PDF production.
+- The workflow consumes the existing Region V1 feature partitions directly.
+  It does not rescan full source data, rebuild partitions, or submit HTCondor
+  jobs. The existing no-Veto populations are expected to select zero edge
+  muons because `any_valid` is false there.
+
+### Commands and results
+
+- Under the documented LCG 107 environment, Python compilation passed for all
+  modified/new Python files. PyROOT was 6.34.02 and PyYAML was 6.0.1.
+- The new synthetic end-to-end test passed and produced the expected
+  `10 before -> 6 selected edge muons + 4 non-edge`, availability counts
+  `[6 both orientations, 2 y-only, 1 x-only, 1 no-position]`, and an
+  eight-page PDF with no Clopper--Pearson text.
+- The pre-existing strict-plus-loose DS--SciFi synthetic end-to-end regression
+  test also passed, confirming that the old selection path remains intact.
+- `git diff --check` passed.
+- The first two dry-run launcher attempts failed before DAG construction
+  because the incomplete user-local Snakemake launcher could not import
+  `snakemake` after environment stripping and then lacked `humanfriendly`.
+  No job ran and no output was created.
+- The documented Snakemake executable succeeded:
+  `env -u PYTHONHOME -u PYTHONPATH PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 /afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake --snakefile snakemake/snakefile region_v1_abcd_veto_edge_muon_selection_v1 --cores 4 --dry-run --printshellcmds`.
+  The DAG has exactly 19 nodes: eight data-region workers, eight `CC_nue`
+  workers, one data merge, one report, and the aggregate target.
+
+### Scheduler and Git state
+
+- A scoped scheduler query found no running ABCD/Veto-edge job. No job ID
+  exists because production has not been started.
+- Branch HEAD remains `5028eb3`. The worktree contains the previously
+  recorded uncommitted task changes plus this workflow; unrelated-looking
+  pre-existing changes were preserved. No commit was created.
+
+### Exact next action
+
+Run the local production target, and only that target, with:
+
+`env -u PYTHONHOME -u PYTHONPATH PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 /afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake --snakefile snakemake/snakefile region_v1_abcd_veto_edge_muon_selection_v1 --cores 4 --printshellcmds --rerun-incomplete`
+
+Do not begin interpretation, threshold changes, or a new ABCD construction
+until the generated products have been audited.
+
+
+## 2026-10-02 central-muon rejection redefinition implemented
+
+### Frozen logic
+
+- Added a separate `veto_central_muon_rejection` mode and preserved the
+  earlier edge-selection prototype.
+- A central muon requires central y information and a valid central x
+  measurement simultaneously. If both y planes are valid, both must be
+  central; if only one y plane is valid, that plane decides y. Missing all y
+  information or missing x makes `central_muon=false`.
+- The rejected population is `central_muon = y_central && x_central`; the
+  kept analysis population is `!central_muon`.
+- The exact central intervals are open:
+  Veto 1 y `(24.835139,46.867571)` cm, Veto 2 y
+  `(22.784356,44.816788)` cm, and Veto 3 x
+  `(-37.370290,-15.755074)` cm.
+
+### Report presentation
+
+- Added
+  `evaluation_region_partitions/make_abcd_veto_central_report.py` and the
+  versioned configuration
+  `abcd_veto_central_muon_rejection_v1.yaml`.
+- Page 1 shows the user's exact logical definition as one monospaced code
+  block; it does not split the definition into separate cut rows.
+- Page 2 contains one row only for the aggregate `central_muon` cut:
+  before, central-muon count, point efficiency, and kept count. It contains no
+  sequential component cuts or confidence interval.
+- The remaining pages contain availability, per-region data, `CC_nue`,
+  kept-density, and rejected-central-density diagnostics. The report has seven
+  pages.
+
+### Validation and state
+
+- The focused synthetic test produced `10 before -> 3 central rejected + 7
+  kept`, including missing-orientation, central/edge, inconsistent-y, and
+  exact-boundary cases. Availability closed as
+  `[7 both, 1 y-only, 1 x-only, 1 none]`.
+- PDF text/page checks confirmed the exact-definition title, the single
+  `central_muon` efficiency page, absence of component-cut headings,
+  absence of Clopper--Pearson text, and seven pages.
+- The earlier edge-selection and DS--SciFi end-to-end regression tests both
+  passed. Python compilation and `git diff --check` passed.
+- The named-target dry-run succeeded with exactly 19 local nodes: eight data
+  regions, eight `CC_nue` regions, one merge, one report, and the aggregate.
+- No production job was started and a scoped scheduler query found no related
+  job. Branch HEAD remains `5028eb3`; no commit was created.
+
+### Exact next action
+
+Run only the redefined central-muon production target:
+
+`env -u PYTHONHOME -u PYTHONPATH PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 /afs/cern.ch/work/z/zhibin/miniconda3/envs/snakemake/bin/snakemake --snakefile snakemake/snakefile region_v1_abcd_veto_central_muon_rejection_v1 --cores 4 --printshellcmds --rerun-incomplete`
+
+Do not run the earlier edge-selection target or begin interpretation until the
+central-rejection outputs have been audited.

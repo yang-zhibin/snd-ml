@@ -1,0 +1,47 @@
+version: abcd_original_binning_transfer_comparison_v1
+description: >
+  Explicitly unblinded comparison of the Signal/SB2 and SB4/SB6
+  fiducial transfer-factor distributions using the original Region V1
+  evaluation histogram binning.
+
+scope:
+  unblinded_signal_region: true
+  diagnostic_only: true
+  signal_subtraction: false
+  nonclosure_correction: false
+
+source:
+  feature: density_sndsw_scifi
+  base_cut_key: none
+  extra_cut_key: none
+  particle_group: real_data
+  histogram_name: hist
+  expected_n_bins: 80
+  expected_x_min: 100.0
+  expected_x_max: 40000.0
+  flow_policy: exclude_underflow_and_overflow
+  roles:
+    signal: signal_no_veto_has_us_fiducial_inside
+    sb2: sideband_no_veto_has_us_fiducial_outside
+    sb4: sideband_has_veto_has_us_fiducial_inside
+    sb6: sideband_has_veto_has_us_fiducial_outside
+
+calculation:
+  no_veto_transfer: (Signal / L_Signal) / (SB2 / L_SB2)
+  veto_transfer: (SB4 / L_SB4) / (SB6 / L_SB6)
+  double_ratio: no_veto_transfer / veto_transfer
+  confidence_level: 0.682689492137
+  transfer_interval: exact_conditional_poisson_ratio_via_clopper_pearson
+  double_ratio_interval: four_poisson_profile_likelihood_delta_minus2logl_1
+  zero_numerator_policy: show_zero_estimate_with_asymmetric_upper_interval
+  zero_denominator_policy: record_as_undefined_and_omit_from_graph
+
+plot:
+  transfer_y_max: 40.0
+
+output:
+  directory: evaluation_region_partitions/plots/partition_v1_region_v1/hist_features_v1__evaluation_options_v1/density_sndsw_scifi/none/none/transfer_factor_signal_sb2_vs_sb4_sb6_v1
+  csv: transfer_factor_comparison.csv
+  root: transfer_factor_comparison.root
+  pdf: transfer_factor_comparison.pdf
+  png: transfer_factor_comparison.png
