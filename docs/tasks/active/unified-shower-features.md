@@ -350,6 +350,25 @@ across independent testbeam files.
   validation record resolved one `unified_shower_feature_v1` job.
 - Local regression output and comparison report:
   `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/local_smoke/mc_neutrino_filtered_partition244/`.
+- Checkpoint commit `1f40e97703759cd3983d781a3a3edf1247ff29f8` was
+  submitted for the exact canonical partition-244 validation record only.
+  HTCondor cluster `16421376` completed with status 4, exit code 0 on
+  `b9p16p0041.cern.ch`; wall time was 52 s and recorded resident set about
+  300,000 KiB against a 3,000 MiB request.
+- The canonical remote validation passed with 70 input, selection expression
+  `SciFiMinHits == 1`, 69 available selected, 69 expected/written/validated,
+  and entrywise source identity. Feature SHA-256:
+  `8497dffa121219c8d296f0c203cef312bd1ef89617113d5c3e987f4e26dd7a5f`.
+- Local-versus-remote comparison passed with zero mismatches across 31,326
+  common values. Legacy-versus-remote passed with zero mismatches across
+  31,050 common values and only the four expected unified-only branches.
+- Canonical output:
+  `/eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features/mc_neutrino/unified_src_2cd65923b96bca90d6a8/feature_scifi_cluster_v1_unified_src_2cd65923b96bca90d6a8.root`.
+- Worker log directory:
+  `/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/htcondor_log/0_17578932-ea3c-488f-94f4-430f6619f018/`.
+- Comparison reports are `local_remote_comparison.json` and
+  `legacy_remote_comparison.json` in the local partition-244 regression
+  directory.
 
 ### HTCondor muon-up-canary checkpoint (2026-10-07)
 
@@ -379,9 +398,9 @@ across independent testbeam files.
   families, one documented Snakemake batch at a time. Batches are numbered
   from 1 through the chosen total and all batches are required for family
   completion.
-- Neutrino mass production must not resume until the corrected partition-244
-  HTCondor regression passes and is compared with both the corrected local
-  output and existing EM-shower output.
+- The corrected neutrino workflow has passed the formerly failing
+  partition-244 case locally and through HTCondor, including both comparisons.
+  Mass production remains stopped pending explicit user authorization.
 - Two production workers also saw transient failure to load
   `sndsw/latest-event_level_info_output-release`; this is distinct from the
   corrected count-contract defect and remains a retry/activation-hardening
@@ -389,8 +408,7 @@ across independent testbeam files.
 
 ## Exact next action
 
-Checkpoint the count-contract fix, submit only the exact canonical validation
-record for neutrino `2024_ve/244` through the HTCondor profile, monitor it to
-completion, verify 70 input / 69 selected / 69 written entries and source
-identity, compare it with the local regression and existing EM-shower output,
-then stop. Do not resume full-family production or Stage 1 histograms.
+Wait for user review. Do not resume full-family production or Stage 1
+histograms without a new explicit instruction. If neutrino production is
+authorized, first verify the full target's current dry-run and record the
+command and scheduler state here.
