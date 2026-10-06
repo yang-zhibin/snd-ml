@@ -151,7 +151,7 @@ def _base_record(
         "validation_record": validation_record,
         # Transitional alias for consumers that still use the old generic name.
         "validation_marker": validation_record,
-        "expected_event_count": expected,
+        "input_event_count": expected,
         "is_canary": 0,
     }
 

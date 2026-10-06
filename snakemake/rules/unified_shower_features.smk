@@ -209,7 +209,11 @@ rule unified_shower_feature_v1:
         source_domain_id=lambda wc: int(_unified_value(wc, "source_domain_id")),
         geometry_id=lambda wc: _unified_value(wc, "source_geometry_id"),
         geometry_checksum=lambda wc: _unified_value(wc, "source_geometry_checksum"),
-        expected_event_count=lambda wc: int(_unified_value(wc, "expected_event_count")),
+        input_event_count=lambda wc: int(_unified_value(wc, "input_event_count")),
+        sample_type=lambda wc: _unified_value(wc, "sample_type"),
+        selection_mode=lambda wc: _unified_value(wc, "selection_mode"),
+        input_tree=lambda wc: _unified_value(wc, "input_tree"),
+        max_events=0,
         manifest_version=str(UNIFIED_SETTINGS["version"]),
     wildcard_constraints:
         family=UNIFIED_FAMILY_PATTERN,
@@ -261,7 +265,11 @@ rule unified_shower_feature_v1:
             --expected-source-domain-id "{params.source_domain_id}" \
             --expected-source-geometry-id "{params.geometry_id}" \
             --expected-source-geometry-checksum "{params.geometry_checksum}" \
-            --expected-source-event-count "{params.expected_event_count}" \
+            --expected-input-event-count "{params.input_event_count}" \
+            --sample-type "{params.sample_type}" \
+            --selection-mode "{params.selection_mode}" \
+            --input-tree "{params.input_tree}" \
+            --expected-max-events "{params.max_events}" \
             --input-digi-path "{input.digi}" \
             --input-cutflow-path "{params.cutflow}" \
             --published-feature-path "{output.feature}" \
@@ -307,9 +315,14 @@ rule unified_feature_local_smoke_v1:
         cutflow=lambda wc: _unified_local_smoke_value(wc, "cutflow_path"),
         source_uid=lambda wc: _unified_local_smoke_value(wc, "source_uid"),
         source_domain_id=lambda wc: int(_unified_local_smoke_value(wc, "source_domain_id")),
-        expected_event_count=lambda wc: min(
-            int(_unified_local_smoke_value(wc, "expected_event_count")),
-            int(UNIFIED_SETTINGS["local_smoke"]["max_events"][str(wc.family)]),
+        input_event_count=lambda wc: int(
+            _unified_local_smoke_value(wc, "input_event_count")
+        ),
+        sample_type=lambda wc: _unified_local_smoke_value(wc, "sample_type"),
+        selection_mode=lambda wc: _unified_local_smoke_value(wc, "selection_mode"),
+        input_tree=lambda wc: _unified_local_smoke_value(wc, "input_tree"),
+        max_events=lambda wc: int(
+            UNIFIED_SETTINGS["local_smoke"]["max_events"][str(wc.family)]
         ),
         manifest_version=str(UNIFIED_SETTINGS["version"]),
     wildcard_constraints:
@@ -347,7 +360,11 @@ rule unified_feature_local_smoke_v1:
             --manifest-version "{params.manifest_version}" \
             --expected-source-uid "{params.source_uid}" \
             --expected-source-domain-id "{params.source_domain_id}" \
-            --expected-source-event-count "{params.expected_event_count}" \
+            --expected-input-event-count "{params.input_event_count}" \
+            --sample-type "{params.sample_type}" \
+            --selection-mode "{params.selection_mode}" \
+            --input-tree "{params.input_tree}" \
+            --expected-max-events "{params.max_events}" \
             --input-digi-path "{input.digi}" \
             --input-cutflow-path "{params.cutflow}" \
             --published-feature-path "{output.feature}" \

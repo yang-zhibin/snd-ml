@@ -12,6 +12,13 @@ from pathlib import Path
 
 import ROOT
 
+from sample_selection import (
+    SELECTION_MODES,
+    cutflow_selection_expression,
+    resolve_selection_mode,
+    setup_event_deltat_alias,
+    uses_external_cutflow,
+)
 from scifi_plane_clustering import SCHEMA_VERSION, scalar_feature_dtypes
 from source_provenance import (
     SOURCE_DOMAINS,
@@ -48,6 +55,95 @@ def metadata_title(root_file: ROOT.TFile, name: str) -> str:
     if not value or not hasattr(value, "GetTitle"):
         raise RuntimeError(f"missing metadata object {name}")
     return str(value.GetTitle())
+
+
+def metadata_integer(root_file: ROOT.TFile, name: str) -> int:
+    value = root_file.Get(name)
+    if not value or not hasattr(value, "GetVal"):
+        raise RuntimeError(f"missing integer metadata object {name}")
+    return int(value.GetVal())
+
+
+def selected_cutflow_entries(tree: ROOT.TTree, selection: str | None) -> list[int]:
+    if not selection:
+        return list(range(int(tree.GetEntries())))
+    list_name = "validator_selected_entries"
+    tree.Draw(f">>{list_name}", selection, "entrylist")
+    selected = ROOT.gDirectory.Get(list_name)
+    if not selected or not isinstance(selected, ROOT.TEntryList):
+        raise RuntimeError("failed to build validator source-cutflow entry list")
+    return [int(selected.GetEntry(index)) for index in range(int(selected.GetN()))]
+
+
+def raw_entries_for_cutflow_rows(tree: ROOT.TTree, rows: list[int]) -> list[int]:
+    has_entry = bool(tree.GetBranch("entry") or tree.GetLeaf("entry"))
+    raw_entries = []
+    for row in rows:
+        tree.GetEntry(row)
+        raw_entries.append(int(tree.entry) if has_entry else int(row))
+    return raw_entries
+
+
+def inspect_source_selection(args: argparse.Namespace) -> dict:
+    """Independently derive input and selected counts from frozen sources."""
+    digi = ROOT.TFile.Open(args.input_digi_path)
+    if not digi or digi.IsZombie():
+        raise RuntimeError(f"cannot open input digi {args.input_digi_path}")
+    try:
+        digi_tree = digi.Get(args.input_tree)
+        if not digi_tree:
+            raise RuntimeError(f"missing input tree {args.input_tree}")
+        input_entries = int(digi_tree.GetEntries())
+    finally:
+        digi.Close()
+    if input_entries != int(args.expected_input_event_count):
+        raise RuntimeError(
+            f"input digi entry count {input_entries} does not match manifest "
+            f"{args.expected_input_event_count}"
+        )
+
+    selection_mode = resolve_selection_mode(args.sample_type, args.selection_mode)
+    selection = None
+    if uses_external_cutflow(args.sample_type, selection_mode):
+        if not args.input_cutflow_path:
+            raise RuntimeError("external selection requires an input cutflow")
+        cutflow_source = ROOT.TFile.Open(args.input_cutflow_path)
+        if not cutflow_source or cutflow_source.IsZombie():
+            raise RuntimeError(f"cannot open input cutflow {args.input_cutflow_path}")
+        try:
+            cutflow_tree = cutflow_source.Get("cutFlowSummary")
+            if not cutflow_tree:
+                raise RuntimeError("missing source cutFlowSummary tree")
+            event_deltat_branch = setup_event_deltat_alias(cutflow_tree)
+            selection = cutflow_selection_expression(
+                args.sample_type,
+                selection_mode,
+                event_deltat_available=bool(event_deltat_branch),
+            )
+            selected_rows = selected_cutflow_entries(cutflow_tree, selection)
+            selected_raw_entries = raw_entries_for_cutflow_rows(
+                cutflow_tree, selected_rows
+            )
+        finally:
+            cutflow_source.Close()
+    else:
+        selected_raw_entries = list(range(input_entries))
+
+    max_events = int(args.expected_max_events)
+    if max_events < 0:
+        raise RuntimeError("expected max-events value must be non-negative")
+    expected_raw_entries = (
+        selected_raw_entries[:max_events] if max_events else selected_raw_entries
+    )
+    return {
+        "input_event_count": input_entries,
+        "selection_mode": selection_mode,
+        "selection_expression": selection or "",
+        "available_selected_event_count": len(selected_raw_entries),
+        "expected_written_event_count": len(expected_raw_entries),
+        "expected_raw_entries": expected_raw_entries,
+        "max_events": max_events,
+    }
 
 
 def branch_type(tree: ROOT.TTree, name: str) -> str:
@@ -129,6 +225,7 @@ def write_record(path: str | Path, record: dict) -> None:
 
 
 def validate(args: argparse.Namespace) -> dict:
+    source_contract = inspect_source_selection(args)
     source = ROOT.TFile.Open(args.feature)
     if not source or source.IsZombie():
         raise RuntimeError(f"cannot open {args.feature}")
@@ -169,6 +266,28 @@ def validate(args: argparse.Namespace) -> dict:
             != args.expected_source_geometry_checksum
         ):
             raise RuntimeError("source geometry checksum metadata does not match the manifest")
+        if (
+            metadata_title(source, "metadata_selection_mode")
+            != source_contract["selection_mode"]
+        ):
+            raise RuntimeError("selection-mode metadata does not match the source contract")
+        if (
+            metadata_integer(source, "metadata_input_entries")
+            != source_contract["input_event_count"]
+        ):
+            raise RuntimeError("input-entry metadata does not match the source contract")
+        if (
+            metadata_integer(source, "metadata_available_selected_entries")
+            != source_contract["available_selected_event_count"]
+        ):
+            raise RuntimeError(
+                "available-selected-entry metadata does not match the source contract"
+            )
+        if (
+            metadata_integer(source, "metadata_max_events")
+            != source_contract["max_events"]
+        ):
+            raise RuntimeError("max-events metadata does not match the source contract")
 
         cutflow = source.Get("cutFlowSummary")
         if not cutflow:
@@ -176,10 +295,10 @@ def validate(args: argparse.Namespace) -> dict:
         entries = int(tree.GetEntries())
         if int(cutflow.GetEntries()) != entries:
             raise RuntimeError("sndData/cutFlowSummary entry-count mismatch")
-        if entries != int(args.expected_source_event_count):
+        if entries != source_contract["expected_written_event_count"]:
             raise RuntimeError(
                 f"written entry count {entries} does not match expected "
-                f"{args.expected_source_event_count}"
+                f"selected count {source_contract['expected_written_event_count']}"
             )
 
         hit_source = None
@@ -196,6 +315,20 @@ def validate(args: argparse.Namespace) -> dict:
         limit = entries if args.max_events <= 0 else min(entries, args.max_events)
         for entry in range(limit):
             tree.GetEntry(entry)
+            expected_event_index = source_contract["expected_raw_entries"][entry]
+            if int(tree.eventIndex) != expected_event_index:
+                raise RuntimeError(
+                    f"source eventIndex mismatch at entry {entry}: "
+                    f"{int(tree.eventIndex)} != {expected_event_index}"
+                )
+            cutflow.GetEntry(entry)
+            if (cutflow.GetBranch("entry") or cutflow.GetLeaf("entry")) and (
+                int(cutflow.entry) != expected_event_index
+            ):
+                raise RuntimeError(
+                    f"output cutflow entry mismatch at entry {entry}: "
+                    f"{int(cutflow.entry)} != {expected_event_index}"
+                )
             identity = (int(tree.runId), int(tree.eventId), int(tree.eventIndex))
             if identity in seen:
                 raise RuntimeError(f"duplicate event identity {identity} at entry {entry}")
@@ -245,10 +378,22 @@ def validate(args: argparse.Namespace) -> dict:
         "feature_path": args.published_feature_path or args.feature,
         "feature_size_bytes": os.path.getsize(args.feature),
         "feature_sha256": sha256(args.feature),
-        "expected_source_event_count": args.expected_source_event_count,
+        "expected_input_event_count": args.expected_input_event_count,
+        "source_selection_expression": source_contract["selection_expression"],
+        "available_selected_event_count": source_contract[
+            "available_selected_event_count"
+        ],
+        "expected_written_event_count": source_contract[
+            "expected_written_event_count"
+        ],
+        "conversion_max_events": source_contract["max_events"],
         "written_event_count": entries,
         "validated_event_count": limit,
-        "identity_validation": "entrywise" if args.hit3d else "unique_within_source",
+        "identity_validation": (
+            "source_selection_and_hit3d_entrywise"
+            if args.hit3d
+            else "source_selection_entrywise"
+        ),
         "converter_commit": args.converter_commit,
     }
 
@@ -265,7 +410,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--expected-source-domain-id", type=int, required=True)
     parser.add_argument("--expected-source-geometry-id")
     parser.add_argument("--expected-source-geometry-checksum")
-    parser.add_argument("--expected-source-event-count", type=int, required=True)
+    parser.add_argument("--expected-input-event-count", type=int, required=True)
+    parser.add_argument("--sample-type", required=True)
+    parser.add_argument("--selection-mode", choices=SELECTION_MODES, required=True)
+    parser.add_argument("--input-tree", default="cbmsim")
+    parser.add_argument("--expected-max-events", type=int, default=0)
     parser.add_argument("--input-digi-path", required=True)
     parser.add_argument("--input-cutflow-path")
     parser.add_argument("--published-feature-path")

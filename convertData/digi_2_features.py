@@ -18,8 +18,9 @@ from sample_selection import (
     EXTERNAL_CUTFLOW,
     IDENTITY_CUTFLOW,
     SELECTION_MODES,
-    applies_collision_data_quality,
+    cutflow_selection_expression,
     resolve_selection_mode,
+    setup_event_deltat_alias,
     uses_external_cutflow,
 )
 from source_provenance import (
@@ -245,12 +246,6 @@ def applies_mc_25ns_hit_filter(args):
     return is_mc_sample(args) and "mc_neutrino" not in text
 
 
-def skip_scifi_minhits_selection(args):
-    """Process all cutFlowSummary entries for muon MC samples."""
-    sample_type = str(args.type).lower()
-    return sample_type in ("mc_muon", "mc_muondis")
-
-
 def has_veto_and_us_hits(event):
     has_veto = False
     has_us = False
@@ -277,20 +272,6 @@ def should_drop_real_has_veto_has_us(args, event):
         and "real" in str(args.type)
         and has_veto_and_us_hits(event)
     )
-
-
-def setup_event_deltat_alias(preSelect_tree):
-    """Make EventDeltat_m1_100 usable for trees with different sanitized names."""
-    alias_name = "EventDeltat_m1_100"
-    if preSelect_tree.GetBranch(alias_name) or preSelect_tree.GetLeaf(alias_name):
-        return alias_name
-
-    for candidate in ("EventDeltat_1_100", "EventDeltat_-1_100"):
-        if preSelect_tree.GetBranch(candidate) or preSelect_tree.GetLeaf(candidate):
-            preSelect_tree.SetAlias(alias_name, candidate)
-            return candidate
-
-    return None
 
 
 def safe_fraction(num, den):
@@ -1479,22 +1460,11 @@ def main(args):
 
 
     step_start = time.perf_counter()
-    selection = (
-        None
-        if direct_selection
-        or selection_mode == IDENTITY_CUTFLOW
-        or skip_scifi_minhits_selection(args)
-        else "SciFiMinHits == 1"
+    selection = cutflow_selection_expression(
+        args.type,
+        selection_mode,
+        event_deltat_available=bool(event_deltat_branch),
     )
-    if applies_collision_data_quality(args.type, selection_mode) and "MC" not in args.type:
-        if not event_deltat_branch:
-            raise RuntimeError("No EventDeltat cut branch found for real-data selection")
-        data_selection = "StableBeams == 1 && IP1 == 1 && EventDeltat_m1_100 == 1"
-
-        if selection:
-            selection = selection + " && " + data_selection
-        else:
-            selection = data_selection
             
     if selection:
         print(f"Applying selection: {selection}")
@@ -1842,6 +1812,7 @@ def main(args):
     ).Write()
     ROOT.TNamed("metadata_input_tree", str(args.tree_name)).Write()
     ROOT.TNamed("metadata_external_cutflow_used", "0" if direct_selection else "1").Write()
+    ROOT.TParameter("Long64_t")("metadata_input_entries", int(raw_tree.GetEntries())).Write()
     ROOT.TParameter("Long64_t")("metadata_available_selected_entries", n_available_entries).Write()
     ROOT.TParameter("Long64_t")("metadata_max_events", max_events).Write()
     ROOT.TNamed("metadata_scifi_cluster_schema", SCIFI_CLUSTER_SCHEMA_VERSION).Write()

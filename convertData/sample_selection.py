@@ -6,6 +6,10 @@ EXTERNAL_CUTFLOW = "external_cutflow"
 IDENTITY_CUTFLOW = "identity_cutflow"
 PASSING_MUON_DIRECT = "passing_muon_direct"
 DIRECT_INPUT = "direct_input"
+SCIFI_MINHITS_SELECTION = "SciFiMinHits == 1"
+COLLISION_DATA_QUALITY_SELECTION = (
+    "StableBeams == 1 && IP1 == 1 && EventDeltat_m1_100 == 1"
+)
 SELECTION_MODES = (
     EXTERNAL_CUTFLOW,
     IDENTITY_CUTFLOW,
@@ -52,3 +56,39 @@ def applies_collision_data_quality(sample_type, requested_mode=None):
 
 def is_direct_selection(sample_type, requested_mode=None):
     return not uses_external_cutflow(sample_type, requested_mode)
+
+
+def skips_scifi_minhits_selection(sample_type):
+    """Return whether a legacy external cutflow is intentionally inclusive."""
+    return normalized_sample_type(sample_type) in {"mc_muon", "mc_muondis"}
+
+
+def setup_event_deltat_alias(cutflow_tree):
+    """Make the collision-data timing flag usable across sanitized ROOT names."""
+    alias_name = "EventDeltat_m1_100"
+    if cutflow_tree.GetBranch(alias_name) or cutflow_tree.GetLeaf(alias_name):
+        return alias_name
+    for candidate in ("EventDeltat_1_100", "EventDeltat_-1_100"):
+        if cutflow_tree.GetBranch(candidate) or cutflow_tree.GetLeaf(candidate):
+            cutflow_tree.SetAlias(alias_name, candidate)
+            return candidate
+    return None
+
+
+def cutflow_selection_expression(
+    sample_type, requested_mode=None, event_deltat_available=False
+):
+    """Return the frozen cutflow expression used by feature conversion."""
+    mode = resolve_selection_mode(sample_type, requested_mode)
+    if mode in {IDENTITY_CUTFLOW, PASSING_MUON_DIRECT, DIRECT_INPUT}:
+        return None
+    if skips_scifi_minhits_selection(sample_type):
+        return None
+
+    clauses = [SCIFI_MINHITS_SELECTION]
+    is_mc = normalized_sample_type(sample_type).startswith("mc")
+    if applies_collision_data_quality(sample_type, mode) and not is_mc:
+        if not event_deltat_available:
+            raise RuntimeError("No EventDeltat cut branch found for real-data selection")
+        clauses.append(COLLISION_DATA_QUALITY_SELECTION)
+    return " && ".join(clauses)

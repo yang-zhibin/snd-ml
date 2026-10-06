@@ -316,6 +316,54 @@ across independent testbeam files.
   `/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/htcondor_log/1_2f13394b-a5c8-4e06-9a00-8db10b6e7c74/`.
 - Comparison reports are under the local-smoke `mc_neutrino` directory.
 
+### Count-contract fix checkpoint (2026-10-07)
+
+- The attempted full neutrino production submitted 373 workers before
+  stopping: 46 production jobs completed, 325 workers failed because the
+  manifest input count was incorrectly treated as the selected output count,
+  and two workers failed during transient SNDSW activation. No jobs remain in
+  the queue. Together with the original canary, 47 validation records exist.
+- Root cause was reproduced with `2024_ve/244`: the digi `cbmsim` tree and
+  source cutflow each have 70 rows, but source row/raw entry 40 has
+  `SciFiMinHits=0`. The intended converter selection therefore writes 69
+  entries, matching the existing EM-shower feature file. The old validator
+  incorrectly required 70.
+- The manifest now records `input_event_count`. The converter and validator
+  share the frozen selection expression. The validator independently checks
+  the digi input count, derives selected raw entries from the source cutflow,
+  checks converter count metadata and the conversion limit, and validates
+  output `eventIndex` plus copied-cutflow `entry` order against the selected
+  source entries.
+- All 47 focused LCG tests passed: 39 feature/catalogue/partition tests and
+  eight Stage 1 distribution tests. New synthetic coverage verifies a
+  three-row `[1,0,1]` cutflow produces raw indices `[0,2]` and that a bounded
+  conversion keeps only the first selected event.
+- The real local `2024_ve/244` regression passed with 70 input, 69 available
+  selected, 69 written, and 69 entrywise-validated events. Its SHA-256 is
+  `d9b46e3359d05030d645df2cc18c727b9b29bb7e1142486e6dbf8ae2d21283d3`.
+  The legacy comparison passed with zero mismatches across 31,050 common
+  values. The four expected unified-only branches are
+  `scifi_qdc_per_hit_direct`, `source_energy_gev`, `source_pdg_code`, and
+  `source_domain_id`.
+- Refreshed local smoke targets passed: neutrino 48/48 and bounded muon-up
+  100/94,120. The exact HTCondor-profile dry-run for the partition-244
+  validation record resolved one `unified_shower_feature_v1` job.
+- Local regression output and comparison report:
+  `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/local_smoke/mc_neutrino_filtered_partition244/`.
+
+### HTCondor muon-up-canary checkpoint (2026-10-07)
+
+- Cluster `16420969` completed with status 4 and exit code 0 after 3,108 s;
+  recorded peak resident set was about 1,000,000 KiB against a 3,000 MiB
+  request.
+- The canonical validation record passed all 94,120 entries. Its first 100
+  entries match the refreshed local smoke output with zero mismatches across
+  both trees and all common branches.
+- Worker log directory:
+  `/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/htcondor_log/1_3b875bcc-859a-409d-accd-17b9cac96eff/`.
+- Comparison report:
+  `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/local_smoke/mc_muon_up/local_remote_comparison.json`.
+
 ## Running jobs
 
 - Target/command: none
@@ -327,18 +375,22 @@ across independent testbeam files.
 
 ## Blockers and open questions
 
-- The implementation remains uncommitted and must be reviewed before any
-  runtime authorization.
 - Full production must be invoked one family at a time and, for large
   families, one documented Snakemake batch at a time. Batches are numbered
   from 1 through the chosen total and all batches are required for family
   completion.
-- Runtime gates remain closed: no real canary or production invocation is
-  authorized yet.
+- Neutrino mass production must not resume until the corrected partition-244
+  HTCondor regression passes and is compared with both the corrected local
+  output and existing EM-shower output.
+- Two production workers also saw transient failure to load
+  `sndsw/latest-event_level_info_output-release`; this is distinct from the
+  corrected count-contract defect and remains a retry/activation-hardening
+  concern for mass production.
 
 ## Exact next action
 
-Submit only `unified_features_mc_muon_up_canary_v1` through the HTCondor
-profile, record its job ID and logs, monitor it to completion, validate all
-94,120 entries, compare its first 100 entries with the accepted local smoke
-output, and stop. Do not run full-family production or Stage 1 histograms.
+Checkpoint the count-contract fix, submit only the exact canonical validation
+record for neutrino `2024_ve/244` through the HTCondor profile, monitor it to
+completion, verify 70 input / 69 selected / 69 written entries and source
+identity, compare it with the local regression and existing EM-shower output,
+then stop. Do not resume full-family production or Stage 1 histograms.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import array
 import hashlib
 import sys
 import tempfile
@@ -10,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
+import ROOT
 import yaml
 
 
@@ -21,10 +23,12 @@ from prepare_unified_shower_feature_manifests import build_manifests  # noqa: E4
 from sample_selection import (  # noqa: E402
     IDENTITY_CUTFLOW,
     applies_collision_data_quality,
+    cutflow_selection_expression,
     uses_external_cutflow,
 )
 from source_provenance import event_source_values, validate_source_options  # noqa: E402
 from validate_unified_shower_feature_file import (  # noqa: E402
+    inspect_source_selection,
     validate_source_scalar_values,
 )
 
@@ -125,6 +129,72 @@ class UnifiedSourceContractTest(unittest.TestCase):
         self.assertTrue(
             applies_collision_data_quality("real_data", "external_cutflow")
         )
+
+    def test_frozen_cutflow_selection_expression(self):
+        self.assertEqual(
+            cutflow_selection_expression("MC_neutrino", "external_cutflow"),
+            "SciFiMinHits == 1",
+        )
+        self.assertIsNone(
+            cutflow_selection_expression("real_testbeam", "identity_cutflow")
+        )
+        self.assertIsNone(
+            cutflow_selection_expression("MC_muon", "direct_input")
+        )
+
+
+class UnifiedSourceSelectionValidationTest(unittest.TestCase):
+    @staticmethod
+    def write_source_files(directory: Path) -> tuple[str, str]:
+        digi_path = directory / "digi.root"
+        digi = ROOT.TFile(str(digi_path), "RECREATE")
+        digi_tree = ROOT.TTree("cbmsim", "synthetic digi")
+        value = array.array("i", [0])
+        digi_tree.Branch("value", value, "value/I")
+        for index in range(3):
+            value[0] = index
+            digi_tree.Fill()
+        digi_tree.Write()
+        digi.Close()
+
+        cutflow_path = directory / "cutflow.root"
+        cutflow = ROOT.TFile(str(cutflow_path), "RECREATE")
+        cutflow_tree = ROOT.TTree("cutFlowSummary", "synthetic cutflow")
+        raw_entry = array.array("q", [0])
+        scifi_minhits = array.array("i", [0])
+        cutflow_tree.Branch("entry", raw_entry, "entry/L")
+        cutflow_tree.Branch("SciFiMinHits", scifi_minhits, "SciFiMinHits/I")
+        for index, passed in enumerate((1, 0, 1)):
+            raw_entry[0] = index
+            scifi_minhits[0] = passed
+            cutflow_tree.Fill()
+        cutflow_tree.Write()
+        cutflow.Close()
+        return str(digi_path), str(cutflow_path)
+
+    def test_selected_count_and_event_indices_are_derived_from_cutflow(self):
+        with tempfile.TemporaryDirectory() as directory_name:
+            digi, cutflow = self.write_source_files(Path(directory_name))
+            args = SimpleNamespace(
+                input_digi_path=digi,
+                input_cutflow_path=cutflow,
+                input_tree="cbmsim",
+                expected_input_event_count=3,
+                sample_type="MC_neutrino",
+                selection_mode="external_cutflow",
+                expected_max_events=0,
+            )
+            contract = inspect_source_selection(args)
+            self.assertEqual(contract["input_event_count"], 3)
+            self.assertEqual(contract["available_selected_event_count"], 2)
+            self.assertEqual(contract["expected_written_event_count"], 2)
+            self.assertEqual(contract["expected_raw_entries"], [0, 2])
+
+            args.expected_max_events = 1
+            bounded = inspect_source_selection(args)
+            self.assertEqual(bounded["available_selected_event_count"], 2)
+            self.assertEqual(bounded["expected_written_event_count"], 1)
+            self.assertEqual(bounded["expected_raw_entries"], [0])
 
 
 class UnifiedManifestTest(unittest.TestCase):
@@ -289,6 +359,10 @@ class UnifiedManifestTest(unittest.TestCase):
                 first["testbeam_data_2024"].loc[0, "canonical_label"],
                 "testbeam_data_pion",
             )
+            self.assertEqual(
+                int(first["mc_neutrino"].loc[0, "input_event_count"]), 48
+            )
+            self.assertNotIn("expected_event_count", first["mc_neutrino"].columns)
 
     def test_rule_contract_uses_json_validation_records(self):
         rules = (
@@ -297,6 +371,9 @@ class UnifiedManifestTest(unittest.TestCase):
         self.assertIn("validate_unified_shower_feature_file.py", rules)
         self.assertIn(".root.validated.json", rules)
         self.assertIn("--validation-record", rules)
+        self.assertIn("--expected-input-event-count", rules)
+        self.assertIn("--expected-max-events", rules)
+        self.assertNotIn("--expected-source-event-count", rules)
         self.assertNotIn('touch "$tmp_marker"', rules)
         for family in (
             "mc_neutrino",
