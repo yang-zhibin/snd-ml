@@ -1,5 +1,5 @@
-version: em_shower_hist_features_v1
-description: Curated SciFi clustering observables for four-class neutrino comparisons.
+version: em_shower_hist_features_energy_v2
+description: Curated SciFi clustering and incoming-energy observables for four-class neutrino comparisons.
 
 defaults:
   fold_underflow: false
@@ -19,11 +19,35 @@ features:
     x_max: 10000
     bin_width: 200
     axis_title: Total selected SciFi QDC
+  density_sndsw_scifi:
+    x_min: 0
+    x_max: 40000
+    bin_width: 500
+    axis_title: SciFi density (SND getSumDensity)
+    logy: true
+  mc_incoming_energy:
+    x_min: 0
+    x_max: 6500
+    bin_width: 100
+    axis_title: Incoming neutrino energy [GeV]
+    feature_cut: mc_incoming_energy > 0
+  mc_incoming_log10_energy:
+    expression: log10(mc_incoming_energy)
+    x_min: 1
+    x_max: 3.85
+    bin_width: 0.05
+    axis_title: log10 incoming neutrino energy [GeV]
+    feature_cut: mc_incoming_energy > 0
   scifi_cluster_qdc_per_hit:
     x_min: 0
     x_max: 15
     bin_width: 0.3
     axis_title: All-cluster SciFi QDC / hit
+  scifi_qdc_per_hit_direct:
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Direct selected SciFi QDC / hit
   scifi_cluster_total_count:
     x_min: 0
     x_max: 100
@@ -34,6 +58,7 @@ features:
     x_max: 1
     bin_width: 0.025
     axis_title: Other-cluster QDC fraction
+    y_max: 0.3
 
   scifi_vertical_cluster1_nhits: &cluster_nhits
     x_min: 0
@@ -41,6 +66,8 @@ features:
     bin_width: 10
     axis_title: Vertical leading-cluster hits
     feature_cut: scifi_vertical_cluster1_exists == 1
+    logy: true
+    y_max: 1.0
   scifi_horizontal_cluster1_nhits:
     <<: *cluster_nhits
     axis_title: Horizontal leading-cluster hits
@@ -51,6 +78,7 @@ features:
     bin_width: 0.3
     axis_title: Vertical leading-cluster QDC / hit
     feature_cut: scifi_vertical_cluster1_exists == 1
+    y_max: 0.3
   scifi_horizontal_cluster1_qdc_per_hit:
     <<: *cluster_qdc_per_hit
     axis_title: Horizontal leading-cluster QDC / hit
@@ -61,6 +89,7 @@ features:
     bin_width: 0.025
     axis_title: Vertical leading-cluster QDC fraction
     feature_cut: scifi_vertical_cluster1_exists == 1
+    y_max: 0.3
   scifi_horizontal_cluster1_orientation_qdc_fraction:
     <<: *leading_fraction
     axis_title: Horizontal leading-cluster QDC fraction
@@ -97,6 +126,7 @@ features:
     x_max: 1
     bin_width: 0.025
     axis_title: Vertical other-cluster QDC fraction
+    y_max: 0.3
   scifi_horizontal_other_cluster_qdc_fraction:
     <<: *other_fraction
     axis_title: Horizontal other-cluster QDC fraction
@@ -207,3 +237,68 @@ features2d:
     y_title: Horizontal effective QDC cluster count
     feature_cut: scifi_horizontal_cluster1_exists == 1
 
+  incoming_energy_vs_count_scifi: &energy_vs_count
+    x_expression: mc_incoming_energy
+    y_expression: count_scifi
+    x_min: 0
+    x_max: 6500
+    x_bins: 65
+    y_min: 35
+    y_max: 7000
+    y_bins: 70
+    x_title: Incoming neutrino energy [GeV]
+    y_title: Selected SciFi hits
+    feature_cut: mc_incoming_energy > 0
+  incoming_energy_vs_qdc_scifi:
+    <<: *energy_vs_count
+    y_expression: qdc_scifi
+    y_min: 0
+    y_max: 40000
+    y_bins: 80
+    y_title: Total selected SciFi QDC
+  incoming_energy_vs_cluster_qdc_per_hit:
+    <<: *energy_vs_count
+    y_expression: scifi_cluster_qdc_per_hit
+    y_min: 0
+    y_max: 15
+    y_bins: 50
+    y_title: All-cluster SciFi QDC / hit
+  incoming_energy_vs_vertical_leading_qdc_fraction: &energy_vs_leading_fraction
+    <<: *energy_vs_count
+    y_expression: scifi_vertical_cluster1_orientation_qdc_fraction
+    y_min: 0
+    y_max: 1
+    y_bins: 40
+    y_title: Vertical leading-cluster QDC fraction
+    feature_cut: mc_incoming_energy > 0 && scifi_vertical_cluster1_exists == 1
+  incoming_energy_vs_horizontal_leading_qdc_fraction:
+    <<: *energy_vs_leading_fraction
+    y_expression: scifi_horizontal_cluster1_orientation_qdc_fraction
+    y_title: Horizontal leading-cluster QDC fraction
+    feature_cut: mc_incoming_energy > 0 && scifi_horizontal_cluster1_exists == 1
+  incoming_energy_vs_vertical_roughness: &energy_vs_roughness
+    <<: *energy_vs_count
+    y_expression: scifi_vertical_cluster1_qdc_roughness
+    y_min: 0
+    y_max: 2
+    y_bins: 50
+    y_title: Vertical leading-cluster QDC roughness
+    feature_cut: mc_incoming_energy > 0 && scifi_vertical_cluster1_exists == 1
+  incoming_energy_vs_horizontal_roughness:
+    <<: *energy_vs_roughness
+    y_expression: scifi_horizontal_cluster1_qdc_roughness
+    y_title: Horizontal leading-cluster QDC roughness
+    feature_cut: mc_incoming_energy > 0 && scifi_horizontal_cluster1_exists == 1
+  incoming_energy_vs_vertical_effective_qdc_cluster_count: &energy_vs_effective_count
+    <<: *energy_vs_count
+    y_expression: scifi_vertical_effective_qdc_cluster_count
+    y_min: 0
+    y_max: 20
+    y_bins: 40
+    y_title: Vertical effective QDC cluster count
+    feature_cut: mc_incoming_energy > 0 && scifi_vertical_total_qdc > 0
+  incoming_energy_vs_horizontal_effective_qdc_cluster_count:
+    <<: *energy_vs_effective_count
+    y_expression: scifi_horizontal_effective_qdc_cluster_count
+    y_title: Horizontal effective QDC cluster count
+    feature_cut: mc_incoming_energy > 0 && scifi_horizontal_total_qdc > 0

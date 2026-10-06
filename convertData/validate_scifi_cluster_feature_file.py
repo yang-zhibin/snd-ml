@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--hit3d")
     parser.add_argument("--hit3d-tree",default="hit3D")
     parser.add_argument("--max-events",type=int,default=0)
+    parser.add_argument("--required-branch", action="append", default=[])
     args=parser.parse_args()
     source=ROOT.TFile.Open(args.feature)
     if not source or source.IsZombie(): raise RuntimeError("cannot open "+args.feature)
@@ -25,6 +26,9 @@ def main():
     if not tree: raise RuntimeError("missing tree "+args.tree)
     names={branch.GetName() for branch in tree.GetListOfBranches()}
     missing=[name for name,_ in scalar_feature_dtypes() if name not in names]
+    if "scifi_qdc_per_hit_direct" not in names:
+        missing.append("scifi_qdc_per_hit_direct")
+    missing.extend(name for name in args.required_branch if name not in names)
     if missing: raise RuntimeError("missing cluster branches: "+", ".join(missing))
     marker=source.Get("metadata_scifi_cluster_schema")
     if not marker or marker.GetTitle()!=SCHEMA_VERSION:
@@ -46,11 +50,16 @@ def main():
         vc=int(tree.scifi_vertical_cluster_count); hc=int(tree.scifi_horizontal_cluster_count)
         vh=int(tree.scifi_vertical_total_nhits); hh=int(tree.scifi_horizontal_total_nhits)
         vq=float(tree.scifi_vertical_total_qdc); hq=float(tree.scifi_horizontal_total_qdc)
+        direct_expected=(float(tree.qdc_scifi)/int(tree.count_scifi)
+                         if int(tree.count_scifi)>0 else 0.0)
         checks=((tree.scifi_cluster_total_count,vc+hc,"cluster count"),
                 (tree.scifi_cluster_total_nhits,vh+hh,"hit count"),
                 (tree.scifi_cluster_total_qdc,vq+hq,"QDC"),
                 (tree.scifi_cluster_total_nhits,tree.count_scifi,"existing SciFi hit"),
                 (tree.scifi_cluster_total_qdc,tree.qdc_scifi,"existing SciFi QDC"),
+                (tree.scifi_qdc_per_hit_direct,direct_expected,"direct SciFi QDC/hit"),
+                (tree.scifi_qdc_per_hit_direct,tree.scifi_cluster_qdc_per_hit,
+                 "direct/cluster SciFi QDC/hit"),
                 (tree.scifi_other_clusters_count,
                  tree.scifi_vertical_other_cluster_count+tree.scifi_horizontal_other_cluster_count,
                  "other count"),
@@ -66,6 +75,8 @@ def main():
         for name,_ in scalar_feature_dtypes():
             if not math.isfinite(float(getattr(tree,name))):
                 raise RuntimeError("non-finite {} at entry {}".format(name,entry))
+        if not math.isfinite(float(tree.scifi_qdc_per_hit_direct)):
+            raise RuntimeError("non-finite scifi_qdc_per_hit_direct at entry {}".format(entry))
     print("validated {} entries; schema={}".format(limit,SCHEMA_VERSION))
     source.Close()
     if hit_source: hit_source.Close()

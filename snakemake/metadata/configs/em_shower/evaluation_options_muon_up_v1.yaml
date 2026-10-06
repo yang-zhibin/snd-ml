@@ -1,0 +1,59 @@
+version: em_shower_evaluation_scifi35_muon_up_v1
+histogram_input_version: em_shower_evaluation_scifi35_energy_v2
+description: Unit-area five-sample comparison including pooled upward-going MC muons.
+
+metadata:
+  partition_csv: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/metadata/partitions_with_mc_muon_up.csv
+  tree_name: sndData
+  friend_tree_name: null
+
+normalization:
+  default: unit_area
+  reference: {region: scifi35, particle_group: CC_nue}
+  fail_on_missing_reference: false
+
+cuts:
+  definitions: {}
+  base_cut_options: {none: []}
+  extra_cut_options: {none: ""}
+
+comparisons:
+  regions: [scifi35]
+  particle_groups: [CC_nue, CC_numu, NC_nue, NC_numu, MC_muon_up]
+
+plot_features: [density_sndsw_scifi, scifi_cluster_qdc_per_hit]
+
+plot:
+  default_style: overlay
+  draw_ratio_panel: false
+  draw_option: HIST
+  region_preselection_label: Selected SciFi hits > 35
+  fiducial_overlays: {enabled: false}
+  base_cut_labels: {none: none}
+  extra_cut_labels: {none: none}
+  particle_labels:
+    CC_nue: MC CC nue
+    CC_numu: MC CC numu
+    NC_nue: MC NC nue
+    NC_numu: MC NC numu
+    MC_muon_up: MC muon up (pooled, unweighted)
+  particle_styles:
+    CC_nue: {color: blue, marker: 21}
+    CC_numu: {color: red, marker: 22}
+    NC_nue: {color: green, marker: 23}
+    NC_numu: {color: magenta, marker: 33}
+    MC_muon_up: {color: black, marker: 20}
+  region_labels:
+    scifi35: SciFi hits > 35
+  region_definitions:
+    scifi35: Converter-selected events with count_scifi > 35
+  summary_csv: true
+  pdf: true
+
+outputs:
+  hist_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/hists
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/plots_muon_up
+
+snakemake:
+  default_base_cut_keys: [none]
+  default_extra_cut_keys: [none]

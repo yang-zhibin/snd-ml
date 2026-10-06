@@ -27,7 +27,7 @@ event_identity:
 
 output:
   root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/partitions
-  metadata_csv: evaluation_region_partitions/em_shower_neutrino_v1/metadata/partitions.csv
+  metadata_csv: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/metadata/partitions.csv
   feature_prefix: feature
   hit3d_prefix: hit3d
   compression_level: 1
@@ -58,7 +58,7 @@ defaults:
 classification:
   particle_id_branch: particle_id
   particle_group_branch: particle_group
-  labels: {CC_nue: 1, CC_numu: 2, NC_nue: 3, NC_numu: 4}
+  labels: {CC_nue: 1, CC_numu: 2, NC_nue: 3, NC_numu: 4, MC_muon_up: 5}
 
 particle_group_rules:
   CC_nue:
@@ -93,6 +93,14 @@ particle_group_rules:
     interaction: NC
     flavor: numu
     event_filter: "(pdgCode == 114 || pdgCode == -114)"
+  MC_muon_up:
+    source_data_type: MC_muon
+    source_subfolders: [up]
+    particle_id: 5
+    particle_family: muon
+    interaction: background
+    flavor: muon
+    event_filter: "std::abs(pdgCode) == 13"
 
 regions:
   inclusive_selected: {process: true}
@@ -134,4 +142,3 @@ metadata_output_columns:
   - shuffle
   - split_method
   - seed
-

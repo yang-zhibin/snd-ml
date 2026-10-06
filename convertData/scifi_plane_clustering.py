@@ -57,6 +57,24 @@ def scalar_feature_dtypes():
 def _ratio(a, b):
     return float(a)/float(b) if b > 0 else 0.0
 
+
+def direct_scifi_qdc_per_hit(hits):
+    """Return selected SciFi QDC per hit without using cluster summaries."""
+    total_qdc = 0.0
+    total_nhits = 0
+    for hit in hits:
+        station = int(hit.get("station", 0))
+        if not 1 <= station <= 5:
+            continue
+        try:
+            qdc = max(float(hit.get("qdc", 0.0)), 0.0)
+        except (TypeError, ValueError):
+            qdc = 0.0
+        total_qdc += qdc
+        total_nhits += 1
+    return _ratio(total_qdc, total_nhits)
+
+
 def _stats(values):
     if not values:
         return UNDEFINED_FLOAT, UNDEFINED_FLOAT, UNDEFINED_FLOAT

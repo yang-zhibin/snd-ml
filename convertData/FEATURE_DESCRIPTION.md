@@ -298,6 +298,18 @@ These summarize the local Python density in a way similar to the SND density.
 `density_mycode_scifi_second` is the correctly spelled alias with the same
 value.
 
+Direct selected-hit QDC average:
+
+```text
+scifi_qdc_per_hit_direct
+```
+
+This is calculated independently of the clustering summaries by summing the
+non-negative QDC of every selected SciFi hit and dividing by the number of
+selected SciFi hits. It is zero when there are no selected hits. Because the
+cluster implementation preserves every selected hit, it is expected to equal
+both `qdc_scifi / count_scifi` and `scifi_cluster_qdc_per_hit` event by event.
+
 ### 9. Veto Timing Features
 
 ```text

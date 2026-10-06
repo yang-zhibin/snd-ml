@@ -93,6 +93,11 @@ def grouped_hist_path(
     )
 
 
+def histogram_input_version(eval_cfg: dict) -> str:
+    """Allow a new plot namespace to reuse an existing histogram namespace."""
+    return str(eval_cfg.get("histogram_input_version", eval_cfg["version"]))
+
+
 def plot_output_dir(
     plot_dir: str,
     partition_version: str,
@@ -841,7 +846,7 @@ def build_curves_for_page(
     hist_dir = output_path(eval_cfg["outputs"]["hist_dir"], repo_root)
     reference_lumi_value = reference_lumi(metadata, eval_cfg)
     hist_version = hist_cfg["version"]
-    eval_version = eval_cfg["version"]
+    eval_version = histogram_input_version(eval_cfg)
 
     items = comparison_items(metadata, eval_cfg, args.comparison_mode, page_key)
     curves = []
@@ -913,7 +918,7 @@ def build_curves_for_items(
     hist_dir = output_path(eval_cfg["outputs"]["hist_dir"], repo_root)
     reference_lumi_value = reference_lumi(metadata, eval_cfg)
     hist_version = hist_cfg["version"]
-    eval_version = eval_cfg["version"]
+    eval_version = histogram_input_version(eval_cfg)
     curves = []
 
     for index, item in enumerate(items):
@@ -1200,7 +1205,7 @@ def build_curves_for_overall_overlay(
     hist_dir = output_path(eval_cfg["outputs"]["hist_dir"], repo_root)
     reference_lumi_value = reference_lumi(metadata, eval_cfg)
     hist_version = hist_cfg["version"]
-    eval_version = eval_cfg["version"]
+    eval_version = histogram_input_version(eval_cfg)
     feature = feature or args.feature
     curves = []
 
@@ -1407,7 +1412,7 @@ def build_curves_for_feature_pair(
     metadata = pd.read_csv(resolve_path(args.metadata_csv, repo_root))
     reference_lumi_value = reference_lumi(metadata, eval_cfg)
     hist_version = hist_cfg["version"]
-    eval_version = eval_cfg["version"]
+    eval_version = histogram_input_version(eval_cfg)
     pair = page["pair"]
     curves = []
 

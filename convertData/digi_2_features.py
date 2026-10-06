@@ -31,6 +31,7 @@ from reco_track_features import (
 from scifi_plane_clustering import (
     SCHEMA_VERSION as SCIFI_CLUSTER_SCHEMA_VERSION,
     cluster_feature_payload,
+    direct_scifi_qdc_per_hit,
     scalar_feature_dtypes as scifi_cluster_scalar_dtypes,
 )
 
@@ -1370,6 +1371,10 @@ def process_hits(
     step_start = time.perf_counter()
     process_count_and_qdc(SciFi_hits, MuFilter_hits, branch_vars)
     record_timing(timing, timing_counts, "process_hits.count_qdc", step_start)
+
+    step_start = time.perf_counter()
+    branch_vars["scifi_qdc_per_hit_direct"][0] = direct_scifi_qdc_per_hit(SciFi_hits)
+    record_timing(timing, timing_counts, "process_hits.scifi_qdc_per_hit_direct", step_start)
     
     step_start = time.perf_counter()
     process_avgPos(SciFi_hits, MuFilter_hits, branch_vars)
@@ -1525,6 +1530,7 @@ def main(args):
         
         ("qdc_veto1", 'd'), ("qdc_veto2", 'd'), ("qdc_veto3", 'd'),  ("qdc_veto", 'd'), 
         ("qdc_scifi1", 'd'), ("qdc_scifi2", 'd'), ("qdc_scifi3", 'd'),("qdc_scifi4", 'd'), ("qdc_scifi5", 'd'), ("qdc_scifi", 'd'),
+        ("scifi_qdc_per_hit_direct", 'd'),
         ("qdc_us1", 'd'), ("qdc_us2", 'd'), ("qdc_us3", 'd'),("qdc_us4", 'd'), ("qdc_us5", 'd'), ("qdc_us", 'd'),
         ("qdc_ds1", 'd'), ("qdc_ds2", 'd'), ("qdc_ds3", 'd'), ("qdc_ds4", 'd'),("qdc_ds", 'd'),
         

@@ -9,7 +9,7 @@ outputs:
   feature_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/features
   partition_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/partitions
   hist_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/hists
-  workspace_root: evaluation_region_partitions/em_shower_neutrino_v1
+  workspace_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1
 
 feature:
   tree_name: cbmsim
@@ -23,4 +23,3 @@ classes:
   - CC_numu
   - NC_nue
   - NC_numu
-

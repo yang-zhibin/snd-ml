@@ -1,14 +1,14 @@
-version: em_shower_evaluation_v1
-description: Unit-area four-class comparisons for the isolated clustering feature campaign.
+version: em_shower_evaluation_scifi35_energy_v2
+description: Unit-area four-class energy and clustering comparisons after count_scifi > 35.
 
 metadata:
-  partition_csv: evaluation_region_partitions/em_shower_neutrino_v1/metadata/partitions.csv
+  partition_csv: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/metadata/partitions.csv
   tree_name: sndData
   friend_tree_name: null
 
 normalization:
   default: unit_area
-  reference: {region: inclusive_selected, particle_group: CC_nue}
+  reference: {region: scifi35, particle_group: CC_nue}
   fail_on_missing_reference: false
 
 cuts:
@@ -17,14 +17,14 @@ cuts:
   extra_cut_options: {none: ""}
 
 comparisons:
-  regions: [inclusive_selected, scifi35, signal_region]
+  regions: [scifi35]
   particle_groups: [CC_nue, CC_numu, NC_nue, NC_numu]
 
 plot:
   default_style: overlay
   draw_ratio_panel: false
   draw_option: HIST
-  region_preselection_label: Nested 2024 MC-neutrino scope
+  region_preselection_label: Selected SciFi hits > 35
   fiducial_overlays: {enabled: false}
   base_cut_labels: {none: none}
   extra_cut_labels: {none: none}
@@ -51,7 +51,7 @@ plot:
 
 outputs:
   hist_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/hists
-  plot_dir: evaluation_region_partitions/em_shower_neutrino_v1/plots
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/plots
 
 snakemake:
   default_base_cut_keys: [none]

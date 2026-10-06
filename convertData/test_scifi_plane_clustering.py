@@ -5,7 +5,7 @@ import unittest
 
 from scifi_plane_clustering import (
     UNDEFINED_FLOAT, UNDEFINED_INT, cluster_feature_payload,
-    cluster_scifi_hits, scalar_feature_dtypes,
+    cluster_scifi_hits, direct_scifi_qdc_per_hit, scalar_feature_dtypes,
 )
 
 def hit(channel, qdc=1.0, station=1, vertical=True):
@@ -13,6 +13,16 @@ def hit(channel, qdc=1.0, station=1, vertical=True):
             "layer_channel":channel, "qdc":qdc}
 
 class SciFiClusteringTest(unittest.TestCase):
+    def test_direct_qdc_per_hit_is_independent_of_clustering(self):
+        hits = [
+            hit(1, 2.0, station=1),
+            hit(20, 4.0, station=5, vertical=False),
+            hit(30, -3.0, station=3),
+            hit(40, 100.0, station=0),
+        ]
+        self.assertEqual(direct_scifi_qdc_per_hit(hits), 2.0)
+        self.assertEqual(direct_scifi_qdc_per_hit([]), 0.0)
+
     def test_hardware_boundaries_do_not_split(self):
         for channels in ((62,63,64,65),(126,127,128,129),(510,511,512,513)):
             plane=cluster_scifi_hits([hit(x) for x in channels])["planes"][(1,True)]
