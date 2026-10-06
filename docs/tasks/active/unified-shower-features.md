@@ -297,6 +297,25 @@ across independent testbeam files.
   `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/local_smoke/`.
 - No HTCondor job or canonical unified feature output has been produced yet.
 
+### HTCondor neutrino-canary checkpoint (2026-10-06)
+
+- Checkpoint commit: `03b3d97f0a256238a20b5ad1c3e0b36ea2363fba`.
+- Target: `unified_features_mc_neutrino_canary_v1`.
+- HTCondor cluster: `16420968`; final status 4, exit code 0.
+- Worker: `b9p13p0054.cern.ch`; converter time 11.816 s; recorded peak
+  resident set about 425,000 KiB.
+- Output: `/eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features/mc_neutrino/unified_src_79ff57f0d342b7b283ba/feature_scifi_cluster_v1_unified_src_79ff57f0d342b7b283ba.root`.
+- Validation passed for 48/48 entries with the frozen unified and SciFi-cluster
+  schemas. The JSON records the checkpoint commit and SHA-256
+  `dd21eb5e42f88147297b19bf6094baf9f9e50cea169843cc23cf317b444c3334`.
+- Local-versus-remote and legacy-EM-shower-versus-remote comparisons both
+  passed with zero mismatches across `sndData`, `cutFlowSummary`, and every
+  common branch. The legacy comparison accepted only the three frozen unified
+  source branches as additions.
+- Worker log directory:
+  `/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/htcondor_log/1_2f13394b-a5c8-4e06-9a00-8db10b6e7c74/`.
+- Comparison reports are under the local-smoke `mc_neutrino` directory.
+
 ## Running jobs
 
 - Target/command: none
@@ -319,8 +338,7 @@ across independent testbeam files.
 
 ## Exact next action
 
-Create a task-only checkpoint commit so canary provenance names the code
-actually executed. Then submit only `unified_features_mc_neutrino_canary_v1`
-through the HTCondor profile, monitor it to completion, validate and compare it
-with the local and legacy outputs, and checkpoint the result before deciding
-whether to submit the MC-muon-up canary. Do not run full-family production.
+Submit only `unified_features_mc_muon_up_canary_v1` through the HTCondor
+profile, record its job ID and logs, monitor it to completion, validate all
+94,120 entries, compare its first 100 entries with the accepted local smoke
+output, and stop. Do not run full-family production or Stage 1 histograms.
