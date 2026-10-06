@@ -479,6 +479,7 @@ rule process_features:
             if is_mc_muon_feature(wildcards) else []
         ),
         selection_module=f"{PERSONAL_WORK_SPACE}/convertData/sample_selection.py",
+        scifi_clustering=f"{PERSONAL_WORK_SPACE}/convertData/scifi_plane_clustering.py",
         nueAnalysisFilter_path=lambda wildcards: get_optional_nue_analysis_filter("feature_path", wildcards.feature_path),
     params:
         data_type=lambda wildcards: get_metadata_value(ref_name = "feature_path", ref_value = wildcards.feature_path, target_name = "data_type",  after_model = False),

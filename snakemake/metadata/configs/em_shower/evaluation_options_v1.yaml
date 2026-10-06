@@ -1,0 +1,58 @@
+version: em_shower_evaluation_scifi35_energy_v2
+description: Unit-area four-class energy and clustering comparisons after count_scifi > 35.
+
+metadata:
+  partition_csv: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/metadata/partitions.csv
+  tree_name: sndData
+  friend_tree_name: null
+
+normalization:
+  default: unit_area
+  reference: {region: scifi35, particle_group: CC_nue}
+  fail_on_missing_reference: false
+
+cuts:
+  definitions: {}
+  base_cut_options: {none: []}
+  extra_cut_options: {none: ""}
+
+comparisons:
+  regions: [scifi35]
+  particle_groups: [CC_nue, CC_numu, NC_nue, NC_numu]
+
+plot:
+  default_style: overlay
+  draw_ratio_panel: false
+  draw_option: HIST
+  region_preselection_label: Selected SciFi hits > 35
+  fiducial_overlays: {enabled: false}
+  base_cut_labels: {none: none}
+  extra_cut_labels: {none: none}
+  particle_labels:
+    CC_nue: MC CC nue
+    CC_numu: MC CC numu
+    NC_nue: MC NC nue
+    NC_numu: MC NC numu
+  particle_styles:
+    CC_nue: {color: blue, marker: 21}
+    CC_numu: {color: red, marker: 22}
+    NC_nue: {color: green, marker: 23}
+    NC_numu: {color: magenta, marker: 33}
+  region_labels:
+    inclusive_selected: Inclusive selected events
+    scifi35: SciFi hits > 35
+    signal_region: Signal region
+  region_definitions:
+    inclusive_selected: Converter-selected events
+    scifi35: Converter-selected events with count_scifi > 35
+    signal_region: count_scifi > 35, no veto, US activity, SciFi fiducial
+  summary_csv: true
+  pdf: true
+
+outputs:
+  hist_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/hists
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/plots
+
+snakemake:
+  default_base_cut_keys: [none]
+  default_extra_cut_keys: [none]

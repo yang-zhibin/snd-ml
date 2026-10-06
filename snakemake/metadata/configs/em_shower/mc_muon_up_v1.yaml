@@ -1,0 +1,35 @@
+version: em_shower_mc_muon_up_v1
+description: Upward-going MC-muon control sample for the EM-shower comparison.
+
+source_metadata: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_muon_up_metadata.csv
+expected_source_files: 15
+data_type: MC_muon
+subfolder: up
+tree_name: cbmsim
+
+productions:
+  scoring_1p8: scoring_1.8
+  scoring_2: scoring_2
+  scoring_2p5: scoring_2.5
+  scoring_at449m: scoring_at449m
+
+outputs:
+  feature_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/em_shower_neutrino_v1/features_mc_muon_up
+  prepared_metadata: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/metadata/mc_muon_up/source_features.csv
+  partition_metadata: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/metadata/mc_muon_up/partitions.csv
+  comparison_metadata: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/metadata/partitions_with_mc_muon_up.csv
+
+histograms:
+  excluded_features: [mc_incoming_energy, mc_incoming_log10_energy]
+  excluded_pairs:
+    - incoming_energy_vs_count_scifi
+    - incoming_energy_vs_qdc_scifi
+    - incoming_energy_vs_cluster_qdc_per_hit
+    - incoming_energy_vs_vertical_leading_qdc_fraction
+    - incoming_energy_vs_horizontal_leading_qdc_fraction
+    - incoming_energy_vs_vertical_roughness
+    - incoming_energy_vs_horizontal_roughness
+    - incoming_energy_vs_vertical_effective_qdc_cluster_count
+    - incoming_energy_vs_horizontal_effective_qdc_cluster_count
+
+plot_features: [density_sndsw_scifi, scifi_cluster_qdc_per_hit]

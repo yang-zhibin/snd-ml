@@ -156,6 +156,7 @@ rule process_run8329_real_dq_features_v2:
         "dq_cutflow_valid/source{source}.done",
         script=f"{PERSONAL_WORK_SPACE}/convertData/digi_2_features.py",
         selection_module=f"{PERSONAL_WORK_SPACE}/convertData/sample_selection.py",
+        scifi_clustering=f"{PERSONAL_WORK_SPACE}/convertData/scifi_plane_clustering.py",
     output:
         root=PASSING_MUON_V2_COMPARISON["output"]["real_dq_feature_root"].rstrip("/")
         + "/realDataDQ_run008329_source{source}.root",

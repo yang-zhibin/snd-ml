@@ -116,6 +116,7 @@ rule process_passing_muon_track_features:
         converter=f"{PERSONAL_WORK_SPACE}/convertData/digi_2_features.py",
         extractor=f"{PERSONAL_WORK_SPACE}/convertData/reco_track_features.py",
         selection=f"{PERSONAL_WORK_SPACE}/convertData/sample_selection.py",
+        scifi_clustering=f"{PERSONAL_WORK_SPACE}/convertData/scifi_plane_clustering.py",
         validator=(
             f"{PERSONAL_WORK_SPACE}/convertData/"
             "validate_reco_track_feature_file.py"

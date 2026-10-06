@@ -28,6 +28,12 @@ from reco_track_features import (
     scalar_dtypes_for_schema,
     vector_dtypes_for_schema,
 )
+from scifi_plane_clustering import (
+    SCHEMA_VERSION as SCIFI_CLUSTER_SCHEMA_VERSION,
+    cluster_feature_payload,
+    direct_scifi_qdc_per_hit,
+    scalar_feature_dtypes as scifi_cluster_scalar_dtypes,
+)
 
 ROOT.TH1.AddDirectory(False)
 
@@ -478,6 +484,26 @@ def branch_vector_vars(tree, vector_branches):
 def reset_vector_branches(vector_branches):
     for vec in vector_branches.values():
         vec.clear()
+
+
+def fill_scifi_cluster_features(scifi_hits, branch_vars, event_identity=None):
+    """Fill the fixed two-cluster-per-orientation feature schema."""
+    try:
+        payload = cluster_feature_payload(scifi_hits)
+    except (KeyError, TypeError, ValueError) as error:
+        identity = event_identity or {}
+        raise ValueError(
+            "SciFi clustering failed for run={runId} event={eventId} "
+            "eventIndex={eventIndex}: {error}".format(error=error, **{
+                "runId": identity.get("runId", "unknown"),
+                "eventId": identity.get("eventId", "unknown"),
+                "eventIndex": identity.get("eventIndex", "unknown"),
+            })
+        )
+
+    for name, value in payload["scalars"].items():
+        branch_vars[name][0] = value
+    return payload["analysis"]
 
 
 def fill_track_info(prefix, track, vector_branches):
@@ -1345,6 +1371,10 @@ def process_hits(
     step_start = time.perf_counter()
     process_count_and_qdc(SciFi_hits, MuFilter_hits, branch_vars)
     record_timing(timing, timing_counts, "process_hits.count_qdc", step_start)
+
+    step_start = time.perf_counter()
+    branch_vars["scifi_qdc_per_hit_direct"][0] = direct_scifi_qdc_per_hit(SciFi_hits)
+    record_timing(timing, timing_counts, "process_hits.scifi_qdc_per_hit_direct", step_start)
     
     step_start = time.perf_counter()
     process_avgPos(SciFi_hits, MuFilter_hits, branch_vars)
@@ -1357,6 +1387,18 @@ def process_hits(
     step_start = time.perf_counter()
     process_scifi_topology_features(SciFi_hits, branch_vars)
     record_timing(timing, timing_counts, "process_hits.scifi_topology", step_start)
+
+    step_start = time.perf_counter()
+    fill_scifi_cluster_features(
+        SciFi_hits,
+        branch_vars,
+        {
+            "runId": branch_vars["runId"][0],
+            "eventId": branch_vars["eventId"][0],
+            "eventIndex": branch_vars["eventIndex"][0],
+        },
+    )
+    record_timing(timing, timing_counts, "process_hits.scifi_clusters", step_start)
 
     step_start = time.perf_counter()
     process_hit_time_features(SciFi_hits, MuFilter_hits, branch_vars, time0_ns, time0_applied)
@@ -1473,6 +1515,7 @@ def main(args):
         ("runId", 'i'), ("eventId", 'i'), ("pdgCode", 'i'), ("isMC", 'i'), ("eventIndex", 'i'),
         ("nPrimary", 'i'), ("nSecondaryRaw", 'i'), ("nSecondary", 'i'),
         ("px", 'f'), ("py", 'f'), ("pz", 'f'),  # Floats
+        ("mc_incoming_energy", 'd'),
         ("x", 'f'), ("y", 'f'), ("z", 'f'),    # Floats
         
         ("count_veto1", 'i'), ("count_veto2", 'i'), ("count_veto3", 'i'),  ("count_veto", 'i'), 
@@ -1487,6 +1530,7 @@ def main(args):
         
         ("qdc_veto1", 'd'), ("qdc_veto2", 'd'), ("qdc_veto3", 'd'),  ("qdc_veto", 'd'), 
         ("qdc_scifi1", 'd'), ("qdc_scifi2", 'd'), ("qdc_scifi3", 'd'),("qdc_scifi4", 'd'), ("qdc_scifi5", 'd'), ("qdc_scifi", 'd'),
+        ("scifi_qdc_per_hit_direct", 'd'),
         ("qdc_us1", 'd'), ("qdc_us2", 'd'), ("qdc_us3", 'd'),("qdc_us4", 'd'), ("qdc_us5", 'd'), ("qdc_us", 'd'),
         ("qdc_ds1", 'd'), ("qdc_ds2", 'd'), ("qdc_ds3", 'd'), ("qdc_ds4", 'd'),("qdc_ds", 'd'),
         
@@ -1552,6 +1596,10 @@ def main(args):
         ("vetoHitTime_earlist_veto2", 'd'), ("vetoHitTime_latest_veto2", 'd'),
         ("vetoHitTime_earlist_veto3", 'd'), ("vetoHitTime_latest_veto3", 'd'),
     ]
+    branches.extend(scifi_cluster_scalar_dtypes())
+    branch_names = [name for name, _ in branches]
+    if len(branch_names) != len(set(branch_names)):
+        raise RuntimeError("Duplicate scalar branch name in feature schema")
 
     # Dictionary to hold branch variables
     branch_vars = {}
@@ -1693,6 +1741,7 @@ def main(args):
                 branch_vars["px"][0] = track0.GetPx()
                 branch_vars["py"][0] = track0.GetPy()
                 branch_vars["pz"][0] = track0.GetPz()
+                branch_vars["mc_incoming_energy"][0] = track0.GetEnergy()
 
                 if n_mc_tracks >= 2:
                     track1 = mc_tracks[1]
@@ -1762,6 +1811,7 @@ def main(args):
     ).Write()
     ROOT.TNamed("metadata_input_tree", str(args.tree_name)).Write()
     ROOT.TNamed("metadata_external_cutflow_used", "0" if direct_selection else "1").Write()
+    ROOT.TNamed("metadata_scifi_cluster_schema", SCIFI_CLUSTER_SCHEMA_VERSION).Write()
     ROOT.TNamed(
         "metadata_reco_track_features",
         reco_track_schema if args.extract_reco_tracks else "disabled",

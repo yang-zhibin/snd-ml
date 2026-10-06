@@ -1,0 +1,39 @@
+region_version: em_shower_regions_v1
+description: Nested scopes used to compare the four 2024 MC-neutrino truth classes.
+
+regions:
+  inclusive_selected:
+    priority: 10
+    category: inclusive
+    process_default: true
+    expression: "true"
+
+  scifi35:
+    priority: 20
+    category: preselection
+    process_default: true
+    expression: "count_scifi > 35"
+
+  signal_region:
+    priority: 30
+    category: signal
+    process_default: true
+    expression: >
+      count_scifi > 35 &&
+      count_veto == 0 &&
+      count_us > 0 &&
+      __SCIFI_FIDUCIAL_INSIDE__
+
+expression_macros:
+  __SCIFI_FIDUCIAL_INSIDE__: >
+    (
+      (count_scifi1 <= 2 || (avg_scifi1_x > -44 && avg_scifi1_x < -10 && avg_scifi1_y > 18 && avg_scifi1_y < 52)) &&
+      (count_scifi2 <= 2 || (avg_scifi2_x > -44 && avg_scifi2_x < -10 && avg_scifi2_y > 18 && avg_scifi2_y < 52)) &&
+      (count_scifi3 <= 2 || (avg_scifi3_x > -42 && avg_scifi3_x < -12 && avg_scifi3_y > 20 && avg_scifi3_y < 50)) &&
+      (count_scifi4 <= 2 || (avg_scifi4_x > -42 && avg_scifi4_x < -12 && avg_scifi4_y > 20 && avg_scifi4_y < 50)) &&
+      (count_scifi5 <= 2 || (avg_scifi5_x > -42 && avg_scifi5_x < -12 && avg_scifi5_y > 20 && avg_scifi5_y < 50))
+    )
+
+unmatched_events:
+  action: skip
+

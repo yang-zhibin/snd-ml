@@ -184,6 +184,7 @@ rule extract_run8329_transform_features_v8:
         geometry=lambda wc: _pmtv8_value(wc, "geo_path"),
         script=f"{PERSONAL_WORK_SPACE}/convertData/digi_2_features.py",
         selection=f"{PERSONAL_WORK_SPACE}/convertData/sample_selection.py",
+        scifi_clustering=f"{PERSONAL_WORK_SPACE}/convertData/scifi_plane_clustering.py",
     output:
         feature=_pmtv8_root + "/features/{method}/transformedFeatures_run008329_source{source}.root",
     wildcard_constraints:

@@ -429,8 +429,15 @@ def combine_root_expressions(*expressions):
     return " && ".join(f"({expr})" for expr in expressions)
 
 
-def alias_expression_identifiers(expression, alias_prefix="feat", name_prefix="feat__"):
-    identifiers = sorted(extract_identifiers(expression), key=len, reverse=True)
+def alias_expression_identifiers(
+    expression, available_columns, alias_prefix="feat", name_prefix="feat__"
+):
+    available_columns = set(available_columns)
+    identifiers = sorted(
+        (name for name in extract_identifiers(expression) if name in available_columns),
+        key=len,
+        reverse=True,
+    )
     aliases = {}
     aliased_expression = str(expression)
     for name in identifiers:
@@ -879,7 +886,9 @@ def run_rdf_partition(
 
     if write_cutflow:
         cutflow_chain.AddFriend(feature_chain, "feat")
-        cutflow_selection_expr, cutflow_aliases = alias_expression_identifiers(selection_expr)
+        cutflow_selection_expr, cutflow_aliases = alias_expression_identifiers(
+            selection_expr, feature_columns
+        )
         cutflow_rdf = ROOT.RDataFrame(cutflow_chain)
         for alias_name, target_name in cutflow_aliases.items():
             cutflow_rdf = cutflow_rdf.Alias(alias_name, target_name)
@@ -895,7 +904,9 @@ def run_rdf_partition(
 
     if need_hit3d_output:
         hit3d_chain.AddFriend(feature_chain, "feat")
-        hit_selection_expr, hit_aliases = alias_expression_identifiers(selection_expr)
+        hit_selection_expr, hit_aliases = alias_expression_identifiers(
+            selection_expr, feature_columns
+        )
         hit3d_rdf = ROOT.RDataFrame(hit3d_chain)
         for alias_name, target_name in hit_aliases.items():
             hit3d_rdf = hit3d_rdf.Alias(alias_name, target_name)
