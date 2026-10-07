@@ -1488,10 +1488,15 @@ def main(args):
 
         preSelect_tree.SetEntryList(elist)
     else:
-        elist = ROOT.TEntryList("elist_all", "elist_all")
-        entry_count = raw_tree.GetEntries() if direct_selection else preSelect_tree.GetEntries()
-        for j in range(entry_count):
-            elist.Enter(j)
+        # With no selection, selected ordinals are already tree ordinals.  Do
+        # not materialize a potentially million-entry TEntryList in every
+        # shard process.
+        elist = None
+        unfiltered_entry_count = int(
+            raw_tree.GetEntries()
+            if direct_selection
+            else preSelect_tree.GetEntries()
+        )
     record_timing(timing, timing_counts, "setup.selection", step_start)
 
     step_start = time.perf_counter()
@@ -1622,13 +1627,46 @@ def main(args):
     record_timing(timing, timing_counts, "setup.branches", step_start)
 
     
-    n_available_entries = int(elist.GetN())
+    n_available_entries = (
+        int(elist.GetN()) if elist is not None else unfiltered_entry_count
+    )
+    selected_entry_start = getattr(args, "selected_entry_start", None)
+    selected_entry_stop = getattr(args, "selected_entry_stop", None)
+    range_requested = (
+        selected_entry_start is not None or selected_entry_stop is not None
+    )
+    selected_entry_start = int(selected_entry_start or 0)
+    selected_entry_stop = (
+        n_available_entries
+        if selected_entry_stop is None
+        else int(selected_entry_stop)
+    )
+    if selected_entry_start < 0:
+        raise ValueError("--selected-entry-start must be non-negative")
+    if selected_entry_stop < selected_entry_start:
+        raise ValueError(
+            "--selected-entry-stop must be greater than or equal to "
+            "--selected-entry-start"
+        )
+    if selected_entry_stop > n_available_entries:
+        raise ValueError(
+            f"selected-entry stop {selected_entry_stop} exceeds available "
+            f"selected entries {n_available_entries}"
+        )
+    range_entries = selected_entry_stop - selected_entry_start
     max_events = int(getattr(args, "max_events", 0) or 0)
     if max_events < 0:
         raise ValueError("--max-events must be non-negative")
-    n_selected_entries = min(n_available_entries, max_events) if max_events else n_available_entries
+    n_selected_entries = min(range_entries, max_events) if max_events else range_entries
+    selected_entry_stop_effective = selected_entry_start + n_selected_entries
+    if range_requested:
+        print(
+            "Selected-entry range: "
+            f"[{selected_entry_start}, {selected_entry_stop_effective})/"
+            f"{n_available_entries}"
+        )
     if max_events:
-        print(f"Smoke-test event limit: {n_selected_entries}/{n_available_entries}")
+        print(f"Smoke-test event limit: {n_selected_entries}/{range_entries}")
     n_written_entries = 0
     kept_cutflow_entries = ROOT.TEntryList("elist_kept", "elist_kept")
     direct_cutflow = None
@@ -1643,7 +1681,13 @@ def main(args):
         direct_cutflow.Branch("entry", direct_cutflow_entry, "entry/L")
         direct_cutflow.Branch(marker_name, direct_cutflow_marker, f"{marker_name}/I")
     n_dropped_has_veto_has_us = 0
-    for i in range(n_selected_entries):
+    progress_interval = max(
+        1000,
+        min(10000, (n_selected_entries + 9) // 10),
+    )
+    for i, selected_ordinal in enumerate(
+        range(selected_entry_start, selected_entry_stop_effective)
+    ):
         step_start = time.perf_counter()
         reset_vector_branches(track_vector_branches)
         reset_vector_branches(hit_time_vector_branches)
@@ -1653,7 +1697,7 @@ def main(args):
                 reco_track_vector_branches,
                 reco_track_branch_available,
             )
-        if i % 10000 == 0:
+        if i % progress_interval == 0:
             progress = 100.0 * i / n_selected_entries if n_selected_entries else 100.0
             print(f"processed {i}/{n_selected_entries} events ({progress:.2f}%)")
         # Reset all branch variables before filling them
@@ -1662,7 +1706,11 @@ def main(args):
         record_timing(timing, timing_counts, "event.reset_branches", step_start)
 
         step_start = time.perf_counter()
-        selected_entry = elist.GetEntry(i)
+        selected_entry = (
+            elist.GetEntry(selected_ordinal)
+            if elist is not None
+            else selected_ordinal
+        )
         if direct_selection:
             cutflow_entry = None
             raw_entry = selected_entry
@@ -1815,6 +1863,13 @@ def main(args):
     ROOT.TParameter("Long64_t")("metadata_input_entries", int(raw_tree.GetEntries())).Write()
     ROOT.TParameter("Long64_t")("metadata_available_selected_entries", n_available_entries).Write()
     ROOT.TParameter("Long64_t")("metadata_max_events", max_events).Write()
+    if range_requested:
+        ROOT.TParameter("Long64_t")(
+            "metadata_selected_entry_start", selected_entry_start
+        ).Write()
+        ROOT.TParameter("Long64_t")(
+            "metadata_selected_entry_stop", selected_entry_stop_effective
+        ).Write()
     ROOT.TNamed("metadata_scifi_cluster_schema", SCIFI_CLUSTER_SCHEMA_VERSION).Write()
     ROOT.TNamed("metadata_unified_shower_feature_schema", UNIFIED_SCHEMA_VERSION).Write()
     ROOT.TNamed("metadata_source_uid", str(args.source_uid or "")).Write()
@@ -1871,6 +1926,22 @@ if __name__ == "__main__":
         type=int,
         default=0,
         help="Process at most this many selected events; zero means all events.",
+    )
+    parser.add_argument(
+        "--selected-entry-start",
+        type=int,
+        default=None,
+        help=(
+            "First selected-entry ordinal to process (inclusive). Omit for zero."
+        ),
+    )
+    parser.add_argument(
+        "--selected-entry-stop",
+        type=int,
+        default=None,
+        help=(
+            "Last selected-entry ordinal to process (exclusive). Omit for all."
+        ),
     )
     parser.add_argument(
         "--selection-mode",

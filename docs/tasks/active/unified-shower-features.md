@@ -383,13 +383,136 @@ across independent testbeam files.
 - Comparison report:
   `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/local_smoke/mc_muon_up/local_remote_comparison.json`.
 
+### Stage 2 testbeam-canary test (2026-10-07)
+
+- The combined HTCondor-profile dry-run passed for exactly the
+  `unified_features_testbeam_mc_2024_canary_v1` and
+  `unified_features_testbeam_data_2024_canary_v1` targets.
+- The dry-run resolved six jobs: two manifest preparations, two feature
+  conversions, and two canary aggregates. It did not run any job.
+- The selected MC canary is source
+  `tbfull_src_0817c7185e2cbdfa7683`; the selected data canary is source
+  `tbfull_src_0891a0e853f2e4ed43bb`.
+- Only these two canaries are authorized for the live test; full Stage 2
+  production remains out of scope.
+- The testbeam-MC canary cluster `16421400` completed with exit code 0 after
+  194 s. Validation passed for 960 selected/written events from 1,000 input
+  events; feature SHA-256 is
+  `0fd46950373c1d32b6aa5a2febbc2ffcfef263339f0a732ce98b4e73ab0977c3`.
+- The first testbeam-data attempt, cluster `16421399`, failed before
+  conversion because the transient SNDSW setup did not find
+  `sndsw/latest-event_level_info_output-release` and could not import
+  `SndlhcGeo`. Snakemake submitted retry cluster `16421401`.
+- At user request, active waiting stopped while retry `16421401` was still
+  running unheld on `b9p16p0041.cern.ch`. The local Snakemake controller then
+  exited because its grid-status helper could not initialize the retry's
+  HTCondor event log; this controller error does not establish the worker's
+  final result.
+
+### Large-file sharding implementation checkpoint (2026-10-07)
+
+- Implemented selected-entry range conversion with inclusive start/exclusive
+  stop arguments. Raw `eventIndex` and copied-cutflow `entry` values retain
+  their original input identity; no per-shard renumbering is performed.
+- Enabled sharding only for `mc_muon_up` and `testbeam_data_2024` inputs above
+  50,000 events. Shards contain at most 50,000 selected entries and are stored
+  under the isolated EOS `unified_shower_features_v1/shards` root.
+- Added independent validation records for every shard and an ordered merger
+  that requires validated checksums, identical provenance, contiguous complete
+  coverage, matching `sndData`/`cutFlowSummary` counts, and full canonical
+  revalidation after merge. Canonical feature and validation-record paths are
+  unchanged, so downstream Stage 1 and Stage 2 rules need no path changes.
+- Avoided materializing a full `TEntryList` for no-selection identity/direct
+  sources. Selected ordinals map directly to tree ordinals, eliminating a
+  repeated million-entry Python loop in every large-file shard process.
+- Added a global wildcard exclusion so legacy `process_features` does not
+  claim internal shard outputs.
+- LCG 107 regression validation passed 53 relevant tests across clustering,
+  partition/catalogue, comparison, unified feature, EM-shower workflow, and
+  Stage 1 distribution modules. The shard merger unit test verifies ordered
+  entries and aligned `sndData`/`cutFlowSummary` trees.
+- A real local muon-up smoke run passed for 100/100 events. A separate real
+  selected-range smoke passed for `[10,20)`, writing and validating 10 events
+  with raw `eventIndex` values beginning at 10. The temporary range output is
+  `/tmp/zhibin/unified_range_smoke.ABgxGS/`.
+- HTCondor-profile dry-runs ran no jobs and selected the intended DAGs:
+  source `unified_src_2b2faed04c777347f5f7` (205,446 events) resolved to five
+  shard jobs plus one merge; testbeam source
+  `tbfull_src_933230a6f85f25fe0031` (100,000 events) resolved to two shard jobs
+  plus one merge. A forced neutrino target retained the direct single-file
+  conversion rule.
+- No production or HTCondor job was submitted by this implementation test.
+- Added executable helper
+  `snakemake/run_remaining_unified_shower_features_htcondor.sh`. It discovers
+  missing canonical validation records across neutrino, muon-up, and 2024
+  testbeam data, then submits only those exact targets. It defaults to 20
+  concurrent jobs and accepts a positive job-count argument. Shell syntax and
+  its non-submitting invalid-argument path passed; the submission path was not
+  run.
+
+### Compiled validation optimization checkpoint (2026-10-07)
+
+- Replaced the Python per-entry loop for contiguous direct/identity products
+  with one ROOT `RDataFrame` scan. ROOT reads only referenced scalar branches;
+  the scan still checks every event's raw `eventIndex`, source domain and
+  source values, cluster closures, and finite shower-feature values. A
+  contiguous expected `eventIndex` also proves tuple identity uniqueness.
+- Identity cutflows are now checked in compiled ROOT code and represented as
+  a Python `range`, avoiding million-row Python cutflow and list construction.
+- Final merged-file validation no longer repeats the full scan already passed
+  by every shard. It checks schema and metadata, tree counts, the merge
+  checksum, and the first/last event and cutflow identity at every shard
+  boundary. Merge receipts now record the ordered shard ranges.
+- A real canonical muon-up file with 94,120 events passed the optimized full
+  scan in 20.36 s wall time under LCG 107 and 28.59 s under the production
+  SNDSW/ROOT 6.36 environment. Both reproduced its existing SHA-256. The
+  receipt records `validation_execution=compiled_branch_pruned_full_scan`.
+- A deliberately shifted 100-event expected range was rejected for all
+  100 entries. The complete 53-test feature/workflow/distribution regression
+  suite passed.
+- Earlier local shards `part_0000` and `part_0001` for source
+  `unified_src_2b2faed04c777347f5f7` are complete with readable ROOT and JSON
+  outputs. A dry-run using `--rerun-triggers input params` reuses both and
+  schedules only the three missing shards plus the merge. The remaining-files
+  helper now uses this policy so newer implementation mtimes do not rerun
+  already validated shards.
+
+### Testbeam shard-size adjustment (2026-10-07)
+
+- The user canceled the first 50,000-event local testbeam-data shard after the
+  muon shard completed. No testbeam shard ROOT or validation marker had been
+  published, so changing the part boundaries cannot reuse a conflicting
+  product.
+- Replaced the single shard size with dataset-specific configuration:
+  `mc_muon_up` remains 50,000 selected events per shard and
+  `testbeam_data_2024` now uses 10,000. The measured earlier testbeam rate
+  predicts about 20 minutes per 10,000-event shard instead of roughly
+  100 minutes for 50,000 events.
+- The focused unified-feature suite now has 12 passing tests, including a
+  frozen assertion for both family sizes. The 100,000-event testbeam source
+  dry-run resolves ten shard jobs plus one merge and manifest preparation.
+- Manifest refreshes would otherwise reconsider completed shards. The
+  remaining-files helper now marks the shard rule's manifest input ancient
+  while retaining `input` and `params` rerun triggers. A muon dry-run reuses
+  completed parts 0000--0002 and schedules only parts 0003--0004 plus merge.
+- Converter progress reporting is now adaptive. A 10,000-event shard reports
+  every 1,000 events and a 50,000-event shard every 5,000; this is logging
+  only and does not change feature content.
+
 ## Running jobs
 
-- Target/command: none
-- Scheduler and job ID: none
-- Submitted: no
-- Log: none
-- Expected outputs: none
+- Target/command: combined Stage 2 testbeam MC/data canaries via the HTCondor
+  profile with `--jobs 2 --rerun-incomplete --latency-wait 120`.
+- Scheduler and job ID: testbeam MC cluster `16421400` completed; testbeam
+  data cluster `16421399` failed preflight; retry cluster `16421401` was still
+  running at the last snapshot
+- Submitted: 2026-10-07 00:57 Europe/Zurich
+- Log: Snakemake external IDs
+  `4_dd6a5030-e690-44e1-a529-997d37148c92_16421399` and
+  `1_0f276b9e-62a3-45e8-abd6-6a182fb5b4ad_16421400`; retry external ID
+  `4_0a8715bf-da32-4cba-8e8b-49e73ff74924_16421401`.
+- Expected outputs: the canonical ROOT feature and `.validated.json` record
+  for each of the two canary source UIDs above.
 - Status command: `condor_q zhibin -af ClusterId ProcId JobStatus JobBatchName`
 
 ## Blockers and open questions
@@ -408,7 +531,7 @@ across independent testbeam files.
 
 ## Exact next action
 
-Wait for user review. Do not resume full-family production or Stage 1
-histograms without a new explicit instruction. If neutrino production is
-authorized, first verify the full target's current dry-run and record the
-command and scheduler state here.
+Review the sharding implementation. With explicit user authorization, run one
+50,000-event shard through HTCondor and validate its receipt before resuming
+the remaining failed large-file production targets. Do not start production
+or downstream distributions automatically.

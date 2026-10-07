@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import array
 import hashlib
+import json
 import sys
 import tempfile
 import unittest
@@ -20,6 +21,10 @@ sys.path.insert(0, str(REPO_ROOT / "convertData"))
 sys.path.insert(0, str(REPO_ROOT / "snakemake/metadata"))
 
 from prepare_unified_shower_feature_manifests import build_manifests  # noqa: E402
+from merge_unified_shower_feature_shards import (  # noqa: E402
+    merge as merge_feature_shards,
+    sha256 as feature_sha256,
+)
 from sample_selection import (  # noqa: E402
     IDENTITY_CUTFLOW,
     applies_collision_data_quality,
@@ -29,6 +34,7 @@ from sample_selection import (  # noqa: E402
 from source_provenance import event_source_values, validate_source_options  # noqa: E402
 from validate_unified_shower_feature_file import (  # noqa: E402
     inspect_source_selection,
+    validate_merge_boundaries,
     validate_source_scalar_values,
 )
 
@@ -183,6 +189,8 @@ class UnifiedSourceSelectionValidationTest(unittest.TestCase):
                 sample_type="MC_neutrino",
                 selection_mode="external_cutflow",
                 expected_max_events=0,
+                expected_selected_entry_start=None,
+                expected_selected_entry_stop=None,
             )
             contract = inspect_source_selection(args)
             self.assertEqual(contract["input_event_count"], 3)
@@ -195,6 +203,123 @@ class UnifiedSourceSelectionValidationTest(unittest.TestCase):
             self.assertEqual(bounded["available_selected_event_count"], 2)
             self.assertEqual(bounded["expected_written_event_count"], 1)
             self.assertEqual(bounded["expected_raw_entries"], [0])
+
+            args.expected_max_events = 0
+            args.expected_selected_entry_start = 1
+            args.expected_selected_entry_stop = 2
+            shard = inspect_source_selection(args)
+            self.assertTrue(shard["range_requested"])
+            self.assertEqual(shard["selected_entry_start"], 1)
+            self.assertEqual(shard["selected_entry_stop"], 2)
+            self.assertEqual(shard["expected_raw_entries"], [2])
+
+            args.sample_type = "real_testbeam"
+            args.selection_mode = "identity_cutflow"
+            args.expected_selected_entry_start = None
+            args.expected_selected_entry_stop = None
+            identity = inspect_source_selection(args)
+            self.assertIsInstance(identity["expected_raw_entries"], range)
+            self.assertEqual(list(identity["expected_raw_entries"]), [0, 1, 2])
+
+
+class UnifiedFeatureShardMergeTest(unittest.TestCase):
+    @staticmethod
+    def write_shard(path: Path, entries: list[int]) -> None:
+        output = ROOT.TFile(str(path), "RECREATE")
+        for tree_name in ("sndData", "cutFlowSummary"):
+            tree = ROOT.TTree(tree_name, tree_name)
+            value = array.array("q", [0])
+            branch_name = "eventIndex" if tree_name == "sndData" else "entry"
+            tree.Branch(branch_name, value, f"{branch_name}/L")
+            domain = array.array("i", [2])
+            if tree_name == "sndData":
+                tree.Branch("source_domain_id", domain, "source_domain_id/I")
+            for entry in entries:
+                value[0] = entry
+                tree.Fill()
+            tree.Write()
+        ROOT.TNamed("metadata_source_uid", "unified_src_test").Write()
+        output.Close()
+
+    @staticmethod
+    def write_receipt(path: Path, feature: Path, start: int, stop: int) -> None:
+        payload = {
+            "validation_passed": True,
+            "manifest_version": "unified_shower_features_v1",
+            "unified_schema_version": "unified_shower_features_v1",
+            "scifi_cluster_schema_version": "scifi_orientation_clusters_v1",
+            "source_uid": "unified_src_test",
+            "source_domain_id": 2,
+            "source_domain": "mc_muon_up",
+            "source_geometry_id": "",
+            "source_geometry_checksum": "",
+            "input_digi_path": "/input.root",
+            "input_cutflow_path": "",
+            "expected_input_event_count": 4,
+            "source_selection_expression": "",
+            "available_selected_event_count": 4,
+            "conversion_max_events": 0,
+            "converter_commit": "test",
+            "selected_entry_start": start,
+            "selected_entry_stop": stop,
+            "written_event_count": stop - start,
+            "feature_path": str(feature),
+            "feature_sha256": feature_sha256(feature),
+        }
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_merge_preserves_shard_order_and_tree_alignment(self):
+        with tempfile.TemporaryDirectory() as directory_name:
+            directory = Path(directory_name)
+            shard0 = directory / "shard0.root"
+            shard1 = directory / "shard1.root"
+            self.write_shard(shard0, [0, 1])
+            self.write_shard(shard1, [2, 3])
+            receipt0 = directory / "shard0.json"
+            receipt1 = directory / "shard1.json"
+            self.write_receipt(receipt0, shard0, 0, 2)
+            self.write_receipt(receipt1, shard1, 2, 4)
+            merged = directory / "merged.root"
+            merge_record = directory / "merge.json"
+
+            report = merge_feature_shards(SimpleNamespace(
+                shard_record=[str(receipt1), str(receipt0)],
+                output=str(merged),
+                merge_record=str(merge_record),
+            ))
+            self.assertTrue(report["merge_passed"])
+            self.assertEqual(report["shard_count"], 2)
+            self.assertEqual(report["merged_event_count"], 4)
+            self.assertEqual(
+                report["shard_selected_entry_ranges"], [[0, 2], [2, 4]]
+            )
+
+            source = ROOT.TFile.Open(str(merged))
+            try:
+                feature = source.Get("sndData")
+                cutflow = source.Get("cutFlowSummary")
+                self.assertEqual(int(feature.GetEntries()), 4)
+                self.assertEqual(int(cutflow.GetEntries()), 4)
+                observed_feature = []
+                observed_cutflow = []
+                for entry in range(4):
+                    feature.GetEntry(entry)
+                    cutflow.GetEntry(entry)
+                    observed_feature.append(int(feature.eventIndex))
+                    observed_cutflow.append(int(cutflow.entry))
+                self.assertEqual(observed_feature, [0, 1, 2, 3])
+                self.assertEqual(observed_cutflow, observed_feature)
+                self.assertEqual(
+                    validate_merge_boundaries(
+                        feature, cutflow, range(4), report, 2
+                    ),
+                    4,
+                )
+                self.assertEqual(
+                    int(source.Get("metadata_feature_shard_count").GetVal()), 2
+                )
+            finally:
+                source.Close()
 
 
 class UnifiedManifestTest(unittest.TestCase):
@@ -373,6 +498,10 @@ class UnifiedManifestTest(unittest.TestCase):
         self.assertIn("--validation-record", rules)
         self.assertIn("--expected-input-event-count", rules)
         self.assertIn("--expected-max-events", rules)
+        self.assertIn("unified_shower_feature_shard_v1", rules)
+        self.assertIn("unified_merge_shower_feature_shards_v1", rules)
+        self.assertIn("--expected-selected-entry-start", rules)
+        self.assertIn("--merge-record", rules)
         self.assertNotIn("--expected-source-event-count", rules)
         self.assertNotIn('touch "$tmp_marker"', rules)
         for family in (
@@ -384,6 +513,17 @@ class UnifiedManifestTest(unittest.TestCase):
         ):
             self.assertIn(f"unified_features_{family}_canary_v1", rules)
             self.assertIn(f"unified_features_{family}_v1", rules)
+
+    def test_large_family_shard_sizes_are_dataset_specific(self):
+        config = yaml.safe_load(
+            (
+                REPO_ROOT
+                / "snakemake/metadata/configs/unified_shower_features_v1.yaml"
+            ).read_text(encoding="utf-8")
+        )
+        sizes = config["sharding"]["selected_events_per_shard"]
+        self.assertEqual(sizes["mc_muon_up"], 50000)
+        self.assertEqual(sizes["testbeam_data_2024"], 10000)
 
 
 if __name__ == "__main__":

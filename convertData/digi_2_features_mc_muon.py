@@ -48,6 +48,8 @@ def parse_args():
     parser.add_argument("--source-geometry-id", default="")
     parser.add_argument("--source-geometry-checksum", default="")
     parser.add_argument("--max-events", type=int, default=0)
+    parser.add_argument("--selected-entry-start", type=int, default=None)
+    parser.add_argument("--selected-entry-stop", type=int, default=None)
     parser.add_argument(
         "--selection-mode", choices=converter.SELECTION_MODES, default=None
     )

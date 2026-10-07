@@ -84,6 +84,29 @@ def raw_entries_for_cutflow_rows(tree: ROOT.TTree, rows: list[int]) -> list[int]
     return raw_entries
 
 
+def identity_cutflow_entries(tree: ROOT.TTree, input_entries: int) -> range:
+    """Validate an identity cutflow in compiled ROOT code and return its range."""
+    entries = int(tree.GetEntries())
+    if entries != input_entries:
+        raise RuntimeError(
+            f"identity cutflow has {entries} rows, expected {input_entries}"
+        )
+    has_entry = bool(tree.GetBranch("entry") or tree.GetLeaf("entry"))
+    if has_entry and entries:
+        mismatches = int(
+            ROOT.RDataFrame(tree)
+            .Filter("static_cast<Long64_t>(entry) != "
+                    "static_cast<Long64_t>(rdfentry_)")
+            .Count()
+            .GetValue()
+        )
+        if mismatches:
+            raise RuntimeError(
+                f"identity cutflow has {mismatches} non-identity entry values"
+            )
+    return range(entries)
+
+
 def inspect_source_selection(args: argparse.Namespace) -> dict:
     """Independently derive input and selected counts from frozen sources."""
     digi = ROOT.TFile.Open(args.input_digi_path)
@@ -120,20 +143,55 @@ def inspect_source_selection(args: argparse.Namespace) -> dict:
                 selection_mode,
                 event_deltat_available=bool(event_deltat_branch),
             )
-            selected_rows = selected_cutflow_entries(cutflow_tree, selection)
-            selected_raw_entries = raw_entries_for_cutflow_rows(
-                cutflow_tree, selected_rows
-            )
+            if selection_mode == "identity_cutflow" and not selection:
+                selected_raw_entries = identity_cutflow_entries(
+                    cutflow_tree, input_entries
+                )
+            else:
+                selected_rows = selected_cutflow_entries(cutflow_tree, selection)
+                selected_raw_entries = raw_entries_for_cutflow_rows(
+                    cutflow_tree, selected_rows
+                )
         finally:
             cutflow_source.Close()
     else:
-        selected_raw_entries = list(range(input_entries))
+        selected_raw_entries = range(input_entries)
+
+    selected_entry_start_arg = getattr(args, "expected_selected_entry_start", None)
+    selected_entry_stop_arg = getattr(args, "expected_selected_entry_stop", None)
+    range_requested = (
+        selected_entry_start_arg is not None
+        or selected_entry_stop_arg is not None
+    )
+    selected_entry_start = int(selected_entry_start_arg or 0)
+    selected_entry_stop = (
+        len(selected_raw_entries)
+        if selected_entry_stop_arg is None
+        else int(selected_entry_stop_arg)
+    )
+    if selected_entry_start < 0:
+        raise RuntimeError("expected selected-entry start must be non-negative")
+    if selected_entry_stop < selected_entry_start:
+        raise RuntimeError(
+            "expected selected-entry stop must not precede the start"
+        )
+    if selected_entry_stop > len(selected_raw_entries):
+        raise RuntimeError(
+            f"expected selected-entry stop {selected_entry_stop} exceeds "
+            f"available selected entries {len(selected_raw_entries)}"
+        )
+    selected_window = selected_raw_entries[
+        selected_entry_start:selected_entry_stop
+    ]
 
     max_events = int(args.expected_max_events)
     if max_events < 0:
         raise RuntimeError("expected max-events value must be non-negative")
     expected_raw_entries = (
-        selected_raw_entries[:max_events] if max_events else selected_raw_entries
+        selected_window[:max_events] if max_events else selected_window
+    )
+    selected_entry_stop_effective = (
+        selected_entry_start + len(expected_raw_entries)
     )
     return {
         "input_event_count": input_entries,
@@ -143,6 +201,9 @@ def inspect_source_selection(args: argparse.Namespace) -> dict:
         "expected_written_event_count": len(expected_raw_entries),
         "expected_raw_entries": expected_raw_entries,
         "max_events": max_events,
+        "range_requested": range_requested,
+        "selected_entry_start": selected_entry_start,
+        "selected_entry_stop": selected_entry_stop_effective,
     }
 
 
@@ -216,6 +277,176 @@ def validate_cluster_closure(tree: ROOT.TTree, entry: int) -> None:
             raise RuntimeError(f"{label} closure failed at entry {entry}")
 
 
+def contiguous_entry_start(entries) -> int | None:
+    """Return the first value when entries form a unit-step range."""
+    if isinstance(entries, range):
+        return entries.start if entries.step == 1 else None
+    if not entries:
+        return 0
+    start = int(entries[0])
+    for offset, value in enumerate(entries):
+        if int(value) != start + offset:
+            return None
+    return start
+
+
+def declare_compiled_validation_helpers() -> None:
+    ROOT.gInterpreter.Declare(
+        r"""
+        #ifndef UNIFIED_SHOWER_VALIDATION_HELPERS_V1
+        #define UNIFIED_SHOWER_VALIDATION_HELPERS_V1
+        #include <algorithm>
+        #include <cmath>
+        inline bool unified_feature_close(double left, double right) {
+            const double tolerance = std::max(
+                1e-7,
+                1e-9 * std::max(std::abs(left), std::abs(right))
+            );
+            return std::abs(left - right) <= tolerance;
+        }
+        #endif
+        """
+    )
+
+
+def compiled_event_validation(
+    tree: ROOT.TTree,
+    cutflow: ROOT.TTree,
+    expected_raw_entries,
+    expected_domain_id: int,
+    limit: int,
+) -> int:
+    """Validate a contiguous event range in one branch-pruned C++ scan."""
+    start = contiguous_entry_start(expected_raw_entries)
+    if start is None:
+        raise RuntimeError("compiled validation requires contiguous event indices")
+    if limit == 0:
+        return 0
+
+    declare_compiled_validation_helpers()
+    finite_names = sorted(
+        {name for name, _ in scalar_feature_dtypes()}
+        | {"source_energy_gev", "scifi_qdc_per_hit_direct"}
+    )
+    checks = [
+        (
+            "static_cast<Long64_t>(eventIndex) == "
+            f"{start}LL + static_cast<Long64_t>(rdfentry_)"
+        ),
+        f"static_cast<int>(source_domain_id) == {int(expected_domain_id)}",
+        "std::isfinite(static_cast<double>(source_energy_gev))",
+        (
+            "(static_cast<int>(source_domain_id) == 3 ? "
+            f"(unified_feature_close(source_energy_gev, {UNAVAILABLE_ENERGY_GEV}) "
+            f"&& static_cast<int>(source_pdg_code) == {UNAVAILABLE_PDG_CODE}) : "
+            "(source_energy_gev >= 0.0 && "
+            "static_cast<int>(source_pdg_code) != 0))"
+        ),
+        (
+            "unified_feature_close(scifi_cluster_total_count, "
+            "scifi_vertical_cluster_count + scifi_horizontal_cluster_count)"
+        ),
+        (
+            "unified_feature_close(scifi_cluster_total_nhits, "
+            "scifi_vertical_total_nhits + scifi_horizontal_total_nhits)"
+        ),
+        (
+            "unified_feature_close(scifi_cluster_total_qdc, "
+            "scifi_vertical_total_qdc + scifi_horizontal_total_qdc)"
+        ),
+        "unified_feature_close(scifi_cluster_total_nhits, count_scifi)",
+        "unified_feature_close(scifi_cluster_total_qdc, qdc_scifi)",
+        (
+            "unified_feature_close(scifi_qdc_per_hit_direct, "
+            "count_scifi ? qdc_scifi / count_scifi : 0.0)"
+        ),
+        (
+            "unified_feature_close(scifi_qdc_per_hit_direct, "
+            "scifi_cluster_qdc_per_hit)"
+        ),
+        (
+            "unified_feature_close(scifi_other_clusters_count, "
+            "scifi_vertical_other_cluster_count + "
+            "scifi_horizontal_other_cluster_count)"
+        ),
+        (
+            "unified_feature_close(scifi_other_clusters_nhits, "
+            "scifi_vertical_other_cluster_nhits + "
+            "scifi_horizontal_other_cluster_nhits)"
+        ),
+        (
+            "unified_feature_close(scifi_other_clusters_qdc, "
+            "scifi_vertical_other_cluster_qdc + "
+            "scifi_horizontal_other_cluster_qdc)"
+        ),
+    ]
+    checks.extend(
+        f"std::isfinite(static_cast<double>({name}))" for name in finite_names
+    )
+    expression = " && ".join(f"({check})" for check in checks)
+    frame = ROOT.RDataFrame(tree).Range(0, limit)
+    failures = int(frame.Filter(f"!({expression})").Count().GetValue())
+    if failures:
+        raise RuntimeError(
+            f"compiled event validation failed for {failures}/{limit} entries"
+        )
+
+    if cutflow.GetBranch("entry") or cutflow.GetLeaf("entry"):
+        cutflow_expression = (
+            "static_cast<Long64_t>(entry) != "
+            f"{start}LL + static_cast<Long64_t>(rdfentry_)"
+        )
+        cutflow_failures = int(
+            ROOT.RDataFrame(cutflow)
+            .Range(0, limit)
+            .Filter(cutflow_expression)
+            .Count()
+            .GetValue()
+        )
+        if cutflow_failures:
+            raise RuntimeError(
+                "compiled cutflow identity validation failed for "
+                f"{cutflow_failures}/{limit} entries"
+            )
+    return limit
+
+
+def validate_merge_boundaries(
+    tree: ROOT.TTree,
+    cutflow: ROOT.TTree,
+    expected_raw_entries,
+    merge_record: dict,
+    expected_domain_id: int,
+) -> int:
+    """Check the first and last event contributed by every validated shard."""
+    ranges = merge_record.get("shard_selected_entry_ranges")
+    if not isinstance(ranges, list) or not ranges:
+        raise RuntimeError("merge record lacks shard selected-entry ranges")
+    indices = set()
+    for selected_range in ranges:
+        if not isinstance(selected_range, list) or len(selected_range) != 2:
+            raise RuntimeError("invalid shard selected-entry range in merge record")
+        start, stop = (int(value) for value in selected_range)
+        if stop <= start:
+            raise RuntimeError("empty shard selected-entry range in merge record")
+        indices.update((start, stop - 1))
+    for entry in sorted(indices):
+        tree.GetEntry(entry)
+        expected_event_index = int(expected_raw_entries[entry])
+        if int(tree.eventIndex) != expected_event_index:
+            raise RuntimeError(
+                f"merged boundary eventIndex mismatch at entry {entry}"
+            )
+        if int(tree.source_domain_id) != expected_domain_id:
+            raise RuntimeError(f"merged boundary source domain mismatch at {entry}")
+        cutflow.GetEntry(entry)
+        if (cutflow.GetBranch("entry") or cutflow.GetLeaf("entry")) and (
+            int(cutflow.entry) != expected_event_index
+        ):
+            raise RuntimeError(f"merged boundary cutflow mismatch at entry {entry}")
+    return len(indices)
+
+
 def write_record(path: str | Path, record: dict) -> None:
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -226,6 +457,15 @@ def write_record(path: str | Path, record: dict) -> None:
 
 def validate(args: argparse.Namespace) -> dict:
     source_contract = inspect_source_selection(args)
+    merge_record = None
+    if getattr(args, "merge_record", None):
+        with open(args.merge_record, encoding="utf-8") as source_record:
+            merge_record = json.load(source_record)
+        if merge_record.get("merge_passed") is not True:
+            raise RuntimeError("feature-shard merge record did not pass")
+        if merge_record.get("source_uid") != args.expected_source_uid:
+            raise RuntimeError("feature-shard merge source UID mismatch")
+
     source = ROOT.TFile.Open(args.feature)
     if not source or source.IsZombie():
         raise RuntimeError(f"cannot open {args.feature}")
@@ -288,6 +528,21 @@ def validate(args: argparse.Namespace) -> dict:
             != source_contract["max_events"]
         ):
             raise RuntimeError("max-events metadata does not match the source contract")
+        if source_contract["range_requested"]:
+            if (
+                metadata_integer(source, "metadata_selected_entry_start")
+                != source_contract["selected_entry_start"]
+            ):
+                raise RuntimeError(
+                    "selected-entry-start metadata does not match the source contract"
+                )
+            if (
+                metadata_integer(source, "metadata_selected_entry_stop")
+                != source_contract["selected_entry_stop"]
+            ):
+                raise RuntimeError(
+                    "selected-entry-stop metadata does not match the source contract"
+                )
 
         cutflow = source.Get("cutFlowSummary")
         if not cutflow:
@@ -311,59 +566,98 @@ def validate(args: argparse.Namespace) -> dict:
             if int(hit_tree.GetEntries()) != entries:
                 raise RuntimeError("feature/Hit3D entry-count mismatch")
 
-        seen = set()
         limit = entries if args.max_events <= 0 else min(entries, args.max_events)
-        for entry in range(limit):
-            tree.GetEntry(entry)
-            expected_event_index = source_contract["expected_raw_entries"][entry]
-            if int(tree.eventIndex) != expected_event_index:
-                raise RuntimeError(
-                    f"source eventIndex mismatch at entry {entry}: "
-                    f"{int(tree.eventIndex)} != {expected_event_index}"
-                )
-            cutflow.GetEntry(entry)
-            if (cutflow.GetBranch("entry") or cutflow.GetLeaf("entry")) and (
-                int(cutflow.entry) != expected_event_index
-            ):
-                raise RuntimeError(
-                    f"output cutflow entry mismatch at entry {entry}: "
-                    f"{int(cutflow.entry)} != {expected_event_index}"
-                )
-            identity = (int(tree.runId), int(tree.eventId), int(tree.eventIndex))
-            if identity in seen:
-                raise RuntimeError(f"duplicate event identity {identity} at entry {entry}")
-            seen.add(identity)
-            if hit_tree:
-                hit_tree.GetEntry(entry)
-                hit_identity = (
-                    int(hit_tree.runId),
-                    int(hit_tree.eventId),
-                    int(hit_tree.eventIndex),
-                )
-                if hit_identity != identity:
-                    raise RuntimeError(f"feature/Hit3D identity mismatch at entry {entry}")
-
-            domain_id = int(tree.source_domain_id)
-            if domain_id != args.expected_source_domain_id:
-                raise RuntimeError(
-                    f"source domain {domain_id} does not match expected "
-                    f"{args.expected_source_domain_id} at entry {entry}"
-                )
-            validate_source_scalar_values(
-                domain_id, float(tree.source_energy_gev), int(tree.source_pdg_code)
+        merge_boundary_count = 0
+        if merge_record:
+            if int(merge_record.get("merged_event_count", -1)) != entries:
+                raise RuntimeError("feature-shard merge entry count mismatch")
+            merge_boundary_count = validate_merge_boundaries(
+                tree,
+                cutflow,
+                source_contract["expected_raw_entries"],
+                merge_record,
+                args.expected_source_domain_id,
             )
-            validate_cluster_closure(tree, entry)
-            for name, _ in scalar_feature_dtypes():
-                if not math.isfinite(float(getattr(tree, name))):
-                    raise RuntimeError(f"non-finite {name} at entry {entry}")
-            if not math.isfinite(float(tree.scifi_qdc_per_hit_direct)):
-                raise RuntimeError(f"non-finite scifi_qdc_per_hit_direct at entry {entry}")
+            validation_execution = "validated_shards_plus_merge_boundaries"
+        elif hit_tree is None and contiguous_entry_start(
+            source_contract["expected_raw_entries"]
+        ) is not None:
+            print(f"compiled branch-pruned validation of {limit} entries")
+            compiled_event_validation(
+                tree,
+                cutflow,
+                source_contract["expected_raw_entries"],
+                args.expected_source_domain_id,
+                limit,
+            )
+            validation_execution = "compiled_branch_pruned_full_scan"
+        else:
+            seen = set()
+            for entry in range(limit):
+                tree.GetEntry(entry)
+                expected_event_index = source_contract["expected_raw_entries"][entry]
+                if int(tree.eventIndex) != expected_event_index:
+                    raise RuntimeError(
+                        f"source eventIndex mismatch at entry {entry}: "
+                        f"{int(tree.eventIndex)} != {expected_event_index}"
+                    )
+                cutflow.GetEntry(entry)
+                if (cutflow.GetBranch("entry") or cutflow.GetLeaf("entry")) and (
+                    int(cutflow.entry) != expected_event_index
+                ):
+                    raise RuntimeError(
+                        f"output cutflow entry mismatch at entry {entry}: "
+                        f"{int(cutflow.entry)} != {expected_event_index}"
+                    )
+                identity = (int(tree.runId), int(tree.eventId), int(tree.eventIndex))
+                if identity in seen:
+                    raise RuntimeError(
+                        f"duplicate event identity {identity} at entry {entry}"
+                    )
+                seen.add(identity)
+                if hit_tree:
+                    hit_tree.GetEntry(entry)
+                    hit_identity = (
+                        int(hit_tree.runId),
+                        int(hit_tree.eventId),
+                        int(hit_tree.eventIndex),
+                    )
+                    if hit_identity != identity:
+                        raise RuntimeError(
+                            f"feature/Hit3D identity mismatch at entry {entry}"
+                        )
+
+                domain_id = int(tree.source_domain_id)
+                if domain_id != args.expected_source_domain_id:
+                    raise RuntimeError(
+                        f"source domain {domain_id} does not match expected "
+                        f"{args.expected_source_domain_id} at entry {entry}"
+                    )
+                validate_source_scalar_values(
+                    domain_id,
+                    float(tree.source_energy_gev),
+                    int(tree.source_pdg_code),
+                )
+                validate_cluster_closure(tree, entry)
+                for name, _ in scalar_feature_dtypes():
+                    if not math.isfinite(float(getattr(tree, name))):
+                        raise RuntimeError(f"non-finite {name} at entry {entry}")
+                if not math.isfinite(float(tree.scifi_qdc_per_hit_direct)):
+                    raise RuntimeError(
+                        f"non-finite scifi_qdc_per_hit_direct at entry {entry}"
+                    )
+            validation_execution = "python_full_scan"
         if hit_source:
             hit_source.Close()
     finally:
         source.Close()
 
-    return {
+    feature_checksum = sha256(args.feature)
+    if merge_record:
+        if merge_record.get("output_sha256") != feature_checksum:
+            raise RuntimeError("feature-shard merge checksum mismatch")
+
+    record = {
         "validation_passed": True,
         "manifest_version": args.manifest_version,
         "unified_schema_version": UNIFIED_SCHEMA_VERSION,
@@ -377,7 +671,7 @@ def validate(args: argparse.Namespace) -> dict:
         "input_cutflow_path": args.input_cutflow_path or "",
         "feature_path": args.published_feature_path or args.feature,
         "feature_size_bytes": os.path.getsize(args.feature),
-        "feature_sha256": sha256(args.feature),
+        "feature_sha256": feature_checksum,
         "expected_input_event_count": args.expected_input_event_count,
         "source_selection_expression": source_contract["selection_expression"],
         "available_selected_event_count": source_contract[
@@ -389,13 +683,33 @@ def validate(args: argparse.Namespace) -> dict:
         "conversion_max_events": source_contract["max_events"],
         "written_event_count": entries,
         "validated_event_count": limit,
+        "validation_execution": validation_execution,
         "identity_validation": (
-            "source_selection_and_hit3d_entrywise"
-            if args.hit3d
-            else "source_selection_entrywise"
+            "source_selection_entrywise_sharded_merge"
+            if merge_record
+            else (
+                "source_selection_and_hit3d_entrywise"
+                if args.hit3d
+                else "source_selection_entrywise"
+            )
         ),
         "converter_commit": args.converter_commit,
     }
+    if merge_record:
+        record.update({
+            "feature_shard_count": int(merge_record["shard_count"]),
+            "merge_boundary_event_count": merge_boundary_count,
+            "feature_shard_validation_records": merge_record[
+                "shard_validation_records"
+            ],
+            "feature_shard_sha256": merge_record["shard_feature_sha256"],
+        })
+    if source_contract["range_requested"]:
+        record.update({
+            "selected_entry_start": source_contract["selected_entry_start"],
+            "selected_entry_stop": source_contract["selected_entry_stop"],
+        })
+    return record
 
 
 def parse_args() -> argparse.Namespace:
@@ -415,9 +729,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--selection-mode", choices=SELECTION_MODES, required=True)
     parser.add_argument("--input-tree", default="cbmsim")
     parser.add_argument("--expected-max-events", type=int, default=0)
+    parser.add_argument("--expected-selected-entry-start", type=int)
+    parser.add_argument("--expected-selected-entry-stop", type=int)
     parser.add_argument("--input-digi-path", required=True)
     parser.add_argument("--input-cutflow-path")
     parser.add_argument("--published-feature-path")
+    parser.add_argument("--merge-record")
     parser.add_argument("--converter-commit", required=True)
     parser.add_argument("--validation-record", required=True)
     return parser.parse_args()

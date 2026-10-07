@@ -14,7 +14,11 @@ wildcard_constraints:
     preCutEff_path=".*preCutEff.*.csv",
     muonDISFeature_path=".*muonDISFeature.*.root",
     muonDISDigi_path=".*muonDISDigi.*.root",
-    feature_path="(?!.*passing_muon_track_partitions/).*feature_[^/]*\\.root",
+    feature_path=(
+        "(?!.*passing_muon_track_partitions/)"
+        "(?!.*unified_shower_features_v1/shards/)"
+        ".*feature_[^/]*\\.root"
+    ),
     metadata_csv=".*metadata.*.csv",
     model_ckpt='.*ckpt.*',
     pt_hit_path = '.*pt_hit.*.pt.gz',
