@@ -1,0 +1,14 @@
+version: real_data_2024_selection_v1
+source_metadata: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/real_data_2024_skim_runs_metadata.csv
+expected_source_files: 11368
+input_tree: cbmsim
+index_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/real_data_2024
+manifest_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_selection
+excluded_source_uids:
+  - unified_src_0ee91078a115e62f0a98
+  - unified_src_17d1dbbd67bc0d9ebda2
+canary:
+  source_metadata_row: 10
+local_smoke:
+  max_base_events: 1000
+  output_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/local_smoke/real_data_selection

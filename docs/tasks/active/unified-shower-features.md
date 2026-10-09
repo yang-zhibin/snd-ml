@@ -1,7 +1,7 @@
 # Task: unified-shower-features
 
 Status: active
-Last updated: 2026-10-06 Europe/Zurich
+Last updated: 2026-10-09 Europe/Zurich
 
 ## Goal
 
@@ -501,29 +501,131 @@ across independent testbeam files.
 
 ## Running jobs
 
-- Target/command: combined Stage 2 testbeam MC/data canaries via the HTCondor
-  profile with `--jobs 2 --rerun-incomplete --latency-wait 120`.
-- Scheduler and job ID: testbeam MC cluster `16421400` completed; testbeam
-  data cluster `16421399` failed preflight; retry cluster `16421401` was still
-  running at the last snapshot
-- Submitted: 2026-10-07 00:57 Europe/Zurich
-- Log: Snakemake external IDs
-  `4_dd6a5030-e690-44e1-a529-997d37148c92_16421399` and
-  `1_0f276b9e-62a3-45e8-abd6-6a182fb5b4ad_16421400`; retry external ID
-  `4_0a8715bf-da32-4cba-8e8b-49e73ff74924_16421401`.
-- Expected outputs: the canonical ROOT feature and `.validated.json` record
-  for each of the two canary source UIDs above.
-- Status command: `condor_q zhibin -af ClusterId ProcId JobStatus JobBatchName`
+- Target/command: all remaining canonical neutrino-MC, muon-up-MC, and 2024
+  testbeam-data feature/validation products, submitted with
+  `./snakemake/run_remaining_unified_shower_features_htcondor.sh` from commit
+  `b78bbc10061c169e217411bd714059585c68c86d`. The helper uses the repository
+  HTCondor profile with 20 concurrent jobs, `--rerun-triggers input params`,
+  the shard manifest input marked ancient, `--rerun-incomplete`,
+  `--latency-wait 120`, `--keep-going`, and `--drop-metadata`.
+- Submitted: 2026-10-07 12:14 Europe/Zurich.
+- Scope: nine missing canonical validation targets (one neutrino, five
+  muon-up, and three 2024 testbeam-data sources). The resolved DAG contains
+  219 jobs: three manifests, 207 shards, one direct neutrino conversion, and
+  eight merges.
+- Scheduler and job IDs: the first 20 shard workers were clusters
+  `16425257`--`16425276`. All 20 moved from idle to running
+  (`JobStatus=2`) at 13:11 CEST with no hold reasons. Workers then exposed a
+  deterministic testbeam shard-planning failure described below. The
+  Snakemake controller was stopped at 13:13 CEST to prevent a retry storm;
+  because the profile has no cluster-cancel hook, its 18 remaining orphaned
+  retry clusters `16425288`--`16425305` were explicitly removed. A 13:13:59
+  queue check showed no remaining jobs with `ClusterId >= 16425257`.
+- Snakemake log:
+  `.snakemake/log/2026-10-07T121400.564002.snakemake.log`.
+- Expected outputs: canonical ROOT feature files and `.validated.json`
+  records for source UIDs `unified_src_3086e020d1583cf5f19e`,
+  `unified_src_2b2faed04c777347f5f7`,
+  `unified_src_2d53f3013ca0df5a8f37`,
+  `unified_src_792fd96cf7aedb0fd9d2`,
+  `unified_src_7a429b72e0822899defc`,
+  `unified_src_a5375fa9e082fc6fa6a4`,
+  `tbfull_src_69f577a86697a8eaff05`,
+  `tbfull_src_933230a6f85f25fe0031`, and
+  `tbfull_src_a8c40f4cde8dfe5890e3`.
+- Status commands: `condor_q zhibin -constraint 'ClusterId >= 16425257' -af
+  ClusterId ProcId JobStatus JobBatchName RemoteHost HoldReason` and
+  `tail -f .snakemake/log/2026-10-07T121400.564002.snakemake.log`.
+
+### Production submission failure checkpoint (2026-10-07 13:13 CEST)
+
+- This is a deterministic planning/count-contract failure, not a worker,
+  environment, geometry-warning, memory, disk, or walltime failure.
+- The generated testbeam manifest records `input_event_count=1000000` for
+  source `tbfull_src_a8c40f4cde8dfe5890e3`, so the checkpointed 10,000-entry
+  shard planner generated 100 parts.
+- The frozen identity cutflow for that source exposes only 50,000 selected
+  entries. The converter therefore rejected every attempted range ending
+  above 50,000 before event processing. Representative worker failures were
+  `ValueError: selected-entry stop 150000 exceeds available selected entries
+  50000` (cluster `16425266`), the same error for stop 450,000 (cluster
+  `16425267`), and stop 460,000 (cluster `16425270`).
+- Before the stop, the Snakemake log recorded 25 shard-rule errors and 20
+  restart attempts. The controller had submitted clusters through
+  `16425305`; no job remains queued from this submission.
+- Failed jobs terminated normally with exit code 1 after about 40 seconds and
+  used under 150 MB, confirming that increasing resources would not help.
+- No implementation fix was made during monitoring. The required correction
+  is for manifest/shard planning to use the selected-entry cardinality of an
+  `identity_cutflow` source (50,000 here), while retaining the raw digi entry
+  count separately for provenance/validation. The regenerated DAG should
+  contain five 10,000-entry shards for this source, not 100.
+
+### Identity-cutflow shard-count fix checkpoint (2026-10-07 14:43 CEST)
+
+- Added a separate `selected_event_count` manifest field. Direct-input
+  sources set it to the raw input count; testbeam identity-cutflow sources
+  read it from the frozen catalogue `n_events` field. The existing
+  `input_event_count` remains the raw digi count used for provenance.
+- Sharding eligibility still uses the configured raw-input threshold, while
+  shard boundaries now use `selected_event_count`. The range helper rejects
+  negative counts, selected counts above the raw count, and invalid shard
+  sizes.
+- Extended validation with `--expected-selected-event-count`. Identity
+  cutflow cardinality is checked against the selected count while the digi
+  tree is independently checked against the raw input count.
+- The focused LCG suite passed all 13 unified-feature tests. New regression
+  coverage proves that a 1,000,000-entry raw source with 50,000 selected
+  entries produces exactly five 10,000-entry ranges and preserves the
+  shortened final MC-muon shard behavior.
+- Regenerated the testbeam-data manifest. Representative source
+  `tbfull_src_a8c40f4cde8dfe5890e3` now records
+  `input_event_count=1000000` and `selected_event_count=50000`.
+- The exact HTCondor-profile dry-run resolved five shard jobs plus one merge,
+  with ranges ending at 50,000. It submitted no job.
+- The first local canary conversion completed 10,000 events but exposed the
+  validator's remaining raw-versus-selected assumption before publication.
+  That validator contract was fixed and the focused suite passed again.
+- The repeated local canary then passed end to end for range `[0,10000)`:
+  10,000 written and compiled-validated events out of 50,000 available
+  selected entries and 1,000,000 raw input entries. Converter time was
+  1,001.675 s. The published feature is 72,968,635 bytes with SHA-256
+  `430a1cd2cb61026dbe6c585bbaaf33054a7942ebc4b131d8540d40a76bd1fa1b`.
+- Canary validation record:
+  `/eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/shards/testbeam_data_2024/tbfull_src_a8c40f4cde8dfe5890e3/part_0000/feature_scifi_cluster_v1_tbfull_src_a8c40f4cde8dfe5890e3_part_0000.root.validated.json`.
+- Successful canary Snakemake log:
+  `.snakemake/log/2026-10-07T142542.222237.snakemake.log`.
+- No remaining shard, merge, full-production, or downstream-distribution job
+  was started.
+
+### Selective remaining-production helper checkpoint (2026-10-07 14:50 CEST)
+
+- Extended `snakemake/run_remaining_unified_shower_features_htcondor.sh`
+  with repeatable `--exclude-source-uid` arguments, `--jobs N`, and a
+  non-submitting `--dry-run` option. The original positional positive job
+  count remains supported.
+- Exclusions are validated for UID syntax and presence in the three input
+  manifests before Snakemake is invoked. Excluded sources are removed while
+  discovering missing canonical validation targets, so none of their shard
+  or merge dependencies enter the DAG.
+- Shell syntax and help output passed. An invalid UID was rejected with exit
+  code 2 before Snakemake invocation.
+- The exact dry-run excluding testbeam source
+  `tbfull_src_a8c40f4cde8dfe5890e3` and MC-muon source
+  `unified_src_792fd96cf7aedb0fd9d2` passed. It selected seven remaining
+  canonical sources and resolved 37 jobs: two manifest preparations, 28
+  shards, six merges, and one direct neutrino conversion.
+- No HTCondor job was submitted by this test.
 
 ## Blockers and open questions
 
-- Full production must be invoked one family at a time and, for large
-  families, one documented Snakemake batch at a time. Batches are numbered
-  from 1 through the chosen total and all batches are required for family
-  completion.
+- The testbeam `identity_cutflow` raw-versus-selected count defect is fixed
+  and has passed the required five-shard dry-run and real local shard canary.
 - The corrected neutrino workflow has passed the formerly failing
   partition-244 case locally and through HTCondor, including both comparisons.
-  Mass production remains stopped pending explicit user authorization.
+  The combined production attempt was authorized, but was stopped while its
+  first testbeam wave was failing; it did not reach the neutrino and muon-up
+  work in this submission.
 - Two production workers also saw transient failure to load
   `sndsw/latest-event_level_info_output-release`; this is distinct from the
   corrected count-contract defect and remains a retry/activation-hardening
@@ -531,7 +633,723 @@ across independent testbeam files.
 
 ## Exact next action
 
-Review the sharding implementation. With explicit user authorization, run one
-50,000-event shard through HTCondor and validate its receipt before resuming
-the remaining failed large-file production targets. Do not start production
-or downstream distributions automatically.
+Run the tested filtered helper command only when the user is ready:
+`./snakemake/run_remaining_unified_shower_features_htcondor.sh --jobs 20
+--exclude-source-uid tbfull_src_a8c40f4cde8dfe5890e3
+--exclude-source-uid unified_src_792fd96cf7aedb0fd9d2`. Do not start the two
+excluded sources or downstream distributions.
+
+### Real-data selection-index milestone (2026-10-07 15:54 CEST)
+
+- The existing production still had 20 idle HTCondor jobs (`16425813` through
+  `16425832`), so no converter, validator, unified-feature configuration, or
+  active unified-feature rule used by those jobs was changed.
+- Added an isolated, standalone selection-index workflow at
+  `snakemake/unified_real_data_selection.smk`. It is not included by the main
+  Snakefile and cannot change the active production DAG.
+- Added the frozen `real_data_2024_selection_v1` policy: base collision-data
+  quality plus SciFi selection, valid system-1 MuFilter hits for the veto
+  category, and deterministic SHA-256 sampling of
+  `(runId,eventId,eventIndex)` into bucket 0 of 10.
+- Added deterministic 11,368-source manifest construction, paired no-veto and
+  veto-10% ROOT index production, independent index validation, and local
+  smoke/canary/full-index aggregate targets.
+- Four focused pure-Python policy tests passed. The standalone Snakefile
+  parsed and exposed four targets. An in-memory manifest audit reproduced
+  11,368 unique sources and one canary.
+- Metadata row 0 had zero base-selected events and was rejected as a useful
+  canary. Read-only cutflow auditing selected row 10, which has 36,930
+  base-selected entries.
+- The bounded 1,000-entry local smoke passed end to end with count
+  conservation: 998 veto events, 2 no-veto events, and 102 deterministic
+  veto-10% events. Independent validation checked category membership,
+  sampling membership, ordering, bounds, hashes, and source identity.
+- Successful smoke log:
+  `.snakemake/log/2026-10-07T155310.132564.snakemake.log`.
+- Smoke products are under
+  `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/local_smoke/real_data_selection/`.
+- No real-data HTCondor job or full-source selection canary was started.
+- Integration of the new arbitrary-entry indexes into unified feature
+  production still requires the planned `indexed_cutflow` mode, catalog
+  aggregation, two feature families, sharding, and feature-level canaries.
+
+## Exact next action (supersedes the preceding action)
+
+Wait until HTCondor jobs `16425813` through `16425832` have drained before
+editing shared converter or unified-feature rule files. Then add and test the
+`indexed_cutflow` integration for the two real-data feature families.
+
+### Three-source real-data selection test (2026-10-07 16:08 CEST)
+
+- The first local attempt was interrupted with the chat/tool process before
+  publication. A process and output audit found no surviving worker and only
+  empty EOS directories, so the same targets were safely restarted with
+  `--rerun-incomplete`.
+- Three full-source selection-index jobs ran locally with two workers; no
+  HTCondor job was submitted.
+- All three builders conserved the base selection and all three independent
+  validators reported `status=passed`:
+  - `unified_src_7a5432a6b551bafb15f4`: 36,930 base-selected, 68 no-veto,
+    36,862 veto, and 3,622 veto-10% events.
+  - `unified_src_3fb91153d0c208ac2011`: 37,242 base-selected, 55 no-veto,
+    37,187 veto, and 3,682 veto-10% events.
+  - `unified_src_d4101f3abedc9cecd745`: 37,012 base-selected, 65 no-veto,
+    36,947 veto, and 3,680 veto-10% events.
+- Every ROOT index, summary, and validation record was published and readable
+  under the configured EOS selection-index root.
+- A repeat dry-run reported: `Nothing to be done (all requested files are
+  present and up to date)`.
+- Successful Snakemake log:
+  `.snakemake/log/2026-10-07T160430.995494.snakemake.log`.
+
+## Exact next action (supersedes the preceding action)
+
+Wait until the existing unified-feature HTCondor jobs have drained, then
+implement and test `indexed_cutflow` integration. Do not submit the full
+11,368-source selection-index production yet.
+
+### Real-data bad-source exclusion checkpoint (2026-10-07)
+
+- Added configuration-level exclusions for
+  `unified_src_0ee91078a115e62f0a98` and
+  `unified_src_17d1dbbd67bc0d9ebda2`; both have missing Run-9258
+  `nueAnalysisFilter` inputs.
+- The standalone selection workflow validates that every configured excluded
+  UID exists in the source manifest and removes exclusions only from aggregate
+  targets. Direct source rules and the full provenance manifest remain intact.
+- The deterministic source manifest still has 11,368 rows; the aggregate has
+  11,366 valid candidates. Installed Snakemake 9.17.2 resolves batch `1/10`
+  to exactly 1,137 validation targets.
+- The exact HTCondor-profile batch dry-run completed successfully with no
+  `MissingInputException`. No selection job was submitted.
+- `git diff --check` passed and no patch backup/reject artifacts remain.
+
+## Exact next action (supersedes the preceding action)
+
+When the user explicitly authorizes submission and no other Snakemake
+controller is using this worktree, run batch `1/10` without `--dry-run`.
+Do not run batches `2/10` through `10/10`.
+
+### Frozen partial-distribution workflow checkpoint (2026-10-07 17:25 CEST)
+
+- Added the isolated standalone workflow
+  `snakemake/unified_partial_distributions.smk`; it is not included by the
+  main Snakefile and writes only beneath versioned `partial` output roots.
+- Added `unified_partial_distributions_20261007_v1`, covering the three frozen
+  SciFi shower features with the common `count_scifi > 35` base selection.
+  Stage 1 provides unit-area overlays for neutrino/muon-up MC and preliminary
+  19 fb^-1 scaling for neutrino MC only. Stage 2 provides unit-area testbeam
+  MC/data comparisons for inclusive electrons, 50/100/200 GeV electrons, and
+  180 GeV pions.
+- Added a snapshot builder that accepts a source only when both the feature
+  ROOT file and a matching successful validation record exist. It records
+  source-manifest SHA-256 values, availability counts/fractions, status
+  counts, and available exposure in JSON and CSV coverage products.
+- Froze the snapshot at
+  `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/partial_distributions/unified_partial_distributions_20261007_v1/`:
+  neutrino MC 1865/1866 (27,975 fb^-1 simulated exposure), muon-up MC 10/15,
+  testbeam MC 75/75, and testbeam data 12/15. Missing testbeam data are the
+  150, 250, and 300 GeV electron sources, so this snapshot intentionally does
+  not schedule those three per-energy comparisons.
+- Verified representative testbeam MC and data files contain the
+  `source_pdg_code` and `source_energy_gev` branches used for group selection.
+- Corrected distribution compatibility checking to compare the shared base
+  selection rather than the full group-specific selection. This permits the
+  intended CC/NC and MC/data overlays while still rejecting histograms made
+  with another base selection.
+- The focused LCG suite passed all 10 tests, including real ROOT histogram and
+  two-group plotting coverage. `git diff --check` passed before the final task
+  checkpoint, and no histogram, plot, feature-production, or HTCondor job was
+  run.
+- Snakemake 9.14.1 parsed the standalone workflow. The complete aggregate
+  dry-run passed with 71 jobs: four audits, 45 raw histograms, six Stage-1
+  plots, 15 Stage-2 plots, and one aggregate. Snapshot log:
+  `.snakemake/log/2026-10-07T172321.562292.snakemake.log`.
+
+## Exact next action (supersedes the preceding action)
+
+Wait for user authorization before running
+`unified_partial_distributions_v1`. Do not submit histogram or plot jobs yet.
+
+### Geometry-controlled testbeam-distribution implementation (2026-10-07)
+
+- Added the standalone `snakemake/unified_testbeam_distributions.smk` workflow
+  and versioned `unified_testbeam_distributions_v2` configuration. It is not
+  included by the main Snakefile and does not enlarge the existing Stage-1 or
+  Stage-2 production DAG.
+- Added fail-closed legacy H8 geometry classification from the audited active
+  placements/checksums. The primary measured-pion family accepts only
+  `Fe_3walls_H8_2023` with checksum
+  `4194869a465bfbe2f049effe9407577eba99111334f1960c8d26f857c12de21c`;
+  unknown geometry filenames are rejected.
+- Added deterministic 2023 H8 manifest construction for positive pions at
+  100, 140, and 180 GeV. It reproduced 56, 54, and 89 source files and
+  allocates exactly 50,000 raw events per energy across every source in the
+  cell.
+- Added `indexed_cutflow` as an explicit selection mode and source domain 6
+  (`testbeam_data_2023_h8`). Sparse indexes use sorted, unique, evenly spaced
+  raw-entry values. The converter already follows an index tree's `entry`
+  branch; the independent validator now exercises the arbitrary-entry path
+  rather than identity-cutflow validation.
+- Added local index and feature rules for the 199 measured 2023 sources. Each
+  feature is produced with the established SNDSW converter, independently
+  validated for schema/provenance/index membership, and published only after
+  validation.
+- Added five-feature, unit-area plots for 2024 W2 MC pion/electron energy
+  scans, 2023 Fe-three-wall measured positive-pion scans, 2024 W2 measured
+  electron scans, six exact-energy W2 MC particle comparisons, the MC
+  180/200-GeV mismatch control, and the corresponding W2 measured-data
+  mismatch plot.
+- Histogram production filters source manifests before validation, requires
+  one geometry ID/checksum per geometry-declared group, and records source
+  count, available/used entries, event cap, sampling policy, geometry,
+  particle charge, and energy in plot summaries. MC comparison cells use
+  equal 2,520-event caps; MC electron scans use 2,880; measured cells use
+  50,000.
+- The focused LCG/ROOT regression suite passed 27 tests. A temporary CLI smoke
+  reproduced the 199-source/150,000-event manifest and verified a 7-of-100
+  sparse ROOT index. Snakemake 9.17.2 parsed all five target rules. A
+  temporary checkpoint plus dry-run expanded to 199 index jobs and 199
+  feature jobs (399 jobs including the aggregate).
+- `git diff --check` passed and no patch backup/reject artifacts remain. No
+  production index, feature, histogram, plot, or HTCondor job was started.
+
+## Exact next action (supersedes the preceding action)
+
+Wait for the user's instruction. Before production, run one local 2023 H8
+feature canary from the standalone workflow and compare its event identities
+against the generated sparse index. Do not submit all 199 feature jobs or run
+the distribution aggregate yet.
+
+### Leading-cluster QDC-spread plotting checkpoint (2026-10-07 17:34 CEST)
+
+- Added `scifi_vertical_cluster1_qdc_std` and
+  `scifi_horizontal_cluster1_qdc_std` to the frozen partial-distribution
+  feature set. Both use `[0,15]` with width `0.3`.
+- Each histogram applies its matching cluster-existence cut in addition to the
+  shared SciFi and group selections, preventing `-999` missing-slot sentinels
+  from entering the distribution.
+- Updated the distribution helper to accept the two approved optional
+  features while retaining the three core features, and to compose
+  feature-specific cuts explicitly.
+- The focused LCG suite passed all 10 tests. Representative validated files
+  from all four frozen families contain both new QDC-standard-deviation
+  branches and both matching `cluster1_exists` branches.
+- Refreshed only the frozen snapshot metadata; coverage is unchanged. Log:
+  `.snakemake/log/2026-10-07T173240.211786.snakemake.log`.
+- The expanded aggregate dry-run passed with 115 jobs: four audits, 75 raw
+  histograms, ten Stage-1 plots, 25 Stage-2 plots, and one aggregate. No
+  histogram, plot, feature-production, or HTCondor job ran.
+
+## Exact next action (supersedes the preceding action)
+
+Wait for user authorization before running
+`unified_partial_distributions_v1`. Do not submit histogram or plot jobs yet.
+
+### Testbeam source-selection plan checkpoint (2026-10-07)
+
+- Added
+  `docs/plans/proposed/TESTBEAM_DISTRIBUTION_SOURCE_SELECTION_PLAN.md` and
+  linked it from the proposed-plan index.
+- The plan freezes geometry-controlled sources, event balancing, and filters
+  for MC pion/electron energy scans, measured pion/electron energy scans, and
+  separate MC/data particle comparisons.
+- It records the 2023 legacy geometry-metadata defect, the three iron setup
+  checksums, the 2023 unified-production prerequisites, and the absence of an
+  exact-energy measured pion/electron pair.
+- No production, histogram, plot, or HTCondor job ran for this documentation
+  action.
+
+## Exact next action (supersedes the preceding action)
+
+Wait for user authorization before running
+`unified_partial_distributions_v1`. Do not submit histogram or plot jobs yet.
+
+### Testbeam-distribution implementation final handoff (2026-10-07 22:36 CEST)
+
+- The geometry-controlled implementation checkpoint and its validation
+  evidence are recorded above. They were completed after this source-selection
+  plan checkpoint.
+- Final verification remains 27 passing focused LCG/ROOT tests, a passing
+  Snakemake parser/preparation dry-run, and a 399-job temporary-path feature
+  DAG dry-run. No production job was started.
+
+## Exact next action (supersedes the preceding action)
+
+Wait for the user's instruction. Before production, run one local 2023 H8
+feature canary from `snakemake/unified_testbeam_distributions.smk` and compare
+its event identities against its sparse index. Do not submit all 199 feature
+jobs or run `unified_testbeam_distributions_v2` yet.
+
+### Shard-native downstream implementation (2026-10-07 23:00 CEST)
+
+- Added `validate_unified_shower_feature_shards.py` and the
+  `unified_shower_feature_shards_complete_v1` rule. A source becomes ready
+  without a merge only after its validation records prove contiguous
+  `[0, selected_event_count)` coverage, consistent source/provenance fields,
+  exact digi/cutflow binding, per-shard counts, readable files, and matching
+  SHA-256 checksums.
+- Added shard-aware family aggregates for MC muon-up and measured 2024
+  testbeam data. Existing canonical products remain valid terminal products;
+  unfinished sharded sources terminate at `shards.complete.json`.
+- Extended the remaining-feature launcher with repeatable `--family` and
+  `--keep-shards` options. The two explicitly held sources remain excludable.
+  The verified no-submit command selected six unfinished sources and produced
+  a 37-job DAG: 31 shard conversions plus six completeness validations, with
+  zero merge jobs.
+- Extended frozen partial snapshots to prefer an existing canonical feature
+  and otherwise expand a validated completeness receipt into ordered shard
+  rows. Each row has a unique `feature_unit_uid`; physical `source_uid` is
+  retained across shards.
+- Extended distribution audit/histogram loading to accept repeated physical
+  sources only when feature-unit IDs are unique. `TChain` consumes every
+  shard while source counts and luminosity are deduplicated by `source_uid`.
+- Focused validation passed: 3 SNDSW/ROOT shard-validator tests and 13
+  LCG/ROOT distribution/snapshot tests. The ROOT regression proved identical
+  histogram bins for a canonical file and the equivalent two-shard chain,
+  with one source and one luminosity contribution. `git diff --check` passed.
+- No production, merge, histogram, plot, or HTCondor job was started.
+
+## Exact next action (supersedes the preceding action)
+
+Wait for explicit user authorization. To submit only the unfinished MC
+muon-up and measured-testbeam shard jobs while retaining shards, rerun the
+verified launcher command without `--dry-run`. Keep excluding
+`tbfull_src_a8c40f4cde8dfe5890e3` and
+`unified_src_792fd96cf7aedb0fd9d2`. After those jobs finish, rebuild the
+partial feature snapshot before running downstream distributions.
+
+### Cross-geometry testbeam V3 implementation (2026-10-08)
+
+- Added isolated `unified_testbeam_distributions_v3` configuration while
+  retaining the V2 configuration and outputs. V3 defines four explicitly
+  opted-in measured-data overlays: 100/100, 140/150, 180/200, and 300/300 GeV
+  pion/electron comparisons across 2023 Fe three-wall and 2024 W two-wall
+  geometries.
+- Generalized the 2023 H8 manifest builder to configuration-driven
+  particle/energy cells. The real 865-row catalogue resolves to 385 sources:
+  56 pi+ 100 GeV, 54 pi+ 140 GeV, 89 pi+ 180 GeV, and 186 pi- 300 GeV.
+  Each cell receives exactly 50,000 deterministic selected events, for
+  200,000 total.
+- Removed the hardcoded positive-pion PDG from the 2023 feature rule. Both the
+  converter and validator now receive manifest-derived PDG and energy values;
+  the validator performs a branch-pruned full-file equality check and records
+  the expected values in its receipt.
+- Added fail-closed plot geometry policies. Existing plots default to
+  `same_geometry`; mixed geometry is accepted only under
+  `cross_geometry_diagnostic`, requires complete geometry metadata, and is
+  restricted to unit-area normalization. Plot summaries record the policy.
+- Added a shard-aware V3 feature-snapshot checkpoint, allowing retained 2024
+  data shards to feed histograms without merge files. The dedicated target is
+  `unified_testbeam_cross_geometry_distributions_v3`.
+- The real-catalogue temporary build confirmed 385 sources and the four
+  50,000-event cells. The focused LCG/ROOT suite passed 20 tests, the focused
+  SNDSW converter/validator suite passed 16 tests, and `git diff --check`
+  passed. The HTCondor-profile dry-run resolved an initial 63-job plotting
+  DAG: two checkpoints, 40 histograms, 20 plots, and one aggregate. The
+  checkpoint-expanded 2023 feature jobs were not executed.
+- No production manifest, selection index, feature, histogram, plot, or
+  HTCondor job was started.
+
+## Exact next action (supersedes the preceding action)
+
+Wait for explicit user authorization. After the Stage-1/Stage-2 remainder
+finishes, generate the V3 2023 manifest and run one local pi+ 100 GeV feature
+canary and one local pi- 300 GeV feature canary. Verify their identities, PDG,
+energy, and geometry receipts before submitting the remaining 2023 feature
+jobs. Do not run `unified_testbeam_cross_geometry_distributions_v3` until the
+required 2024 150 and 300 GeV electron shard receipts and all four 2023 pion
+cells are complete.
+
+### V3 manifest-checkpoint invocation fix (2026-10-08 00:29 CEST)
+
+- Diagnosed log `.snakemake/log/2026-10-08T002500.380455.snakemake.log`:
+  the local manifest checkpoint exited with argparse status 2 because its
+  builder invocation omitted the required `--config` argument. It failed
+  before DAG expansion and submitted no HTCondor jobs.
+- Added `--config {input.config}` to the checkpoint and a static regression
+  assertion. All six focused V3 workflow tests pass, `git diff --check`
+  passes, and the repaired HTCondor-profile dry-run reaches the checkpoint
+  without an invocation error. No production job was restarted.
+
+## Exact next action (supersedes the preceding action)
+
+Wait for user authorization to rerun `unified_testbeam_2023_features_v1`.
+The checkpoint will first write the V3 manifest and then expand the 385-source
+selection-index/feature DAG. Do not launch distribution targets yet.
+
+### Two-cohort 2024 real-data distribution implementation (2026-10-08)
+
+- Added the standalone `snakemake/unified_real_data_distributions.smk`
+  workflow. It keeps feature production separate from downstream snapshot,
+  histogram, and plot targets so plotting the currently complete snapshot
+  does not pull missing conversions into the DAG.
+- Added a fail-closed manifest builder and configuration for
+  `real_data_2024_no_veto` and `real_data_2024_veto_10pct`. The builder
+  verifies selection receipts, count conservation, source identity, index
+  existence, and SHA-256 before exposing a source. Empty selections are
+  omitted, and the smallest non-empty selection is the local canary.
+- Feature conversion reuses the EM-shower converter with
+  `indexed_cutflow` and real-data domain ID 3. The converter and validator
+  enforce the automatic collision-data PDG 0 and energy -1 sentinels. The
+  downstream workflow makes ten raw histograms and
+  five unit-area overlays for the requested density, two QDC-per-hit, and two
+  leading-cluster QDC-standard-deviation features with `count_scifi > 35`.
+- The actual selection manifest was checked read-only: 11,368 total source
+  rows, 1,140 validated selection sources, 1,110 non-empty sources per
+  cohort, 77,051 no-veto selected events, and 3,925,280 sampled veto events.
+  The other 10,228 rows currently lack selection-validation receipts.
+- Two focused LCG tests pass. The Snakemake target parser, checkpoint dry-run,
+  and `git diff --check` pass. No production manifest, feature, histogram,
+  plot, or HTCondor job was run.
+
+## Exact next action (supersedes the preceding action)
+
+Run `unified_real_data_distribution_feature_canaries_v1` locally. This first
+writes the verified source manifests and then converts the smallest non-empty
+source once for each cohort (4 no-veto events and 232 sampled veto events).
+Inspect both validation receipts before authorizing full feature production.
+
+### Real-data canary provenance fix (2026-10-08)
+
+- The first two feature canaries failed before conversion because the new
+  rule explicitly passed PDG 0 and energy -1. Domain 3 collision data must
+  receive those sentinel values internally, not as testbeam-style CLI input.
+- Removed the paired PDG/energy options from both converter and optional
+  validator expectations. The validator still enforces the collision-data
+  provenance contract entry by entry.
+- Added a static regression test. Three focused LCG tests, the expanded
+  two-feature canary dry-run, and `git diff --check` pass. No canary was
+  restarted and no feature output was published during validation.
+
+## Exact next action (supersedes the preceding action)
+
+Rerun `unified_real_data_distribution_feature_canaries_v1` locally and inspect
+the two validation receipts. Do not submit the 2,220 full feature jobs until
+both canaries pass.
+
+### Combined testbeam particle-energy plots (2026-10-08)
+
+- Added `data_combined_particle_energy` and
+  `mc_combined_particle_energy` V3 plot sets. Each produces the five frozen
+  feature overlays with unit-area normalization.
+- The data plot combines four pion/electron pairs at 100/100, 140/150,
+  180/200, and 300/300 GeV. It remains explicitly
+  `cross_geometry_diagnostic` because pion and electron geometry are confounded.
+- The MC plot combines exact pion/electron pairs at 50, 100, 150, 200, 250,
+  and 300 GeV under the shared W two-wall geometry.
+- Added paired styling: each comparison pair shares a color, pions are solid,
+  electrons are dashed, crowded legends use two columns, and style choices are
+  recorded in each CSV summary.
+- Added the dedicated aggregate target
+  `unified_testbeam_combined_particle_energy_plots_v3`.
+- Seventeen focused LCG/ROOT tests pass. The expanded dry-run resolves 113
+  jobs: two local checkpoints, 100 reusable raw histograms, ten plot jobs, and
+  one aggregate. No histogram or plot job ran.
+
+## Exact next action (supersedes the preceding action)
+
+Wait until no other Snakemake controller is using this worktree, then run
+`unified_testbeam_combined_particle_energy_plots_v3` locally with four cores.
+No feature-production job is required by this target.
+
+### Downstream-only combined testbeam plotting fix (2026-10-08)
+
+- The first combined target was still connected to the 2023 preparation
+  checkpoint. After checkpoint expansion, a refreshed manifest pulled 381
+  selection-index and 382 feature jobs into the DAG.
+- Added `snakemake/unified_testbeam_combined_plots.smk`, which directly
+  reads the frozen feature snapshots and cannot schedule preparation, index,
+  or feature-production rules. Existing data histograms are external inputs.
+- The EOS inventory has all 40 required data histograms and none of the 60
+  required MC histograms. The corrected run therefore builds only those 60
+  MC histograms, ten plots, and one aggregate.
+- Eighteen focused LCG/ROOT tests pass. The corrected expanded dry-run
+  contains exactly 71 jobs and no feature-production jobs.
+
+## Exact next action (supersedes the preceding action)
+
+Run `unified_testbeam_combined_particle_energy_plots_v3` locally with
+four cores through the downstream-only Snakefile. This produces histograms
+and plots only; it cannot schedule selection-index or feature jobs.
+
+### Combined testbeam plot readability refinement (2026-10-08)
+
+- Combined plots now draw points with statistical error bars. Pions use
+  filled circles, electrons use open circles, and paired energies share color.
+- Compact particle/energy legend labels, a wider canvas, smaller legend text,
+  and geometry abbreviations for data remove the two-column label overlap.
+- Reduced the density bin width from 500 to 250 and the four QDC-related bin
+  widths from 0.3 to 0.2.
+- The isolated workflow now regenerates all 100 combined histograms because
+  smaller bins cannot be recovered from the old coarse histograms.
+- One frozen 180 GeV pion source currently lacks both feature and validation
+  files. Explicit partial-snapshot mode omits only missing pairs, remains
+  strict for present validation records, and records the omitted count in
+  ROOT and CSV metadata. It never schedules feature production.
+- Eighteen focused LCG/ROOT tests pass. The force-all dry-run resolves exactly
+  111 jobs: 100 histograms, ten plots, and one aggregate.
+
+## Exact next action (supersedes the preceding action)
+
+Run the isolated `unified_testbeam_combined_particle_energy_plots_v3` target
+locally with four cores and `--forceall` so every old coarse-bin histogram is
+replaced consistently. This workflow cannot schedule selection-index or
+feature-production jobs.
+
+### Combined plot header and line-style refinement (2026-10-08)
+
+- Combined particle-energy overviews now use line histograms: pions are solid,
+  electrons are dashed, and equal-energy pairs retain the same color.
+- Added a fixed-width 900 by 1050 canvas with a separate upper metadata and
+  legend pad, leaving the lower plotting pad free of legend overlap.
+- Detailed two-curve comparisons retain point markers and statistical errors.
+- Data annotations state the distinct beam periods and geometries; MC annotations
+  state the shared geometry. Data legend entries retain their full configured labels.
+- Added `unified_testbeam_combined_scifi_cluster_qdc_per_hit_plot_v3` for an
+  isolated all-cluster SciFi QDC-per-hit plot test.
+- Confirmed all 20 required existing histograms use 75 bins over 0--15, matching
+  the configured 0.2 bin width. Eighteen focused LCG/ROOT tests pass. The isolated
+  force-plot dry-run contains exactly two plot jobs and one aggregate job.
+
+### Combined normalization, range, and label fix (2026-10-08)
+
+- The two combined overviews now use bin fractions whose bin contents sum to
+  one, rather than continuous density; the y axis says `Fraction of events / bin`.
+- Replaced Unicode em dashes in data legend labels with ROOT-safe ASCII hyphens.
+- All-cluster SciFi QDC per hit now spans 0--7 with 0.1-wide bins. Values above
+  7 are excluded rather than folded into an artificial last-bin spike.
+- Eighteen focused LCG/ROOT tests pass. The isolated dry-run contains exactly
+  20 histogram jobs, two plot jobs, and one aggregate job.
+
+## Exact next action (supersedes the preceding action)
+
+Run `unified_testbeam_combined_scifi_cluster_qdc_per_hit_plot_v3` locally with
+four cores, forcing `unified_testbeam_combined_raw_hist_v3` and
+`unified_testbeam_combined_plot_v3` only. This regenerates only the affected
+feature histograms and combined plots; it cannot schedule feature production.
+
+### Full combined testbeam plot regeneration (2026-10-08)
+
+- Ran the isolated `unified_testbeam_combined_particle_energy_plots_v3`
+  target locally on `lxplus9101.cern.ch` with four cores, `--forceall`,
+  `--rerun-triggers input params`, `--rerun-incomplete`, `--latency-wait 120`,
+  `--keep-going`, and `--drop-metadata`.
+- The workflow completed successfully: 111 of 111 steps (100%), comprising
+  100 raw-histogram jobs, ten combined plot jobs, and one aggregate job. No
+  selection-index or feature-production rule was scheduled.
+- Complete Snakemake log:
+  `.snakemake/log/2026-10-08T143901.298505.snakemake.log`.
+- Verified five non-empty PDFs and five CSV summaries in each output folder:
+  `data_combined_particle_energy/unit_area` and
+  `mc_combined_particle_energy/unit_area` under the V3 plot directory.
+- Each data CSV contains eight plotted groups and each MC CSV contains twelve.
+  The summaries include the marker/style, statistical-error draw option, and
+  omitted-source metadata.
+- The frozen 180 GeV pion data group remains the documented partial snapshot:
+  one source missing both its feature file and validation marker is omitted
+  explicitly and recorded in output metadata.
+
+## Exact next action (supersedes the preceding action)
+
+Visually inspect the ten regenerated PDFs for readable axes, legends, points,
+and statistical error bars. Do not start further production or modify the
+plotting configuration until that inspection is complete.
+
+### Combined plot-only rerun correction (2026-10-08)
+
+- The first completed full regeneration exposed stale `histogram_lines`
+  settings in both combined plot sets. Changed both to `points_errors`, so
+  CSV metadata and ROOT drawing use `E1 P` with statistical errors.
+- Restored the documented all-cluster QDC range to 0--7 with 0.1-wide bins
+  and removed contradictory unused per-plot range entries.
+- The focused LCG/ROOT suite passes: 18 tests in 12.72 seconds.
+- A subsequent full regeneration was interrupted and no Snakemake controller
+  remains active.
+- Verified by dry-run that forcing `unified_testbeam_combined_plot_v3` while
+  treating the raw-histogram rule's config and script inputs as ancient
+  schedules only the ten plot jobs plus the aggregate. It does not schedule
+  raw histograms, selections, or feature production.
+
+## Exact next action (supersedes the preceding action)
+
+Run the plot-only combined target with `--forcerun
+unified_testbeam_combined_plot_v3` and `--consider-ancient
+unified_testbeam_combined_raw_hist_v3=config,script`, then inspect the ten
+PDFs. This intentionally reuses the current histogram files.
+
+### Faceted and energy-summary testbeam plots (2026-10-09)
+
+- Added two downstream-only plot modes to
+  `evaluation_region_partitions/unified_feature_distributions.py`:
+  `faceted-plot` draws one pion/electron pair per panel, while
+  `energy-summary-plot` draws the median and 16--84% distribution interval
+  against beam energy.
+- MC faceted outputs use a 2-by-3 layout for exact 50, 100, 150, 200, 250,
+  and 300 GeV comparisons. Data uses a 2-by-2 layout for the configured
+  100/100, 140/150, 180/200, and 300/300 GeV comparisons and labels every
+  panel as a cross-geometry diagnostic.
+- Pions are blue filled circles and electrons are red open circles. QDC and
+  leading-cluster-spread faceted plots use compact visible x ranges without
+  changing or regenerating the input histograms.
+- Added the isolated rules
+  `unified_testbeam_combined_faceted_plot_v3` and
+  `unified_testbeam_combined_energy_summary_plot_v3`, plus aggregate target
+  `unified_testbeam_combined_readable_plots_v3`.
+- Focused LCG/ROOT regression suite: 18 tests passed in 9.67 seconds.
+- The isolated dry-run resolved exactly 21 jobs: ten faceted plots, ten
+  energy-summary plots, and one aggregate. It scheduled no raw-histogram,
+  selection, or feature-production jobs.
+- The local four-core run completed 21 of 21 steps. Complete log:
+  `.snakemake/log/2026-10-09T134716.334786.snakemake.log`.
+- Verified five PDFs and five CSVs in each `faceted` and `energy_summary`
+  subdirectory for both `data_combined_particle_energy` and
+  `mc_combined_particle_energy`.
+
+## Exact next action (supersedes the preceding action)
+
+Visually review the generated faceted and energy-summary PDFs. If their
+layout is accepted, keep them as the primary comparison products and retain
+the original all-energy overlays only as overview diagnostics.
+
+### Reusable V4 testbeam histogram bundles and expanded plots (2026-10-09)
+
+- Added separate histogram and plotting configurations:
+  `unified_testbeam_histograms_v4.yaml` owns 30 TH1 definitions, seven TH2
+  definitions, selections, and bundle locations; `unified_testbeam_plots_v4.yaml`
+  owns cohort layout and presentation only.
+- Added `unified_testbeam_histogram_bundles.py`. It audits required branches,
+  builds one ROOT bundle per physics group, books all TH1/TH2 actions before
+  executing the RDataFrame graph, applies the deterministic event cap before
+  feature-specific cuts, embeds provenance/config metadata, and validates the
+  object inventory, binning, configuration hash, group identity, and finite bins.
+- Added `plot_unified_testbeam_histogram_bundles.py`. It reads only validated
+  bundles and produces PDF-only paired 1D facets, energy-summary plots, and
+  normalized 2D facets. Data and MC remain separate. No per-plot CSV is written;
+  the workflow produces one consolidated JSON plot manifest.
+- Added downstream-only `snakemake/unified_testbeam_distributions_v4.smk` with
+  named bundle and plot aggregate targets. Plot rules depend on ROOT bundles,
+  validation receipts, the renderer, and the plot config; style-only changes do
+  not rescan feature trees.
+- Complete dry-run for `unified_testbeam_all_plots_v4` resolves 196 jobs:
+  20 audits, 20 bundles, 20 validators, 60 faceted TH1 PDFs, 60 energy-summary
+  PDFs, 14 faceted TH2 PDFs, one manifest, and one aggregate. It contains no
+  selection-index or feature-production rule.
+- Real 1,000-event canaries passed for data pion/electron and MC pion/electron
+  at 100 GeV. Each bundle contains and validates 37 histograms (30 TH1 + 7 TH2).
+  The post-optimization MC canary confirms availability counting and all
+  histogram actions execute through one booked RDataFrame graph.
+- Focused LCG/ROOT tests pass: three tests cover the configuration boundary,
+  workflow invariants, and all three PDF renderers, including the no-CSV rule.
+- Moved the accepted V3 plot tree to the reversible sibling backup
+  `unified_testbeam_distributions_v3_backup_20261009`. No production V4 bundle
+  or plot job has been submitted.
+
+## Exact next action (supersedes the preceding action)
+
+After user approval, run `unified_testbeam_histogram_bundles_v4` through the
+HTCondor profile to produce and validate the 20 production ROOT bundles. Do not
+start the V4 PDF target until that bundle target completes successfully.
+
+### Stop checkpoint (2026-10-09 Europe/Zurich)
+
+#### Verified repository and scheduler state
+
+- Worktree: `/afs/cern.ch/user/z/zhibin/worktrees/snd-ml-unified-shower-features`.
+- Branch: `task/unified-shower-features`.
+- Pre-checkpoint HEAD: `b78bbc10061c169e217411bd714059585c68c86d`.
+- `git status --short` contained 46 task-related paths: 13 tracked
+  modifications and 33 untracked source/config/test/plan files. No generated
+  ROOT files, plots, logs, scheduler products, or metadata outputs were staged.
+- `git diff --check` passed.
+- No Snakemake controller or testbeam worker command was running in the
+  worktree. `condor_q -af ClusterId ProcId JobStatus JobBatchName Cmd Args`
+  returned no jobs, so there are no running job IDs to preserve.
+
+#### Modified files included in this checkpoint
+
+- Feature conversion, provenance, validation, sharding, and real-data
+  selection: `convertData/sample_selection.py`,
+  `convertData/source_provenance.py`,
+  `convertData/validate_unified_shower_feature_file.py`,
+  `convertData/build_indexed_cutflow.py`,
+  `convertData/build_real_data_2024_selection_indices.py`,
+  `convertData/real_data_2024_selection.py`,
+  `convertData/validate_real_data_2024_selection_indices.py`,
+  `convertData/validate_unified_shower_feature_shards.py`, and their focused
+  `test_*.py` files.
+- Distribution code and tests:
+  `evaluation_region_partitions/unified_feature_distributions.py`,
+  `evaluation_region_partitions/unified_testbeam_histogram_bundles.py`,
+  `evaluation_region_partitions/plot_unified_testbeam_histogram_bundles.py`,
+  `evaluation_region_partitions/test_unified_feature_distributions.py`,
+  `evaluation_region_partitions/test_unified_feature_distributions_root.py`,
+  `evaluation_region_partitions/test_unified_partial_feature_snapshots.py`,
+  `evaluation_region_partitions/test_unified_testbeam_distribution_plan.py`,
+  and `evaluation_region_partitions/test_unified_testbeam_histogram_bundles.py`.
+- Snakemake workflows and batch support:
+  `snakemake/rules/unified_shower_features.smk`,
+  `snakemake/unified_partial_distributions.smk`,
+  `snakemake/unified_real_data_selection.smk`,
+  `snakemake/unified_real_data_distributions.smk`,
+  `snakemake/unified_testbeam_distributions.smk`,
+  `snakemake/unified_testbeam_combined_plots.smk`,
+  `snakemake/unified_testbeam_distributions_v4.smk`,
+  `snakemake/run_remaining_unified_shower_features_htcondor.sh`, and
+  `snakemake/.config/snakemake/htcondor/grid-status.py`.
+- Metadata preparation and tests:
+  `snakemake/metadata/prepare_unified_shower_feature_manifests.py`,
+  `snakemake/metadata/build_unified_partial_feature_snapshots.py`,
+  `snakemake/metadata/prepare_unified_real_data_feature_manifests.py`,
+  `snakemake/metadata/prepare_unified_real_data_selection_manifest.py`,
+  `snakemake/metadata/prepare_unified_testbeam_2023_manifest.py`, and the two
+  new metadata tests.
+- Configuration: unified partial distributions, real-data selection and
+  distributions, testbeam V2/V3 distributions, and separate V4 histogram and
+  plot configuration files under `snakemake/metadata/configs/`.
+- Documentation: this task file, `docs/plans/proposed/README.md`,
+  `REAL_DATA_2024_PARTITION_V1_DISTRIBUTION_PLAN.md`, and
+  `TESTBEAM_DISTRIBUTION_SOURCE_SELECTION_PLAN.md`.
+
+#### Commands and verified results
+
+- V4 bundle dry-run:
+  `snakemake --snakefile snakemake/unified_testbeam_distributions_v4.smk
+  --cores 1 -n unified_testbeam_histogram_bundles_v4` resolved 61 jobs:
+  20 branch audits, 20 bundles, 20 validators, and one aggregate.
+- Complete V4 dry-run:
+  `snakemake --snakefile snakemake/unified_testbeam_distributions_v4.smk
+  --cores 1 -n unified_testbeam_all_plots_v4` resolved 196 jobs and no feature
+  production or selection-index jobs.
+- Real V4 canaries used `unified_testbeam_histogram_bundles.py build` with
+  `--max-events 1000`, followed by `validate`, for 100 GeV data pion, data
+  electron, MC pion, and MC electron groups. All four produced bundles with
+  30 TH1 plus seven TH2 objects and validation receipts. A repeated optimized
+  MC-pion canary also passed all 37 checks.
+- LCG command
+  `python3 -m unittest -v
+  evaluation_region_partitions.test_unified_testbeam_histogram_bundles`
+  passed all three tests, including all three PDF render modes and the
+  no-per-plot-CSV invariant.
+- The accepted V3 plot tree was moved, without deletion, to
+  `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/plots/testbeam_distributions/unified_testbeam_distributions_v3_backup_20261009`.
+- No production V4 histogram bundle or PDF job was submitted.
+
+#### Decisions frozen at stop
+
+- Keep data and MC comparisons in separate plot cohorts.
+- Build and validate one ROOT bundle per physics group before plotting.
+- Plot rules read only validated bundles; styling changes must not rescan
+  feature trees.
+- Produce 30 paired/faceted 1D feature distributions, seven 2D distributions,
+  and energy summaries per cohort, with PDF products and one consolidated JSON
+  manifest but no individual CSV files.
+- Production remains a two-stage operation: finish the 20 HTCondor bundles
+  first, then run the lightweight PDF target locally.
+
+## Exact next action (supersedes the preceding action)
+
+Run only the dry-run of `unified_testbeam_histogram_bundles_v4` from this
+worktree using `snakemake/unified_testbeam_distributions_v4.smk`; inspect that
+it still resolves only audits, bundles, validators, and the aggregate. Do not
+submit production or start `unified_testbeam_all_plots_v4` in the same action.

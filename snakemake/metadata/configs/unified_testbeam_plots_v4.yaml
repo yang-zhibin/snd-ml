@@ -1,0 +1,27 @@
+version: unified_testbeam_distributions_v4
+histogram_config: snakemake/metadata/configs/unified_testbeam_histograms_v4.yaml
+output_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/plots/testbeam_distributions
+normalization: unit_area
+write_individual_csv: false
+cohorts:
+  data_combined_particle_energy:
+    geometry_policy: cross_geometry_diagnostic
+    groups: [data_pion_scan_100, data_electron_scan_100, data_pion_scan_140, data_electron_scan_150, data_pion_scan_180, data_electron_scan_200, data_pion_fe3_300_negative, data_electron_scan_300]
+    facet_columns: 2
+    annotation: "Cross-geometry diagnostic: pion data Fe 3-wall H8 2023; electron data W 2-wall H4 2024"
+  mc_combined_particle_energy:
+    geometry_policy: same_geometry
+    groups: [mc_pion_scan_50, mc_electron_compare_50, mc_pion_scan_100, mc_electron_compare_100, mc_pion_scan_150, mc_electron_compare_150, mc_pion_scan_200, mc_electron_compare_200, mc_pion_scan_250, mc_electron_compare_250, mc_pion_scan_300, mc_electron_compare_300]
+    facet_columns: 3
+    annotation: "MC test beam 2024: W target, 2 walls, 28 plates"
+styles:
+  pion: {color: 4, marker: 20}
+  electron: {color: 2, marker: 24}
+  error_x: 0
+  th2_log_z: true
+  th2_shared_z: true
+display_x_ranges:
+  scifi_cluster_qdc_per_hit: [0, 8]
+  scifi_qdc_per_hit_direct: [0, 7]
+  scifi_vertical_cluster1_qdc_std: [0, 7]
+  scifi_horizontal_cluster1_qdc_std: [0, 7]

@@ -37,6 +37,35 @@ EXTERNAL_SELECTION_MODES = {"external_cutflow", "identity_cutflow"}
 SOURCE_UID_PATTERN = re.compile(r"(?:unified_src|tbfull_src)_[0-9a-f]{20}\Z")
 
 
+def selected_entry_shard_ranges(
+    input_event_count: int,
+    selected_event_count: int,
+    threshold_input_events: int,
+    selected_events_per_shard: int,
+) -> list[tuple[int, int, int]]:
+    """Return selected-entry shard ranges for a large raw input source."""
+    input_event_count = int(input_event_count)
+    selected_event_count = int(selected_event_count)
+    threshold_input_events = int(threshold_input_events)
+    selected_events_per_shard = int(selected_events_per_shard)
+    if input_event_count < 0 or selected_event_count < 0:
+        raise ValueError("Event counts must be non-negative")
+    if selected_event_count > input_event_count:
+        raise ValueError(
+            "Selected event count cannot exceed the raw input event count"
+        )
+    if threshold_input_events < 0 or selected_events_per_shard <= 0:
+        raise ValueError("Shard threshold and size must be valid")
+    if input_event_count <= threshold_input_events:
+        return []
+    return [
+        (index, start, min(start + selected_events_per_shard, selected_event_count))
+        for index, start in enumerate(
+            range(0, selected_event_count, selected_events_per_shard)
+        )
+    ]
+
+
 def _sha256(path: str | Path) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -152,6 +181,9 @@ def _base_record(
         # Transitional alias for consumers that still use the old generic name.
         "validation_marker": validation_record,
         "input_event_count": expected,
+        "selected_event_count": (
+            expected if str(settings["selection_mode"]) == "direct_input" else ""
+        ),
         "is_canary": 0,
     }
 
@@ -202,6 +234,7 @@ def _testbeam_family(config: dict, family: str) -> pd.DataFrame:
                 "cutflow_path": str(row["cutflow_path"]),
                 "source_pdg_code": int(row["pdg_code"]),
                 "source_energy_gev": float(row["beam_energy_gev"]),
+                "selected_event_count": int(row["n_events"]),
             }
         )
         records.append(record)
@@ -237,6 +270,17 @@ def _validate_contract(config: dict, family: str, frame: pd.DataFrame) -> None:
         "cutflow_path"
     ].astype(str).eq("").any():
         raise ValueError(f"Empty {family} cutflow path")
+    if str(settings["selection_mode"]) in {"direct_input", "identity_cutflow"}:
+        if frame["selected_event_count"].astype(str).eq("").any():
+            raise ValueError(f"Empty {family} selected event count")
+        selected_counts = frame["selected_event_count"].astype(int)
+        input_counts = frame["input_event_count"].astype(int)
+        if selected_counts.lt(0).any():
+            raise ValueError(f"Negative {family} selected event count")
+        if selected_counts.gt(input_counts).any():
+            raise ValueError(
+                f"Selected event count exceeds input event count for {family}"
+            )
     if family.startswith("testbeam_"):
         for column in (
             "source_pdg_code",

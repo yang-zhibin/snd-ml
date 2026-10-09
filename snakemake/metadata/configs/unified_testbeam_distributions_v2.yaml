@@ -1,0 +1,161 @@
+version: unified_testbeam_distributions_v2
+description: Geometry-locked testbeam shower-feature energy scans and particle comparisons.
+
+tree_name: sndData
+selection:
+  name: scifi35
+  expression: count_scifi > 35
+  label: Selected SciFi hits > 35
+
+features:
+  density_sndsw_scifi: &density
+    expression: density_sndsw_scifi
+    x_min: 0
+    x_max: 40000
+    bin_width: 500
+    axis_title: SciFi density (SND getSumDensity)
+    log_y: true
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_cluster_qdc_per_hit:
+    expression: scifi_cluster_qdc_per_hit
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: All-cluster SciFi QDC / hit
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_qdc_per_hit_direct:
+    expression: scifi_qdc_per_hit_direct
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Direct selected SciFi QDC / hit
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_vertical_cluster1_qdc_std:
+    expression: scifi_vertical_cluster1_qdc_std
+    feature_cut: scifi_vertical_cluster1_exists == 1
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Vertical leading-cluster QDC standard deviation
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_horizontal_cluster1_qdc_std:
+    expression: scifi_horizontal_cluster1_qdc_std
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Horizontal leading-cluster QDC standard deviation
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+
+group_templates:
+  mc_pion:
+    family: testbeam_mc_2024
+    geometry_setup_id: W_2walls_28plates
+    source_pdg_code: 211
+    max_events: 2520
+    particle_charge: pi+
+  mc_electron_scan:
+    family: testbeam_mc_2024
+    geometry_setup_id: W_2walls_28plates
+    source_pdg_code: 11
+    max_events: 2880
+    particle_charge: e-
+  mc_electron_compare:
+    family: testbeam_mc_2024
+    geometry_setup_id: W_2walls_28plates
+    source_pdg_code: 11
+    max_events: 2520
+    particle_charge: e-
+  data_electron:
+    family: testbeam_data_2024
+    geometry_setup_id: W_2walls_28plates
+    source_pdg_code: 11
+    max_events: 50000
+    particle_charge: e-
+  data_pion_2023:
+    family: testbeam_data_2023_h8
+    geometry_setup_id: Fe_3walls_H8_2023
+    source_pdg_code: 211
+    max_events: 50000
+    particle_charge: pi+
+  data_pion_2024:
+    family: testbeam_data_2024
+    geometry_setup_id: W_2walls_28plates
+    source_pdg_code: 211
+    max_events: 50000
+    particle_charge: pi+
+
+group_series:
+  mc_pion_scan:
+    template: mc_pion
+    energies: [50, 100, 150, 180, 200, 250, 300]
+  mc_electron_scan:
+    template: mc_electron_scan
+    energies: [50, 100, 150, 200, 250, 300]
+  mc_electron_compare:
+    template: mc_electron_compare
+    energies: [50, 100, 150, 200, 250, 300]
+  data_pion_scan:
+    template: data_pion_2023
+    energies: [100, 140, 180]
+  data_electron_scan:
+    template: data_electron
+    energies: [50, 100, 150, 200, 250, 300]
+
+groups:
+  data_pion_w2_180:
+    family: testbeam_data_2024
+    geometry_setup_id: W_2walls_28plates
+    source_filters: {source_pdg_code: 211, source_energy_gev: 180}
+    expression: ""
+    max_events: 50000
+    sampling_policy: deterministic_chain_prefix_v1
+    particle_charge: pi+
+    beam_energy_gev: 180
+    label: Data pi+ 180 GeV
+
+plot_sets:
+  mc_pion_energy_scan:
+    groups: [mc_pion_scan_50, mc_pion_scan_100, mc_pion_scan_150, mc_pion_scan_180, mc_pion_scan_200, mc_pion_scan_250, mc_pion_scan_300]
+  mc_electron_energy_scan:
+    groups: [mc_electron_scan_50, mc_electron_scan_100, mc_electron_scan_150, mc_electron_scan_200, mc_electron_scan_250, mc_electron_scan_300]
+  data_pion_positive_energy_scan:
+    groups: [data_pion_scan_100, data_pion_scan_140, data_pion_scan_180]
+  data_electron_energy_scan:
+    groups: [data_electron_scan_50, data_electron_scan_100, data_electron_scan_150, data_electron_scan_200, data_electron_scan_250, data_electron_scan_300]
+  mc_particle_50: {groups: [mc_pion_scan_50, mc_electron_compare_50]}
+  mc_particle_100: {groups: [mc_pion_scan_100, mc_electron_compare_100]}
+  mc_particle_150: {groups: [mc_pion_scan_150, mc_electron_compare_150]}
+  mc_particle_200: {groups: [mc_pion_scan_200, mc_electron_compare_200]}
+  mc_particle_250: {groups: [mc_pion_scan_250, mc_electron_compare_250]}
+  mc_particle_300: {groups: [mc_pion_scan_300, mc_electron_compare_300]}
+  mc_particle_mismatch_180pi_200e: {groups: [mc_pion_scan_180, mc_electron_compare_200]}
+  data_particle_mismatch_180pi_200e: {groups: [data_pion_w2_180, data_electron_scan_200]}
+
+normalizations:
+  unit_area:
+    y_axis_title: Probability density
+
+source_manifests:
+  testbeam_mc_2024: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_mc_2024.csv
+  testbeam_data_2024: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_data_2024.csv
+  testbeam_data_2023_h8: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/testbeam_2023_h8/testbeam_data_2023_h8.csv
+
+inputs:
+  testbeam_data_2023_metadata: /afs/cern.ch/work/z/zhibin/snd-ml/testbeam/metadata/updated/real_data_testbeam_June2023_H8_metadata.csv
+
+outputs:
+  metadata_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/testbeam_distributions_v2
+  selection_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/testbeam_data_2023_h8
+  feature_root_2023: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features/testbeam_data_2023_h8
+  histogram_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/histograms/testbeam_distributions_v2
+  plot_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/plots/testbeam_distributions_v2

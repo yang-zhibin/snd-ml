@@ -84,12 +84,12 @@ def raw_entries_for_cutflow_rows(tree: ROOT.TTree, rows: list[int]) -> list[int]
     return raw_entries
 
 
-def identity_cutflow_entries(tree: ROOT.TTree, input_entries: int) -> range:
+def identity_cutflow_entries(tree: ROOT.TTree, expected_entries: int) -> range:
     """Validate an identity cutflow in compiled ROOT code and return its range."""
     entries = int(tree.GetEntries())
-    if entries != input_entries:
+    if entries != expected_entries:
         raise RuntimeError(
-            f"identity cutflow has {entries} rows, expected {input_entries}"
+            f"identity cutflow has {entries} rows, expected {expected_entries}"
         )
     has_entry = bool(tree.GetBranch("entry") or tree.GetLeaf("entry"))
     if has_entry and entries:
@@ -126,6 +126,15 @@ def inspect_source_selection(args: argparse.Namespace) -> dict:
         )
 
     selection_mode = resolve_selection_mode(args.sample_type, args.selection_mode)
+    expected_selected_event_count = getattr(
+        args, "expected_selected_event_count", None
+    )
+    if expected_selected_event_count is not None:
+        expected_selected_event_count = int(expected_selected_event_count)
+        if expected_selected_event_count < 0:
+            raise RuntimeError(
+                "expected selected-event count must be non-negative"
+            )
     selection = None
     if uses_external_cutflow(args.sample_type, selection_mode):
         if not args.input_cutflow_path:
@@ -144,8 +153,13 @@ def inspect_source_selection(args: argparse.Namespace) -> dict:
                 event_deltat_available=bool(event_deltat_branch),
             )
             if selection_mode == "identity_cutflow" and not selection:
+                expected_identity_entries = (
+                    input_entries
+                    if expected_selected_event_count is None
+                    else expected_selected_event_count
+                )
                 selected_raw_entries = identity_cutflow_entries(
-                    cutflow_tree, input_entries
+                    cutflow_tree, expected_identity_entries
                 )
             else:
                 selected_rows = selected_cutflow_entries(cutflow_tree, selection)
@@ -156,6 +170,14 @@ def inspect_source_selection(args: argparse.Namespace) -> dict:
             cutflow_source.Close()
     else:
         selected_raw_entries = range(input_entries)
+    if (
+        expected_selected_event_count is not None
+        and len(selected_raw_entries) != expected_selected_event_count
+    ):
+        raise RuntimeError(
+            f"selected source has {len(selected_raw_entries)} entries, expected "
+            f"{expected_selected_event_count}"
+        )
 
     selected_entry_start_arg = getattr(args, "expected_selected_entry_start", None)
     selected_entry_stop_arg = getattr(args, "expected_selected_entry_stop", None)
@@ -556,6 +578,32 @@ def validate(args: argparse.Namespace) -> dict:
                 f"selected count {source_contract['expected_written_event_count']}"
             )
 
+        source_value_checks = []
+        expected_source_pdg_code = getattr(args, "expected_source_pdg_code", None)
+        expected_source_energy_gev = getattr(args, "expected_source_energy_gev", None)
+        if expected_source_pdg_code is not None:
+            source_value_checks.append(
+                "static_cast<int>(source_pdg_code) != "
+                f"{int(expected_source_pdg_code)}"
+            )
+        if expected_source_energy_gev is not None:
+            source_value_checks.append(
+                "!unified_feature_close(source_energy_gev, "
+                f"{float(expected_source_energy_gev):.17g})"
+            )
+        if source_value_checks and entries:
+            declare_compiled_validation_helpers()
+            mismatches = int(
+                ROOT.RDataFrame(tree)
+                .Filter(" || ".join(f"({check})" for check in source_value_checks))
+                .Count()
+                .GetValue()
+            )
+            if mismatches:
+                raise RuntimeError(
+                    f"source PDG/energy mismatch in {mismatches}/{entries} entries"
+                )
+
         hit_source = None
         hit_tree = None
         if args.hit3d:
@@ -667,6 +715,8 @@ def validate(args: argparse.Namespace) -> dict:
         "source_domain": SOURCE_DOMAINS[args.expected_source_domain_id],
         "source_geometry_id": args.expected_source_geometry_id or "",
         "source_geometry_checksum": args.expected_source_geometry_checksum or "",
+        "source_pdg_code": getattr(args, "expected_source_pdg_code", None),
+        "source_energy_gev": getattr(args, "expected_source_energy_gev", None),
         "input_digi_path": args.input_digi_path,
         "input_cutflow_path": args.input_cutflow_path or "",
         "feature_path": args.published_feature_path or args.feature,
@@ -724,7 +774,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--expected-source-domain-id", type=int, required=True)
     parser.add_argument("--expected-source-geometry-id")
     parser.add_argument("--expected-source-geometry-checksum")
+    parser.add_argument("--expected-source-pdg-code", type=int)
+    parser.add_argument("--expected-source-energy-gev", type=float)
     parser.add_argument("--expected-input-event-count", type=int, required=True)
+    parser.add_argument("--expected-selected-event-count", type=int)
     parser.add_argument("--sample-type", required=True)
     parser.add_argument("--selection-mode", choices=SELECTION_MODES, required=True)
     parser.add_argument("--input-tree", default="cbmsim")

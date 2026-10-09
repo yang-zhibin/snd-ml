@@ -13,10 +13,11 @@ SOURCE_DOMAINS = {
     3: "real_data_2024_skim",
     4: "testbeam_mc_2024",
     5: "testbeam_data_2024",
+    6: "testbeam_data_2023_h8",
 }
 MC_DOMAINS = {1, 2, 4}
-REAL_DOMAINS = {3, 5}
-TESTBEAM_DOMAINS = {4, 5}
+REAL_DOMAINS = {3, 5, 6}
+TESTBEAM_DOMAINS = {4, 5, 6}
 UNAVAILABLE_ENERGY_GEV = -1.0
 UNAVAILABLE_PDG_CODE = 0
 SAMPLE_TYPE_BY_DOMAIN = {
@@ -25,6 +26,7 @@ SAMPLE_TYPE_BY_DOMAIN = {
     3: "real_data",
     4: "mc_testbeam",
     5: "real_testbeam",
+    6: "real_testbeam",
 }
 
 
@@ -99,6 +101,6 @@ def event_source_values(args, track0=None) -> tuple[float, int]:
         raise ValueError(
             f"Source domain {SOURCE_DOMAINS[domain_id]} requires incoming MCTrack[0] truth"
         )
-    if domain_id == 5:
+    if domain_id in {5, 6}:
         return float(supplied_energy), int(supplied_pdg)
     return UNAVAILABLE_ENERGY_GEV, UNAVAILABLE_PDG_CODE

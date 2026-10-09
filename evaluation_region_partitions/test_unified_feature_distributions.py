@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from unified_feature_distributions import (  # noqa: E402
+    _numeric_exposure,
     combine_selection,
     histogram_model,
     load_config,
@@ -103,6 +104,15 @@ class UnifiedFeatureDistributionTests(unittest.TestCase):
             "(count_scifi > 35) && (pdgCode == 12 || pdgCode == -12)",
         )
         self.assertEqual(combine_selection("count_scifi > 35", ""), "(count_scifi > 35)")
+        self.assertEqual(
+            combine_selection(
+                "count_scifi > 35",
+                "abs(source_pdg_code) == 11",
+                "scifi_vertical_cluster1_exists == 1",
+            ),
+            "(count_scifi > 35) && (abs(source_pdg_code) == 11) && "
+            "(scifi_vertical_cluster1_exists == 1)",
+        )
 
     def test_validation_records_are_mandatory_and_bound_to_manifest(self):
         with tempfile.TemporaryDirectory(dir="/tmp/zhibin") as directory:
@@ -142,6 +152,49 @@ class UnifiedFeatureDistributionTests(unittest.TestCase):
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(RuntimeError, "source UID mismatch"):
+                load_validated_rows(manifest, "mc_neutrino")
+
+    def test_shard_rows_require_unique_units_and_deduplicate_exposure(self):
+        with tempfile.TemporaryDirectory(dir="/tmp/zhibin") as directory:
+            directory = Path(directory)
+            uid = "unified_src_0123456789abcdef0123"
+            rows = []
+            for index in range(2):
+                feature = directory / f"part_{index}.root"
+                marker = directory / f"part_{index}.validated.json"
+                feature.touch()
+                marker.write_text(
+                    json.dumps(
+                        {
+                            "validation_passed": True,
+                            "source_uid": uid,
+                            "feature_path": str(feature),
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                rows.append(
+                    {
+                        "family": "mc_neutrino",
+                        "source_uid": uid,
+                        "feature_unit_uid": f"{uid}:part_{index:04d}",
+                        "selected_entry_start": index,
+                        "feature_scifi_cluster_v1_path": str(feature),
+                        "validation_record": str(marker),
+                        "lumi_per_file": 4.5,
+                        "exposure_kind": "simulated_luminosity_fb",
+                    }
+                )
+            manifest = directory / "manifest.csv"
+            pd.DataFrame(rows).to_csv(manifest, index=False)
+            loaded = load_validated_rows(manifest, "mc_neutrino")
+            self.assertEqual(len(loaded), 2)
+            self.assertEqual(loaded["source_uid"].nunique(), 1)
+            self.assertEqual(_numeric_exposure(loaded), 4.5)
+
+            rows[1]["feature_unit_uid"] = rows[0]["feature_unit_uid"]
+            pd.DataFrame(rows).to_csv(manifest, index=False)
+            with self.assertRaisesRegex(ValueError, "duplicate feature unit UIDs"):
                 load_validated_rows(manifest, "mc_neutrino")
 
     def test_snakemake_targets_and_runtime_guards_are_present(self):

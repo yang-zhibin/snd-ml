@@ -20,13 +20,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "convertData"))
 sys.path.insert(0, str(REPO_ROOT / "snakemake/metadata"))
 
-from prepare_unified_shower_feature_manifests import build_manifests  # noqa: E402
+from prepare_unified_shower_feature_manifests import (  # noqa: E402
+    build_manifests,
+    selected_entry_shard_ranges,
+)
 from merge_unified_shower_feature_shards import (  # noqa: E402
     merge as merge_feature_shards,
     sha256 as feature_sha256,
 )
 from sample_selection import (  # noqa: E402
     IDENTITY_CUTFLOW,
+    INDEXED_CUTFLOW,
     applies_collision_data_quality,
     cutflow_selection_expression,
     uses_external_cutflow,
@@ -127,6 +131,17 @@ class UnifiedSourceContractTest(unittest.TestCase):
         validate_source_options(testbeam)
         self.assertEqual(event_source_values(testbeam), (180.0, -211))
 
+        h8_testbeam = source_args(
+            type="real_testbeam",
+            source_domain_id=6,
+            source_pdg_code=211,
+            source_energy_gev=140.0,
+            source_geometry_id="Fe_3walls_H8_2023",
+            source_geometry_checksum="checksum",
+        )
+        validate_source_options(h8_testbeam)
+        self.assertEqual(event_source_values(h8_testbeam), (140.0, 211))
+
     def test_identity_cutflow_is_external_without_collision_quality(self):
         self.assertTrue(uses_external_cutflow("real_testbeam", IDENTITY_CUTFLOW))
         self.assertFalse(
@@ -134,6 +149,10 @@ class UnifiedSourceContractTest(unittest.TestCase):
         )
         self.assertTrue(
             applies_collision_data_quality("real_data", "external_cutflow")
+        )
+        self.assertTrue(uses_external_cutflow("real_testbeam", INDEXED_CUTFLOW))
+        self.assertFalse(
+            applies_collision_data_quality("real_testbeam", INDEXED_CUTFLOW)
         )
 
     def test_frozen_cutflow_selection_expression(self):
@@ -143,6 +162,9 @@ class UnifiedSourceContractTest(unittest.TestCase):
         )
         self.assertIsNone(
             cutflow_selection_expression("real_testbeam", "identity_cutflow")
+        )
+        self.assertIsNone(
+            cutflow_selection_expression("real_testbeam", "indexed_cutflow")
         )
         self.assertIsNone(
             cutflow_selection_expression("MC_muon", "direct_input")
@@ -186,6 +208,7 @@ class UnifiedSourceSelectionValidationTest(unittest.TestCase):
                 input_cutflow_path=cutflow,
                 input_tree="cbmsim",
                 expected_input_event_count=3,
+                expected_selected_event_count=None,
                 sample_type="MC_neutrino",
                 selection_mode="external_cutflow",
                 expected_max_events=0,
@@ -215,11 +238,28 @@ class UnifiedSourceSelectionValidationTest(unittest.TestCase):
 
             args.sample_type = "real_testbeam"
             args.selection_mode = "identity_cutflow"
+            args.expected_selected_event_count = 3
             args.expected_selected_entry_start = None
             args.expected_selected_entry_stop = None
             identity = inspect_source_selection(args)
             self.assertIsInstance(identity["expected_raw_entries"], range)
             self.assertEqual(list(identity["expected_raw_entries"]), [0, 1, 2])
+
+            indexed_path = Path(directory_name) / "indexed.root"
+            indexed_file = ROOT.TFile(str(indexed_path), "RECREATE")
+            indexed_tree = ROOT.TTree("cutFlowSummary", "indexed selection")
+            raw_entry = array.array("q", [0])
+            indexed_tree.Branch("entry", raw_entry, "entry/L")
+            for value in (2, 0):
+                raw_entry[0] = value
+                indexed_tree.Fill()
+            indexed_tree.Write()
+            indexed_file.Close()
+            args.input_cutflow_path = str(indexed_path)
+            args.selection_mode = "indexed_cutflow"
+            args.expected_selected_event_count = 2
+            indexed = inspect_source_selection(args)
+            self.assertEqual(indexed["expected_raw_entries"], [2, 0])
 
 
 class UnifiedFeatureShardMergeTest(unittest.TestCase):
@@ -323,6 +363,28 @@ class UnifiedFeatureShardMergeTest(unittest.TestCase):
 
 
 class UnifiedManifestTest(unittest.TestCase):
+    def test_shards_use_selected_count_but_raw_count_controls_threshold(self):
+        self.assertEqual(
+            selected_entry_shard_ranges(1_000_000, 50_000, 50_000, 10_000),
+            [
+                (0, 0, 10_000),
+                (1, 10_000, 20_000),
+                (2, 20_000, 30_000),
+                (3, 30_000, 40_000),
+                (4, 40_000, 50_000),
+            ],
+        )
+        self.assertEqual(
+            selected_entry_shard_ranges(
+                205_446, 205_446, 50_000, 50_000
+            )[-1],
+            (4, 200_000, 205_446),
+        )
+        self.assertEqual(
+            selected_entry_shard_ranges(50_000, 50_000, 50_000, 10_000),
+            [],
+        )
+
     def test_manifest_is_deterministic_and_obeys_frozen_contract(self):
         with tempfile.TemporaryDirectory() as directory_name:
             directory = Path(directory_name)
@@ -380,6 +442,7 @@ class UnifiedManifestTest(unittest.TestCase):
                     "data_type": "MC_data" if domain == "mc_2024" else "real_data",
                     "subfolder": "100GeV" if domain == "mc_2024" else "run_1",
                     "partition": f"source_{index}",
+                    "n_event": 10,
                     "n_events": 5,
                     "digi_path": f"/input/tb_{index}.root",
                     "geo_path": f"/input/tb_geo_{index}.root",
@@ -486,6 +549,21 @@ class UnifiedManifestTest(unittest.TestCase):
             )
             self.assertEqual(
                 int(first["mc_neutrino"].loc[0, "input_event_count"]), 48
+            )
+            self.assertEqual(
+                int(first["mc_muon_up"].loc[0, "selected_event_count"]), 10
+            )
+            self.assertEqual(
+                int(first["testbeam_mc_2024"].loc[0, "input_event_count"]), 10
+            )
+            self.assertEqual(
+                int(first["testbeam_mc_2024"].loc[0, "selected_event_count"]), 5
+            )
+            self.assertEqual(
+                int(first["testbeam_data_2024"].loc[0, "input_event_count"]), 10
+            )
+            self.assertEqual(
+                int(first["testbeam_data_2024"].loc[0, "selected_event_count"]), 5
             )
             self.assertNotIn("expected_event_count", first["mc_neutrino"].columns)
 

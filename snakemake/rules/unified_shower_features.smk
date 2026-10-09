@@ -16,6 +16,7 @@ from prepare_unified_shower_feature_manifests import (  # noqa: E402
     FAMILIES as UNIFIED_FAMILIES,
     build_manifests as _build_unified_manifests,
     load_config as _load_unified_config,
+    selected_entry_shard_ranges as _selected_entry_shard_ranges,
     write_manifest as _write_unified_manifest,
 )
 
@@ -70,14 +71,14 @@ for _family in UNIFIED_SHARD_FAMILIES:
 
 
 def _unified_shard_ranges_for_record(family, record):
-    event_count = int(record["input_event_count"])
-    if family not in UNIFIED_SHARD_FAMILIES or event_count <= UNIFIED_SHARD_THRESHOLD:
+    if family not in UNIFIED_SHARD_FAMILIES:
         return []
-    shard_size = UNIFIED_SHARD_SIZES[family]
-    return [
-        (index, start, min(start + shard_size, event_count))
-        for index, start in enumerate(range(0, event_count, shard_size))
-    ]
+    return _selected_entry_shard_ranges(
+        input_event_count=int(record["input_event_count"]),
+        selected_event_count=int(record["selected_event_count"]),
+        threshold_input_events=UNIFIED_SHARD_THRESHOLD,
+        selected_events_per_shard=UNIFIED_SHARD_SIZES[family],
+    )
 
 
 UNIFIED_SHARD_RANGES = {
@@ -151,6 +152,15 @@ def _unified_value(wildcards, column):
     return str(_unified_record(wildcards).get(column, ""))
 
 
+def _unified_selected_count_argument(wildcards):
+    value = _unified_value(wildcards, "selected_event_count")
+    return (
+        f"--expected-selected-event-count {int(value)}"
+        if value
+        else ""
+    )
+
+
 def _unified_converter(wildcards):
     if str(wildcards.family) == "mc_muon_up":
         return f"{UNIFIED_REPO_ROOT}/convertData/digi_2_features_mc_muon.py"
@@ -205,6 +215,29 @@ def _unified_shard_record_arguments(wildcards):
     )
 
 
+def _unified_shards_complete_path(family, source_uid):
+    return f"{UNIFIED_SHARD_ROOT}/{family}/{source_uid}/shards.complete.json"
+
+
+def _unified_shard_ready_targets(family, canary=False):
+    frame = UNIFIED_MANIFESTS[family]
+    if canary:
+        frame = frame.loc[frame["is_canary"].astype(int).eq(1)]
+        if len(frame) != 1:
+            raise ValueError(f"Expected one {family} canary row, found {len(frame)}")
+    targets = []
+    for record in frame.to_dict("records"):
+        source_uid = str(record["source_uid"])
+        canonical = str(record["validation_record"])
+        if Path(canonical).is_file():
+            targets.append(canonical)
+        elif (family, source_uid) in UNIFIED_SHARD_RANGES:
+            targets.append(_unified_shards_complete_path(family, source_uid))
+        else:
+            targets.append(canonical)
+    return targets
+
+
 def _unified_targets(family, canary=False):
     frame = UNIFIED_MANIFESTS[family]
     if canary:
@@ -224,6 +257,15 @@ def _unified_canary_record(family):
 
 def _unified_local_smoke_value(wildcards, column):
     return str(_unified_canary_record(str(wildcards.family)).get(column, ""))
+
+
+def _unified_local_smoke_selected_count_argument(wildcards):
+    value = _unified_local_smoke_value(wildcards, "selected_event_count")
+    return (
+        f"--expected-selected-event-count {int(value)}"
+        if value
+        else ""
+    )
 
 
 def _unified_local_smoke_cli(wildcards):
@@ -302,6 +344,7 @@ rule unified_shower_feature_shard_v1:
         geometry_id=lambda wc: _unified_value(wc, "source_geometry_id"),
         geometry_checksum=lambda wc: _unified_value(wc, "source_geometry_checksum"),
         input_event_count=lambda wc: int(_unified_value(wc, "input_event_count")),
+        selected_event_count_arg=_unified_selected_count_argument,
         sample_type=lambda wc: _unified_value(wc, "sample_type"),
         selection_mode=lambda wc: _unified_value(wc, "selection_mode"),
         input_tree=lambda wc: _unified_value(wc, "input_tree"),
@@ -361,6 +404,7 @@ rule unified_shower_feature_shard_v1:
             --expected-source-geometry-id "{params.geometry_id}" \
             --expected-source-geometry-checksum "{params.geometry_checksum}" \
             --expected-input-event-count "{params.input_event_count}" \
+            {params.selected_event_count_arg} \
             --sample-type "{params.sample_type}" \
             --selection-mode "{params.selection_mode}" \
             --input-tree "{params.input_tree}" \
@@ -383,6 +427,75 @@ rule unified_shower_feature_shard_v1:
         fi
         xrdcp -f "$tmp_marker" "{output.marker}"
         test -r "{output.marker}"
+        """
+
+
+rule unified_shower_feature_shards_complete_v1:
+    input:
+        manifest=lambda wc: _unified_manifest_path(str(wc.family)),
+        digi=lambda wc: _unified_value(wc, "digi_path"),
+        shard_features=lambda wc: _unified_shard_targets(wc),
+        shard_records=lambda wc: _unified_shard_targets(wc, ".validated.json"),
+        validator=(
+            f"{UNIFIED_REPO_ROOT}/convertData/"
+            "validate_unified_shower_feature_shards.py"
+        ),
+        validation_core=(
+            f"{UNIFIED_REPO_ROOT}/convertData/"
+            "merge_unified_shower_feature_shards.py"
+        ),
+    output:
+        f"{UNIFIED_SHARD_ROOT}/{{family}}/{{source_uid}}/shards.complete.json"
+    params:
+        shard_record_args=_unified_shard_record_arguments,
+        selected_event_count=lambda wc: int(
+            _unified_value(wc, "selected_event_count")
+        ),
+        cutflow=lambda wc: _unified_value(wc, "cutflow_path"),
+    wildcard_constraints:
+        family="|".join(UNIFIED_SHARD_FAMILIES),
+        source_uid=UNIFIED_SHARDED_SOURCE_UID_PATTERN,
+    threads: 1
+    resources:
+        runtime=30 * 60,
+        mem_mb=1000,
+        disk_mb=100,
+        nvidia_gpu=0,
+        eos_feature_read=1,
+    shell:
+        r"""
+        export PATH=$(echo "$PATH" | tr ':' '\n' \
+            | grep -v 'miniconda3' \
+            | grep -v '/cvmfs/sft.cern.ch/lcg/' \
+            | tr '\n' ':' | sed 's/:$//')
+        unset PYTHONHOME PYTHONPATH LD_LIBRARY_PATH ROOTSYS ROOT_INCLUDE_PATH
+        export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
+        set +u
+        source {UNIFIED_REPO_ROOT}/snakemake/envs/env_sndsw_nue.sh
+        export PYTHONPATH="$SNDSW_ROOT:{UNIFIED_REPO_ROOT}/convertData:${{PYTHONPATH:-}}"
+        set -euo pipefail
+
+        hostname
+        pwd
+        command -v python3
+        python3 --version
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python \
+            -c 'import ROOT; print(ROOT.__version__)'
+
+        tmp_parent="${{TMPDIR:-/tmp}}"
+        tmp_dir=$(mktemp -d "${{tmp_parent}}/unified_shards_complete.XXXXXX")
+        trap 'rm -rf "$tmp_dir"' EXIT
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.validator} \
+            {params.shard_record_args} \
+            --family "{wildcards.family}" \
+            --expected-source-uid "{wildcards.source_uid}" \
+            --expected-selected-event-count "{params.selected_event_count}" \
+            --expected-input-digi-path "{input.digi}" \
+            --expected-input-cutflow-path "{params.cutflow}" \
+            --output "$tmp_dir/shards.complete.json"
+        mkdir -p "$(dirname "{output}")"
+        xrdcp -f "$tmp_dir/shards.complete.json" "{output}"
+        test -r "{output}"
         """
 
 
@@ -414,6 +527,7 @@ rule unified_merge_shower_feature_shards_v1:
         geometry_id=lambda wc: _unified_value(wc, "source_geometry_id"),
         geometry_checksum=lambda wc: _unified_value(wc, "source_geometry_checksum"),
         input_event_count=lambda wc: int(_unified_value(wc, "input_event_count")),
+        selected_event_count_arg=_unified_selected_count_argument,
         sample_type=lambda wc: _unified_value(wc, "sample_type"),
         selection_mode=lambda wc: _unified_value(wc, "selection_mode"),
         input_tree=lambda wc: _unified_value(wc, "input_tree"),
@@ -466,6 +580,7 @@ rule unified_merge_shower_feature_shards_v1:
             --expected-source-geometry-id "{params.geometry_id}" \
             --expected-source-geometry-checksum "{params.geometry_checksum}" \
             --expected-input-event-count "{params.input_event_count}" \
+            {params.selected_event_count_arg} \
             --sample-type "{params.sample_type}" \
             --selection-mode "{params.selection_mode}" \
             --input-tree "{params.input_tree}" \
@@ -523,6 +638,7 @@ rule unified_shower_feature_v1:
         geometry_id=lambda wc: _unified_value(wc, "source_geometry_id"),
         geometry_checksum=lambda wc: _unified_value(wc, "source_geometry_checksum"),
         input_event_count=lambda wc: int(_unified_value(wc, "input_event_count")),
+        selected_event_count_arg=_unified_selected_count_argument,
         sample_type=lambda wc: _unified_value(wc, "sample_type"),
         selection_mode=lambda wc: _unified_value(wc, "selection_mode"),
         input_tree=lambda wc: _unified_value(wc, "input_tree"),
@@ -579,6 +695,7 @@ rule unified_shower_feature_v1:
             --expected-source-geometry-id "{params.geometry_id}" \
             --expected-source-geometry-checksum "{params.geometry_checksum}" \
             --expected-input-event-count "{params.input_event_count}" \
+            {params.selected_event_count_arg} \
             --sample-type "{params.sample_type}" \
             --selection-mode "{params.selection_mode}" \
             --input-tree "{params.input_tree}" \
@@ -631,6 +748,7 @@ rule unified_feature_local_smoke_v1:
         input_event_count=lambda wc: int(
             _unified_local_smoke_value(wc, "input_event_count")
         ),
+        selected_event_count_arg=_unified_local_smoke_selected_count_argument,
         sample_type=lambda wc: _unified_local_smoke_value(wc, "sample_type"),
         selection_mode=lambda wc: _unified_local_smoke_value(wc, "selection_mode"),
         input_tree=lambda wc: _unified_local_smoke_value(wc, "input_tree"),
@@ -674,6 +792,7 @@ rule unified_feature_local_smoke_v1:
             --expected-source-uid "{params.source_uid}" \
             --expected-source-domain-id "{params.source_domain_id}" \
             --expected-input-event-count "{params.input_event_count}" \
+            {params.selected_event_count_arg} \
             --sample-type "{params.sample_type}" \
             --selection-mode "{params.selection_mode}" \
             --input-tree "{params.input_tree}" \
@@ -719,6 +838,11 @@ rule unified_features_mc_muon_up_v1:
         lambda wc: _unified_targets("mc_muon_up")
 
 
+rule unified_features_mc_muon_up_shards_v1:
+    input:
+        lambda wc: _unified_shard_ready_targets("mc_muon_up")
+
+
 rule unified_features_real_data_2024_skim_canary_v1:
     input:
         lambda wc: _unified_targets("real_data_2024_skim", canary=True)
@@ -747,3 +871,8 @@ rule unified_features_testbeam_data_2024_canary_v1:
 rule unified_features_testbeam_data_2024_v1:
     input:
         lambda wc: _unified_targets("testbeam_data_2024")
+
+
+rule unified_features_testbeam_data_2024_shards_v1:
+    input:
+        lambda wc: _unified_shard_ready_targets("testbeam_data_2024")

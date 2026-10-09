@@ -1,0 +1,103 @@
+version: unified_real_data_distributions_v1
+description: Frozen two-cohort shape comparison for the processed 2024 skim snapshot.
+
+tree_name: sndData
+
+selection:
+  name: scifi35
+  expression: count_scifi > 35
+  label: Selected SciFi hits > 35
+
+features:
+  density_sndsw_scifi:
+    expression: density_sndsw_scifi
+    x_min: 0
+    x_max: 40000
+    bin_width: 500
+    axis_title: SciFi density (SND getSumDensity)
+    log_y: true
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_cluster_qdc_per_hit:
+    expression: scifi_cluster_qdc_per_hit
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: All-cluster SciFi QDC / hit
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_qdc_per_hit_direct:
+    expression: scifi_qdc_per_hit_direct
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Direct selected SciFi QDC / hit
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_vertical_cluster1_qdc_std:
+    expression: scifi_vertical_cluster1_qdc_std
+    feature_cut: scifi_vertical_cluster1_exists == 1
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Vertical leading-cluster QDC standard deviation
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_horizontal_cluster1_qdc_std:
+    expression: scifi_horizontal_cluster1_qdc_std
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Horizontal leading-cluster QDC standard deviation
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+
+groups:
+  real_data_2024_no_veto:
+    family: real_data_2024_no_veto
+    expression: count_veto == 0
+    sampling_policy: all_no_veto_events_in_frozen_source_snapshot
+    label: 2024 data - no Veto hit
+  real_data_2024_veto_10pct:
+    family: real_data_2024_veto_10pct
+    expression: count_veto > 0
+    sampling_policy: deterministic_sha256_10pct_veto_events
+    label: 2024 data - Veto hit (deterministic 10% sample)
+
+normalizations:
+  unit_area:
+    y_axis_title: Probability density
+
+profiles:
+  no_veto:
+    family: real_data_2024_no_veto
+    index_column: no_veto_index_path
+    count_field: no_veto_event_count
+    checksum_field: no_veto_sha256
+    sampling_probability: 1.0
+    event_weight: 1.0
+  veto_10pct:
+    family: real_data_2024_veto_10pct
+    index_column: veto_10pct_index_path
+    count_field: veto_10pct_event_count
+    checksum_field: veto_10pct_sha256
+    sampling_probability: 0.1
+    event_weight: 10.0
+
+inputs:
+  selection_manifest: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_selection/real_data_2024_selection_sources.csv
+
+source_manifests:
+  real_data_2024_no_veto: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_distributions/unified_real_data_distributions_v1/source_manifests/real_data_2024_no_veto.csv
+  real_data_2024_veto_10pct: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_distributions/unified_real_data_distributions_v1/source_manifests/real_data_2024_veto_10pct.csv
+
+outputs:
+  feature_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features/real_data_2024_distributions
+  metadata_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_distributions
+  histogram_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/histograms/real_data_distributions
+  plot_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/plots/real_data_distributions

@@ -4,6 +4,7 @@
 PASSING_MUON_REAL_DATA = "passing_muon_real_data"
 EXTERNAL_CUTFLOW = "external_cutflow"
 IDENTITY_CUTFLOW = "identity_cutflow"
+INDEXED_CUTFLOW = "indexed_cutflow"
 PASSING_MUON_DIRECT = "passing_muon_direct"
 DIRECT_INPUT = "direct_input"
 SCIFI_MINHITS_SELECTION = "SciFiMinHits == 1"
@@ -13,6 +14,7 @@ COLLISION_DATA_QUALITY_SELECTION = (
 SELECTION_MODES = (
     EXTERNAL_CUTFLOW,
     IDENTITY_CUTFLOW,
+    INDEXED_CUTFLOW,
     PASSING_MUON_DIRECT,
     DIRECT_INPUT,
 )
@@ -46,6 +48,7 @@ def uses_external_cutflow(value, requested_mode=None):
     return resolve_selection_mode(value, requested_mode) in {
         EXTERNAL_CUTFLOW,
         IDENTITY_CUTFLOW,
+        INDEXED_CUTFLOW,
     }
 
 
@@ -80,7 +83,12 @@ def cutflow_selection_expression(
 ):
     """Return the frozen cutflow expression used by feature conversion."""
     mode = resolve_selection_mode(sample_type, requested_mode)
-    if mode in {IDENTITY_CUTFLOW, PASSING_MUON_DIRECT, DIRECT_INPUT}:
+    if mode in {
+        IDENTITY_CUTFLOW,
+        INDEXED_CUTFLOW,
+        PASSING_MUON_DIRECT,
+        DIRECT_INPUT,
+    }:
         return None
     if skips_scifi_minhits_selection(sample_type):
         return None

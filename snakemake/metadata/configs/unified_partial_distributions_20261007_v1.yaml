@@ -1,0 +1,184 @@
+version: unified_partial_distributions_20261007_v1
+description: >
+  Frozen snapshot of currently validated Stage-1 and Stage-2 feature files.
+  These preliminary outputs are isolated from the complete-sample workflow.
+
+tree_name: sndData
+selection:
+  name: scifi35
+  expression: count_scifi > 35
+  label: Selected SciFi hits > 35
+
+features:
+  density_sndsw_scifi:
+    expression: density_sndsw_scifi
+    x_min: 0
+    x_max: 40000
+    bin_width: 500
+    axis_title: SciFi density (SND getSumDensity)
+    log_y: true
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_cluster_qdc_per_hit:
+    expression: scifi_cluster_qdc_per_hit
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: All-cluster SciFi QDC / hit
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_qdc_per_hit_direct:
+    expression: scifi_qdc_per_hit_direct
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Direct selected SciFi QDC / hit
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_vertical_cluster1_qdc_std:
+    expression: scifi_vertical_cluster1_qdc_std
+    feature_cut: scifi_vertical_cluster1_exists == 1
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Vertical leading-cluster QDC standard deviation
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+  scifi_horizontal_cluster1_qdc_std:
+    expression: scifi_horizontal_cluster1_qdc_std
+    feature_cut: scifi_horizontal_cluster1_exists == 1
+    x_min: 0
+    x_max: 15
+    bin_width: 0.3
+    axis_title: Horizontal leading-cluster QDC standard deviation
+    log_y: false
+    fold_underflow_for_plot: false
+    fold_overflow_for_plot: true
+
+groups:
+  CC_nue:
+    family: mc_neutrino
+    source_subfolders: [2024_ve]
+    expression: pdgCode == 12 || pdgCode == -12
+    label: MC CC nue (partial)
+  CC_numu:
+    family: mc_neutrino
+    source_subfolders: [2024_vm]
+    expression: pdgCode == 14 || pdgCode == -14
+    label: MC CC numu (partial)
+  NC_nue:
+    family: mc_neutrino
+    source_subfolders: [2024_ve]
+    expression: pdgCode == 112 || pdgCode == -112
+    label: MC NC nue (partial)
+  NC_numu:
+    family: mc_neutrino
+    source_subfolders: [2024_vm]
+    expression: pdgCode == 114 || pdgCode == -114
+    label: MC NC numu (partial)
+  MC_muon_up:
+    family: mc_muon_up
+    expression: ""
+    label: MC muon up (partial)
+  testbeam_mc_electron:
+    family: testbeam_mc_2024
+    expression: abs(source_pdg_code) == 11
+    label: Testbeam MC electron
+  testbeam_data_electron:
+    family: testbeam_data_2024
+    expression: abs(source_pdg_code) == 11
+    label: Testbeam data electron
+  testbeam_mc_electron_50:
+    family: testbeam_mc_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 50) < 0.5
+    label: Testbeam MC electron 50 GeV
+  testbeam_data_electron_50:
+    family: testbeam_data_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 50) < 0.5
+    label: Testbeam data electron 50 GeV
+  testbeam_mc_electron_100:
+    family: testbeam_mc_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 100) < 0.5
+    label: Testbeam MC electron 100 GeV
+  testbeam_data_electron_100:
+    family: testbeam_data_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 100) < 0.5
+    label: Testbeam data electron 100 GeV
+  testbeam_mc_electron_150:
+    family: testbeam_mc_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 150) < 0.5
+    label: Testbeam MC electron 150 GeV
+  testbeam_data_electron_150:
+    family: testbeam_data_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 150) < 0.5
+    label: Testbeam data electron 150 GeV
+  testbeam_mc_electron_200:
+    family: testbeam_mc_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 200) < 0.5
+    label: Testbeam MC electron 200 GeV
+  testbeam_data_electron_200:
+    family: testbeam_data_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 200) < 0.5
+    label: Testbeam data electron 200 GeV
+  testbeam_mc_electron_250:
+    family: testbeam_mc_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 250) < 0.5
+    label: Testbeam MC electron 250 GeV
+  testbeam_data_electron_250:
+    family: testbeam_data_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 250) < 0.5
+    label: Testbeam data electron 250 GeV
+  testbeam_mc_electron_300:
+    family: testbeam_mc_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 300) < 0.5
+    label: Testbeam MC electron 300 GeV
+  testbeam_data_electron_300:
+    family: testbeam_data_2024
+    expression: abs(source_pdg_code) == 11 && abs(source_energy_gev - 300) < 0.5
+    label: Testbeam data electron 300 GeV
+  testbeam_mc_pion_180:
+    family: testbeam_mc_2024
+    expression: abs(source_pdg_code) == 211 && abs(source_energy_gev - 180) < 0.5
+    label: Testbeam MC pion 180 GeV
+  testbeam_data_pion_180:
+    family: testbeam_data_2024
+    expression: abs(source_pdg_code) == 211 && abs(source_energy_gev - 180) < 0.5
+    label: Testbeam data pion 180 GeV
+
+normalizations:
+  unit_area:
+    y_axis_title: Probability density
+  common_exposure_19fb:
+    target_exposure_fb: 19.0
+    allowed_exposure_kinds: [simulated_luminosity_fb]
+    y_axis_title: Preliminary events scaled to 19 fb^{-1}
+
+stages:
+  stage1:
+    unit_area_groups: [CC_nue, CC_numu, NC_nue, NC_numu, MC_muon_up]
+    common_exposure_groups: [CC_nue, CC_numu, NC_nue, NC_numu]
+  stage2:
+    comparisons:
+      electron_inclusive: [testbeam_mc_electron, testbeam_data_electron]
+      electron_50: [testbeam_mc_electron_50, testbeam_data_electron_50]
+      electron_100: [testbeam_mc_electron_100, testbeam_data_electron_100]
+      electron_200: [testbeam_mc_electron_200, testbeam_data_electron_200]
+      pion_180: [testbeam_mc_pion_180, testbeam_data_pion_180]
+
+source_manifests:
+  mc_neutrino: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/mc_neutrino.csv
+  mc_muon_up: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/mc_muon_up.csv
+  testbeam_mc_2024: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_mc_2024.csv
+  testbeam_data_2024: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_data_2024.csv
+
+shard_receipt_roots:
+  mc_muon_up: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/shards/mc_muon_up
+  testbeam_data_2024: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/shards/testbeam_data_2024
+
+outputs:
+  metadata_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/partial_distributions
+  histogram_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/histograms/partial
+  plot_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/plots/partial

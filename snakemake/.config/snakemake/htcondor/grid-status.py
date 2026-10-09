@@ -32,7 +32,10 @@ try:
             if event["ReturnValue"] == 0:
                 print_and_exit("success")
             print_and_exit("failed")
-except OSError as e:
-    print_and_exit("failed: {}".format(e))
+except (OSError, htcondor.HTCondorException):
+    # A newly submitted job can be visible to the schedd before its event log
+    # is initialized on the shared filesystem. This is a transient polling
+    # state, so let Snakemake retry instead of aborting the whole workflow.
+    print_and_exit("running")
 
 print_and_exit("running")
