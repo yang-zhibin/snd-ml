@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Build and validate reusable testbeam ROOT histogram bundles."""
+"""Build and validate reusable ROOT histogram bundles.
+
+The historical module name is retained for the testbeam V4 workflow. The
+implementation is dataset-agnostic and is also used by the real-data V2
+workflow through ``unified_histogram_bundles.py``.
+"""
 
 from __future__ import annotations
 
@@ -35,6 +40,14 @@ def _resolve(path: str, relative_to: Path) -> Path:
 def load_bundle_config(path: str | Path) -> tuple[dict, dict]:
     config_path = Path(path).resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    definitions_value = config.get("histogram_definitions_config")
+    if definitions_value:
+        definitions_path = _resolve(str(definitions_value), config_path.parent)
+        definitions = yaml.safe_load(definitions_path.read_text(encoding="utf-8"))
+        for key in ("tree_name", "selection", "features", "features2d"):
+            if key not in config:
+                config[key] = definitions[key]
+        config["_definitions_config_path"] = str(definitions_path)
     base_path = _resolve(str(config["base_distribution_config"]), config_path.parent)
     base = yaml.safe_load(base_path.read_text(encoding="utf-8"))
     expand_group_series(base)
@@ -170,18 +183,20 @@ def build(args: argparse.Namespace) -> None:
         if chain.Add(path) != 1:
             raise RuntimeError(f"could not add validated feature file {path}")
     dataframe = ROOT.RDataFrame(chain)
-    base_selection = combine_selection(
-        str(config["selection"]["expression"]), str(group.get("expression", ""))
-    )
-    if base_selection:
-        dataframe = dataframe.Filter(base_selection, "testbeam_bundle_base_selection")
-    available_action = dataframe.Count()
+    common_selection = str(config["selection"]["expression"])
+    group_selection = str(group.get("expression", ""))
+    effective_selection = combine_selection(common_selection, group_selection)
+    if effective_selection:
+        dataframe = dataframe.Filter(effective_selection, "histogram_bundle_base_selection")
     configured_cap = int(group.get("max_events", 0) or 0)
     requested_cap = int(args.max_events or configured_cap)
     if requested_cap < 0:
         raise ValueError("max_events cannot be negative")
+    available_action = None
     if requested_cap:
         dataframe = dataframe.Range(requested_cap)
+    else:
+        available_action = dataframe.Count()
     sampled_action = dataframe.Count()
 
     actions = {}
@@ -237,7 +252,7 @@ def build(args: argparse.Namespace) -> None:
                 "selected_entries": selected,
                 "in_range": float(histogram.Integral()),
             }
-    available = int(available_action.GetValue())
+    available = int(available_action.GetValue()) if available_action is not None else None
     sampled_entries = int(sampled_action.GetValue())
     exposure_kinds = sorted(set(rows["exposure_kind"].astype(str)))
     if len(exposure_kinds) != 1:
@@ -246,16 +261,22 @@ def build(args: argparse.Namespace) -> None:
         "bundle_version": str(config["version"]),
         "config_sha256": config_hash(config, base),
         "group": args.group,
+        "group_label": str(group.get("label", args.group)),
         "family": str(group["family"]),
         "particle_charge": str(group.get("particle_charge", "")),
         "beam_energy_gev": group.get("beam_energy_gev", ""),
         "geometry_setup_id": geometry_id,
         "geometry_checksum": geometry_checksum,
-        "base_selection": base_selection,
+        "base_selection": common_selection,
+        "group_selection": group_selection,
+        "effective_selection": effective_selection,
         "sampling_policy": str(group.get("sampling_policy", "all_selected_events")),
+        "sampling_probability": sorted(set(float(value) for value in rows["sampling_probability"])) if "sampling_probability" in rows else [],
+        "event_weight": sorted(set(float(value) for value in rows["event_weight"])) if "event_weight" in rows else [],
         "configured_event_cap": configured_cap,
         "effective_event_cap": requested_cap,
         "available_selected_entries": available,
+        "available_selected_entries_evaluated": available_action is not None,
         "sampled_entries": sampled_entries,
         "source_count": int(rows["source_uid"].nunique()),
         "feature_file_count": int(len(rows)),

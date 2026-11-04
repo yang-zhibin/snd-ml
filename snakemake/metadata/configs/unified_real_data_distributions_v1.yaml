@@ -90,6 +90,8 @@ profiles:
     event_weight: 10.0
 
 inputs:
+  selection_policy: snakemake/metadata/configs/unified_real_data_selection_v1.yaml
+  selection_coverage: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_distributions/unified_real_data_distributions_v1/source_coverage.json
   selection_manifest: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_selection/real_data_2024_selection_sources.csv
 
 source_manifests:

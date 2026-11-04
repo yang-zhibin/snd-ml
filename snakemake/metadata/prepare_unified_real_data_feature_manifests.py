@@ -78,6 +78,7 @@ def _inspect_selection(row: dict, profiles: dict, feature_root: str) -> dict:
         return {"source_uid": uid, "status": "selection_input_count_mismatch", "rows": {}}
 
     profile_rows = {}
+    profile_counts = {}
     for profile, settings in profiles.items():
         count_field = str(settings["count_field"])
         checksum_field = str(settings["checksum_field"])
@@ -98,6 +99,7 @@ def _inspect_selection(row: dict, profiles: dict, feature_root: str) -> dict:
                 "status": f"{profile}_index_checksum_mismatch",
                 "rows": {},
             }
+        profile_counts[profile] = selected_count
         if selected_count == 0:
             profile_rows[profile] = None
             continue
@@ -142,7 +144,7 @@ def _inspect_selection(row: dict, profiles: dict, feature_root: str) -> dict:
             "validation_marker": str(feature) + ".validated.json",
             "is_canary": 0,
         }
-    return {"source_uid": uid, "status": "available", "rows": profile_rows}
+    return {"source_uid": uid, "status": "available", "rows": profile_rows, "selected_counts": profile_counts}
 
 
 def build_manifests(
@@ -171,6 +173,14 @@ def build_manifests(
     if selection["source_uid"].duplicated().any():
         raise ValueError("selection manifest contains duplicate source UIDs")
 
+    policy_path = Path(str(config["inputs"]["selection_policy"]))
+    policy = yaml.safe_load(policy_path.read_text())
+    exclusions = policy.get("excluded_source_uids", [])
+    if len(set(exclusions)) != len(exclusions) or not set(exclusions) <= set(selection["source_uid"].astype(str)):
+        raise ValueError("duplicate or unknown exclusion UID")
+    reason = policy.get("exclusion_reason", "")
+    if exclusions and not reason:
+        raise ValueError("selection exclusions require an explicit reason")
     metadata_rows = _source_metadata_rows(selection)
     records = []
     for row in selection.to_dict("records"):
@@ -186,7 +196,10 @@ def build_manifests(
     with ThreadPoolExecutor(max_workers=max(1, int(workers))) as executor:
         checks = list(
             executor.map(
-                lambda row: _inspect_selection(row, profiles, feature_root),
+                lambda row: ({"source_uid": str(row["source_uid"]), "status": "excluded",
+                              "reason": reason, "rows": {}}
+                             if str(row["source_uid"]) in exclusions else
+                             _inspect_selection(row, profiles, feature_root)),
                 records,
             )
         )
@@ -215,7 +228,13 @@ def build_manifests(
 
     status_counts = pd.Series([check["status"] for check in checks]).value_counts()
     coverage = {
+        "coverage_schema_version": 2,
         "version": version,
+        "selection_policy": str(policy_path),
+        "selection_policy_sha256": _sha256(policy_path),
+        "source_statuses": [{k: v for k, v in check.items() if k != "rows"} for check in checks],
+        "eligible_source_count": len(selection) - len(exclusions),
+        "excluded_source_count": len(exclusions),
         "selection_manifest": str(selection_path),
         "selection_manifest_sha256": _sha256(selection_path),
         "total_source_count": int(len(selection)),

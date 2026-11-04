@@ -87,6 +87,7 @@ rule unified_stage1_feature_audit_v1:
         manifest=lambda wc: _unified_manifest_path(str(wc.family)),
         config=UNIFIED_DISTRIBUTION_CONFIG,
         script=UNIFIED_DISTRIBUTION_SCRIPT,
+        integrity=f"{UNIFIED_REPO_ROOT}/convertData/feature_integrity.py",
     output:
         (
             f"{UNIFIED_DISTRIBUTION_METADATA_ROOT}/{UNIFIED_DISTRIBUTION_VERSION}/"
@@ -132,6 +133,7 @@ rule unified_stage1_raw_hist_v1:
         ),
         config=UNIFIED_DISTRIBUTION_CONFIG,
         script=UNIFIED_DISTRIBUTION_SCRIPT,
+        integrity=f"{UNIFIED_REPO_ROOT}/convertData/feature_integrity.py",
     output:
         (
             f"{UNIFIED_DISTRIBUTION_HIST_ROOT}/{UNIFIED_DISTRIBUTION_VERSION}/"
@@ -181,6 +183,7 @@ rule unified_stage1_plot_v1:
         hists=_unified_distribution_plot_hists,
         config=UNIFIED_DISTRIBUTION_CONFIG,
         script=UNIFIED_DISTRIBUTION_SCRIPT,
+        integrity=f"{UNIFIED_REPO_ROOT}/convertData/feature_integrity.py",
     output:
         pdf=(
             f"{UNIFIED_DISTRIBUTION_PLOT_ROOT}/{UNIFIED_DISTRIBUTION_VERSION}/"

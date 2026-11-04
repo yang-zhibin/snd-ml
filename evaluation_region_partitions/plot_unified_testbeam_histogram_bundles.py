@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render PDF-only testbeam comparisons from validated ROOT bundles."""
+"""Render PDF-only comparisons from validated ROOT histogram bundles."""
 
 from __future__ import annotations
 
@@ -87,14 +87,38 @@ def _label(metadata: dict) -> str:
     return f"{symbol}, {float(metadata['beam_energy_gev']):g} GeV"
 
 
+def _cohort(config: dict, name: str) -> dict:
+    return config["cohorts"][name]
+
+
+def _group_label(group: str, metadata: dict, config: dict, cohort: str) -> str:
+    configured = _cohort(config, cohort).get("group_labels", {})
+    if group in configured:
+        label = str(configured[group])
+    elif metadata.get("beam_energy_gev", "") not in ("", None):
+        label = _label(metadata)
+    else:
+        label = str(metadata.get("group_label", group))
+    if _cohort(config, cohort).get("show_source_count", False):
+        source_count = metadata.get("source_count")
+        if source_count not in (None, ""):
+            label += f" ({int(source_count):,} sources)"
+    return label
+
+
+def _style_name(group: str, metadata: dict, config: dict, cohort: str) -> str:
+    configured = _cohort(config, cohort).get("group_styles", {})
+    return str(configured.get(group, _particle(metadata)))
+
+
 def _unit_area(histogram) -> None:
     integral = float(histogram.Integral(1, histogram.GetNbinsX()))
     if integral > 0:
         histogram.Scale(1.0 / integral)
 
 
-def _style(histogram, metadata: dict, config: dict) -> None:
-    style = config["styles"][_particle(metadata)]
+def _style(histogram, group: str, metadata: dict, config: dict, cohort: str) -> None:
+    style = config["styles"][_style_name(group, metadata, config, cohort)]
     histogram.SetLineColor(int(style["color"]))
     histogram.SetMarkerColor(int(style["color"]))
     histogram.SetMarkerStyle(int(style["marker"]))
@@ -109,38 +133,49 @@ def faceted_1d(args: argparse.Namespace) -> None:
     ROOT.gROOT.SetBatch(True)
     ROOT.gStyle.SetOptStat(0)
     config, loaded = load_histograms(args, 1)
-    pairs = [loaded[index:index + 2] for index in range(0, len(loaded), 2)]
-    columns = int(config["cohorts"][args.cohort]["facet_columns"])
-    rows = math.ceil(len(pairs) / columns)
-    canvas = ROOT.TCanvas("faceted_1d", "", 520 * columns, 390 * rows)
+    cohort = _cohort(config, args.cohort)
+    group_size = int(cohort.get("facet_group_size", 2))
+    facets = [loaded[index:index + group_size] for index in range(0, len(loaded), group_size)]
+    columns = int(cohort.get("facet_columns", 1))
+    rows = math.ceil(len(facets) / columns)
+    canvas = ROOT.TCanvas("faceted_1d", "", 540 * columns, 430 * rows)
     canvas.Divide(columns, rows, 0.002, 0.002)
     keep = []
     x_range = config.get("display_x_ranges", {}).get(args.feature)
-    for pad_index, pair in enumerate(pairs, 1):
+    for pad_index, facet in enumerate(facets, 1):
         pad = canvas.cd(pad_index)
         pad.SetLeftMargin(0.13)
         pad.SetBottomMargin(0.13)
+        pad.SetTopMargin(0.11)
         maximum = 0.0
-        for _, metadata, histogram in pair:
+        for group, metadata, histogram in facet:
             _unit_area(histogram)
-            _style(histogram, metadata, config)
+            _style(histogram, group, metadata, config, args.cohort)
+            if x_range:
+                histogram.GetXaxis().SetRangeUser(float(x_range[0]), float(x_range[1]))
             maximum = max(maximum, histogram.GetMaximum())
-        legend = ROOT.TLegend(0.52, 0.72, 0.91, 0.90)
+        legend = ROOT.TLegend(0.50, 0.70, 0.91, 0.88)
         legend.SetBorderSize(0)
         legend.SetFillStyle(0)
-        legend.SetTextSize(0.035)
+        legend.SetTextSize(0.032)
         keep.append(legend)
-        for index, (_, metadata, histogram) in enumerate(pair):
+        for index, (group, metadata, histogram) in enumerate(facet):
             histogram.GetYaxis().SetTitle("Fraction of events / bin")
             histogram.GetYaxis().SetTitleSize(0.045)
             histogram.GetXaxis().SetTitleSize(0.045)
             histogram.SetMaximum(maximum * 1.3 if maximum else 1.0)
             histogram.SetMinimum(0.0)
-            if x_range:
-                histogram.GetXaxis().SetRangeUser(float(x_range[0]), float(x_range[1]))
             histogram.Draw("E1 P" if index == 0 else "E1 P SAME")
-            legend.AddEntry(histogram, _label(metadata), "lep")
+            legend.AddEntry(histogram, _group_label(group, metadata, config, args.cohort), "lep")
         legend.Draw()
+        annotation = str(cohort.get("annotation", "")).strip()
+        if annotation:
+            label = ROOT.TLatex()
+            label.SetNDC(True)
+            label.SetTextSize(0.025)
+            label.SetTextColor(15)
+            label.DrawLatex(0.14, 0.93, annotation)
+            keep.append(label)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     canvas.SaveAs(str(output))
@@ -191,7 +226,8 @@ def faceted_2d(args: argparse.Namespace) -> None:
     ROOT.gROOT.SetBatch(True)
     ROOT.gStyle.SetOptStat(0)
     config, loaded = load_histograms(args, 2)
-    if str(args.cohort).startswith("data_"):
+    cohort = _cohort(config, args.cohort)
+    if cohort.get("sort_2d_by_particle", str(args.cohort).startswith("data_")):
         loaded = sorted(
             loaded,
             key=lambda item: (
@@ -199,7 +235,7 @@ def faceted_2d(args: argparse.Namespace) -> None:
                 float(item[1]["beam_energy_gev"]),
             ),
         )
-    columns = 4
+    columns = int(cohort.get("two_dimensional_columns", 4))
     rows = math.ceil(len(loaded) / columns)
     canvas = ROOT.TCanvas("faceted_2d", "", 450 * columns, 360 * rows)
     canvas.Divide(columns, rows, 0.002, 0.002)
@@ -216,9 +252,10 @@ def faceted_2d(args: argparse.Namespace) -> None:
             for iy in range(1, histogram.GetNbinsY() + 1)
             if histogram.GetBinContent(ix, iy) > 0
         )
-    minimum = min(positive) if positive else 1e-8
+    floor_fraction = float(config["styles"].get("th2_z_floor_fraction", 1e-5))
+    minimum = max(min(positive), maximum * floor_fraction) if positive else 1e-8
     labels = []
-    for index, (_, metadata, histogram) in enumerate(loaded, 1):
+    for index, (group, metadata, histogram) in enumerate(loaded, 1):
         pad = canvas.cd(index)
         pad.SetLeftMargin(0.12)
         pad.SetRightMargin(0.16)
@@ -231,7 +268,7 @@ def faceted_2d(args: argparse.Namespace) -> None:
         label = ROOT.TLatex()
         label.SetNDC(True)
         label.SetTextSize(0.042)
-        label.DrawLatex(0.16, 0.92, _label(metadata))
+        label.DrawLatex(0.16, 0.92, _group_label(group, metadata, config, args.cohort))
         labels.append(label)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -247,6 +284,13 @@ def manifest(args: argparse.Namespace) -> None:
         "bundles": _bundle_arguments(args.bundle),
         "outputs": sorted(str(value) for value in args.plot),
     }
+    coverage_receipt = getattr(args, "coverage_receipt", None)
+    if coverage_receipt:
+        coverage_path = Path(coverage_receipt)
+        coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+        if coverage.get("validation_passed") is not True:
+            raise RuntimeError(f"coverage receipt did not pass: {coverage_path}")
+        payload["feature_snapshot_coverage"] = coverage
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -271,6 +315,7 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument("--config", required=True)
     command.add_argument("--bundle", action="append", default=[], required=True)
     command.add_argument("--plot", action="append", default=[])
+    command.add_argument("--coverage-receipt")
     command.add_argument("--output", required=True)
     command.set_defaults(function=manifest)
     return result

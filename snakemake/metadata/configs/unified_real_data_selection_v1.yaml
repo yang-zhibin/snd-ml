@@ -4,9 +4,17 @@ expected_source_files: 11368
 input_tree: cbmsim
 index_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/real_data_2024
 manifest_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_selection
+exclusion_reason: Upstream nueAnalysisFilter cutflow file absent in the 2026-10-09 EOS input audit
 excluded_source_uids:
   - unified_src_0ee91078a115e62f0a98
   - unified_src_17d1dbbd67bc0d9ebda2
+  - unified_src_ac0877492a2d2881e772
+  - unified_src_958721a0485d9208cf4a
+  - unified_src_b69d5d0d33e69c3629fc
+  - unified_src_f68364996b0355bf6a15
+  - unified_src_5147074ca2fd4d06ca91
+  - unified_src_497434f384abe414c0f4
+  - unified_src_ffaae5ed25bfb6535478
 canary:
   source_metadata_row: 10
 local_smoke:

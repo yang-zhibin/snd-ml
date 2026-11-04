@@ -145,6 +145,7 @@ rule unified_testbeam_combined_raw_hist_v3:
         validated=_group_markers,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         f"{HISTOGRAM_ROOT}/{VERSION}/{{feature}}/{{group}}.root"
     wildcard_constraints:
@@ -180,6 +181,7 @@ rule unified_testbeam_combined_plot_v3:
         hists=_plot_hists,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         pdf=f"{PLOT_ROOT}/{VERSION}/{{plot_set}}/unit_area/{{feature}}.pdf",
         summary=f"{PLOT_ROOT}/{VERSION}/{{plot_set}}/unit_area/{{feature}}.csv",
@@ -221,6 +223,7 @@ rule unified_testbeam_combined_faceted_plot_v3:
         hists=_plot_hists,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         pdf=f"{PLOT_ROOT}/{VERSION}/{{plot_set}}/unit_area/faceted/{{feature}}.pdf",
         summary=f"{PLOT_ROOT}/{VERSION}/{{plot_set}}/unit_area/faceted/{{feature}}.csv",
@@ -260,6 +263,7 @@ rule unified_testbeam_combined_energy_summary_plot_v3:
         hists=_plot_hists,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         pdf=f"{PLOT_ROOT}/{VERSION}/{{plot_set}}/unit_area/energy_summary/{{feature}}.pdf",
         summary=f"{PLOT_ROOT}/{VERSION}/{{plot_set}}/unit_area/energy_summary/{{feature}}.csv",

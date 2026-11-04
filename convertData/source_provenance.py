@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from sample_selection import normalized_sample_type, sample_kind
 
 
 UNIFIED_SCHEMA_VERSION = "unified_shower_features_v1"
@@ -47,8 +48,8 @@ def validate_source_options(args) -> None:
     if energy is not None and (not math.isfinite(float(energy)) or float(energy) < 0):
         raise ValueError("--source-energy-gev must be finite and non-negative")
 
-    sample_type = str(args.type).strip().lower()
-    is_mc = sample_type.startswith("mc_")
+    sample_type = normalized_sample_type(args.type)
+    is_mc = sample_kind(args.type) == "mc"
     expected_sample_type = SAMPLE_TYPE_BY_DOMAIN.get(domain_id)
     if expected_sample_type and sample_type != expected_sample_type:
         raise ValueError(

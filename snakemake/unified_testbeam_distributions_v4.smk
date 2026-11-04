@@ -133,6 +133,7 @@ rule unified_testbeam_feature_branch_audit_v4:
         config=HIST_CONFIG,
         base_config=BASE_CONFIG,
         script=BUNDLE_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         f"{METADATA_ROOT}/audits/{{group}}.json"
     wildcard_constraints:
@@ -167,6 +168,7 @@ rule unified_testbeam_histogram_bundle_v4:
         config=HIST_CONFIG,
         base_config=BASE_CONFIG,
         script=BUNDLE_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         f"{BUNDLE_ROOT}/{HIST_VERSION}/{{group}}.root"
     wildcard_constraints:
@@ -206,6 +208,7 @@ rule unified_testbeam_validate_histogram_bundle_v4:
         config=HIST_CONFIG,
         base_config=BASE_CONFIG,
         script=BUNDLE_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         f"{METADATA_ROOT}/bundle_validation/{{group}}.validated.json"
     wildcard_constraints:

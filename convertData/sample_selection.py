@@ -24,6 +24,19 @@ def normalized_sample_type(value):
     return str(value or "").strip().lower()
 
 
+MC_SAMPLE_TYPES = frozenset({"mc", "mc_data", "mc_ve", "mc_vm", "mc_neutrino", "mc_muon", "mc_muondis", "mc_testbeam"})
+REAL_SAMPLE_TYPES = frozenset({"real", "real_data", "real_testbeam", PASSING_MUON_REAL_DATA})
+
+
+def sample_kind(value):
+    normalized = normalized_sample_type(value)
+    if normalized in MC_SAMPLE_TYPES:
+        return "mc"
+    if normalized in REAL_SAMPLE_TYPES:
+        return "real"
+    raise ValueError(f"Unsupported sample type {value!r}")
+
+
 def is_passing_muon_real_data(value):
     return normalized_sample_type(value) == PASSING_MUON_REAL_DATA
 
@@ -94,7 +107,7 @@ def cutflow_selection_expression(
         return None
 
     clauses = [SCIFI_MINHITS_SELECTION]
-    is_mc = normalized_sample_type(sample_type).startswith("mc")
+    is_mc = sample_kind(sample_type) == "mc"
     if applies_collision_data_quality(sample_type, mode) and not is_mc:
         if not event_deltat_available:
             raise RuntimeError("No EventDeltat cut branch found for real-data selection")

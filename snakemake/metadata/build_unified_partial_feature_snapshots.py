@@ -11,6 +11,9 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "convertData"))
+from feature_integrity import verify_feature
 
 
 def load_config(path: str | Path) -> dict:
@@ -48,7 +51,12 @@ def _canonical_unit(row: dict) -> tuple[str, str, list[dict]]:
         return "source_uid_mismatch", str(marker), []
     if str(record.get("feature_path", "")) != str(feature):
         return "feature_path_mismatch", str(marker), []
+    try:
+        frozen = verify_feature(row, record)
+    except (ValueError, OSError) as error:
+        return "invalid_feature_integrity", str(error), []
     unit = dict(row)
+    unit.update(frozen)
     unit.update(
         {
             "feature_unit_uid": str(row["source_uid"]),
@@ -109,7 +117,18 @@ def _shard_units(row: dict, shard_root: str) -> tuple[str, str, list[dict]]:
             return "shard_source_uid_mismatch", str(marker), []
         if str(validation.get("feature_path", "")) != str(feature):
             return "shard_feature_path_mismatch", str(marker), []
+        try:
+            frozen = verify_feature({**row, "feature_scifi_cluster_v1_path": str(feature),
+                                     "validation_record": str(marker)}, validation)
+            if shard.get("feature_sha256") != frozen["feature_sha256"]:
+                raise ValueError("shard completeness digest mismatch")
+            for key, value in (("selected_entry_start", start), ("selected_entry_stop", stop)):
+                if int(validation.get(key, -1)) != value:
+                    raise ValueError(f"shard receipt {key} mismatch")
+        except (ValueError, OSError) as error:
+            return "invalid_feature_integrity", str(error), []
         unit = dict(row)
+        unit.update(frozen)
         unit.update(
             {
                 "feature_unit_uid": f"{source_uid}:part_{index:04d}",
@@ -131,10 +150,10 @@ def _shard_units(row: dict, shard_root: str) -> tuple[str, str, list[dict]]:
 
 def _check_row(row: dict, shard_root: str = "") -> tuple[str, str, list[dict]]:
     canonical = _canonical_unit(row)
-    if canonical[0] == "available" or not shard_root:
+    if canonical[0] != "missing_feature" or not shard_root:
         return canonical
     shards = _shard_units(row, shard_root)
-    return shards if shards[0] == "available_shards" else canonical
+    return canonical if shards[0] == "missing_shard_completeness_record" else shards
 
 
 def _exposure_sum(frame: pd.DataFrame) -> float:
@@ -177,6 +196,11 @@ def build_snapshots(
         shard_root = str(config.get("shard_receipt_roots", {}).get(family, ""))
         with ThreadPoolExecutor(max_workers=max(1, int(workers))) as executor:
             checks = list(executor.map(lambda row: _check_row(row, shard_root), records))
+        integrity_failures = [(source["source_uid"], status, detail)
+                              for source, (status, detail, _) in zip(records, checks)
+                              if status == "invalid_feature_integrity"]
+        if integrity_failures:
+            raise RuntimeError(f"feature integrity failures: {integrity_failures[:10]}")
         statuses = pd.Series([status for status, _, _ in checks], index=frame.index)
         available_records = [unit for _, _, units in checks for unit in units]
         available = pd.DataFrame(available_records)
@@ -196,11 +220,15 @@ def build_snapshots(
 
         status_counts = statuses.value_counts().to_dict()
         row = {
+            "coverage_schema_version": 2,
             "snapshot_version": str(config["version"]),
             "family": str(family),
             "source_manifest": str(manifest),
             "source_manifest_sha256": _sha256(manifest),
             "snapshot_manifest": str(snapshot_path),
+            "snapshot_manifest_sha256": _sha256(snapshot_path),
+            "source_statuses": {str(source["source_uid"]): check[0]
+                                for source, check in zip(records, checks)},
             "total_source_count": int(len(frame)),
             "available_source_count": int(available["source_uid"].nunique()),
             "available_feature_file_count": int(len(available)),
@@ -216,6 +244,10 @@ def build_snapshots(
                 str(key): int(value) for key, value in sorted(status_counts.items())
             },
         }
+        selection_coverage = config.get("inputs", {}).get("selection_coverage")
+        if selection_coverage:
+            row["selection_coverage"] = str(selection_coverage)
+            row["selection_coverage_sha256"] = _sha256(Path(selection_coverage))
         coverage.append(row)
         print(
             f"{family}: froze {available['source_uid'].nunique()}/{len(frame)} sources "

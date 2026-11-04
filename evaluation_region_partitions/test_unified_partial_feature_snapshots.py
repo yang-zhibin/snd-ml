@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sys
 import tempfile
 import unittest
@@ -38,6 +39,8 @@ class UnifiedPartialFeatureSnapshotTests(unittest.TestCase):
                                 "validation_passed": status != "failed",
                                 "source_uid": "wrong" if status == "mismatch" else uid,
                                 "feature_path": str(feature),
+                            "feature_sha256": hashlib.sha256(feature.read_bytes()).hexdigest(),
+                            "feature_size_bytes": feature.stat().st_size,
                             }
                         ),
                         encoding="utf-8",
@@ -112,7 +115,11 @@ class UnifiedPartialFeatureSnapshotTests(unittest.TestCase):
                         {
                             "validation_passed": True,
                             "source_uid": uid,
+                            "selected_entry_start": start,
+                            "selected_entry_stop": stop,
                             "feature_path": str(feature),
+                            "feature_sha256": hashlib.sha256(feature.read_bytes()).hexdigest(),
+                            "feature_size_bytes": feature.stat().st_size,
                         }
                     ),
                     encoding="utf-8",
@@ -124,6 +131,8 @@ class UnifiedPartialFeatureSnapshotTests(unittest.TestCase):
                         "selected_entry_stop": stop,
                         "written_event_count": stop - start,
                         "feature_path": str(feature),
+                            "feature_sha256": hashlib.sha256(feature.read_bytes()).hexdigest(),
+                            "feature_size_bytes": feature.stat().st_size,
                         "validation_record": str(marker),
                     }
                 )

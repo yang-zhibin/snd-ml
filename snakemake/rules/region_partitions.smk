@@ -1,3 +1,5 @@
+from pathlib import Path
+
 REGION_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/regions/region_v1.yaml"
 PARTITION_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/partitions/partition_v1.yaml"
 
@@ -1320,7 +1322,8 @@ rule build_region_feature_partition:
         metadata=REGION_PARTITION_SOURCE_METADATA,
         region_config=REGION_CONFIG,
         partition_config=PARTITION_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/convertData/build_region_partitions.py",
+        script=str(Path(workflow.basedir).resolve().parent / "convertData/build_region_partitions.py"),
+        integrity=str(Path(workflow.basedir).resolve().parent / "convertData/feature_integrity.py"),
     output:
         metadata_row=f"{REGION_PARTITION_FEATURE_ROW_DIR}/{{region}}__{{particle_group}}__part{{part_index}}.csv"
     wildcard_constraints:
@@ -1410,7 +1413,8 @@ rule build_region_hit3d_partition:
         metadata=REGION_PARTITION_SOURCE_METADATA,
         region_config=REGION_CONFIG,
         partition_config=PARTITION_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/convertData/build_region_partitions.py",
+        script=str(Path(workflow.basedir).resolve().parent / "convertData/build_region_partitions.py"),
+        integrity=str(Path(workflow.basedir).resolve().parent / "convertData/feature_integrity.py"),
         feature_metadata_row=(
             f"{REGION_PARTITION_FEATURE_ROW_DIR}/"
             "{region}__{particle_group}__part{part_index}.csv"
@@ -1496,6 +1500,7 @@ rule build_region_hit3d_partition:
             --only-part-index {wildcards.part_index} \
             --rdf-threads {threads} \
             --product hit3d \
+            --feature-reference-metadata {input.feature_metadata_row} \
             {params.skip_missing_files_flag} \
             {params.check_entry_counts_flag}
 

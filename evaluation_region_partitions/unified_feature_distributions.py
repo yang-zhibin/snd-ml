@@ -230,6 +230,9 @@ def load_validated_rows(
         if frame["feature_unit_uid"].astype(str).duplicated().any():
             raise ValueError(f"manifest contains duplicate feature unit UIDs for {family}")
 
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "convertData"))
+    from feature_integrity import verify_feature
     available_indices = []
     omitted_missing_source_count = 0
     for index, row in frame.iterrows():
@@ -252,6 +255,10 @@ def load_validated_rows(
             row["feature_scifi_cluster_v1_path"]
         ):
             raise RuntimeError(f"feature path mismatch in {marker}")
+        try:
+            verify_feature(row, record)
+        except (ValueError, OSError) as error:
+            raise RuntimeError(str(error)) from error
         available_indices.append(index)
     frame = frame.loc[available_indices].copy()
     if frame.empty:

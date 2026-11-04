@@ -6,6 +6,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 import tempfile
 from pathlib import Path
 
@@ -185,8 +186,15 @@ def main() -> None:
     downward_q0, _, downward_free_fit = q0_value(
         downward_workspace.data(downward_model), downward_model
     )
-    assert downward_q0 == 0.0
-    assert downward_free_fit[downward_model.config.poi_index] < 1.0e-3
+    # LCG/pyhf minimization leaves an approximately 1.65e-7 boundary residual.
+    assert math.isfinite(downward_q0) and 0.0 <= downward_q0 < 1.0e-6
+    downward_mu = float(downward_free_fit[downward_model.config.poi_index])
+    assert math.isfinite(downward_mu) and 0.0 <= downward_mu < 1.0e-3
+    injected = model.config.suggested_init()
+    injected[model.config.poi_index] = 5.0
+    injected_q0, _, injected_fit = q0_value(model.expected_data(injected), model)
+    assert math.isfinite(injected_q0) and injected_q0 > 0.01
+    assert abs(float(injected_fit[model.config.poi_index]) - 5.0) < 0.01
 
     with tempfile.TemporaryDirectory(prefix="abcd_blinded_v2_test.") as temporary:
         root = Path(temporary); table = root / "sanitized.csv"; write_csv(table, row)

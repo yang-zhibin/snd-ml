@@ -93,6 +93,7 @@ rule unified_partial_feature_snapshot_v1:
     input:
         config=CONFIG_PATH,
         builder=SNAPSHOT_BUILDER,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
         source_manifests=list(SETTINGS["source_manifests"].values()),
     output:
         manifests=[snapshot_manifest(family) for family in FAMILIES],
@@ -135,6 +136,7 @@ rule unified_partial_feature_audit_v1:
         coverage=rules.unified_partial_feature_snapshot_v1.output.coverage_json,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         f"{METADATA_ROOT}/{VERSION}/feature_completeness/{{family}}.json"
     wildcard_constraints:
@@ -167,6 +169,7 @@ rule unified_partial_raw_hist_v1:
         ready=lambda wc: audit_path(group_family(wc.group)),
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         f"{HISTOGRAM_ROOT}/{VERSION}/{{stage}}/{{feature}}/{{group}}.root"
     wildcard_constraints:
@@ -214,6 +217,7 @@ rule unified_stage1_partial_plot_v1:
         hists=stage1_plot_hists,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         pdf=f"{PLOT_ROOT}/{VERSION}/stage1/{{normalization}}/{{feature}}.pdf",
         summary=f"{PLOT_ROOT}/{VERSION}/stage1/{{normalization}}/{{feature}}.csv",
@@ -252,6 +256,7 @@ rule unified_stage2_partial_plot_v1:
         hists=stage2_plot_hists,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         pdf=f"{PLOT_ROOT}/{VERSION}/stage2/{{comparison}}/unit_area/{{feature}}.pdf",
         summary=f"{PLOT_ROOT}/{VERSION}/stage2/{{comparison}}/unit_area/{{feature}}.csv",

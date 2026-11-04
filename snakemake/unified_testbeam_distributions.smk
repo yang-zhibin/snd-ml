@@ -329,6 +329,7 @@ checkpoint unified_prepare_testbeam_feature_snapshots_v3:
     input:
         config=CONFIG_PATH,
         builder=SNAPSHOT_BUILDER,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
         source_manifests=[str(path) for path in SETTINGS["source_manifests"].values()],
         features_2023=_all_2023_features,
     output:
@@ -363,6 +364,7 @@ rule unified_testbeam_raw_hist_v3:
         validated=_group_markers,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         f"{HISTOGRAM_ROOT}/{VERSION}/{{feature}}/{{group}}.root"
     wildcard_constraints:
@@ -402,6 +404,7 @@ rule unified_testbeam_plot_v3:
         hists=_plot_hists,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         pdf=f"{PLOT_ROOT}/{VERSION}/{{plot_set}}/unit_area/{{feature}}.pdf",
         summary=f"{PLOT_ROOT}/{VERSION}/{{plot_set}}/unit_area/{{feature}}.csv",

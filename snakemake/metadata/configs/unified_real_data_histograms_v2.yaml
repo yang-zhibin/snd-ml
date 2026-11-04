@@ -1,0 +1,14 @@
+version: unified_real_data_histograms_v2
+base_distribution_config: snakemake/metadata/configs/unified_real_data_distributions_v1.yaml
+histogram_definitions_config: snakemake/metadata/configs/unified_testbeam_histograms_v4.yaml
+
+# The 30 TH1 and 7 TH2 definitions are inherited verbatim from testbeam V4.
+# Only the dataset grouping and output boundary differ.
+tree_name: sndData
+selection:
+  name: scifi35
+  expression: count_scifi > 35
+
+outputs:
+  bundle_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/histogram_bundles/real_data_distributions
+  metadata_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_distributions_v2

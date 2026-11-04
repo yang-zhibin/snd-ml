@@ -1353,3 +1353,217 @@ Run only the dry-run of `unified_testbeam_histogram_bundles_v4` from this
 worktree using `snakemake/unified_testbeam_distributions_v4.smk`; inspect that
 it still resolves only audits, bundles, validators, and the aggregate. Do not
 submit production or start `unified_testbeam_all_plots_v4` in the same action.
+
+### Full 2024 real-data input exclusion audit (2026-10-09)
+
+- The first unbatched real-data selection dry-run exposed another unavailable
+  upstream `nueAnalysisFilter` file. An EOS namespace comparison then checked
+  every manifest-listed digi and cutflow path.
+- All 11,368 digi inputs exist. Nine cutflow files are absent: the two sources
+  already excluded plus seven newly identified sources.
+- Added the seven verified UIDs to `excluded_source_uids` in
+  `unified_real_data_selection_v1.yaml`. The provenance manifest remains
+  unchanged; exclusions affect only aggregate production targets.
+- Re-ran the full unbatched `unified_real_data_selection_indexes_v1` dry-run
+  with `--rerun-triggers input params --rerun-incomplete`. It built the DAG and
+  exited successfully with no `MissingInputException`.
+- No selection-index or feature job was submitted.
+
+## Exact next action (supersedes the preceding action)
+
+Run the unbatched HTCondor command for
+`unified_real_data_selection_indexes_v1` with `--jobs 200`,
+`--rerun-triggers input params`, `--rerun-incomplete`, `--latency-wait 120`,
+`--keep-going`, and `--drop-metadata`. Do not refresh the feature manifests or
+start feature production until this selection-index target finishes.
+
+### Real-data V2 histogram-bundle workflow implementation (2026-10-12)
+
+#### Verified starting state
+
+- Branch `task/unified-shower-features`, starting HEAD
+  `42e0f09582533437b5b2a2532ca0b860d93b027d`.
+- Preserved pre-existing user edits in this task file and
+  `snakemake/metadata/configs/unified_real_data_selection_v1.yaml`.
+- Selection-index production is complete for the 11,359 non-excluded sources,
+  but the frozen V1 feature snapshots still contain only 1,109 sources per
+  cohort and report one missing feature in each old 1,110-source manifest.
+- No Snakemake controller, histogram-bundle build, or HTCondor job for this
+  task is running. One unrelated event-display process belongs to another
+  worktree and was not touched.
+
+#### Implemented files and decisions
+
+- Added the standalone downstream workflow
+  `snakemake/unified_real_data_distributions_v2.smk`. It does not include or
+  schedule selection-index or feature-file production.
+- Added `unified_real_data_histograms_v2.yaml` and
+  `unified_real_data_plots_v2.yaml`. They reuse the exact testbeam V4 set of
+  30 TH1 and seven TH2 definitions, compare no-Veto with the deterministic
+  10% Veto sample, use unit-area normalization, and write PDF products plus
+  one JSON manifest but no per-plot CSV files.
+- Added dataset-neutral wrapper entry points for bundle construction and
+  plotting, plus a strict feature-snapshot coverage validator. The coverage
+  gate rejects incomplete or non-available source records before audits or
+  bundle jobs can run.
+- Generalized the established testbeam bundle engine to inherit histogram
+  definitions from another config and to record group labels, sampling
+  probability, event weight, the common selection, the group selection, and
+  their effective combined selection.
+- Generalized the renderer to support config-defined group labels/styles,
+  configurable facet sizes and TH2 columns, shared log-Z floors, and dataset
+  annotations. The testbeam energy-summary renderer now derives its frame
+  from both particle series so one series cannot clip the other.
+- Fixed capped canary builds: `--max-events` no longer books an uncapped entry
+  count that forces a full event scan. Uncapped production still evaluates
+  and records the complete selected-entry count.
+- Added `test_unified_real_data_histogram_bundles.py`, covering configuration,
+  downstream-only workflow structure, strict coverage rejection, and PDF-only
+  TH1/TH2 rendering.
+
+#### Commands and results
+
+- Focused LCG regression command for the testbeam and real-data bundle test
+  modules passed all seven tests. The final repeated run completed in 3.649 s.
+- `git diff --check` and `python3 -m py_compile` passed for the new and modified
+  Python sources.
+- The V2 aggregate dry-run resolved exactly 46 jobs: one coverage gate, two
+  branch audits, two bundle builds, two bundle validators, 30 TH1 plots,
+  seven TH2 plots, one plot manifest, and one aggregate. It resolved no
+  feature or selection-index jobs.
+- Strict audits of both current snapshots passed and found all 37 required
+  feature branches. The remote validation-record scan took about four minutes
+  per 1,109-file cohort.
+- Built real-file 100-event canary bundles for both cohorts under
+  `/tmp/zhibin/real_data_v2_canary/`; each contains 30 TH1 plus seven TH2
+  objects. Both validation commands passed all 37 objects. Representative
+  `count_scifi.pdf` and `total_qdc_vs_hits.pdf` comparisons were produced.
+- Running the new coverage validator against the current frozen production
+  metadata failed as intended: both cohorts report 1,109 available of 1,110,
+  with one `missing_feature`. No V2 production output was created or submitted.
+- Attempted visual raster inspection of the temporary PDFs, but the local
+  image-view helper could not run because the host filesystem sandbox lacks
+  its bubblewrap isolation dependency. ROOT PDF creation and bundle validation
+  succeeded.
+
+#### Current Git state
+
+- HEAD remains `42e0f09582533437b5b2a2532ca0b860d93b027d`; no commit was made.
+- Task changes are the two modified reusable testbeam modules plus seven new
+  real-data/generic source, test, config, and workflow files. The pre-existing
+  modifications to this task file and the real-data selection config remain
+  uncommitted and preserved.
+
+## Exact next action (supersedes the preceding action)
+
+Run only a Snakemake dry-run of
+`unified_real_data_distribution_features_v1` using
+`snakemake/unified_real_data_distributions.smk`, with
+`--rerun-triggers input params --rerun-incomplete`, and verify that the
+refreshed checkpoint expands the 11,359 non-excluded sources for both cohorts.
+Do not submit feature production or run the V2 histogram target in the same
+action.
+
+### Explicit partial real-data plotting mode (2026-10-12)
+
+- The refreshed source manifests contain 11,151 non-empty No-Veto sources and
+  11,150 non-empty Veto-10% sources. Existing feature storage contains 1,109
+  validated canonical files per cohort, so the available plot input is a
+  preliminary processed-source subset rather than complete production.
+- Added an explicit `coverage.policy: partial` configuration with a positive
+  minimum source count and `missing_feature` as the only allowed unavailable
+  status. Invalid receipts, failed validation, mismatches, empty snapshots,
+  inconsistent counts/fractions, changed source-manifest checksums, and stale
+  snapshot row counts remain fatal.
+- Coverage receipts now include source and snapshot checksums, exact available
+  and total source counts, fractions, status counts, and the selected policy.
+  The final plot manifest embeds this validated receipt.
+- V2 plot annotations identify the products as a preliminary partial
+  processed-source snapshot. Legend labels dynamically include the source
+  count recorded in each histogram bundle.
+- Added cached manifest frames and source-UID dictionaries to
+  `unified_real_data_distributions.smk`. Dynamic DAG expansion now parses each
+  17 MB manifest once instead of reparsing and scanning it roughly nine times
+  per one of 22,301 jobs.
+- The combined testbeam/real-data focused suite passed all seven tests.
+  `git diff --check` passed. A snapshot-refresh dry-run resolved exactly one
+  local snapshot job, and the partial V2 coverage dry-run resolved exactly one
+  local rule under the HTCondor profile. No production or snapshot job was
+  executed.
+
+## Exact next action (supersedes the preceding action)
+
+Run only `unified_real_data_distribution_snapshot_v1` locally with 16 cores
+and `--rerun-triggers input params --rerun-incomplete`. Verify the resulting
+coverage records approximately 1,109 validated sources per cohort against the
+new 11,151/11,150-source manifests. Do not start V2 histogram production in
+the same action.
+
+### Real-data V2 HTCondor bookkeeping-rule fix (2026-10-12)
+
+- Diagnosed log `2026-10-12T132524.312758.snakemake.log`: no Condor job was
+  submitted. The profile submit helper requires `resources["runtime"]`, but
+  the lightweight coverage rule had no batch resources and submission failed
+  twice before obtaining a cluster ID.
+- Declared `unified_real_data_feature_snapshot_coverage_v2` and
+  `unified_real_data_plot_manifest_v2` as local rules. Both only read/write
+  small AFS metadata products and do not belong on HTCondor.
+- Added regression assertions for both local-rule declarations. The focused
+  real-data test module passed all four tests.
+- An HTCondor-profile dry-run of
+  `unified_real_data_feature_snapshot_coverage_v2` passed and resolved the
+  rule locally with `tmpdir=/tmp/zhibin`; it no longer attempted submission
+  with `runtime=<TBD>`.
+- No jobs were submitted. Current feature storage remains at 1,109 ROOT files
+  plus 1,109 receipts for each cohort, so the coverage gate will still reject
+  an actual V2 run until feature production and snapshot refresh are complete.
+
+## Exact next action (supersedes the preceding action)
+
+Run only a Snakemake dry-run of
+`unified_real_data_distribution_features_v1` using
+`snakemake/unified_real_data_distributions.smk`, with
+`--rerun-triggers input params --rerun-incomplete`, and verify that the
+refreshed checkpoint expands the 11,359 non-excluded sources for both cohorts.
+Do not submit feature production or run the V2 histogram target in the same
+action.
+
+### Review-fix implementation checkpoint (2026-11-04)
+
+- User explicitly authorized implementing the six fixes in `CODE_REVIEW_FINDINGS.md` section L. This supersedes the previous inspection-only next action for this implementation session. Production feature regeneration remains unauthorized.
+- Starting HEAD: `42e0f09582533437b5b2a2532ca0b860d93b027d`. Preserved all five pre-existing tracked modifications and seven pre-existing implementation/config/test untracked files plus the review report. No commits or production jobs.
+- Implemented ROOT-free feature integrity and snapshot membership helpers; frozen snapshot file/receipt digests; exact source-status membership and shard accounting; selection-policy-bound upstream ledger with per-profile zero counts and explicit exclusions; normalized sample classification; serial partition snapshots with input/output identity checks and split-feature metadata digest verification; numerical ABCD test tolerance and model-consistent positive control.
+- Added explicit helper/source/policy/ledger workflow dependencies. Existing snapshots and old coverage records require validated refresh before downstream use. Existing split partition metadata without a feature digest must also be refreshed through validated partition production; do not populate hashes blindly.
+- LCG 107 on lxplus915, Python 3.11.9, ROOT 6.34.02, pyhf 0.7.6: existing 54 focused regressions passed; initial nine adversarial tests and two metadata pytest cases passed; combined/split ROOT partition integration then passed (10-test adversarial suite). Full `test_abcd_blinded_expected.py` passed with existing optimizer/covariance warnings; these remain a separate statistical robustness limitation.
+- Final additional shard/timing tests, exclusion reconciliation, and Snakemake parse/dry-run checks are in progress. Temporary test products are under automatically cleaned temporary directories. No HTCondor submission or production output refresh occurred.
+- Exact next action: finish the running verification commands, address any failures, review the implementation diff, and record final evidence before stopping. Do not start production migration or feature regeneration.
+
+### Review-fix verification completed (2026-11-04)
+
+- Final LCG combined regression: 66 tests passed in 13.517 s; two metadata pytest cases passed in 0.75 s. Complete synthetic ABCD test passed with the previously documented optimizer/covariance warnings. Changed Python syntax and `git diff --check` passed.
+- New integration test runs actual ROOT selection and snapshots in both combined and split feature/Hit3D modes with a two-thread request, checks exact ordered output identities, and rejects replaced feature products through metadata digest verification.
+- Read-only inventory of the original 11,368 selection receipt paths found nine absent; the missing UID set exactly equals the configured exclusion UID set. No receipt contents were revalidated in this inventory.
+- Snakemake 9.17.2/Python 3.13.12 environment: real-data V2 coverage dry-run resolved one job; testbeam V4 bundle dry-run resolved 61 audit/bundle/validator/aggregate jobs; main workflow target listing passed. No jobs executed or submitted.
+- Implementation and migration details are recorded in `CODE_REVIEW_FINDINGS.md` section M. Temporary final test log: `/tmp/zhibin/review_fix_final_tests.log`; main workflow target listing: `/tmp/zhibin/review_fix_targets.txt`.
+- All six review findings have implementation and regression evidence; production deployment/canary and the broader scientific review remain pending. Old snapshots/coverage records and split partition metadata require validated migration. No production artifacts were refreshed and no commit was made.
+
+## Exact next action (supersedes the preceding action)
+
+Wait for the user's instruction on validated metadata migration or a detector
+conversion canary. Do not automatically refresh production metadata,
+regenerate features, or start histogram/ML production.
+
+### Commit acceptance verification (2026-11-04)
+
+- User authorized testing the fixes against the implementation plan, then committing on success.
+- Reinspection closed canonical snapshot range/status consistency and empty-source-list split-Hit3D reference-check gaps, with regression coverage. Explicit LCG activation added to the real-data coverage rule.
+- Exported staged tree `0da3057fc409a0b071d65369d2ff4a12ccca03d5` to `/tmp/zhibin/review_fix_commit_k1c9aeaw` and tested that standalone export: 67 unittest cases passed in 17.324 s, two metadata pytest cases passed in 0.69 s, and the complete synthetic ABCD regression passed. Existing statistical optimizer/covariance warnings remain documented. Staged Python syntax and whitespace checks passed.
+- Staged workflow checks passed: real-data coverage dry-run (one job), testbeam bundle dry-run (61 jobs), main target listing. Existing production coverage was rejected as obsolete without writing a receipt. No production jobs or artifact migration.
+- Related V2 support is included so the fix commit is runnable independently. The independent pre-existing testbeam energy-summary plotting adjustment remains uncommitted in `plot_unified_testbeam_histogram_bundles.py`.
+- Final evidence and log locations: `CODE_REVIEW_FINDINGS.md` section N. Commit subject: `Fix unified feature integrity, coverage and partition alignment`. Resolve its SHA with `git log -1 --format=%H --grep='Fix unified feature integrity, coverage and partition alignment'`.
+
+## Exact next action (supersedes the preceding action)
+
+After creating the authorized verified fix commit, wait for the user's next
+instruction. Do not automatically migrate production metadata, regenerate
+features, or start histogram/ML production.

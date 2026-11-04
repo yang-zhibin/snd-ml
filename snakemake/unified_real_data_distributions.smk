@@ -1,6 +1,7 @@
 """2024 real-data feature production and two-cohort shape distributions."""
 
 from pathlib import Path
+from functools import lru_cache
 import re
 import shlex
 
@@ -80,6 +81,7 @@ def _manifest_path_for_profile(profile):
     return str(getattr(_prepared_outputs(), str(profile)))
 
 
+@lru_cache(maxsize=None)
 def _manifest_frame(profile):
     frame = pd.read_csv(_manifest_path_for_profile(profile), keep_default_na=False)
     if frame.empty:
@@ -87,14 +89,23 @@ def _manifest_frame(profile):
     return frame
 
 
+@lru_cache(maxsize=None)
+def _manifest_records(profile):
+    frame = _manifest_frame(profile)
+    if frame["source_uid"].duplicated().any():
+        raise ValueError(f"duplicate source UIDs in real-data feature manifest for {profile}")
+    return {
+        str(record["source_uid"]): record
+        for record in frame.to_dict("records")
+    }
+
+
 def _record(wildcards):
     profile = str(wildcards.profile)
     uid = str(wildcards.source_uid)
-    frame = _manifest_frame(profile)
-    matches = frame.loc[frame["source_uid"].astype(str).eq(uid)]
-    if len(matches) != 1:
-        raise ValueError(f"expected one {profile} record for {uid}, found {len(matches)}")
-    record = matches.iloc[0].to_dict()
+    record = _manifest_records(profile).get(uid)
+    if record is None:
+        raise ValueError(f"no {profile} record for {uid}")
     expected = feature_path(profile, uid)
     if str(record["feature_scifi_cluster_v1_path"]) != expected:
         raise ValueError(
@@ -158,6 +169,7 @@ checkpoint unified_prepare_real_data_distribution_manifests_v1:
     input:
         config=CONFIG_PATH,
         selection_manifest=str(SETTINGS["inputs"]["selection_manifest"]),
+        selection_policy=str(SETTINGS["inputs"]["selection_policy"]),
         builder=MANIFEST_BUILDER,
     output:
         no_veto=source_manifest("no_veto"),
@@ -286,6 +298,8 @@ rule unified_real_data_distribution_snapshot_v1:
         ],
         config=CONFIG_PATH,
         builder=SNAPSHOT_BUILDER,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
+        selection_coverage=lambda wc: checkpoints.unified_prepare_real_data_distribution_manifests_v1.get().output.coverage_json,
     output:
         manifests=[snapshot_manifest(family) for family in GROUPS],
         coverage_json=f"{METADATA_ROOT}/{VERSION}/feature_coverage.json",
@@ -315,6 +329,7 @@ rule unified_real_data_distribution_feature_audit_v1:
         coverage=rules.unified_real_data_distribution_snapshot_v1.output.coverage_json,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         f"{METADATA_ROOT}/{VERSION}/feature_completeness/{{family}}.json"
     wildcard_constraints:
@@ -343,6 +358,7 @@ rule unified_real_data_distribution_raw_hist_v1:
         ready=lambda wc: audit_path(str(wc.group)),
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         f"{HISTOGRAM_ROOT}/{VERSION}/{{feature}}/{{group}}.root"
     wildcard_constraints:
@@ -382,6 +398,7 @@ rule unified_real_data_distribution_plot_v1:
         hists=_plot_hists,
         config=CONFIG_PATH,
         script=DISTRIBUTION_SCRIPT,
+        integrity=f"{REPO_ROOT}/convertData/feature_integrity.py",
     output:
         pdf=f"{PLOT_ROOT}/{VERSION}/unit_area/{{feature}}.pdf",
         summary=f"{PLOT_ROOT}/{VERSION}/unit_area/{{feature}}.csv",

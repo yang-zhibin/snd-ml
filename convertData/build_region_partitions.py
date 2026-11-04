@@ -571,6 +571,42 @@ def tree_entries(path, tree_name):
         root_file.Close()
 
 
+def check_entry_identity(left_path, left_tree, right_path, right_tree,
+                         keys=("runId", "eventId", "eventIndex")):
+    """Stream only identity branches and report the first positional mismatch."""
+    import ROOT
+    files = []
+    try:
+        trees = []
+        for path, name in ((left_path, left_tree), (right_path, right_tree)):
+            handle = ROOT.TFile.Open(str(path))
+            if not handle or handle.IsZombie():
+                raise ValueError(f"Cannot open identity input {path}")
+            files.append(handle)
+            tree = handle.Get(name)
+            if not tree:
+                raise ValueError(f"Missing tree {name}: {path}")
+            tree.SetBranchStatus("*", 0)
+            for key in keys:
+                if not tree.GetBranch(key):
+                    raise ValueError(f"Missing identity branch {key}: {path}")
+                tree.SetBranchStatus(key, 1)
+            trees.append(tree)
+        left, right = trees
+        if left.GetEntries() != right.GetEntries():
+            raise ValueError(f"Identity entry count mismatch: {left_path} / {right_path}")
+        for index in range(left.GetEntries()):
+            if left.GetEntry(index) <= 0 or right.GetEntry(index) <= 0:
+                raise ValueError(f"Cannot read identity entry {index}")
+            a = tuple(int(getattr(left, key)) for key in keys)
+            b = tuple(int(getattr(right, key)) for key in keys)
+            if a != b:
+                raise ValueError(f"Identity mismatch at entry {index}: {left_path} {a} / {right_path} {b}")
+    finally:
+        for handle in files:
+            handle.Close()
+
+
 def check_entry_counts(metadata_rows, feature_tree_name, hit3d_tree_name):
     log(f"Checking feature/hit3D entry counts for {format_count(len(metadata_rows))} file pairs")
     for item in progress_iter(metadata_rows, desc="Checking entry counts", unit="file"):
@@ -589,7 +625,7 @@ def write_empty_metadata_csv(output_metadata, partition_config):
     output_metadata = Path(output_metadata)
     output_metadata.parent.mkdir(parents=True, exist_ok=True)
     with open(output_metadata, "w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=partition_config["metadata_output_columns"])
+        writer = csv.DictWriter(handle, fieldnames=list(dict.fromkeys(partition_config["metadata_output_columns"] + ["feature_sha256"])))
         writer.writeheader()
     log(f"Wrote empty metadata CSV: {output_metadata}")
 
@@ -614,6 +650,7 @@ def write_rdf_metadata_row(
     feature_available,
     hit3d_available,
     hit3d_required,
+    feature_digest="",
 ):
     output_metadata = Path(output_metadata)
     output_metadata.parent.mkdir(parents=True, exist_ok=True)
@@ -632,7 +669,7 @@ def write_rdf_metadata_row(
     source_feature_paths = (
         ";".join(item["feature_path"] for item in metadata_rows)
         if preserve_source_identity
-        else ";".join(sorted({item["feature_path"] for item in metadata_rows}))
+        else ";".join(item["feature_path"] for item in metadata_rows)
     )
     row = {
         "partition_version": partition_config["partition_version"],
@@ -643,6 +680,7 @@ def write_rdf_metadata_row(
         "particle_id": particle_id,
         "partition_id": partition_id,
         "feature_partition_path": feature_output,
+        "feature_sha256": feature_digest,
         "hit3d_partition_path": hit3d_output,
         "feature_available": bool(feature_available),
         "hit3d_available": bool(hit3d_available),
@@ -676,10 +714,10 @@ def write_rdf_metadata_row(
     }
 
     with open(output_metadata, "w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=partition_config["metadata_output_columns"])
+        writer = csv.DictWriter(handle, fieldnames=list(dict.fromkeys(partition_config["metadata_output_columns"] + ["feature_sha256"])))
         writer.writeheader()
         if n_events > 0:
-            writer.writerow({field: row.get(field, "") for field in partition_config["metadata_output_columns"]})
+            writer.writerow({field: row.get(field, "") for field in list(dict.fromkeys(partition_config["metadata_output_columns"] + ["feature_sha256"]))})
     log(f"Wrote RDF metadata CSV with {1 if n_events > 0 else 0} rows: {output_metadata}")
 
 
@@ -700,6 +738,7 @@ def run_rdf_partition(
     check_entry_counts_enabled=False,
     rdf_threads=0,
     product_mode="both",
+    feature_reference_metadata=None,
 ):
     if not only_regions or len(only_regions) != 1:
         raise ValueError("Exactly one --only-regions value is required")
@@ -711,9 +750,11 @@ def run_rdf_partition(
         raise ValueError(f"--product must be one of feature, hit3d, both; got {product_mode}")
 
     import ROOT
-    if rdf_threads and int(rdf_threads) > 0:
-        ROOT.EnableImplicitMT(int(rdf_threads))
-        log(f"Enabled ROOT implicit multithreading with {int(rdf_threads)} threads")
+    # Separate Snapshot actions must retain the same entry ordering, including
+    # feature-only products which a later Hit3D rule joins positionally.
+    if ROOT.IsImplicitMTEnabled():
+        ROOT.DisableImplicitMT()
+    log("Using serial ROOT snapshots to preserve event identity order")
 
     region = next(iter(only_regions))
     particle_group = next(iter(only_particles))
@@ -742,6 +783,12 @@ def run_rdf_partition(
     log(f"RDF job will use {format_count(len(metadata_rows))} metadata rows")
 
     if not metadata_rows:
+        if product_mode == "hit3d":
+            if not feature_reference_metadata:
+                raise ValueError("Hit3D-only output requires --feature-reference-metadata")
+            with open(feature_reference_metadata, newline="") as stream:
+                if list(csv.DictReader(stream)):
+                    raise ValueError("empty Hit3D source list disagrees with feature metadata")
         write_empty_metadata_csv(output_metadata, partition_config)
         return
 
@@ -787,8 +834,14 @@ def run_rdf_partition(
     cutflow_tree_name = partition_config["input"].get("cutflow_tree", "cutFlowSummary")
     hit3d_tree_name = partition_config["input"]["hit3d_tree"]
 
-    if check_entry_counts_enabled and need_hit3d_output:
-        check_entry_counts(metadata_rows, feature_tree_name, hit3d_tree_name)
+    identity_keys = tuple(partition_config.get("alignment", {}).get(
+        "keys", ("runId", "eventId", "eventIndex")))
+    if set(identity_keys) != {"runId", "eventId", "eventIndex"}:
+        raise ValueError("alignment must use runId, eventId, eventIndex")
+    if need_hit3d_output:
+        for item in metadata_rows:
+            check_entry_identity(item["feature_path"], feature_tree_name,
+                                 item["hit3d_path"], hit3d_tree_name, identity_keys)
 
     feature_chain = build_tchain(feature_tree_name, feature_paths, "feature")
     preserve_source_identity = bool(
@@ -800,6 +853,10 @@ def run_rdf_partition(
     write_cutflow = bool(
         partition_config.get("output", {}).get("write_cutflow", True)
     )
+    if write_cutflow:
+        for path in feature_paths:
+            if tree_entries(path, feature_tree_name) != tree_entries(path, cutflow_tree_name):
+                raise ValueError(f"feature/cutflow entry count mismatch: {path}")
     cutflow_chain = (
         build_tchain(cutflow_tree_name, feature_paths, "cutflow")
         if write_cutflow
@@ -953,6 +1010,42 @@ def run_rdf_partition(
     else:
         log("RDF partition has zero selected events; writing metadata header only")
 
+    from feature_integrity import sha256
+    feature_digest = sha256(feature_output) if need_feature_output and n_events > 0 else ""
+    if product_mode == "hit3d":
+        if not feature_reference_metadata:
+            raise ValueError("Hit3D-only output requires --feature-reference-metadata")
+        with open(feature_reference_metadata, newline="") as stream:
+            reference_rows = list(csv.DictReader(stream))
+        if n_events == 0:
+            if reference_rows:
+                raise ValueError("empty Hit3D selection disagrees with feature metadata")
+        else:
+            if len(reference_rows) != 1:
+                raise ValueError("expected one published feature metadata row")
+            reference_row = reference_rows[0]
+            feature_digest = reference_row.get("feature_sha256", "")
+            if not feature_digest or sha256(metadata_feature_output) != feature_digest:
+                raise ValueError("published feature checksum mismatch; regenerate validated partition metadata")
+            expected_reference = {
+                "feature_partition_path": str(metadata_feature_output),
+                "n_events": str(n_events),
+                "selection_expression": region_config["regions"][region]["expression"],
+                "particle_filter_expression": particle_rule.get("event_filter", ""),
+                "source_feature_paths": ";".join(item["feature_path"] for item in metadata_rows),
+            }
+            if any(reference_row.get(key) != value for key, value in expected_reference.items()):
+                raise ValueError("published feature partition provenance mismatch")
+    if need_hit3d_output:
+        reference = feature_output if need_feature_output else metadata_feature_output
+        if n_events > 0:
+            if not reference:
+                raise ValueError("Hit3D-only output requires a published feature partition")
+            check_entry_identity(reference, feature_tree_name, hit3d_output,
+                                 hit3d_tree_name, identity_keys)
+        elif reference and Path(reference).is_file() and tree_entries(reference, feature_tree_name):
+            raise ValueError("empty Hit3D selection disagrees with published feature partition")
+
     write_rdf_metadata_row(
         output_metadata=output_metadata,
         region=region,
@@ -973,6 +1066,7 @@ def run_rdf_partition(
         feature_available=need_feature_output and n_events > 0,
         hit3d_available=need_hit3d_output and n_events > 0,
         hit3d_required=need_hit3d_output,
+        feature_digest=feature_digest,
     )
 
 
@@ -999,6 +1093,7 @@ def main():
         default=None,
         help="Hit3D ROOT path to record in metadata when --output-hit3d points to a temporary file",
     )
+    parser.add_argument("--feature-reference-metadata", help="Validated feature metadata for split Hit3D production")
     parser.add_argument("--skip-missing-files", action="store_true", help="Skip metadata rows whose feature/hit3D files are missing")
     parser.add_argument(
         "--check-entry-counts",
@@ -1055,6 +1150,7 @@ def main():
         check_entry_counts_enabled=args.check_entry_counts,
         rdf_threads=args.rdf_threads,
         product_mode=args.product,
+        feature_reference_metadata=args.feature_reference_metadata,
     )
     log(
         f"Finished build_region_partitions.py in {format_duration(time.time() - script_start)}; "

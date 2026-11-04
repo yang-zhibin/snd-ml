@@ -5,6 +5,7 @@ from __future__ import annotations
 from argparse import Namespace
 from array import array
 import json
+import hashlib
 import math
 import sys
 import tempfile
@@ -224,6 +225,8 @@ class UnifiedFeatureDistributionRootTest(unittest.TestCase):
                         "validation_passed": True,
                         "source_uid": source_uid,
                         "feature_path": str(feature),
+                            "feature_sha256": hashlib.sha256(feature.read_bytes()).hexdigest(),
+                            "feature_size_bytes": feature.stat().st_size,
                     }
                 ),
                 encoding="utf-8",
@@ -331,6 +334,8 @@ class UnifiedFeatureDistributionRootTest(unittest.TestCase):
                             "validation_passed": True,
                             "source_uid": uid,
                             "feature_path": str(feature),
+                            "feature_sha256": hashlib.sha256(feature.read_bytes()).hexdigest(),
+                            "feature_size_bytes": feature.stat().st_size,
                         }
                     ),
                     encoding="utf-8",
@@ -346,6 +351,9 @@ class UnifiedFeatureDistributionRootTest(unittest.TestCase):
                 }
                 if unit:
                     row["feature_unit_uid"] = unit
+                    row["feature_sha256"] = hashlib.sha256(feature.read_bytes()).hexdigest()
+                    row["feature_size_bytes"] = feature.stat().st_size
+                    row["validation_record_sha256"] = hashlib.sha256(marker.read_bytes()).hexdigest()
                 return row
 
             canonical = directory / "canonical.root"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 import sys
 import tempfile
@@ -118,6 +119,7 @@ class UnifiedFeatureDistributionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir="/tmp/zhibin") as directory:
             directory = Path(directory)
             feature = directory / "feature.root"
+            feature.touch()
             marker = directory / "feature.root.validated.json"
             manifest = directory / "manifest.csv"
             row = {
@@ -135,6 +137,8 @@ class UnifiedFeatureDistributionTests(unittest.TestCase):
                         "validation_passed": True,
                         "source_uid": row["source_uid"],
                         "feature_path": str(feature),
+                            "feature_sha256": hashlib.sha256(feature.read_bytes()).hexdigest(),
+                            "feature_size_bytes": feature.stat().st_size,
                     }
                 ),
                 encoding="utf-8",
@@ -147,6 +151,8 @@ class UnifiedFeatureDistributionTests(unittest.TestCase):
                         "validation_passed": True,
                         "source_uid": "wrong",
                         "feature_path": str(feature),
+                            "feature_sha256": hashlib.sha256(feature.read_bytes()).hexdigest(),
+                            "feature_size_bytes": feature.stat().st_size,
                     }
                 ),
                 encoding="utf-8",
@@ -169,6 +175,8 @@ class UnifiedFeatureDistributionTests(unittest.TestCase):
                             "validation_passed": True,
                             "source_uid": uid,
                             "feature_path": str(feature),
+                            "feature_sha256": hashlib.sha256(feature.read_bytes()).hexdigest(),
+                            "feature_size_bytes": feature.stat().st_size,
                         }
                     ),
                     encoding="utf-8",
@@ -178,6 +186,9 @@ class UnifiedFeatureDistributionTests(unittest.TestCase):
                         "family": "mc_neutrino",
                         "source_uid": uid,
                         "feature_unit_uid": f"{uid}:part_{index:04d}",
+                        "feature_sha256": hashlib.sha256(feature.read_bytes()).hexdigest(),
+                        "feature_size_bytes": feature.stat().st_size,
+                        "validation_record_sha256": hashlib.sha256(marker.read_bytes()).hexdigest(),
                         "selected_entry_start": index,
                         "feature_scifi_cluster_v1_path": str(feature),
                         "validation_record": str(marker),

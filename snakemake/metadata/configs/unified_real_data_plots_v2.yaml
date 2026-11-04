@@ -1,0 +1,40 @@
+version: unified_real_data_distributions_v2
+histogram_config: snakemake/metadata/configs/unified_real_data_histograms_v2.yaml
+output_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/plots/real_data_distributions
+normalization: unit_area
+write_individual_csv: false
+
+coverage:
+  policy: partial
+  minimum_available_sources: 1
+  allowed_unavailable_statuses: [missing_feature]
+
+cohorts:
+  no_veto_vs_veto_10pct:
+    groups: [real_data_2024_no_veto, real_data_2024_veto_10pct]
+    facet_columns: 1
+    facet_group_size: 2
+    two_dimensional_columns: 2
+    sort_2d_by_particle: false
+    annotation: "Preliminary partial processed-source snapshot; 2024 skim data, count_scifi > 35"
+    show_source_count: true
+    group_labels:
+      real_data_2024_no_veto: No Veto hit
+      real_data_2024_veto_10pct: Veto hit (10% sample)
+    group_styles:
+      real_data_2024_no_veto: no_veto
+      real_data_2024_veto_10pct: veto_10pct
+
+styles:
+  no_veto: {color: 4, marker: 20}
+  veto_10pct: {color: 2, marker: 24}
+  error_x: 0
+  th2_log_z: true
+  th2_shared_z: true
+  th2_z_floor_fraction: 0.00001
+
+display_x_ranges:
+  scifi_cluster_qdc_per_hit: [0, 8]
+  scifi_qdc_per_hit_direct: [0, 7]
+  scifi_vertical_cluster1_qdc_std: [0, 7]
+  scifi_horizontal_cluster1_qdc_std: [0, 7]

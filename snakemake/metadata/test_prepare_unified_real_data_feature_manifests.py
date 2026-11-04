@@ -62,6 +62,8 @@ def _write_source(tmp_path, uid, no_veto_count, veto_count, corrupt=False):
 def _write_config(tmp_path, rows):
     selection = tmp_path / "selection.csv"
     pd.DataFrame(rows).to_csv(selection, index=False)
+    policy = tmp_path / "policy.yaml"
+    policy.write_text("excluded_source_uids: []\n")
     config = {
         "version": "test_real_data_distributions_v1",
         "profiles": {
@@ -82,7 +84,7 @@ def _write_config(tmp_path, rows):
                 "event_weight": 10.0,
             },
         },
-        "inputs": {"selection_manifest": str(selection)},
+        "inputs": {"selection_manifest": str(selection), "selection_policy": str(policy)},
         "source_manifests": {
             "real_data_2024_no_veto": str(tmp_path / "no_veto.csv"),
             "real_data_2024_veto_10pct": str(tmp_path / "veto.csv"),

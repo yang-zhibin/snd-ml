@@ -15,6 +15,7 @@ from hit_time_selection import (
     select_calibrated_scifi_hits,
 )
 from sample_selection import (
+    sample_kind,
     EXTERNAL_CUTFLOW,
     IDENTITY_CUTFLOW,
     SELECTION_MODES,
@@ -233,7 +234,7 @@ def is_muonDIS_sample(args):
 
 
 def is_mc_sample(args):
-    return "MC" in str(args.type)
+    return sample_kind(args.type) == "mc"
 
 
 def needs_first_arrival_time0(args):
@@ -269,7 +270,7 @@ def has_veto_and_us_hits(event):
 def should_drop_real_has_veto_has_us(args, event):
     return (
         bool(getattr(args, "drop_real_has_veto_has_us", False))
-        and "real" in str(args.type)
+        and sample_kind(args.type) == "real"
         and has_veto_and_us_hits(event)
     )
 
@@ -1231,7 +1232,6 @@ def process_hits(
     """Process all hits in the event and update hits array and averages."""
     process_start = time.perf_counter()
     eventId = branch_vars["eventId"][0]
-    MC = args.type
     Scifi = snd_geo.modules['Scifi']
     MuFilter = snd_geo.modules['MuFilter']
     A, B = ROOT.TVector3(), ROOT.TVector3()
@@ -1239,7 +1239,7 @@ def process_hits(
     if needs_first_arrival_time0(args):
         selected_scifi_hits = [hit for hit in event.Digi_ScifiHits if hit.isValid()]
     else:
-        selected_scifi_hits = selectHits(event, MC=("MC" in args.type))
+        selected_scifi_hits = selectHits(event, MC=is_mc_sample(args))
     record_timing(timing, timing_counts, "process_hits.select_scifi", step_start)
 
     step_start = time.perf_counter()
@@ -1764,7 +1764,7 @@ def main(args):
         record_timing(timing, timing_counts, "event.metadata_base", step_start)
         
         
-        if ('MC' in  args.type):
+        if is_mc_sample(args):
             step_start = time.perf_counter()
             branch_vars["isMC"][0] = 1
             try:
@@ -1811,7 +1811,7 @@ def main(args):
             
             
         
-        elif('real' in  args.type):
+        elif sample_kind(args.type) == "real":
             step_start = time.perf_counter()
             branch_vars["isMC"][0] = 0
             branch_vars["pdgCode"][0] = 0
