@@ -1,5 +1,20 @@
 # Task: unified-shower-features
 
+## Current location and recovery — 2026-11-12
+
+- Canonical worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-unified-shower-features`.
+- Branch: `task/unified-shower-features`.
+- Preservation checkpoint: `f2d0db95ed4c6e6a1b15e6dfaf6fdf4bb7ab7514`.
+- Moved from AFS home with complete rsync checksum verification; Git branch, HEAD and full status matched before and after repair. The old home path is now a compatibility symlink.
+- Existing generated/ignored files were retained. No production jobs were started.
+- Resume from the main checkout with
+  `/afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --task unified-shower-features`.
+- Administrative next action: migration is complete; report the checkpoint and
+  await the next task instruction. Read the latest scientific handoff below and
+  verify live files/jobs before any subsequent work. Historical commands do not
+  authorize new production.
+
+
 ## Current preservation checkpoint — 2026-11-12
 
 - User authorized checkpointing current task work and moving worktrees to AFS work.
@@ -25,7 +40,7 @@ approved datasets without changing established feature semantics.
 
 ## Work location
 
-- Worktree: `/afs/cern.ch/user/z/zhibin/worktrees/snd-ml-unified-shower-features`
+- Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-unified-shower-features`
 - Branch: `task/unified-shower-features`
 - Starting commit: `5a2821cdda6fccc3d1c440c22a09760f1a2400ed`
 - Chat/session ID: `not recorded`
