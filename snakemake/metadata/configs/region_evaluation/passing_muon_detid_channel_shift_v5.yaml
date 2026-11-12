@@ -32,4 +32,4 @@ display:
   track_verbose: 0
 
 output:
-  directory: evaluation_region_partitions/passing_muon_detid_channel_shift_v5
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_detid_channel_shift_v5

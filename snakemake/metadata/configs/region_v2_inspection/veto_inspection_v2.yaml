@@ -9,7 +9,7 @@ input:
   weight: inspection_event_weight
 
 output:
-  root_dir: evaluation_region_partitions/region_v2_inspection/veto_inspection_v2
+  root_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/region_v2_inspection/veto_inspection_v2
 
 datasets:
   - {name: real_data_run009715, label: Real data, category: real_data, color: black, marker: 20}

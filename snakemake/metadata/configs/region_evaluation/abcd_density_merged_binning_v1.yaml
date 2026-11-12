@@ -66,6 +66,6 @@ freeze:
   do_not_retune_after_closure_inspection: true
 
 output:
-  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/merged_binning_v1
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/abcd/legacy-unified-shower-features/partition_v1_region_v1/density_sndsw_scifi_v1/merged_binning_v1
   csv: sideband_count_audit.csv
   markdown: sideband_count_audit.md

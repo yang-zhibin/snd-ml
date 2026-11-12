@@ -52,7 +52,7 @@ comparisons:
 
 output:
   root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_transform_comparison_v8
-  plot_dir: evaluation_region_partitions/passing_muon_run8329_transform_comparison_v8
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_transform_comparison_v8
   manifest_dir: manifests
   digi_dir: transformed_digi
   feature_dir: features

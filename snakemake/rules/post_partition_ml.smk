@@ -1,4 +1,9 @@
-SPLIT_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/splits/split_v1.yaml"
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
+SPLIT_CONFIG = f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/splits/split_v1.yaml"
 
 with open(SPLIT_CONFIG, "r", encoding="utf-8") as handle:
     SPLIT_CONFIG_DATA = yaml.safe_load(handle)
@@ -9,7 +14,7 @@ SPLIT_VERSION = SPLIT_CONFIG_DATA["split_version"]
 def _post_partition_ml_path(config_value):
     if os.path.isabs(config_value) or str(config_value).startswith("root://"):
         return str(config_value)
-    return f"{PERSONAL_WORK_SPACE}/{config_value}"
+    return resolve_output(config_value, PERSONAL_WORK_SPACE)
 
 
 REGION_PARTITION_SPLIT_METADATA_CSV = _post_partition_ml_path(

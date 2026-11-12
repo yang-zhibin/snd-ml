@@ -560,6 +560,6 @@ expected:
 
 output:
   root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7
-  plot_dir: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_detector_selection_study_v7
   track_input_root: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/track_inputs
   track_manifest: snakemake/metadata/updated/passing_muon_run8329_detector_selection_study_v7/flat_v2_track_manifest.csv

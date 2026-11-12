@@ -51,7 +51,7 @@ rule update_metadata:
 rule generate_passing_muon_real_data_2024_metadata:
     input:
         script=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/generate_passing_muon_metadata.py",
-        config=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/passing_muon_real_data_2024.yaml",
+        config=f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/passing_muon_real_data_2024.yaml",
         pp24="/eos/user/i/idioniso/1_Data/Tracks/pp24.csv",
     output:
         metadata=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/updated/passing_muon_real_data_2024_metadata.csv",

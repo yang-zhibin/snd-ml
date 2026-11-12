@@ -86,7 +86,7 @@ plot:
   log_floor_fraction: 0.3
 
 output:
-  directory: evaluation_region_partitions/plots/partition_v1_region_v1/hist_features_v1__evaluation_options_v1/density_sndsw_scifi/none/none/signal_ratio_comparisons_v1
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/plots/partition_v1_region_v1/hist_features_v1__evaluation_options_v1/density_sndsw_scifi/none/none/signal_ratio_comparisons_v1
   csv: signal_ratio_comparisons.csv
   root: signal_ratio_comparisons.root
   pdf: signal_ratio_comparisons.pdf

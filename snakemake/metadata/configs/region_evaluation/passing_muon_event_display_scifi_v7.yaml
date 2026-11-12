@@ -5,8 +5,8 @@ description: >-
   mirrors the complete original 19-category folder hierarchy.
 
 frozen_input:
-  source_summary_root: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage
-  selection_manifest: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage/selected_events.csv
+  source_summary_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage
+  selection_manifest: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage/selected_events.csv
   events_per_category: 25
   categories:
     - run8329__candidate
@@ -55,5 +55,5 @@ display:
   write_plane_pngs: false
 
 output:
-  directory: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage_scifi_channels
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage_scifi_channels
   rendered_manifest: rendered_pages.csv

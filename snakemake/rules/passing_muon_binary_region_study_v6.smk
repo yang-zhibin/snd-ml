@@ -1,7 +1,11 @@
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # V6: V5-compatible detector study with pooled MC in both coverage PDFs.
 
 PASSING_MUON_V6_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_binary_region_study_v6.yaml"
 )
 with open(PASSING_MUON_V6_CONFIG, encoding="utf-8") as stream:
@@ -10,16 +14,16 @@ with open(PASSING_MUON_V6_CONFIG, encoding="utf-8") as stream:
 PASSING_MUON_V6_SELECTIONS = ["coverage_loose", "coverage_tight"]
 _pmv6_root = PASSING_MUON_V6["output"]["root_dir"].rstrip("/")
 _pmv6_plot_root = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V6['output']['plot_dir'].rstrip('/')}"
+    resolve_output(PASSING_MUON_V6['output']['plot_dir'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V6_MC_UP_SOURCE_METADATA = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V6['mc_muon_up']['source_metadata']}"
+    resolve_output(PASSING_MUON_V6['mc_muon_up']['source_metadata'], PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V6_MC_UP_METADATA = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V6['mc_muon_up']['metadata_csv']}"
+    resolve_output(PASSING_MUON_V6['mc_muon_up']['metadata_csv'], PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V6_MC_UP_VALIDATION = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V6['mc_muon_up']['validation_csv']}"
+    resolve_output(PASSING_MUON_V6['mc_muon_up']['validation_csv'], PERSONAL_WORK_SPACE)
 )
 
 
@@ -70,7 +74,7 @@ rule prepare_mc_muon_up_reference_v6:
             "prepare_mc_muon_up_reference_v5.py"
         ),
         histogrammer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v5.py"
         ),
     output:
@@ -101,15 +105,15 @@ rule make_passing_muon_binary_region_hist_v6:
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         region_config=PASSING_MUON_V6_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v6.py"
         ),
         engine=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v5.py"
         ),
         common_builder=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_track_type_hist.py"
         ),
     output:
@@ -144,15 +148,15 @@ rule plot_passing_muon_binary_region_study_v6:
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         region_config=PASSING_MUON_V6_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_passing_muon_binary_region_study_v6.py"
         ),
         engine=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v5.py"
         ),
         common_plotter=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_passing_muon_region_study_v4.py"
         ),
     output:
@@ -195,7 +199,7 @@ rule passing_muon_run8329_binary_region_study_v6:
 # V6 loose-selection event displays are a separate aggregate so producing the
 # detector-study PDFs does not unexpectedly launch 80 SNDSW display pages.
 PASSING_MUON_V6_EVENT_DISPLAY_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_event_display_v6.yaml"
 )
 with open(PASSING_MUON_V6_EVENT_DISPLAY_CONFIG, encoding="utf-8") as stream:
@@ -214,8 +218,7 @@ PASSING_MUON_V6_EVENT_CATEGORIES = [
     )
 ]
 _pmv6_event_root = (
-    f"{PERSONAL_WORK_SPACE}/"
-    f"{PASSING_MUON_V6_EVENT_DISPLAY['output']['directory'].rstrip('/')}"
+    resolve_output(PASSING_MUON_V6_EVENT_DISPLAY['output']['directory'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V6_EVENT_MANIFEST = (
     f"{_pmv6_event_root}/"
@@ -245,15 +248,15 @@ rule select_passing_muon_v6_loose_event_display_events:
         study_config=PASSING_MUON_V6_CONFIG,
         reference_histogram=PASSING_MUON_V6_HIST,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "select_passing_muon_v6_event_display_events.py"
         ),
         engine=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v5.py"
         ),
         common_builder=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_track_type_hist.py"
         ),
     params:
@@ -286,11 +289,11 @@ rule plot_passing_muon_v6_loose_event_display:
         config=PASSING_MUON_V6_EVENT_DISPLAY_CONFIG,
         manifest=PASSING_MUON_V6_EVENT_MANIFEST,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_passing_muon_v6_event_displays.py"
         ),
         common=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "sndsw_event_display_common.py"
         ),
     output:
@@ -322,7 +325,7 @@ rule merge_passing_muon_v6_loose_event_display_summaries:
         summaries=PASSING_MUON_V6_EVENT_SUMMARIES,
         config=PASSING_MUON_V6_EVENT_DISPLAY_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "merge_passing_muon_v6_event_display_summaries.py"
         ),
     output:

@@ -1,7 +1,12 @@
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # One-event Run-8329 detector-ID channel-shift validation. This workflow is
 # isolated from the rejected continuous-coordinate v1 prototype.
 PASSING_MUON_DETID_SHIFT_V2_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_detid_channel_shift_v2.yaml"
 )
 with open(PASSING_MUON_DETID_SHIFT_V2_CONFIG, encoding="utf-8") as stream:
@@ -9,11 +14,11 @@ with open(PASSING_MUON_DETID_SHIFT_V2_CONFIG, encoding="utf-8") as stream:
 
 _detid_v2_input = PASSING_MUON_DETID_SHIFT_V2["input"]
 _detid_v2_output = PASSING_MUON_DETID_SHIFT_V2["output"]
-_detid_v2_root = f"{PERSONAL_WORK_SPACE}/{_detid_v2_output['directory'].rstrip('/')}"
+_detid_v2_root = resolve_output(_detid_v2_output['directory'].rstrip('/'), PERSONAL_WORK_SPACE)
 _detid_v2_event_id = int(_detid_v2_input["event_id"])
 _detid_v2_sequence = int(_detid_v2_input["event_sequence"])
 PASSING_MUON_DETID_SHIFT_V2_MANIFEST = (
-    f"{PERSONAL_WORK_SPACE}/{_detid_v2_input['manifest']}"
+    resolve_output(_detid_v2_input['manifest'], PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_DETID_SHIFT_V2_ROOT = (
     f"{_detid_v2_root}/"
@@ -33,9 +38,9 @@ rule write_passing_muon_detid_channel_shift_v2:
         # The reviewed event identities are a frozen external input for v2;
         # never schedule the superseded v1 selector to regenerate them.
         manifest=ancient(PASSING_MUON_DETID_SHIFT_V2_MANIFEST),
-        writer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
-        mapper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
-        adapter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
+        writer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
+        mapper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
+        adapter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
     output:
         root=PASSING_MUON_DETID_SHIFT_V2_ROOT,
         csv=PASSING_MUON_DETID_SHIFT_V2_CSV,
@@ -62,8 +67,8 @@ rule display_passing_muon_detid_channel_shift_v2:
     input:
         root=PASSING_MUON_DETID_SHIFT_V2_ROOT,
         audit=PASSING_MUON_DETID_SHIFT_V2_JSON,
-        renderer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/render_detid_channel_shift_comparison.py",
-        helper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/sndsw_event_display_common.py",
+        renderer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/render_detid_channel_shift_comparison.py",
+        helper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/sndsw_event_display_common.py",
     output:
         pdf=PASSING_MUON_DETID_SHIFT_V2_PDF,
     threads: 1
@@ -86,7 +91,7 @@ rule validate_passing_muon_detid_channel_shift_v2:
         root=PASSING_MUON_DETID_SHIFT_V2_ROOT,
         csv=PASSING_MUON_DETID_SHIFT_V2_CSV,
         json=PASSING_MUON_DETID_SHIFT_V2_JSON,
-        validator=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
+        validator=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
     output:
         marker=PASSING_MUON_DETID_SHIFT_V2_MARKER,
     threads: 1
@@ -110,11 +115,11 @@ rule display_passing_muon_detid_channel_shift_scifi_channels_v2:
         root=PASSING_MUON_DETID_SHIFT_V2_ROOT,
         audit=PASSING_MUON_DETID_SHIFT_V2_JSON,
         renderer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "render_detid_channel_shift_scifi_channels.py"
         ),
         v7_renderer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "scifi_sipm_event_display.py"
         ),
     output:

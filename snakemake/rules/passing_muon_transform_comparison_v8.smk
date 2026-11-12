@@ -1,7 +1,11 @@
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # Full Run-8329 RealDataDQ detector-ID transform and matched-feature study.
 
 PASSING_MUON_TRANSFORM_V8_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_transform_comparison_v8.yaml"
 )
 with open(PASSING_MUON_TRANSFORM_V8_CONFIG, encoding="utf-8") as stream:
@@ -9,8 +13,7 @@ with open(PASSING_MUON_TRANSFORM_V8_CONFIG, encoding="utf-8") as stream:
 
 _pmtv8_root = PASSING_MUON_TRANSFORM_V8["output"]["root_dir"].rstrip("/")
 _pmtv8_plot = (
-    f"{PERSONAL_WORK_SPACE}/"
-    f"{PASSING_MUON_TRANSFORM_V8['output']['plot_dir'].rstrip('/')}"
+    resolve_output(PASSING_MUON_TRANSFORM_V8['output']['plot_dir'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 _pmtv8_metadata_path = PASSING_MUON_TRANSFORM_V8["inputs"]["real_dq_metadata"]
 _pmtv8_metadata = pd.read_csv(_pmtv8_metadata_path, keep_default_na=False)
@@ -70,9 +73,9 @@ PMTV8_PDFS = {
 rule prepare_run8329_transform_manifest_v8:
     input:
         config=PASSING_MUON_TRANSFORM_V8_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/prepare_run8329_transform_manifest.py",
-        track_helper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/scifi_edge_transform_sndsw.py",
-        transform_helper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/prepare_run8329_transform_manifest.py",
+        track_helper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/scifi_edge_transform_sndsw.py",
+        transform_helper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
     output:
         manifest=_pmtv8_root + "/manifests/source{source}.csv.gz",
         summary=_pmtv8_root + "/manifests/source{source}.json",
@@ -109,10 +112,10 @@ rule transform_run8329_detid_shard_v8:
         manifest=_pmtv8_root + "/manifests/source{source}.csv.gz",
         source=lambda wc: _pmtv8_value(wc, "source_path"),
         geometry=lambda wc: _pmtv8_value(wc, "geo_path"),
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/write_detid_channel_shift_shard.py",
-        event_writer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
-        mapper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
-        adapter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/write_detid_channel_shift_shard.py",
+        event_writer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
+        mapper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
+        adapter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
     output:
         root=_pmtv8_root + "/transformed_digi/{method}/run008329_source{source}.root",
         audit=_pmtv8_root + "/audits/{method}/source{source}.csv.gz",
@@ -150,7 +153,7 @@ rule validate_run8329_detid_shard_v8:
         root=_pmtv8_root + "/transformed_digi/{method}/run008329_source{source}.root",
         audit=_pmtv8_root + "/audits/{method}/source{source}.csv.gz",
         summary=_pmtv8_root + "/audits/{method}/source{source}.json",
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/validate_detid_channel_shift_shard.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/validate_detid_channel_shift_shard.py",
     output:
         marker=_pmtv8_root + "/validation/digi/{method}/source{source}.ok",
     wildcard_constraints:
@@ -217,7 +220,7 @@ rule validate_run8329_transform_features_v8:
     input:
         feature=_pmtv8_root + "/features/{method}/transformedFeatures_run008329_source{source}.root",
         audit=_pmtv8_root + "/audits/{method}/source{source}.csv.gz",
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/validate_transform_feature_shard.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/validate_transform_feature_shard.py",
     output:
         marker=_pmtv8_root + "/validation/features/{method}/source{source}.ok",
     wildcard_constraints:
@@ -250,7 +253,7 @@ rule make_run8329_transform_comparison_hist_shard_v8:
         reco=_pmtv8_root + "/features/reco_scifi/transformedFeatures_run008329_source{source}.root",
         simple_ok=_pmtv8_root + "/validation/features/simple/source{source}.ok",
         reco_ok=_pmtv8_root + "/validation/features/reco_scifi/source{source}.ok",
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_transform_comparison_hist_shard.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_transform_comparison_hist_shard.py",
     params:
         original=lambda wc: _pmtv8_value(wc, "feature_full_path"),
     output:
@@ -304,7 +307,7 @@ rule plot_run8329_transform_comparison_v8:
     input:
         root=PMTV8_HISTOGRAM,
         config=PASSING_MUON_TRANSFORM_V8_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_transform_feature_comparison.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_transform_feature_comparison.py",
     output:
         pdf=_pmtv8_plot + "/{comparison}.pdf",
     wildcard_constraints:

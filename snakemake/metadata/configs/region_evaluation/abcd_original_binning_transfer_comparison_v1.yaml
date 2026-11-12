@@ -40,7 +40,7 @@ plot:
   transfer_y_max: 40.0
 
 output:
-  directory: evaluation_region_partitions/plots/partition_v1_region_v1/hist_features_v1__evaluation_options_v1/density_sndsw_scifi/none/none/transfer_factor_signal_sb2_vs_sb4_sb6_v1
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/plots/partition_v1_region_v1/hist_features_v1__evaluation_options_v1/density_sndsw_scifi/none/none/transfer_factor_signal_sb2_vs_sb4_sb6_v1
   csv: transfer_factor_comparison.csv
   root: transfer_factor_comparison.root
   pdf: transfer_factor_comparison.pdf

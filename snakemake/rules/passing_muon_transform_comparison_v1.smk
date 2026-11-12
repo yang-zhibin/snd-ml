@@ -1,7 +1,11 @@
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # V1 matched Muon-DIS transform comparison with the no-Veto signal region.
 
 PASSING_MUON_TRANSFORM_V1_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_transform_comparison_v1.yaml"
 )
 with open(PASSING_MUON_TRANSFORM_V1_CONFIG, encoding="utf-8") as stream:
@@ -9,8 +13,7 @@ with open(PASSING_MUON_TRANSFORM_V1_CONFIG, encoding="utf-8") as stream:
 
 _pmtv1_root = PASSING_MUON_TRANSFORM_V1["output"]["root_dir"].rstrip("/")
 _pmtv1_plot = (
-    f"{PERSONAL_WORK_SPACE}/"
-    f"{PASSING_MUON_TRANSFORM_V1['output']['plot_dir'].rstrip('/')}"
+    resolve_output(PASSING_MUON_TRANSFORM_V1['output']['plot_dir'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 _pmtv1_upstream = (
     PASSING_MUON_TRANSFORM_V1["inputs"]["transform_production_root"].rstrip("/")
@@ -61,15 +64,15 @@ rule make_muon_dis_transform_comparison_hist_shard_v1:
         simple_ok=_pmtv1_upstream + "/validation/features/simple/source{source}.ok",
         reco_ok=_pmtv1_upstream + "/validation/features/reco_scifi/source{source}.ok",
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_muon_dis_transform_comparison_hist_shard.py"
         ),
         feature_helper=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v5.py"
         ),
         histogram_helper=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_track_type_hist.py"
         ),
     params:
@@ -130,11 +133,11 @@ rule plot_muon_dis_transform_comparison_v1:
         root=PMTV1_HISTOGRAM,
         config=PASSING_MUON_TRANSFORM_V1_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_muon_dis_transform_comparison.py"
         ),
         common_plotter=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_passing_muon_region_study_v4.py"
         ),
     output:

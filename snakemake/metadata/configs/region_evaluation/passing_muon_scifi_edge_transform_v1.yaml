@@ -40,7 +40,7 @@ display:
   sndsw_display_script: ""
 
 output:
-  directory: evaluation_region_partitions/passing_muon_scifi_edge_transform_v1
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_scifi_edge_transform_v1
   selected_events: selected_events.csv
   rejected_events: rejected_events.csv
   comparison_pdf: comparison.pdf

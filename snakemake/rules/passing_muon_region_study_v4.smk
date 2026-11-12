@@ -1,8 +1,12 @@
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # Run-8329 v4: exhaustive detector-region slices and selected joint regions.
 
-PASSING_MUON_V4_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/passing_muon_region_study_v4.yaml"
+PASSING_MUON_V4_CONFIG = f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/passing_muon_region_study_v4.yaml"
 PASSING_MUON_V4_FEATURE_HELPER = (
-    f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+    f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
     "passing_muon_v4_features.py"
 )
 with open(PASSING_MUON_V4_CONFIG, encoding="utf-8") as stream:
@@ -22,7 +26,7 @@ PASSING_MUON_V4_COMPARISONS = (
 )
 _pmv4_root = PASSING_MUON_V4["output"]["root_dir"].rstrip("/")
 _pmv4_plot_root = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V4['output']['plot_dir'].rstrip('/')}"
+    resolve_output(PASSING_MUON_V4['output']['plot_dir'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V4_HIST = f"{_pmv4_root}/histograms/regions.root"
 PASSING_MUON_V4_PLOTS = [
@@ -35,7 +39,7 @@ rule make_passing_muon_region_hist_v4:
     input:
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         region_config=PASSING_MUON_V4_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_region_hist_v4.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_region_hist_v4.py",
         feature_helper=PASSING_MUON_V4_FEATURE_HELPER,
     output:
         root=PASSING_MUON_V4_HIST,
@@ -83,7 +87,7 @@ rule plot_passing_muon_region_study_v4:
         root=PASSING_MUON_V4_HIST,
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         region_config=PASSING_MUON_V4_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_passing_muon_region_study_v4.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_passing_muon_region_study_v4.py",
         feature_helper=PASSING_MUON_V4_FEATURE_HELPER,
     output:
         pdf=_pmv4_plot_root + "/{comparison}.pdf",
@@ -115,11 +119,11 @@ rule passing_muon_run8329_region_study_test_v4:
     input:
         config=PASSING_MUON_V4_CONFIG,
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/test_passing_muon_region_study_v4.py",
-        histogrammer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_region_hist_v4.py",
-        plotter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_passing_muon_region_study_v4.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/test_passing_muon_region_study_v4.py",
+        histogrammer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_region_hist_v4.py",
+        plotter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_passing_muon_region_study_v4.py",
         feature_helper=PASSING_MUON_V4_FEATURE_HELPER,
-        common_builder=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_track_type_hist.py",
+        common_builder=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_track_type_hist.py",
     threads: 1
     resources:
         runtime=30 * 60, mem_mb=3000, disk_mb=2000, nvidia_gpu=0
@@ -142,7 +146,7 @@ rule passing_muon_run8329_region_study_v4:
 # histogram/PDF aggregate. Producing the study must not unexpectedly launch
 # eighty SNDSW event-display pages.
 PASSING_MUON_V4_EVENT_DISPLAY_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_event_display_v4.yaml"
 )
 with open(PASSING_MUON_V4_EVENT_DISPLAY_CONFIG, encoding="utf-8") as stream:
@@ -158,8 +162,7 @@ PASSING_MUON_V4_EVENT_CATEGORIES = [
     for category in _pmv4_event_veto_categories
 ]
 _pmv4_event_root = (
-    f"{PERSONAL_WORK_SPACE}/"
-    f"{PASSING_MUON_V4_EVENT_DISPLAY['output']['directory'].rstrip('/')}"
+    resolve_output(PASSING_MUON_V4_EVENT_DISPLAY['output']['directory'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V4_EVENT_MANIFEST = (
     f"{_pmv4_event_root}/"
@@ -189,15 +192,15 @@ rule select_passing_muon_v4_veto_time_event_display_events:
         study_config=PASSING_MUON_V4_CONFIG,
         reference_histogram=PASSING_MUON_V4_HIST,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "select_passing_muon_v4_event_display_events.py"
         ),
         region_engine=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_region_hist_v4.py"
         ),
         common_builder=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_track_type_hist.py"
         ),
     output:
@@ -242,11 +245,11 @@ rule plot_passing_muon_v4_veto_time_event_display:
         config=PASSING_MUON_V4_EVENT_DISPLAY_CONFIG,
         manifest=PASSING_MUON_V4_EVENT_MANIFEST,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_passing_muon_v4_event_displays.py"
         ),
         common=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "sndsw_event_display_common.py"
         ),
     output:
@@ -278,7 +281,7 @@ rule merge_passing_muon_v4_veto_time_event_display_summaries:
         summaries=PASSING_MUON_V4_EVENT_SUMMARIES,
         config=PASSING_MUON_V4_EVENT_DISPLAY_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "merge_passing_muon_v4_event_display_summaries.py"
         ),
     output:

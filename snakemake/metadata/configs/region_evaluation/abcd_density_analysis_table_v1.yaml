@@ -27,7 +27,7 @@ samples:
     role: neutrino_background
 
 output:
-  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/tables
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/abcd/legacy-unified-shower-features/partition_v1_region_v1/density_sndsw_scifi_v1/tables
   csv: analysis_table_v1.csv
 
 validation:

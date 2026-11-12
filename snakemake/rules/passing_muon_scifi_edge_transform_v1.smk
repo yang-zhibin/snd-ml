@@ -1,7 +1,12 @@
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # Isolated Run-8329 SciFi edge-transform validation.  This workflow consumes
 # frozen V7 identities and track products but never modifies them.
 PASSING_MUON_SCIFI_EDGE_V1_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_scifi_edge_transform_v1.yaml"
 )
 with open(PASSING_MUON_SCIFI_EDGE_V1_CONFIG, encoding="utf-8") as stream:
@@ -10,7 +15,7 @@ with open(PASSING_MUON_SCIFI_EDGE_V1_CONFIG, encoding="utf-8") as stream:
 _pm_edge_input = PASSING_MUON_SCIFI_EDGE_V1["input"]
 _pm_edge_output = PASSING_MUON_SCIFI_EDGE_V1["output"]
 _pm_edge_root = (
-    f"{PERSONAL_WORK_SPACE}/{_pm_edge_output['directory'].rstrip('/')}"
+    resolve_output(_pm_edge_output['directory'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_SCIFI_EDGE_V1_SELECTED = (
     f"{_pm_edge_root}/{_pm_edge_output['selected_events']}"
@@ -39,15 +44,15 @@ rule select_passing_muon_scifi_edge_transform_events_v1:
     input:
         config=PASSING_MUON_SCIFI_EDGE_V1_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "select_passing_muon_scifi_edge_transform_events.py"
         ),
         adapter=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "scifi_edge_transform_sndsw.py"
         ),
         transform=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "scifi_edge_transform.py"
         ),
     output:
@@ -75,27 +80,27 @@ rule plot_passing_muon_scifi_edge_transform_events_v1:
         config=PASSING_MUON_SCIFI_EDGE_V1_CONFIG,
         manifest=PASSING_MUON_SCIFI_EDGE_V1_SELECTED,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_passing_muon_scifi_edge_transform.py"
         ),
         adapter=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "scifi_edge_transform_sndsw.py"
         ),
         transform=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "scifi_edge_transform.py"
         ),
         scifi_renderer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "scifi_sipm_event_display.py"
         ),
         sndsw_renderer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "sndsw_event_display_common.py"
         ),
         transformed_sndsw_renderer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "render_sndsw_edge_transform_comparison.py"
         ),
     output:
@@ -132,7 +137,7 @@ rule validate_passing_muon_scifi_edge_transform_v1:
         audit_csv=PASSING_MUON_SCIFI_EDGE_V1_AUDIT_CSV,
         audit_json=PASSING_MUON_SCIFI_EDGE_V1_AUDIT_JSON,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "validate_passing_muon_scifi_edge_transform.py"
         ),
     output:

@@ -3,7 +3,7 @@ region_v2_inspection_sys.path.insert(0, f"{PERSONAL_WORK_SPACE}/convertData")
 from region_v2_inspection_common import load_config as region_v2_load_config
 from region_v2_inspection_common import load_selected_rows as region_v2_load_rows
 
-REGION_V2_INSPECTION_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_v2_inspection/inspection_inputs_v1.yaml"
+REGION_V2_INSPECTION_CONFIG = f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_v2_inspection/inspection_inputs_v1.yaml"
 REGION_V2_INSPECTION_CFG = region_v2_load_config(REGION_V2_INSPECTION_CONFIG)
 REGION_V2_INSPECTION_VERSION = REGION_V2_INSPECTION_CFG["version"]
 REGION_V2_INSPECTION_DATASETS = list(REGION_V2_INSPECTION_CFG["datasets"])

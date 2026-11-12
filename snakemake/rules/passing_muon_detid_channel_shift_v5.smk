@@ -1,17 +1,22 @@
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # Three-way v5 comparison: original, accepted frozen-track v4 transform, and
 # the reconstruction-free all-active-plane average-position linear fit.
 import csv
 
 
 PASSING_MUON_DETID_SHIFT_V5_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_detid_channel_shift_v5.yaml"
 )
 with open(PASSING_MUON_DETID_SHIFT_V5_CONFIG, encoding="utf-8") as stream:
     PASSING_MUON_DETID_SHIFT_V5 = yaml.safe_load(stream)
 
 _detid_v5_output = PASSING_MUON_DETID_SHIFT_V5["output"]
-_detid_v5_root = f"{PERSONAL_WORK_SPACE}/{_detid_v5_output['directory'].rstrip('/')}"
+_detid_v5_root = resolve_output(_detid_v5_output['directory'].rstrip('/'), PERSONAL_WORK_SPACE)
 _detid_v5_event_root = f"{_detid_v5_root}/events/event_{{event_id}}"
 PASSING_MUON_DETID_SHIFT_V5_MANIFEST = f"{_detid_v5_root}/selected_events.csv"
 PASSING_MUON_DETID_SHIFT_V5_REJECTED = f"{_detid_v5_root}/rejected_events.csv"
@@ -25,11 +30,11 @@ checkpoint select_passing_muon_detid_channel_shift_v5:
         # the two transformation methods are compared on an identical sample.
         config=PASSING_MUON_DETID_SHIFT_V4_CONFIG,
         selector=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "select_high_density_detid_shift_v3.py"
         ),
-        track_helper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/scifi_edge_transform_sndsw.py",
-        policy=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
+        track_helper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/scifi_edge_transform_sndsw.py",
+        policy=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
     output:
         manifest=PASSING_MUON_DETID_SHIFT_V5_MANIFEST,
         rejected=PASSING_MUON_DETID_SHIFT_V5_REJECTED,
@@ -83,9 +88,9 @@ rule write_passing_muon_detid_channel_shift_v5_track_event:
     input:
         config=PASSING_MUON_DETID_SHIFT_V4_CONFIG,
         manifest=_detid_v5_manifest,
-        writer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
-        mapper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
-        adapter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
+        writer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
+        mapper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
+        adapter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
     output:
         root=f"{_detid_v5_event_root}/track_transform/transformed.root",
         csv=f"{_detid_v5_event_root}/track_transform/mapping_audit.csv",
@@ -112,9 +117,9 @@ rule write_passing_muon_detid_channel_shift_v5_simple_event:
     input:
         config=PASSING_MUON_DETID_SHIFT_V5_CONFIG,
         manifest=_detid_v5_manifest,
-        writer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
-        mapper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
-        adapter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
+        writer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
+        mapper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
+        adapter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
     output:
         root=f"{_detid_v5_event_root}/simple_transform/transformed.root",
         csv=f"{_detid_v5_event_root}/simple_transform/mapping_audit.csv",
@@ -142,7 +147,7 @@ rule validate_passing_muon_detid_channel_shift_v5_track_event:
         root=f"{_detid_v5_event_root}/track_transform/transformed.root",
         csv=f"{_detid_v5_event_root}/track_transform/mapping_audit.csv",
         json=f"{_detid_v5_event_root}/track_transform/event_audit.json",
-        validator=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
+        validator=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
     output:
         marker=f"{_detid_v5_event_root}/track_transform/validation.ok",
     threads: 1
@@ -165,7 +170,7 @@ rule validate_passing_muon_detid_channel_shift_v5_simple_event:
         root=f"{_detid_v5_event_root}/simple_transform/transformed.root",
         csv=f"{_detid_v5_event_root}/simple_transform/mapping_audit.csv",
         json=f"{_detid_v5_event_root}/simple_transform/event_audit.json",
-        validator=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
+        validator=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
     output:
         marker=f"{_detid_v5_event_root}/simple_transform/validation.ok",
     threads: 1
@@ -190,10 +195,10 @@ rule display_passing_muon_detid_channel_shift_v5_event:
         simple_root=f"{_detid_v5_event_root}/simple_transform/transformed.root",
         simple_json=f"{_detid_v5_event_root}/simple_transform/event_audit.json",
         renderer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "render_detid_channel_shift_v5_comparison.py"
         ),
-        display_helper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/sndsw_event_display_common.py",
+        display_helper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/sndsw_event_display_common.py",
     output:
         pdf=f"{_detid_v5_event_root}/comparison_three_way.pdf",
     threads: 1
@@ -222,7 +227,7 @@ rule compose_passing_muon_detid_channel_shift_v5:
             wildcards, "simple_transform/validation.ok"
         ),
         composer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "compose_detid_shift_three_way.py"
         ),
     output:

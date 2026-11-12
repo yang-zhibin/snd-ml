@@ -9,11 +9,11 @@ PASSING_MUON_TRACK_RUN_METADATA = (
     "passing_muon_track_features_v1_run008329_metadata.csv"
 )
 PASSING_MUON_TRACK_PARTITION_REGION_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/regions/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/regions/"
     "passing_muon_track_inspection_region_v1.yaml"
 )
 PASSING_MUON_TRACK_PARTITION_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/partitions/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/partitions/"
     "passing_muon_track_partition_v1.yaml"
 )
 PASSING_MUON_TRACK_PARTITION_VERSION = "passing_muon_track_partition_v1"
@@ -233,7 +233,7 @@ rule passing_muon_track_partition_hist:
         metadata=PASSING_MUON_TRACK_PARTITION_METADATA,
         validation=PASSING_MUON_TRACK_PARTITION_VALIDATION,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_reco_track_inspection_hist.py"
         ),
         extractor=f"{PERSONAL_WORK_SPACE}/convertData/reco_track_features.py",
@@ -263,7 +263,7 @@ rule passing_muon_track_partition_plots:
     input:
         hists=PASSING_MUON_TRACK_PARTITION_HISTS,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_reco_track_inspection.py"
         ),
         extractor=f"{PERSONAL_WORK_SPACE}/convertData/reco_track_features.py",
@@ -305,7 +305,7 @@ rule passing_muon_track_partition_equivalence:
         reference=PASSING_MUON_TRACK_HISTS,
         candidate=PASSING_MUON_TRACK_PARTITION_HISTS,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "compare_reco_track_histograms.py"
         ),
     output:

@@ -1,10 +1,15 @@
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # Proximity-constrained v4 high-density workflow. It is isolated from v3 so
 # both direction policies remain reproducible and directly comparable.
 import csv
 
 
 PASSING_MUON_DETID_SHIFT_V4_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_detid_channel_shift_v4.yaml"
 )
 with open(PASSING_MUON_DETID_SHIFT_V4_CONFIG, encoding="utf-8") as stream:
@@ -12,7 +17,7 @@ with open(PASSING_MUON_DETID_SHIFT_V4_CONFIG, encoding="utf-8") as stream:
 
 _detid_v4_output = PASSING_MUON_DETID_SHIFT_V4["output"]
 _detid_v4_display = PASSING_MUON_DETID_SHIFT_V4.get("display", {})
-_detid_v4_root = f"{PERSONAL_WORK_SPACE}/{_detid_v4_output['directory'].rstrip('/')}"
+_detid_v4_root = resolve_output(_detid_v4_output['directory'].rstrip('/'), PERSONAL_WORK_SPACE)
 _detid_v4_density_root = f"{_detid_v4_root}/high_density_sample"
 _detid_v4_density_event_root = f"{_detid_v4_density_root}/events/event_{{event_id}}"
 _detid_v4_with_track = int(_detid_v4_display.get("with_track", 0))
@@ -30,11 +35,11 @@ checkpoint select_passing_muon_detid_channel_shift_high_density_v4:
     input:
         config=PASSING_MUON_DETID_SHIFT_V4_CONFIG,
         selector=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "select_high_density_detid_shift_v3.py"
         ),
-        track_helper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/scifi_edge_transform_sndsw.py",
-        policy=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
+        track_helper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/scifi_edge_transform_sndsw.py",
+        policy=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
     output:
         manifest=PASSING_MUON_DETID_SHIFT_V4_DENSITY_MANIFEST,
         rejected=PASSING_MUON_DETID_SHIFT_V4_DENSITY_REJECTED,
@@ -88,9 +93,9 @@ rule write_passing_muon_detid_channel_shift_high_density_event_v4:
     input:
         config=PASSING_MUON_DETID_SHIFT_V4_CONFIG,
         manifest=_detid_v4_density_manifest,
-        writer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
-        mapper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
-        adapter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
+        writer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
+        mapper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
+        adapter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
     output:
         root=f"{_detid_v4_density_event_root}/transformed.root",
         csv=f"{_detid_v4_density_event_root}/mapping_audit.csv",
@@ -118,8 +123,8 @@ rule display_passing_muon_detid_channel_shift_high_density_event_v4:
         config=PASSING_MUON_DETID_SHIFT_V4_CONFIG,
         root=f"{_detid_v4_density_event_root}/transformed.root",
         audit=f"{_detid_v4_density_event_root}/event_audit.json",
-        renderer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/render_detid_channel_shift_comparison.py",
-        display_helper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/sndsw_event_display_common.py",
+        renderer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/render_detid_channel_shift_comparison.py",
+        display_helper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/sndsw_event_display_common.py",
     output:
         pdf=f"{_detid_v4_density_event_root}/comparison.pdf",
     params:
@@ -149,7 +154,7 @@ rule validate_passing_muon_detid_channel_shift_high_density_event_v4:
         root=f"{_detid_v4_density_event_root}/transformed.root",
         csv=f"{_detid_v4_density_event_root}/mapping_audit.csv",
         json=f"{_detid_v4_density_event_root}/event_audit.json",
-        validator=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
+        validator=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
     output:
         marker=f"{_detid_v4_density_event_root}/validation.ok",
     threads: 1
@@ -172,7 +177,7 @@ rule compose_passing_muon_detid_channel_shift_high_density_v4:
         pdfs=lambda wildcards: _detid_v4_density_products(wildcards, "comparison.pdf"),
         markers=lambda wildcards: _detid_v4_density_products(wildcards, "validation.ok"),
         composer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "compose_detid_shift_side_by_side.py"
         ),
     output:
@@ -202,7 +207,7 @@ rule passing_muon_detid_channel_shift_v4_high_density:
 # This has its own config and output tree; it does not replace the reviewed
 # ten-event high-density sample above.
 PASSING_MUON_DETID_SHIFT_V4_DISPLAY100_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_detid_channel_shift_v4_display100.yaml"
 )
 with open(PASSING_MUON_DETID_SHIFT_V4_DISPLAY100_CONFIG, encoding="utf-8") as stream:
@@ -211,7 +216,7 @@ with open(PASSING_MUON_DETID_SHIFT_V4_DISPLAY100_CONFIG, encoding="utf-8") as st
 _detid_v4_d100_output = PASSING_MUON_DETID_SHIFT_V4_DISPLAY100["output"]
 _detid_v4_d100_display = PASSING_MUON_DETID_SHIFT_V4_DISPLAY100.get("display", {})
 _detid_v4_d100_root = (
-    f"{PERSONAL_WORK_SPACE}/{_detid_v4_d100_output['directory'].rstrip('/')}"
+    resolve_output(_detid_v4_d100_output['directory'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 _detid_v4_d100_event_root = f"{_detid_v4_d100_root}/events/event_{{event_id}}"
 _detid_v4_d100_with_track = int(_detid_v4_d100_display.get("with_track", 0))
@@ -233,11 +238,11 @@ checkpoint select_passing_muon_detid_channel_shift_display100_v4:
     input:
         config=PASSING_MUON_DETID_SHIFT_V4_DISPLAY100_CONFIG,
         selector=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "select_high_density_detid_shift_v3.py"
         ),
-        track_helper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/scifi_edge_transform_sndsw.py",
-        policy=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
+        track_helper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/scifi_edge_transform_sndsw.py",
+        policy=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
     output:
         manifest=PASSING_MUON_DETID_SHIFT_V4_DISPLAY100_MANIFEST,
         rejected=PASSING_MUON_DETID_SHIFT_V4_DISPLAY100_REJECTED,
@@ -291,9 +296,9 @@ rule write_passing_muon_detid_channel_shift_display100_event_v4:
     input:
         config=PASSING_MUON_DETID_SHIFT_V4_DISPLAY100_CONFIG,
         manifest=_detid_v4_d100_manifest,
-        writer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
-        mapper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift.py",
-        adapter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
+        writer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/write_detid_channel_shift_raw.py",
+        mapper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift.py",
+        adapter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/detid_channel_shift_sndsw.py",
     output:
         root=f"{_detid_v4_d100_event_root}/transformed.root",
         csv=f"{_detid_v4_d100_event_root}/mapping_audit.csv",
@@ -321,8 +326,8 @@ rule display_passing_muon_detid_channel_shift_display100_event_v4:
         config=PASSING_MUON_DETID_SHIFT_V4_DISPLAY100_CONFIG,
         root=f"{_detid_v4_d100_event_root}/transformed.root",
         audit=f"{_detid_v4_d100_event_root}/event_audit.json",
-        renderer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/render_detid_channel_shift_comparison.py",
-        display_helper=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/sndsw_event_display_common.py",
+        renderer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/render_detid_channel_shift_comparison.py",
+        display_helper=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/sndsw_event_display_common.py",
     output:
         pdf=f"{_detid_v4_d100_event_root}/comparison.pdf",
     params:
@@ -352,7 +357,7 @@ rule validate_passing_muon_detid_channel_shift_display100_event_v4:
         root=f"{_detid_v4_d100_event_root}/transformed.root",
         csv=f"{_detid_v4_d100_event_root}/mapping_audit.csv",
         json=f"{_detid_v4_d100_event_root}/event_audit.json",
-        validator=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
+        validator=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/validate_detid_channel_shift_raw.py",
     output:
         marker=f"{_detid_v4_d100_event_root}/validation.ok",
     threads: 1
@@ -375,7 +380,7 @@ rule compose_passing_muon_detid_channel_shift_display100_v4:
         pdfs=lambda wildcards: _detid_v4_d100_products(wildcards, "comparison.pdf"),
         markers=lambda wildcards: _detid_v4_d100_products(wildcards, "validation.ok"),
         composer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "compose_detid_shift_side_by_side.py"
         ),
     output:

@@ -1,6 +1,10 @@
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # Run-8329 v3: track-type categories and the exact NoPassingMuonReco complement.
 
-PASSING_MUON_V3_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/passing_muon_track_study_v3.yaml"
+PASSING_MUON_V3_CONFIG = f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/passing_muon_track_study_v3.yaml"
 with open(PASSING_MUON_V3_CONFIG, encoding="utf-8") as stream:
     PASSING_MUON_V3 = yaml.safe_load(stream)
 
@@ -16,7 +20,7 @@ PASSING_MUON_V3_COMPARISONS = (
     + PASSING_MUON_V3_ALGORITHM_COMPARISONS
 )
 _pmv3_root = PASSING_MUON_V3["output"]["root_dir"].rstrip("/")
-_pmv3_plot_root = f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V3['output']['plot_dir'].rstrip('/')}"
+_pmv3_plot_root = resolve_output(PASSING_MUON_V3['output']['plot_dir'].rstrip('/'), PERSONAL_WORK_SPACE)
 _pmv3_metadata_root = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/run8329_track_study_v3"
 
 PASSING_MUON_V3_MISSING_ROOTS = [
@@ -28,19 +32,19 @@ PASSING_MUON_V3_MISSING_AUDITS = [
     for part in PASSING_MUON_V2_PARTS
 ]
 PASSING_MUON_V3_MISSING_METADATA = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V3['output']['metadata_csv']}"
+    resolve_output(PASSING_MUON_V3['output']['metadata_csv'], PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V3_VALIDATION = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V3['output']['validation_csv']}"
+    resolve_output(PASSING_MUON_V3['output']['validation_csv'], PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V3_MC_UP_SOURCE_METADATA = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V3['mc_muon_up']['source_metadata']}"
+    resolve_output(PASSING_MUON_V3['mc_muon_up']['source_metadata'], PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V3_MC_UP_METADATA = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V3['output']['mc_muon_up_metadata_csv']}"
+    resolve_output(PASSING_MUON_V3['output']['mc_muon_up_metadata_csv'], PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V3_MC_UP_VALIDATION = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V3['output']['mc_muon_up_validation_csv']}"
+    resolve_output(PASSING_MUON_V3['output']['mc_muon_up_validation_csv'], PERSONAL_WORK_SPACE)
 )
 
 
@@ -196,7 +200,7 @@ rule make_passing_muon_track_type_hist_v3:
         mc_muon_up_validation=PASSING_MUON_V3_MC_UP_VALIDATION,
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         study_config=PASSING_MUON_V3_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_track_type_hist.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_track_type_hist.py",
     output:
         root=_pmv3_root + "/histograms/{working_point}.root",
     wildcard_constraints:
@@ -235,7 +239,7 @@ rule plot_passing_muon_mc_up_reference_v3:
         root=f"{_pmv3_root}/histograms/no_quality_cut.root",
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         study_config=PASSING_MUON_V3_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_passing_muon_track_type.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_passing_muon_track_type.py",
     output:
         pdf=PASSING_MUON_V3_MC_UP_REFERENCE_PDF,
     threads: 1
@@ -260,7 +264,7 @@ rule plot_passing_muon_track_type_v3:
         root=_pmv3_root + "/histograms/{working_point}.root",
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         study_config=PASSING_MUON_V3_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_passing_muon_track_type.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_passing_muon_track_type.py",
     output:
         pdf=_pmv3_plot_root + "/{working_point}/{comparison}.pdf",
     wildcard_constraints:

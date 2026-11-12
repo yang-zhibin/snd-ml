@@ -1,5 +1,9 @@
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 DD3D_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/ml_dataset/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/ml_dataset/"
     "data_driven_3d_cnn_v1.yaml"
 )
 
@@ -7,7 +11,7 @@ with open(DD3D_CONFIG, "r", encoding="utf-8") as _dd3d_stream:
     DD3D = yaml.safe_load(_dd3d_stream)
 
 DD3D_VERSION = DD3D["dataset_version"]
-DD3D_META = f"{PERSONAL_WORK_SPACE}/{DD3D['output']['metadata_dir']}"
+DD3D_META = resolve_output(DD3D['output']['metadata_dir'], PERSONAL_WORK_SPACE)
 DD3D_ROOT = DD3D["output"]["root_dir"].rstrip("/")
 DD3D_SOURCE_CATALOG = f"{DD3D_META}/{DD3D['output']['source_catalog']}"
 DD3D_MUON_AUDIT = f"{DD3D_META}/{DD3D['output']['muon_audit']}"
@@ -23,7 +27,7 @@ DD3D_VALIDATION = f"{DD3D_META}/{DD3D['output']['validation_report']}"
 
 def _dd3d_repo_path(value):
     value = str(value)
-    return value if os.path.isabs(value) or value.startswith("root://") else f"{PERSONAL_WORK_SPACE}/{value}"
+    return value if os.path.isabs(value) or value.startswith("root://") else resolve_output(value, PERSONAL_WORK_SPACE)
 
 
 DD3D_REAL_SUBSET = DD3D["real_data_subset"]

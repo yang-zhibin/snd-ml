@@ -1,7 +1,11 @@
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # V8 detector evaluation: V7 loose cuts, explicit Veto/no-Veto populations.
 
 PASSING_MUON_V8_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "passing_muon_detector_study_v8.yaml"
 )
 with open(PASSING_MUON_V8_CONFIG, encoding="utf-8") as stream:
@@ -9,7 +13,7 @@ with open(PASSING_MUON_V8_CONFIG, encoding="utf-8") as stream:
 
 _pmv8_root = PASSING_MUON_V8["output"]["root_dir"].rstrip("/")
 _pmv8_plot_root = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V8['output']['plot_dir'].rstrip('/')}"
+    resolve_output(PASSING_MUON_V8['output']['plot_dir'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V8_HIST = (
     f"{_pmv8_root}/{PASSING_MUON_V8['output']['histogram']}"
@@ -32,19 +36,19 @@ rule make_passing_muon_detector_study_v8:
         region_config=PASSING_MUON_V8_CONFIG,
         base_config=PASSING_MUON_V7_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_detector_study_v8.py"
         ),
         helper=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "passing_muon_v8.py"
         ),
         base_engine=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v5.py"
         ),
         common_builder=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_track_type_hist.py"
         ),
     output:
@@ -80,19 +84,19 @@ rule plot_passing_muon_detector_study_v8:
         region_config=PASSING_MUON_V8_CONFIG,
         base_config=PASSING_MUON_V7_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_passing_muon_detector_study_v8.py"
         ),
         helper=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "passing_muon_v8.py"
         ),
         base_engine=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v5.py"
         ),
         common_plotter=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_passing_muon_region_study_v4.py"
         ),
     output:

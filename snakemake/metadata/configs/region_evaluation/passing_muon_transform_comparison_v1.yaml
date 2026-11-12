@@ -38,6 +38,6 @@ plot:
 
 output:
   root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_transform_comparison_v1
-  plot_dir: evaluation_region_partitions/passing_muon_run8329_transform_comparison_v1
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_transform_comparison_v1
   histogram_dir: histograms/shards
   histogram: histograms/veto_tagged_transform_comparison.root

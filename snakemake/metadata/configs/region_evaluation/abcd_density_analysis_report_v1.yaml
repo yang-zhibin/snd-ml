@@ -20,7 +20,7 @@ normalized_plots:
     luminosity-normalized MC yields remain in the tables.
 
 output:
-  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/tables
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/abcd/legacy-unified-shower-features/partition_v1_region_v1/density_sndsw_scifi_v1/tables
   tex: analysis_table_v1.tex
   pdf: analysis_table_v1.pdf
   normalized_plot_directory: normalized_distribution_plots_v1

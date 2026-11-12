@@ -1,21 +1,26 @@
+REGION_CONFIG_REPO = str(Path(workflow.basedir).resolve().parent)
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 REGION_EVAL_HIST_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{REGION_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "hist_features_v1.yaml"
 )
 REGION_EVAL_OPTIONS_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{REGION_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "evaluation_options_v1.yaml"
 )
 REGION_EVAL_CUTFLOW_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{REGION_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "cutflow_efficiency_v1.yaml"
 )
 REGION_EVAL_CUTFLOW_QDC_TOTAL_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{REGION_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "cutflow_efficiency_qdc_total_v1.yaml"
 )
 REGION_EVAL_EVENT_DISPLAY_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{REGION_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "event_display_v1.yaml"
 )
 ABCD_ORIGINAL_BINNING_TRANSFER_CONFIG = (
@@ -52,15 +57,14 @@ REGION_EVAL_HIST_VERSION = REGION_EVAL_HIST_FEATURE_CONFIG["version"]
 REGION_EVAL_CUTFLOW_VERSION = REGION_EVAL_CUTFLOW_CONFIG_DATA["version"]
 REGION_EVAL_CUTFLOW_QDC_TOTAL_VERSION = REGION_EVAL_CUTFLOW_QDC_TOTAL_CONFIG_DATA["version"]
 REGION_EVAL_METADATA_CSV = (
-    f"{PERSONAL_WORK_SPACE}/"
-    f"{REGION_EVAL_OPTIONS['metadata']['partition_csv']}"
+    resolve_output(REGION_EVAL_OPTIONS['metadata']['partition_csv'], PERSONAL_WORK_SPACE)
 )
 
 
 def _region_eval_output_path(config_value):
     if os.path.isabs(config_value) or str(config_value).startswith("root://"):
         return str(config_value)
-    return f"{PERSONAL_WORK_SPACE}/{config_value}"
+    return resolve_output(config_value, PERSONAL_WORK_SPACE)
 
 
 REGION_EVAL_OUTPUT_ROOT = _region_eval_output_path(REGION_EVAL_OPTIONS["outputs"]["root_dir"])
@@ -532,7 +536,7 @@ def _region_eval_default_group_hist_targets():
 rule region_eval_group_hist:
     input:
         hist_config=REGION_EVAL_HIST_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_group_hist.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_group_hist.py",
     params:
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
         metadata=REGION_EVAL_METADATA_CSV,
@@ -585,7 +589,7 @@ rule region_eval_feature_comparison_plot:
     input:
         hist_config=REGION_EVAL_HIST_CONFIG,
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_comparison.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_comparison.py",
         hists=_region_eval_hist_inputs_for_comparison,
     output:
         pdf=(
@@ -735,7 +739,7 @@ rule region_v1_abcd_signal_ratio_comparisons:
 rule region_eval_fiducial_efficiency:
     input:
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/fiducial_efficiency.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/fiducial_efficiency.py",
     params:
         metadata=REGION_EVAL_METADATA_CSV,
     output:
@@ -767,7 +771,7 @@ rule region_eval_eventbuilder_veto_timing:
     input:
         hist_config=REGION_EVAL_HIST_CONFIG,
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/eventbuilder_veto_timing_summary.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/eventbuilder_veto_timing_summary.py",
     params:
         metadata=REGION_EVAL_METADATA_CSV,
     output:
@@ -798,7 +802,7 @@ rule region_eval_cutflow_efficiency_shard:
     input:
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
         cutflow_config=REGION_EVAL_CUTFLOW_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/cutflow_efficiency.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/cutflow_efficiency.py",
     params:
         metadata=REGION_EVAL_METADATA_CSV,
     output:
@@ -845,7 +849,7 @@ rule region_eval_cutflow_efficiency:
     input:
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
         cutflow_config=REGION_EVAL_CUTFLOW_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/cutflow_efficiency.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/cutflow_efficiency.py",
         shards=REGION_EVAL_CUTFLOW_SHARD_TARGETS,
     params:
         metadata=REGION_EVAL_METADATA_CSV,
@@ -893,7 +897,7 @@ rule region_eval_cutflow_qdc_total_efficiency_shard:
     input:
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
         cutflow_config=REGION_EVAL_CUTFLOW_QDC_TOTAL_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/cutflow_efficiency.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/cutflow_efficiency.py",
     params:
         metadata=REGION_EVAL_METADATA_CSV,
     output:
@@ -940,7 +944,7 @@ rule region_eval_cutflow_qdc_total_efficiency:
     input:
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
         cutflow_config=REGION_EVAL_CUTFLOW_QDC_TOTAL_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/cutflow_efficiency.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/cutflow_efficiency.py",
         shards=REGION_EVAL_CUTFLOW_QDC_TOTAL_SHARD_TARGETS,
     params:
         metadata=REGION_EVAL_METADATA_CSV,
@@ -988,7 +992,7 @@ rule region_eval_event_displays:
     input:
         config=REGION_EVAL_EVENT_DISPLAY_CONFIG,
         metadata=REGION_EVAL_METADATA_CSV,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_saved_events_sndsw.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_saved_events_sndsw.py",
     output:
         done=REGION_EVAL_EVENT_DISPLAY_DONE,
     params:
@@ -1024,7 +1028,7 @@ rule region_eval_follow_event_display:
     input:
         config=REGION_EVAL_EVENT_DISPLAY_CONFIG,
         selected_summary=REGION_EVAL_FOLLOW_EVENT_SUMMARY_CSV,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_saved_events_sndsw.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_saved_events_sndsw.py",
     output:
         done=REGION_EVAL_FOLLOW_EVENT_DISPLAY_DONE,
     params:
@@ -1070,7 +1074,7 @@ rule region_eval_cutflow_table_plots:
         us=REGION_EVAL_CUTFLOW_US_CSV,
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
         metadata=REGION_EVAL_METADATA_CSV,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_cutflow_tables.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_cutflow_tables.py",
     output:
         pdf=REGION_EVAL_CUTFLOW_TABLE_PDF,
     threads: 1
@@ -1105,7 +1109,7 @@ rule region_eval_cutflow_qdc_total_table_plots:
         us=REGION_EVAL_CUTFLOW_QDC_TOTAL_US_CSV,
         eval_config=REGION_EVAL_OPTIONS_CONFIG,
         metadata=REGION_EVAL_METADATA_CSV,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_cutflow_tables.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_cutflow_tables.py",
     output:
         pdf=REGION_EVAL_CUTFLOW_QDC_TOTAL_TABLE_PDF,
     threads: 1
@@ -1176,7 +1180,7 @@ rule region_eval_studies:
 # one document containing three pages per event: SNDSW overview, active
 # horizontal SciFi planes, and active vertical SciFi planes.
 MC_NEUTRINO_SCIFI_EVENT_DISPLAY_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/"
+    f"{REGION_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/"
     "mc_neutrino_event_display_scifi_v1.yaml"
 )
 with open(MC_NEUTRINO_SCIFI_EVENT_DISPLAY_CONFIG, "r", encoding="utf-8") as stream:
@@ -1189,8 +1193,7 @@ MC_NEUTRINO_SCIFI_REGIONS = list(
     MC_NEUTRINO_SCIFI_EVENT_DISPLAY["filters"]["regions"]
 )
 MC_NEUTRINO_SCIFI_ROOT = (
-    f"{PERSONAL_WORK_SPACE}/"
-    f"{MC_NEUTRINO_SCIFI_EVENT_DISPLAY['outputs']['directory'].rstrip('/')}"
+    resolve_output(MC_NEUTRINO_SCIFI_EVENT_DISPLAY['outputs']['directory'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 MC_NEUTRINO_SCIFI_PDFS = [
     f"{MC_NEUTRINO_SCIFI_ROOT}/{particle}/{region}.pdf"
@@ -1213,15 +1216,15 @@ rule plot_mc_neutrino_scifi_event_display:
     input:
         config=MC_NEUTRINO_SCIFI_EVENT_DISPLAY_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_mc_neutrino_scifi_event_displays.py"
         ),
         selector=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_saved_events_sndsw.py"
         ),
         scifi_renderer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "scifi_sipm_event_display.py"
         ),
     params:

@@ -43,7 +43,7 @@ display:
   sndsw_display_script: ""
 
 output:
-  directory: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v6/event_display_loose
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_detector_selection_study_v6/event_display_loose
   selected_manifest: selected_events.csv
   category_counts: category_counts.csv
   rendered_manifest: rendered_events.csv

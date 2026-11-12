@@ -48,4 +48,4 @@ annotations:
   max_lines: 8
 
 outputs:
-  directory: evaluation_region_partitions/mc_neutrino_event_display_scifi
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/event-display/legacy-unified-shower-features/mc_neutrino_event_display_scifi

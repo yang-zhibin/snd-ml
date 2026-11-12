@@ -1,7 +1,7 @@
 REGION_V2_VETO_CONFIG = config.get(
     "region_v2_veto_config",
     (
-        f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/"
+        f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/"
         "region_v2_inspection/veto_inspection_v1.yaml"
     ),
 )
@@ -95,7 +95,7 @@ rule region_v2_veto_inspection_hist:
         manifest=REGION_V2_VETO_MANIFEST,
         root=_region_v2_veto_input_root,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_veto_inspection_hist.py"
         ),
     output:
@@ -132,7 +132,7 @@ rule region_v2_veto_inspection_plots:
     input:
         config=REGION_V2_VETO_CONFIG,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_veto_inspection.py"
         ),
         hists=expand(

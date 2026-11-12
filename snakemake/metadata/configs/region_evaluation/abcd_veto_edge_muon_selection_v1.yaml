@@ -78,7 +78,7 @@ validation:
   require_histogram_count_closure: true
   luminosity_absolute_tolerance: 1.0e-09
 output:
-  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/veto_edge_muon_selection_v1
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/abcd/legacy-unified-shower-features/partition_v1_region_v1/veto_edge_muon_selection_v1
   mc_directory: mc
   data_root: data_full.root
   data_summary: data_efficiencies.csv

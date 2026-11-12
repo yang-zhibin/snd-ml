@@ -1,5 +1,5 @@
 DD3D_MUONDIS_FEATURE_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/ml_dataset/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/ml_dataset/"
     "muondis_feature_sampling_v1.yaml"
 )
 with open(DD3D_MUONDIS_FEATURE_CONFIG, encoding="utf-8") as stream:
@@ -113,7 +113,7 @@ rule build_data_driven_3d_cnn_muondis_feature_hist_shard_v1:
             "build_muondis_feature_hist_shard.py"
         ),
         feature_helper=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v5.py"
         ),
     output:

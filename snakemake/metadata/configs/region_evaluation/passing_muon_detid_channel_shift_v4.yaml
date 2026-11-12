@@ -48,7 +48,7 @@ high_density_sample:
   exclude_event_ids: [6000152, 5004148, 6000210, 7000202]
 
 output:
-  directory: evaluation_region_partitions/passing_muon_detid_channel_shift_v4
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_detid_channel_shift_v4
   selected_events: selected_events.csv
   transformed_root: transformed_digis/run_008329_event_{eventId}.root
   mapping_audit_csv: mapping_audit.csv

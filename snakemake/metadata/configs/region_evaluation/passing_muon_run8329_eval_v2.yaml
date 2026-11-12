@@ -16,4 +16,4 @@ statistics:
   confidence_level: 0.682689492137
 output:
   root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_v2
-  plot_dir: evaluation_region_partitions/passing_muon_run8329_v2
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_v2

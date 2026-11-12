@@ -255,9 +255,9 @@ plot:
   pdf: true
 
 outputs:
-  root_dir: evaluation_region_partitions
+  root_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features
   hist_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/hists
-  plot_dir: evaluation_region_partitions/plots
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/plots
 
 snakemake:
   default_base_cut_keys:

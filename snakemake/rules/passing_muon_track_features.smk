@@ -178,7 +178,7 @@ rule passing_muon_track_features_v2:
 
 
 PASSING_MUON_TRACK_INSPECTION_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/"
     "region_v2_inspection/passing_muon_tracks_v1.yaml"
 )
 PASSING_MUON_TRACK_INSPECTION_ROOT = (
@@ -285,7 +285,7 @@ rule passing_muon_track_inspection_hist:
     input:
         root=PASSING_MUON_TRACK_INSPECTION_ROOT,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_reco_track_inspection_hist.py"
         ),
         extractor=f"{PERSONAL_WORK_SPACE}/convertData/reco_track_features.py",
@@ -306,7 +306,7 @@ rule passing_muon_track_inspection_plots:
     input:
         hists=PASSING_MUON_TRACK_HISTS,
         script=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "plot_reco_track_inspection.py"
         ),
         extractor=f"{PERSONAL_WORK_SPACE}/convertData/reco_track_features.py",

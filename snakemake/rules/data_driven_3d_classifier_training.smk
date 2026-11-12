@@ -538,7 +538,7 @@ rule test_three_model_training_wandb_fold0_v1:
 
 
 DD3D_DEPLOY_CONFIG = (
-    f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/training/"
+    f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/training/"
     "data_driven_3d_classifiers_v1.yaml"
 )
 with open(DD3D_DEPLOY_CONFIG, "r", encoding="utf-8") as stream:

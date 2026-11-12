@@ -1,6 +1,6 @@
 container_image: /afs/cern.ch/work/z/zhibin/snd-ml/containers/releases/snd-ml-training-eca898623c12ae80.sif
 container_sha256: /afs/cern.ch/work/z/zhibin/snd-ml/containers/releases/snd-ml-training-eca898623c12ae80.sif.sha256
-output_root: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/outputs/data_driven_3d_classifiers_v1
+output_root: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/training/legacy-unified-shower-features/data_driven_3d_classifiers_v1
 models:
   pyg_gravnet: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/configs/classifier_pyg_gravnet_v1.yaml
   sparse_resnet: /afs/cern.ch/work/z/zhibin/snd-ml/train_3d/configs/classifier_sparse_resnet_v1.yaml

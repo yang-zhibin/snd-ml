@@ -1,6 +1,10 @@
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # Run-8329 v5: detector-only through-going-muon selection study.
 
-PASSING_MUON_V5_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/passing_muon_binary_region_study_v5.yaml"
+PASSING_MUON_V5_CONFIG = f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/passing_muon_binary_region_study_v5.yaml"
 with open(PASSING_MUON_V5_CONFIG, encoding="utf-8") as stream:
     PASSING_MUON_V5 = yaml.safe_load(stream)
 
@@ -37,16 +41,16 @@ PASSING_MUON_V5_COMPARISONS = [
 ]
 _pmv5_root = PASSING_MUON_V5["output"]["root_dir"].rstrip("/")
 _pmv5_plot_root = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V5['output']['plot_dir'].rstrip('/')}"
+    resolve_output(PASSING_MUON_V5['output']['plot_dir'].rstrip('/'), PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V5_MC_UP_METADATA = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V5['mc_muon_up']['metadata_csv']}"
+    resolve_output(PASSING_MUON_V5['mc_muon_up']['metadata_csv'], PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V5_MC_UP_VALIDATION = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V5['mc_muon_up']['validation_csv']}"
+    resolve_output(PASSING_MUON_V5['mc_muon_up']['validation_csv'], PERSONAL_WORK_SPACE)
 )
 PASSING_MUON_V5_MC_UP_SOURCE_METADATA = (
-    f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V5['mc_muon_up']['source_metadata']}"
+    resolve_output(PASSING_MUON_V5['mc_muon_up']['source_metadata'], PERSONAL_WORK_SPACE)
 )
 
 
@@ -96,7 +100,7 @@ rule prepare_mc_muon_up_reference_v5:
             "prepare_mc_muon_up_reference_v5.py"
         ),
         histogrammer=(
-            f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/"
+            f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/"
             "make_passing_muon_binary_region_hist_v5.py"
         ),
     output:
@@ -128,8 +132,8 @@ rule make_passing_muon_binary_region_hist_v5:
         mc_muon_up_validation=PASSING_MUON_V5_MC_UP_VALIDATION,
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         region_config=PASSING_MUON_V5_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_binary_region_hist_v5.py",
-        common_builder=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_track_type_hist.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_binary_region_hist_v5.py",
+        common_builder=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_track_type_hist.py",
     output:
         root=PASSING_MUON_V5_HIST,
     threads: 4
@@ -164,9 +168,9 @@ rule plot_passing_muon_binary_region_study_v5:
         root=PASSING_MUON_V5_HIST,
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         region_config=PASSING_MUON_V5_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_passing_muon_binary_region_study_v5.py",
-        builder=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_binary_region_hist_v5.py",
-        common_plotter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_passing_muon_region_study_v4.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_passing_muon_binary_region_study_v5.py",
+        builder=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_binary_region_hist_v5.py",
+        common_plotter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_passing_muon_region_study_v4.py",
     output:
         pdf=_pmv5_plot_root + "/{comparison}.pdf",
     wildcard_constraints:
@@ -197,10 +201,10 @@ rule passing_muon_run8329_binary_region_study_test_v5:
     input:
         config=PASSING_MUON_V5_CONFIG,
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
-        histogrammer=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_binary_region_hist_v5.py",
-        common_builder=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_track_type_hist.py",
-        plotter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_passing_muon_binary_region_study_v5.py",
-        common_plotter=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_passing_muon_region_study_v4.py",
+        histogrammer=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_binary_region_hist_v5.py",
+        common_builder=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_track_type_hist.py",
+        plotter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_passing_muon_binary_region_study_v5.py",
+        common_plotter=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_passing_muon_region_study_v4.py",
         mc_preparer=(
             f"{PERSONAL_WORK_SPACE}/snakemake/metadata/"
             "prepare_mc_muon_up_reference_v5.py"
@@ -208,7 +212,7 @@ rule passing_muon_run8329_binary_region_study_test_v5:
         identity_cutflow=(
             f"{PERSONAL_WORK_SPACE}/convertData/make_identity_cutflow.py"
         ),
-        test=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/test_passing_muon_binary_region_study_v5.py",
+        test=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/test_passing_muon_binary_region_study_v5.py",
     threads: 1
     resources:
         runtime=30 * 60, mem_mb=3000, disk_mb=2000, nvidia_gpu=0

@@ -15,7 +15,7 @@ validation:
   require_unique_partition_ids: true
 
 output:
-  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/abcd_input_audit_v1
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/abcd/legacy-unified-shower-features/partition_v1_region_v1/abcd_input_audit_v1
   csv: input_audit.csv
   report: input_audit.md
 

@@ -4,7 +4,7 @@ description: >-
   Transforms SciFi, Veto, US, and DS hits onto real destination channels.
 
 input:
-  manifest: evaluation_region_partitions/passing_muon_detid_channel_shift_v2/selected_events.csv
+  manifest: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_detid_channel_shift_v2/selected_events.csv
   event_tree_candidates: [rawConv, cbmsim]
   event_sequence: 1
   event_id: 6000152
@@ -17,7 +17,7 @@ transform:
   requested_shift_y_cm: auto
 
 output:
-  directory: evaluation_region_partitions/passing_muon_detid_channel_shift_v2
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_detid_channel_shift_v2
   transformed_root: transformed_digis/run_008329_event_{eventId}.root
   mapping_audit_csv: mapping_audit.csv
   event_audit_json: event_audit.json

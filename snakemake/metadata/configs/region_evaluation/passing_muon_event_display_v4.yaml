@@ -43,7 +43,7 @@ display:
   sndsw_display_script: ""
 
 output:
-  directory: evaluation_region_partitions/passing_muon_run8329_region_study_v4/event_display_veto_time
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_region_study_v4/event_display_veto_time
   selected_manifest: selected_events.csv
   category_counts: category_counts.csv
   rendered_manifest: rendered_events.csv

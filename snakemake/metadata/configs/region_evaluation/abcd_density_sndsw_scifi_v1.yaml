@@ -25,7 +25,7 @@ histogram:
   sumw2: true
 
 output:
-  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/abcd/legacy-unified-shower-features/partition_v1_region_v1/density_sndsw_scifi_v1
   histogram_directory: hists
   summary_directory: summaries
 

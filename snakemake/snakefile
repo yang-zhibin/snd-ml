@@ -95,6 +95,8 @@ train_metadata_csv_list = [
 ]
 
 PERSONAL_WORK_SPACE = "/afs/cern.ch/work/z/zhibin/snd-ml"
+# Task-local configurations; shared raw inputs/runtime remain at PERSONAL_WORK_SPACE.
+WORKFLOW_CONFIG_REPO = str(Path(workflow.basedir).resolve().parent)
 EOS_Work_SPACE = "/eos/experiment/sndlhc/users/zhibin"
 
 env_script_pyroot = f"{PERSONAL_WORK_SPACE}/snakemake/envs/env_pyroot.sh"

@@ -47,12 +47,12 @@ annotations:
   max_lines: 8
 
 outputs:
-  outdir: evaluation_region_partitions/event_display
+  outdir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/event-display/legacy-unified-shower-features/event_display
   summary_csv: summary.csv
 
 follow_event:
   enabled: false
-  summary_csv: evaluation_region_partitions/event_display/summary.csv
+  summary_csv: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/event-display/legacy-unified-shower-features/event_display/summary.csv
   runId: 8315
   eventId: 327646362
   n_following: 2

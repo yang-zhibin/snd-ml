@@ -19,7 +19,7 @@ populations:
     label: "Signal region (no Veto hits)"
 output:
   root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_detector_study_v8
-  plot_dir: evaluation_region_partitions/passing_muon_run8329_detector_study_v8
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_detector_study_v8
   histogram: histograms/passing_muon_detector_study_v8.root
   passing_muon_pdf: passing_muon_selection.pdf
   signal_region_pdf: signal_region.pdf

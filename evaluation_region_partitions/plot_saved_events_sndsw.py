@@ -1250,7 +1250,7 @@ def main(args):
     if not metadata_csv:
         raise RuntimeError("No metadata CSV was provided")
 
-    outdir = args.outdir or (config.get("outputs", {}) or {}).get("outdir", "evaluation_region_partitions/event_display")
+    outdir = args.outdir or (config.get("outputs", {}) or {}).get("outdir", "/afs/cern.ch/work/z/zhibin/snd-ml-outputs/event-display/legacy-unified-shower-features/event_display")
     outdir = resolve_path(outdir, repo_root)
     os.makedirs(outdir, exist_ok=True)
 

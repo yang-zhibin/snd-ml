@@ -63,7 +63,7 @@ frozen_input:
     - run8329__inclusive__veto_eq0__scifi_density_gt5000
 
 output:
-  directory: evaluation_region_partitions/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage_scifi_channels
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_detector_selection_study_v7/event_display_loose_coverage_scifi_channels
   selected_manifest: selected_events_veto_eq0.csv
   category_counts: category_counts_veto_eq0.csv
   rendered_manifest: rendered_pages_veto_eq0.csv

@@ -1,9 +1,13 @@
+import sys
+sys.path.insert(0, str(Path(workflow.basedir).resolve()))
+from output_paths import resolve_output
+
 # Run-8329 v2: existing real-data DQ features versus DQ-intersected PassingMuonReco.
 
-PASSING_MUON_V2_COMPARISON_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/passing_muon_run8329_comparison_v2.yaml"
-PASSING_MUON_V2_PARTITION_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/partitions/passing_muon_track_partition_v2.yaml"
-PASSING_MUON_V2_HIST_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/passing_muon_run8329_hist_v2.yaml"
-PASSING_MUON_V2_EVAL_CONFIG = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/configs/region_evaluation/passing_muon_run8329_eval_v2.yaml"
+PASSING_MUON_V2_COMPARISON_CONFIG = f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/passing_muon_run8329_comparison_v2.yaml"
+PASSING_MUON_V2_PARTITION_CONFIG = f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/partitions/passing_muon_track_partition_v2.yaml"
+PASSING_MUON_V2_HIST_CONFIG = f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/passing_muon_run8329_hist_v2.yaml"
+PASSING_MUON_V2_EVAL_CONFIG = f"{WORKFLOW_CONFIG_REPO}/snakemake/metadata/configs/region_evaluation/passing_muon_run8329_eval_v2.yaml"
 with open(PASSING_MUON_V2_COMPARISON_CONFIG, encoding="utf-8") as stream:
     PASSING_MUON_V2_COMPARISON = yaml.safe_load(stream)
 with open(PASSING_MUON_V2_PARTITION_CONFIG, encoding="utf-8") as stream:
@@ -13,7 +17,7 @@ with open(PASSING_MUON_V2_HIST_CONFIG, encoding="utf-8") as stream:
 with open(PASSING_MUON_V2_EVAL_CONFIG, encoding="utf-8") as stream:
     PASSING_MUON_V2_EVAL = yaml.safe_load(stream)
 
-_pmv2_metadata_dir = f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_COMPARISON['output']['metadata_dir']}"
+_pmv2_metadata_dir = resolve_output(PASSING_MUON_V2_COMPARISON['output']['metadata_dir'], PERSONAL_WORK_SPACE)
 PASSING_MUON_V2_INITIAL_REAL_METADATA = f"{_pmv2_metadata_dir}/{PASSING_MUON_V2_COMPARISON['output']['inclusive_metadata']}"
 PASSING_MUON_V2_INITIAL_PASSING_METADATA = f"{_pmv2_metadata_dir}/{PASSING_MUON_V2_COMPARISON['output']['passing_metadata']}"
 PASSING_MUON_V2_INITIAL_PAIRS = f"{_pmv2_metadata_dir}/{PASSING_MUON_V2_COMPARISON['output']['source_pairs']}"
@@ -22,16 +26,16 @@ PASSING_MUON_V2_REAL_METADATA = f"{_pmv2_metadata_dir}/{PASSING_MUON_V2_COMPARIS
 PASSING_MUON_V2_PASSING_METADATA = f"{_pmv2_metadata_dir}/{PASSING_MUON_V2_COMPARISON['output']['final_passing_metadata']}"
 PASSING_MUON_V2_SOURCE_PAIRS = f"{_pmv2_metadata_dir}/{PASSING_MUON_V2_COMPARISON['output']['final_source_pairs']}"
 PASSING_MUON_V2_METADATA_VALIDATION = f"{_pmv2_metadata_dir}/{PASSING_MUON_V2_COMPARISON['output']['final_validation']}"
-PASSING_MUON_V2_PARTITION_METADATA = f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_PARTITION['output']['metadata_csv']}"
-PASSING_MUON_V2_PARTITION_VALIDATION = f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_PARTITION['output']['validation_csv']}"
+PASSING_MUON_V2_PARTITION_METADATA = resolve_output(PASSING_MUON_V2_PARTITION['output']['metadata_csv'], PERSONAL_WORK_SPACE)
+PASSING_MUON_V2_PARTITION_VALIDATION = resolve_output(PASSING_MUON_V2_PARTITION['output']['validation_csv'], PERSONAL_WORK_SPACE)
 PASSING_MUON_V2_GROUPS = list(PASSING_MUON_V2_PARTITION["groups"])
 PASSING_MUON_V2_PARTS = [f"{value:03d}" for value in range(1, int(PASSING_MUON_V2_PARTITION["n_partitions"]) + 1)]
 PASSING_MUON_V2_FEATURES = list(PASSING_MUON_V2_HISTS["features"])
 PASSING_MUON_V2_SELECTIONS = list(PASSING_MUON_V2_EVAL["selections"])
 
-_pmv2_real = pd.read_csv(f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_COMPARISON['inputs']['inclusive_metadata']}")
+_pmv2_real = pd.read_csv(resolve_output(PASSING_MUON_V2_COMPARISON['inputs']['inclusive_metadata'], PERSONAL_WORK_SPACE))
 _pmv2_real = _pmv2_real.loc[pd.to_numeric(_pmv2_real.run) == int(PASSING_MUON_V2_COMPARISON["run"])].copy()
-_pmv2_tracks = pd.read_csv(f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_COMPARISON['inputs']['passing_metadata']}")
+_pmv2_tracks = pd.read_csv(resolve_output(PASSING_MUON_V2_COMPARISON['inputs']['passing_metadata'], PERSONAL_WORK_SPACE))
 _pmv2_tracks = _pmv2_tracks.loc[pd.to_numeric(_pmv2_tracks.run) == int(PASSING_MUON_V2_COMPARISON["run"])].copy()
 _pmv2_map = _pmv2_tracks[["source_file_index", "source_path"]].drop_duplicates().rename(columns={"source_path": "digi_path"})
 _pmv2_real = _pmv2_map.merge(_pmv2_real, on="digi_path", validate="one_to_one").sort_values("source_file_index")
@@ -56,7 +60,7 @@ PASSING_MUON_V2_MISSING_DQ_SOURCES = [
     )
 ]
 _pmv2_filtered_root = PASSING_MUON_V2_COMPARISON["output"]["filtered_passing_root"].rstrip("/")
-_pmv2_audit_dir = f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_COMPARISON['output']['audit_dir']}"
+_pmv2_audit_dir = resolve_output(PASSING_MUON_V2_COMPARISON['output']['audit_dir'], PERSONAL_WORK_SPACE)
 PASSING_MUON_V2_FILTERED = [f"{_pmv2_filtered_root}/passingMuonDQ_run008329_source{s}.root" for s in PASSING_MUON_V2_SOURCES]
 PASSING_MUON_V2_AUDITS = [f"{_pmv2_audit_dir}/source{s}.csv" for s in PASSING_MUON_V2_SOURCES]
 PASSING_MUON_V2_REAL_FEATURES = [_pmv2_real_feature(s) for s in PASSING_MUON_V2_SOURCES]
@@ -191,7 +195,7 @@ rule passing_muon_run8329_real_dq_features_v2:
 
 rule validate_run8329_passing_features_v2:
     input:
-        metadata=f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_COMPARISON['inputs']['passing_metadata']}",
+        metadata=resolve_output(PASSING_MUON_V2_COMPARISON['inputs']['passing_metadata'], PERSONAL_WORK_SPACE),
     output:
         marker=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/run8329_comparison_v2/"
         "passing_features_valid/source{source}.done",
@@ -221,7 +225,7 @@ PASSING_MUON_V2_PARTITION_ROOTS = [_pmv2_partition_root(g, p) for g in PASSING_M
 PASSING_MUON_V2_ROW_DIR = f"{PERSONAL_WORK_SPACE}/snakemake/metadata/region_partitions/passing_muon_track_partition_v2_passing_muon_track_comparison_region_v2/rows"
 PASSING_MUON_V2_ROWS = [f"{PASSING_MUON_V2_ROW_DIR}/all_events__{g}__part{p}.csv" for g in PASSING_MUON_V2_GROUPS for p in PASSING_MUON_V2_PARTS]
 _pmv2_eval_root = PASSING_MUON_V2_EVAL["output"]["root_dir"].rstrip("/")
-_pmv2_plot_root = f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_EVAL['output']['plot_dir']}"
+_pmv2_plot_root = resolve_output(PASSING_MUON_V2_EVAL['output']['plot_dir'], PERSONAL_WORK_SPACE)
 PASSING_MUON_V2_EVAL_ROOTS = [
     f"{_pmv2_eval_root}/histograms/{selection}.root"
     for selection in PASSING_MUON_V2_SELECTIONS
@@ -239,8 +243,8 @@ PASSING_MUON_V2_TRACK_PLOTS = [f"{PASSING_MUON_V2_TRACK_DIR}/plots/{p}_{s}.pdf" 
 rule passing_muon_run8329_comparison_metadata_v2:
     input:
         config=PASSING_MUON_V2_COMPARISON_CONFIG,
-        real=f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_COMPARISON['inputs']['inclusive_metadata']}",
-        passing=f"{PERSONAL_WORK_SPACE}/{PASSING_MUON_V2_COMPARISON['inputs']['passing_metadata']}",
+        real=resolve_output(PASSING_MUON_V2_COMPARISON['inputs']['inclusive_metadata'], PERSONAL_WORK_SPACE),
+        passing=resolve_output(PASSING_MUON_V2_COMPARISON['inputs']['passing_metadata'], PERSONAL_WORK_SPACE),
         script=f"{PERSONAL_WORK_SPACE}/snakemake/metadata/make_passing_muon_run8329_comparison_metadata.py",
     output:
         real=PASSING_MUON_V2_INITIAL_REAL_METADATA,
@@ -391,7 +395,7 @@ rule passing_muon_run8329_comparison_hist_v2:
         validation=PASSING_MUON_V2_PARTITION_VALIDATION,
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         eval_config=PASSING_MUON_V2_EVAL_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_passing_muon_efficiency_hist.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_passing_muon_efficiency_hist.py",
     output:
         root=_pmv2_eval_root + "/histograms/{selection}.root",
     wildcard_constraints:
@@ -415,7 +419,7 @@ rule passing_muon_run8329_comparison_plot_v2:
         root=_pmv2_eval_root + "/histograms/{selection}.root",
         hist_config=PASSING_MUON_V2_HIST_CONFIG,
         eval_config=PASSING_MUON_V2_EVAL_CONFIG,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_passing_muon_efficiency.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_passing_muon_efficiency.py",
     output:
         pdf=_pmv2_plot_root + "/comparison/{selection}.pdf",
     wildcard_constraints:
@@ -436,7 +440,7 @@ rule passing_muon_run8329_track_hist_v2:
     input:
         metadata=PASSING_MUON_V2_PARTITION_METADATA,
         validation=PASSING_MUON_V2_PARTITION_VALIDATION,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/make_reco_track_inspection_hist.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/make_reco_track_inspection_hist.py",
         extractor=f"{PERSONAL_WORK_SPACE}/convertData/reco_track_features.py",
     output:
         PASSING_MUON_V2_TRACK_HISTS
@@ -456,7 +460,7 @@ rule passing_muon_run8329_track_hist_v2:
 rule passing_muon_run8329_track_plots_v2:
     input:
         hists=PASSING_MUON_V2_TRACK_HISTS,
-        script=f"{PERSONAL_WORK_SPACE}/evaluation_region_partitions/plot_reco_track_inspection.py",
+        script=f"{WORKFLOW_CONFIG_REPO}/evaluation_region_partitions/plot_reco_track_inspection.py",
         extractor=f"{PERSONAL_WORK_SPACE}/convertData/reco_track_features.py",
     output:
         plots=PASSING_MUON_V2_TRACK_PLOTS,

@@ -133,7 +133,7 @@ expected:
 
 output:
   root_dir: /eos/experiment/sndlhc/users/zhibin/snd-ml/evaluation_region_partitions/passing_muon_run8329_track_study_v3
-  plot_dir: evaluation_region_partitions/passing_muon_run8329_track_study_v3
+  plot_dir: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/region-evaluation/legacy-unified-shower-features/passing_muon_run8329_track_study_v3
   metadata_csv: snakemake/metadata/updated/passing_muon_run8329_track_study_v3/no_passing_muon_reco_metadata_v3.csv
   validation_csv: snakemake/metadata/updated/passing_muon_run8329_track_study_v3/no_passing_muon_reco_validation_v3.csv
   mc_muon_up_metadata_csv: snakemake/metadata/updated/passing_muon_run8329_track_study_v3/mc_muon_up_reference_metadata_v3.csv

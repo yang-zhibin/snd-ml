@@ -89,7 +89,7 @@ validation:
   luminosity_absolute_tolerance: 1.0e-9
 
 output:
-  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/ds_scifi_muon_rejection_v1
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/abcd/legacy-unified-shower-features/partition_v1_region_v1/ds_scifi_muon_rejection_v1
   data_shard_directory: data_shards
   mc_directory: mc
   data_root: data_full.root

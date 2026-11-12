@@ -42,7 +42,7 @@ analyses:
     output_directory: shape_v1
 
 output:
-  directory: evaluation_region_partitions/abcd/partition_v1_region_v1/density_sndsw_scifi_v1/high_density_fits_v1
+  directory: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/abcd/legacy-unified-shower-features/partition_v1_region_v1/density_sndsw_scifi_v1/high_density_fits_v1
   inputs_csv: model_inputs.csv
   workspace_json: workspace.json
   fit_results_json: fit_results.json
