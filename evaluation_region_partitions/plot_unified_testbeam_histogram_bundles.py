@@ -197,6 +197,20 @@ def energy_summary(args: argparse.Namespace) -> None:
     canvas.SetLeftMargin(0.13)
     canvas.SetBottomMargin(0.13)
     graphs = []
+    all_values = [value for values in series.values() for value in values]
+    if not all_values:
+        raise RuntimeError("no points available for energy summary")
+    x_values = [value[0] for value in all_values]
+    y_low = min(value[1] - value[2] for value in all_values)
+    y_high = max(value[1] + value[2] for value in all_values)
+    padding = max(0.05 * (y_high - y_low), 0.05 * max(abs(y_high), 1.0))
+    frame = canvas.DrawFrame(
+        min(x_values) * 0.9, max(0.0, y_low - padding),
+        max(x_values) * 1.05, y_high + padding,
+        f";Beam energy [GeV];Mean {loaded[0][2].GetXaxis().GetTitle()}",
+    )
+    frame.GetXaxis().SetTitleSize(0.045)
+    frame.GetYaxis().SetTitleSize(0.045)
     legend = ROOT.TLegend(0.67, 0.74, 0.91, 0.89)
     legend.SetBorderSize(0)
     for index, particle in enumerate(("pion", "electron")):
@@ -210,8 +224,7 @@ def energy_summary(args: argparse.Namespace) -> None:
         graph.SetMarkerColor(int(style["color"]))
         graph.SetLineColor(int(style["color"]))
         graph.SetMarkerStyle(int(style["marker"]))
-        graph.SetTitle(f";Beam energy [GeV];Mean {loaded[0][2].GetXaxis().GetTitle()}")
-        graph.Draw("AP" if index == 0 else "P SAME")
+        graph.Draw("P SAME")
         legend.AddEntry(graph, particle.capitalize(), "lep")
         graphs.append(graph)
     legend.Draw()

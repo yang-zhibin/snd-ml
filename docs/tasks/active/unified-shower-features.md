@@ -1,5 +1,19 @@
 # Task: unified-shower-features
 
+## Current preservation checkpoint — 2026-11-12
+
+- User authorized checkpointing current task work and moving worktrees to AFS work.
+- Branch: `task/unified-shower-features`; pre-checkpoint HEAD: `559efa55cfd1e738e855ab8c1b0fecc6ec9ce0c1`.
+- Existing integrity/coverage/partition fixes are committed at 559efa5. Preserve the remaining energy-summary plot frame/range change. Production metadata migration, feature regeneration and scientific qualification remain separate work.
+- Selected source files passed Python/YAML/JSON syntax checks as applicable;
+  `git diff --check` passed. Prior scientific test results below are historical
+  evidence and were not rerun as part of this storage operation.
+- No queued HTCondor jobs or local training/Snakemake controllers were found.
+- Exact administrative next action: complete migration/launcher verification,
+  then await the user's next task instruction. Do not execute historical
+  production commands automatically.
+
+
 Status: active
 Last updated: 2026-10-09 Europe/Zurich
 
