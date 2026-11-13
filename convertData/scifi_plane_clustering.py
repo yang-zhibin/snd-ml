@@ -225,7 +225,11 @@ def _orientation(analysis, vertical, name):
     return out
 
 def cluster_feature_payload(hits):
-    analysis=cluster_scifi_hits(hits); scalars={}; summaries={}
+    return payload_from_analysis(cluster_scifi_hits(hits))
+
+def payload_from_analysis(analysis):
+    """Calculate the established scalar schema from a plane-cluster analysis."""
+    scalars={}; summaries={}
     for vertical,name in ORIENTATIONS:
         summary=_orientation(analysis,vertical,name); summaries[name]=summary
         scalars.update(("scifi_{}_{}".format(name,k),v) for k,v in summary.items())

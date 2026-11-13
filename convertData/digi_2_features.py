@@ -1344,6 +1344,12 @@ def process_hits(
     )
 
     step_start = time.perf_counter()
+    if getattr(args, "_feature_dev_writer", None) is not None:
+        args._feature_dev_writer.add(
+            {k: branch_vars[k][0] for k in ("runId", "eventId", "eventIndex")},
+            SciFi_hits, getattr(args, "feature_dev_group", None) or args.type, getattr(args, "source_uid", "") or "",
+            getattr(args, "source_geometry_id", "unknown") or "unknown",
+        )
     selected_scifi_hits_for_density = [entry["raw"] for entry in SciFi_hit_entries]
     dens, dens2, dver, dhor = getSumDensity(selected_scifi_hits_for_density, return_2ndhighest=True, return_hv=True)
     branch_vars["density_sndsw_scifi"][0] = dens
@@ -1409,6 +1415,20 @@ def process_hits(
 
 
 def main(args):
+    # Optional development export; ordinary production output is unchanged.
+    args._feature_dev_writer = None
+    if getattr(args, "feature_dev_export", None):
+        import sys as _dev_sys
+        from pathlib import Path as _DevPath
+        _dev_sys.path.insert(0, str(_DevPath(__file__).resolve().parents[1] / "feature_dev"))
+        from selected_hits import SelectedHitWriter, sha
+        args._feature_dev_writer = SelectedHitWriter(args.feature_dev_export, {
+            "input": args.digi_path, "geometry": args.geo_path,
+            "sample_type": args.type, "source_uid": getattr(args, "source_uid", ""),
+            "converter": str(_DevPath(__file__).resolve()),
+            "converter_sha256": sha(__file__),
+            "arguments": {k: v for k, v in vars(args).items() if not k.startswith("_")},
+        })
     validate_source_options(args)
     reco_track_schema = getattr(args, "reco_track_schema", FLAT_V1)
     if not args.extract_reco_tracks and reco_track_schema != FLAT_V1:
@@ -1904,6 +1924,8 @@ def main(args):
         n_written_entries,
     )
     print_hit_time_debug_summary(hit_time_debug)
+    if args._feature_dev_writer is not None:
+        args._feature_dev_writer.finish(n_written_entries)
     print("finish processing digi to feature")
 
 if __name__ == "__main__":
@@ -1978,6 +2000,8 @@ if __name__ == "__main__":
         ),
     )
 
+    parser.add_argument("--feature-dev-group", help="Explicit comparison group label for selected-hit export")
+    parser.add_argument("--feature-dev-export", help="Write selected-hit JSONL and completion manifest; refuses overwrite")
     args = parser.parse_args()
 
     main(args)

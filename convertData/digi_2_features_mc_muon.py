@@ -55,6 +55,8 @@ def parse_args():
     )
     parser.add_argument("--drop-real-has-veto-has-us", action="store_true")
     parser.add_argument("--extract-reco-tracks", action="store_true")
+    parser.add_argument("--feature-dev-group", help="Explicit comparison group label for selected-hit export")
+    parser.add_argument("--feature-dev-export", help="Write selected-hit JSONL for algorithm development")
     args = parser.parse_args()
     if str(args.type).strip().lower() != "mc_muon":
         parser.error("this compatibility wrapper is restricted to MC_muon")

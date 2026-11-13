@@ -1,0 +1,22 @@
+import json
+from pathlib import Path
+PLAN = config['plan']
+WRAPPER = config['wrapper']
+p = json.loads(Path(PLAN).read_text())['paths']
+rule all:
+    input: p['plot'] + '/complete.json'
+rule calculate:
+    output: p['calculate'] + '/features.json', p['calculate'] + '/features.root', p['calculate'] + '/complete.json'
+    shell: '{WRAPPER:q} _stage {PLAN:q} calculate'
+rule validate:
+    input: rules.calculate.output
+    output: p['validate'] + '/validation.json', p['validate'] + '/complete.json'
+    shell: '{WRAPPER:q} _stage {PLAN:q} validate'
+rule histogram:
+    input: rules.validate.output
+    output: p['histogram'] + '/histograms.json', p['histogram'] + '/complete.json'
+    shell: '{WRAPPER:q} _stage {PLAN:q} histogram'
+rule plot:
+    input: rules.histogram.output
+    output: p['plot'] + '/report.html', p['plot'] + '/complete.json'
+    shell: '{WRAPPER:q} _stage {PLAN:q} plot'

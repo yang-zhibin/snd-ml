@@ -1,0 +1,9 @@
+version: gap-clusters-v1
+extends: baseline.yaml
+features:
+  charge_fragmentation_v1:
+    dtype: float64
+    description: Charge fraction outside the single highest-charge cluster across both orientations.
+    missing_value: -999.0
+    valid_range: [0, 1]
+    histogram: {bins: 25, range: [0, 1]}

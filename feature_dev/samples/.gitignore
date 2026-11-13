@@ -1,0 +1,2 @@
+# Completion manifests are part of the versioned development fixtures.
+!*.jsonl.manifest.json

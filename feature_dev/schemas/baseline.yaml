@@ -1,0 +1,21 @@
+version: baseline-v1
+inherit: scifi_orientation_clusters_v1
+features:
+  scifi_cluster_total_count:
+    description: Number of contiguous selected-hit clusters across all SciFi planes.
+    histogram: {bins: 30, range: [0, 30]}
+  scifi_cluster_qdc_per_hit:
+    description: Total selected SciFi charge divided by selected hit count.
+    histogram: {bins: 40, range: [0, 10]}
+  scifi_vertical_cluster1_qdc:
+    description: Charge of the highest-charge vertical cluster across all stations.
+    histogram: {bins: 40, range: [0, 100]}
+  scifi_horizontal_cluster1_qdc:
+    description: Charge of the highest-charge horizontal cluster across all stations.
+    histogram: {bins: 40, range: [0, 100]}
+  scifi_other_clusters_qdc_fraction:
+    description: Charge fraction outside the two leading clusters of each orientation.
+    histogram: {bins: 25, range: [0, 1]}
+  scifi_orientation_qdc_asymmetry:
+    description: Vertical minus horizontal charge divided by their sum.
+    histogram: {bins: 40, range: [-1, 1]}

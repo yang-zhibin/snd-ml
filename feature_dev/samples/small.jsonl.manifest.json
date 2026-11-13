@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "complete": true,
+  "events": 24,
+  "sha256": "9a4d6917f7f7a1969d484313f26d8b777193546aa940c4a2d560f21b2f31ec69",
+  "selection": "Final selected SciFi hits, after configured timing filters.",
+  "units": {
+    "qdc": "detector QDC",
+    "position": "cm",
+    "time": "ns"
+  },
+  "provenance": {
+    "kind": "synthetic",
+    "version": "small-v1",
+    "warning": "Artificial hits for software testing only; not physics data."
+  }
+}
