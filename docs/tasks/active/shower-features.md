@@ -40,3 +40,10 @@ Scientific next actions above remain unchanged.
 Renamed task and branch from `unified-shower-features` to `shower-features`. Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`.
 Old worktree paths remain compatibility symlinks. Scientific output campaign
 names and historical checkpoint records are unchanged.
+
+### 2026-11-13T10:16:10+01:00 — Visible shortcuts renamed
+
+Removed the old-name worktree compatibility symlinks at the user request.
+The AFS home shortcut is now `~/worktrees/snd-ml-shower-features` and points
+to the AFS work checkout. Reopen `shower-features.code-workspace` if an old
+VS Code window still displays the previous name.
