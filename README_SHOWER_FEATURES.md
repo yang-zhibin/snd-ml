@@ -4,6 +4,163 @@ This guide describes `task/shower-features`, checked on 13 November 2026.
 Start here to understand the physics workflow and develop a new feature.
 The detailed command reference is in [feature_dev/README.md](feature_dev/README.md).
 
+## Get the branch from GitHub and start working
+
+Repository: [yang-zhibin/snd-ml](https://github.com/yang-zhibin/snd-ml).
+The starting branch and pull-request target for this work are both
+**`task/shower-features`**.
+
+### First time: clone on lxplus
+
+Use your own CERN account and AFS work directory. The following commands assume
+Bash, an allocated AFS work area, repository read access, and a GitHub SSH key
+configured for your account:
+
+```bash
+mkdir -p /afs/cern.ch/work/${USER:0:1}/$USER/worktrees
+cd /afs/cern.ch/work/${USER:0:1}/$USER/worktrees
+
+git clone --branch task/shower-features \
+  git@github.com:yang-zhibin/snd-ml.git snd-ml-shower-features
+cd snd-ml-shower-features
+
+# Create your own branch before making edits; choose a descriptive name.
+git switch -c task/my-shower-algorithm
+```
+
+If using HTTPS authentication, replace the SSH URL in `git clone` with
+`https://github.com/yang-zhibin/snd-ml.git`. This downloads code and the synthetic
+fixture; it does not download EOS datasets or grant access to CERN data.
+
+### Already cloned: fetch the shared branch
+
+From your existing clone, first inspect `git status`. Commit your work, or stash
+it deliberately, before switching branches. Do not discard local changes to
+follow these instructions.
+
+```bash
+git status
+git fetch origin
+git switch task/shower-features
+git pull --ff-only origin task/shower-features
+
+# Create this only if it does not already exist:
+git switch -c task/my-shower-algorithm
+```
+
+If the shared branch does not yet exist locally, replace its `git switch` command
+with:
+
+```bash
+git switch --track origin/task/shower-features
+```
+
+If your development branch already exists, use `git switch task/my-shower-algorithm`
+without `-c`. To incorporate later updates while working on your own branch:
+
+```bash
+git status                    # Commit/stash your edits before merging.
+git fetch origin
+git merge origin/task/shower-features
+```
+
+Resolve any merge conflicts before continuing and rerun the relevant tests.
+A failed `--ff-only` pull means the local shared branch has diverged; inspect its
+commits rather than resetting or force-pushing it.
+
+### Check the runtime and run the example
+
+On lxplus the wrapper activates the repository's LCG 107 environment, which
+provides Python, NumPy, PyYAML, uproot, and matplotlib. You also need an existing
+Snakemake installation. It checks your AFS work
+`miniconda3/envs/snakemake/bin/snakemake`, then `PATH`. If needed, point to your
+own existing executable:
+
+```bash
+# Only needed if automatic discovery cannot find your Snakemake installation:
+export FEATURE_DEV_SNAKEMAKE=/absolute/path/to/environment/bin/snakemake
+```
+
+The wrapper installs no packages. Original detector ROOT export needs the
+source's matching SNDSW environment; the synthetic example and already exported
+hit JSONL do not. A GPU is not required.
+
+From the clone's root, run:
+
+```bash
+./run_feature_dev.sh --algorithm gap_clusters \
+  --dataset synthetic --sample small --run first-example --dry-run
+
+./run_feature_dev.sh --algorithm gap_clusters \
+  --dataset synthetic --sample small --run first-example
+```
+
+The command prints the HTML report path. By default it is:
+
+```text
+/afs/cern.ch/work/<initial>/<username>/snd-ml-outputs/unified_shower_features_v1/feature_dev/synthetic/first-example/plot/report.html
+```
+
+Open that file in a browser or HTML preview. Use `--output-root /your/writable/path`
+to choose another location. The 24 events are synthetic software examples.
+For actual neutrino MC, testbeam, or collision data, follow the
+[dataset preparation instructions](feature_dev/README.md#run-neutrino-mc-testbeam-and-real-data-independently).
+
+### Make your first algorithm change
+
+Follow section 5 below to create these files:
+
+```text
+feature_dev/algorithms/my_features.py
+feature_dev/schemas/my_features.yaml
+```
+
+Then run your plugin:
+
+```bash
+./run_feature_dev.sh \
+  --algorithm feature_dev/algorithms/my_features.py \
+  --schema feature_dev/schemas/my_features.yaml \
+  --dataset synthetic --sample small --run my-features-v1
+```
+
+Use a new `--run` name after changing code, parameters, or schema. Add a
+known-answer test for your algorithm and run the relevant tests described below.
+The default baseline provides a comparison without changing the production
+converter.
+
+### Commit, push, and request review
+
+After checking the plots and tests, inspect the diff and stage only your intended
+code, schema, tests, and documentation. Outputs belong in the output directory,
+not in the Git commit.
+
+```bash
+git status
+git diff
+git add feature_dev/algorithms/my_features.py feature_dev/schemas/my_features.yaml
+# Also git add any test/documentation files you intentionally changed.
+git commit -m "Add my shower feature"
+git push -u origin task/my-shower-algorithm
+```
+
+On GitHub, open a pull request with **base `task/shower-features`** and
+**compare `task/my-shower-algorithm`**. Describe the feature definition, sample
+version, validation performed, and observed differences. Share the standalone
+HTML report separately if useful.
+
+Pushing to this repository requires collaborator write access. Without it,
+create a fork under your GitHub account, add it as another remote, and push your
+branch there instead (replace `YOUR_GITHUB_NAME`):
+
+```bash
+git remote add fork git@github.com:YOUR_GITHUB_NAME/snd-ml.git
+git push -u fork task/my-shower-algorithm
+```
+
+Open the cross-fork pull request against `yang-zhibin/snd-ml`, base
+`task/shower-features`. A fork does not provide access to private CERN datasets.
+
 ## 1. What this branch does
 
 The aim is to describe the shape of a shower using simple quantities calculated

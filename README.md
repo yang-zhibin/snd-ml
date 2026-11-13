@@ -5,6 +5,7 @@
 For this branch, start with [README_SHOWER_FEATURES.md](README_SHOWER_FEATURES.md):
 the workflow, datasets and sizes, hit/cluster definitions, normalization, and a
 step-by-step algorithm-development example.
+New collaborators: [clone the branch and get started](README_SHOWER_FEATURES.md#get-the-branch-from-github-and-start-working).
 
 ## Passing-muon detector-ID transformation
 
