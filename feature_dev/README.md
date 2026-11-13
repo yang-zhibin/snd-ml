@@ -1,5 +1,8 @@
 # Develop shower features
 
+For the branch overview, physics datasets, feature definitions, and normalization,
+start with [the shower-feature branch guide](../README_SHOWER_FEATURES.md).
+
 The coworker edits an algorithm and its schema, then runs one command to calculate
 features, validate them, make histograms, and open a standalone HTML report.
 The existing production clustering is always calculated on the **same selected

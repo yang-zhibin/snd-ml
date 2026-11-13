@@ -64,3 +64,13 @@ randomized pre-change baseline comparisons passed. Both `tutorial-gap1` and
 No production algorithm was switched and no detector conversion was launched.
 Real selected-hit exports and event-by-event production parity are the remaining
 physics acceptance step. Example gap clustering is an unqualified hypothesis.
+
+### 2026-11-13 — Collaborator README
+
+Added `README_SHOWER_FEATURES.md` covering branch logic, dataset locations and
+counts, current feature-file sizes, hit/cluster definitions, normalization, and
+a complete plugin tutorial. Linked it from both existing READMEs. Counts are
+explicitly separated into catalog, selected-event and saved-plot snapshots.
+Filesystem inspection found one missing H8 feature file, source
+`unified_tb23_src_e596bffdd9b7f0e203ef`, despite the older coverage JSON; this is
+recorded in the guide. No report regeneration or production job was launched.
