@@ -3,6 +3,7 @@ import argparse
 import fcntl
 import getpass
 import hashlib
+import html
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ import shutil
 import subprocess
 import tempfile
 from engine import ROOT, schema, load_events, sha, write_json, read_json
+from datasets import PHYSICS_DATASETS, DATASETS, resolve_dataset, check_size
 
 
 def digest(value):
@@ -23,6 +25,9 @@ def main():
     parser.add_argument('--schema',type=Path)
     parser.add_argument('--dependency',type=Path,action='append',default=[],help='Additional imported algorithm source file; repeat as needed')
     parser.add_argument('--sample',default='small')
+    parser.add_argument('--dataset', choices=('synthetic','all')+DATASETS)
+    parser.add_argument('--dataset-config', type=Path, default=ROOT/'feature_dev/datasets.yaml')
+    parser.add_argument('--sample-root', type=Path, help='Prepared samples directory; default <output-root>/samples')
     parser.add_argument('--parameters',default='{}',help='JSON object of algorithm parameters')
     parser.add_argument('--run',required=True)
     user=getpass.getuser();work=Path('/afs/cern.ch/work')/user[0]/user
@@ -30,15 +35,49 @@ def main():
     parser.add_argument('--dry-run',action='store_true')
     args=parser.parse_args()
     if not re.fullmatch('[A-Za-z0-9][A-Za-z0-9_.-]*',args.run):parser.error('Invalid run name')
+    if args.dataset == 'all':
+        # Resolve every sample before creating outputs or starting any child DAG.
+        selections = {name: resolve_dataset(name, args.sample, args.dataset_config,
+                      args.sample_root or args.output_root/'samples') for name in PHYSICS_DATASETS}
+        manifests = []
+        import copy
+        for name in PHYSICS_DATASETS:
+            child = copy.copy(args);child.dataset = name
+            manifests.append(run_one(child, selections[name]))
+        if not args.dry_run:
+            out = args.output_root.resolve()/'all'/args.run
+            out.mkdir(parents=True, exist_ok=True)
+            write_json(out/'manifest.json', {'datasets': manifests, 'sample': args.sample})
+            links = ''.join('<li><a href="../../'+name+'/'+args.run+'/plot/report.html">'+html.escape(name)+'</a></li>' for name in PHYSICS_DATASETS)
+            (out/'index.html').write_text('<!doctype html><meta charset="utf-8"><h1>Dataset reports</h1><p>Independent unit-normalized shape comparisons.</p><ul>'+links+'</ul>')
+            print(f'Dataset index: {out / "index.html"}')
+    else:
+        run_one(args)
+
+
+def run_one(args, prepared=None):
+    user=getpass.getuser();work=Path('/afs/cern.ch/work')/user[0]/user
     builtin=args.algorithm in ('baseline','gap_clusters')
     algorithm=ROOT/'feature_dev/algorithms'/f'{args.algorithm}.py' if builtin else Path(args.algorithm).resolve()
-    if not builtin and not args.schema:parser.error('External algorithms require --schema')
+    if not builtin and not args.schema:raise ValueError('External algorithms require --schema')
     definition=args.schema or ROOT/'feature_dev/schemas'/f'{args.algorithm}.yaml'
-    sample=ROOT/'feature_dev/samples/small.jsonl' if args.sample=='small' else Path(args.sample).resolve()
+    dataset_info = None
+    if args.dataset in DATASETS:
+        sample, dataset_info = prepared or resolve_dataset(args.dataset, args.sample, args.dataset_config,
+                                           args.sample_root or args.output_root/'samples')
+    elif args.dataset == 'synthetic':
+        if args.sample not in ('small','synthetic'):raise ValueError('Synthetic dataset has only the small fixture')
+        sample=ROOT/'feature_dev/samples/small.jsonl'
+        dataset_info={'name':'synthetic','sample':'small','version':'small-v1','normalization':'unit_area'}
+    else:
+        # Preserve existing commands, but keep the synthetic alias explicit in output.
+        sample=ROOT/'feature_dev/samples/small.jsonl' if args.sample in ('small','synthetic') else Path(args.sample).resolve()
+        if args.sample in ('small','synthetic'):print('Using the synthetic software fixture (legacy --sample small alias).')
+    check_size([sample])
     _,sample_manifest=load_events(sample)
     parameters=json.loads(args.parameters)
-    if not isinstance(parameters,dict):parser.error('--parameters must be a JSON object')
-    source_files=[algorithm,ROOT/'convertData/scifi_plane_clustering.py',ROOT/'feature_dev/engine.py',ROOT/'feature_dev/selected_hits.py',*sorted((ROOT/'feature_dev/algorithms').glob('*.py')),ROOT/'feature_dev/cli.py',ROOT/'feature_dev/Snakefile',ROOT/'run_feature_dev.sh',*[p.resolve() for p in args.dependency]]
+    if not isinstance(parameters,dict):raise ValueError('--parameters must be a JSON object')
+    source_files=[algorithm,ROOT/'convertData/scifi_plane_clustering.py',ROOT/'feature_dev/engine.py',ROOT/'feature_dev/selected_hits.py',*sorted((ROOT/'feature_dev/algorithms').glob('*.py')),ROOT/'feature_dev/cli.py',ROOT/'feature_dev/datasets.py',ROOT/'feature_dev/Snakefile',ROOT/'run_feature_dev.sh',*[p.resolve() for p in args.dependency]]
     hashes={str(p):sha(p) for p in source_files}
     hashes[str(sample)]=sha(sample);hashes[str(sample)+'.manifest.json']=sha(str(sample)+'.manifest.json')
     import numpy, uproot, yaml, matplotlib, platform
@@ -47,6 +86,7 @@ def main():
     plan={'runtime':runtime,'sample':str(sample),'source_hashes':hashes,
           'baseline':{'algorithm':str(ROOT/'feature_dev/algorithms/baseline.py'),'parameters':{},'schema':schema(ROOT/'feature_dev/schemas/baseline.yaml')},
           'candidate':{'algorithm':str(algorithm),'parameters':parameters,'schema':schema(definition)}}
+    if dataset_info is not None:plan['dataset']=dataset_info
     # Histogram settings do not enter the calculation signature.
     calculation={k:v for k,v in plan.items() if k not in ('baseline','candidate')}
     for name in ('baseline','candidate'):
@@ -54,7 +94,9 @@ def main():
     calc=digest(calculation);valid=digest([calc,'validation-v1'])
     hist=digest([valid,plan['candidate']['schema']]);plot=digest([hist,'report-v1'])
     keys=dict(calculate=calc,validate=valid,histogram=hist,plot=plot)
-    output=args.output_root.resolve();run=output/args.run
+    output=args.output_root.resolve()
+    if args.dataset:output=output/args.dataset
+    run=output/args.run
     plan['paths']={name:str(output/'.cache'/name/key) for name,key in keys.items()}
     signature=digest(plan)
     manifest={'signature':signature,'stage_keys':keys,'plan':plan,'sample_provenance':sample_manifest}
@@ -95,6 +137,7 @@ def main():
             if not link.exists():link.symlink_to(path,target_is_directory=True)
         print(f'Report: {run / "plot/report.html"}')
         print(f'Features: {run / "calculate/features.root"}')
+        return {'dataset':args.dataset,'manifest':str(run/'manifest.json'),'signature':signature}
 
 if __name__=='__main__':
     try:main()

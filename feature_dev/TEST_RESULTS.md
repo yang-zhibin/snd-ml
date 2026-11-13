@@ -30,3 +30,27 @@ merged source identity checks. The real SNDSW conversion/export path was **not**
 executed on detector inputs. Real-source baseline comparison remains the next
 acceptance step, as described in `README.md`; synthetic checks establish software
 behavior only. Candidate algorithms are not installed into production converters.
+
+## Independent dataset execution (13 November 2026)
+
+Verified on lxplus9104 with LCG 107 / Python 3.11.9 and the existing Snakemake
+installation:
+
+- 30 development unit tests passed, including 13 dataset preparation/resolution
+  tests: deterministic group sampling, full selection, duplicate rejection,
+  source-family checks, synthetic rejection, no overwrite, registry resolution,
+  missing files/groups, registration, size limit and normalization policy.
+- `tests/dataset_integration.py`: all 10 end-to-end acceptance checks passed:
+  routing/isolation, dry run, all/index, independent reuse, unrelated configuration
+  changes, immutable runs, full sample selection, synthetic namespace, muon
+  exclusion, and missing-input preflight.
+- Existing `tests/integration.py`: all 10 acceptance checks passed again,
+  including histogram-only reuse, ROOT/JSON validation and cache tamper rejection.
+- The documented wrapper command with `--dataset synthetic --algorithm gap_clusters
+  --sample small --run dataset-demo-v1` completed all stages. Report:
+  `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/feature_dev/synthetic/dataset-demo-v1/plot/report.html`.
+
+Dataset integration tests use artificial hit exports explicitly labelled as test
+fixtures in their provenance. No real detector conversion or physics campaign
+was run. Physics dataset samples must still be prepared and qualified; large
+sharded execution and exposure-normalized development reports are not implemented.

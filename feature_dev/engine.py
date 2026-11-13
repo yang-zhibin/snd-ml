@@ -185,6 +185,8 @@ def report(plan):
            '<p>Sample SHA-256: '+sha(plan['sample'])+'</p>',
            '<p>Candidate: '+html.escape(plan['candidate']['algorithm'])+'; parameters: '+html.escape(json.dumps(plan['candidate']['parameters'],sort_keys=True))+'</p>',
            '<p>Validation passed: identity, finite values, schema, ROOT/JSON agreement and enabled algorithm checks.</p>']
+    if plan.get('dataset'):
+        parts.append('<p>Dataset selection: '+html.escape(json.dumps(plan['dataset'],sort_keys=True))+'</p>')
     for feature,item in hist.items():
         groups=sorted({(c['group'],c['geometry']) for c in item['curves']});fig,axes=plt.subplots(len(groups),1,figsize=(9,3*len(groups)),squeeze=False)
         for ax,(group,geometry) in zip(axes[:,0],groups):

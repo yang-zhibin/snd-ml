@@ -9,6 +9,10 @@ else
     python_bin=$(command -v python3)
 fi
 export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
+if [[ ${1:-} == prepare-sample ]]; then
+    shift
+    exec "$python_bin" "$root/feature_dev/datasets.py" "$@"
+fi
 if [[ ${1:-} == _stage ]]; then
     shift
     exec "$python_bin" "$root/feature_dev/engine.py" "$@"

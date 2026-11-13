@@ -8,6 +8,151 @@ features, validate them, make histograms, and open a standalone HTML report.
 The existing production clustering is always calculated on the **same selected
 hits** as the candidate. Candidate code receives no sample labels or MC truth.
 
+## Run neutrino MC, testbeam, and real data independently
+
+The command now accepts `--dataset mc-neutrino`, `testbeam`, `real-data`,
+`synthetic`, and optional `mc-muon`. `--dataset all` runs the first three as
+independent Snakemake DAGs and writes an index linking their reports. It excludes
+muon MC and the synthetic fixture.
+
+```bash
+./run_feature_dev.sh --algorithm gap_clusters \
+  --dataset mc-neutrino --sample small --run trial01
+./run_feature_dev.sh --algorithm gap_clusters \
+  --dataset testbeam --sample small --run trial01
+./run_feature_dev.sh --algorithm gap_clusters \
+  --dataset real-data --sample small --run trial01
+
+# Run all three, reusing any identical completed dataset runs:
+./run_feature_dev.sh --algorithm gap_clusters \
+  --dataset all --sample small --run trial01
+```
+
+These physics commands require prepared selected-hit samples. None have yet been
+qualified for the new interface on real detector inputs. A missing sample fails
+with its expected path; it never substitutes synthetic hits. For an immediately
+runnable software example, use:
+
+```bash
+./run_feature_dev.sh --algorithm gap_clusters \
+  --dataset synthetic --sample small --run dataset-demo-v1
+```
+
+Existing commands without `--dataset` retain their original output layout and
+`--sample small` synthetic alias. Framework changes invalidate prior run hashes,
+so use a new run name when moving from the earlier implementation.
+
+### Output and sample locations
+
+The default output root is your AFS work campaign's `feature_dev` directory:
+
+```text
+feature_dev/
+  samples/
+    mc-neutrino/small-v1.jsonl       (+ .manifest.json)
+    mc-neutrino/full-v1.jsonl        (+ .manifest.json)
+    testbeam/small-v1.jsonl          (+ .manifest.json)
+    testbeam/full-v1.jsonl           (+ .manifest.json)
+    real-data/small-v1.jsonl         (+ .manifest.json)
+    real-data/full-v1.jsonl          (+ .manifest.json)
+  mc-neutrino/trial01/plot/report.html
+  testbeam/trial01/plot/report.html
+  real-data/trial01/plot/report.html
+  all/trial01/index.html
+  synthetic/dataset-demo-v1/plot/report.html
+```
+
+Each dataset has its own `.cache` and execution lock. Changing testbeam inputs or
+its configuration does not invalidate the neutrino or real-data calculations.
+The same run name is allowed in different dataset directories. Algorithm changes
+still require a new run name within each dataset.
+
+`--output-root` changes the output base; `--sample-root` changes the prepared
+sample base (default `<output-root>/samples`). `--dataset-config` selects another
+YAML registry. The shipped registry is `feature_dev/datasets.yaml`; paths in it
+are relative to the sample root, or can be absolute. Only the selected dataset's
+configuration enters its cache key. Full resolved configuration, sample version,
+group counts, geometry labels and input checksums are recorded in the run manifest
+and report.
+
+### Prepare samples once, then reuse them
+
+First export selected hits from the correct converter/SNDSW setup as described
+below. Keep source provenance `sample_type`, a nonempty `source_uid`, and explicit
+group and geometry labels. Sample preparation validates these declarations; it
+does not infer particle identity from hit patterns or apply new physics cuts.
+
+- **Neutrino MC:** the default registry requires `CC_nue`, `CC_numu`, `NC_nue`, and
+  `NC_numu`. Supply correctly classified exports. The converter's
+  `--feature-dev-group` labels its entire export; do not assign a mixed CC/NC file
+  one class label. Curating class-specific exports is a separate preparation step.
+- **Testbeam:** labels should distinguish data/MC, particle and energy; geometry
+  remains a separate grouping field. Configure `required_groups` if you want to
+  enforce a particular comparison. No fixed set of energies is required by default.
+- **Real data:** the default registry requires `real_data_2024_no_veto` and
+  `real_data_2024_veto_10pct`, using the appropriate selected exports.
+- **Muon MC:** use `mc-muon` separately; it is never treated as neutrino MC.
+
+For example, prepare a fixed small neutrino sample on lxplus (replace input paths
+with your correctly labelled exports):
+
+```bash
+DEV_ROOT=/afs/cern.ch/work/${USER:0:1}/$USER/snd-ml-outputs/unified_shower_features_v1/feature_dev
+
+./run_feature_dev.sh prepare-sample --dataset mc-neutrino \
+  --input /path/to/CC_nue.jsonl --input /path/to/CC_numu.jsonl \
+  --input /path/to/NC_nue.jsonl --input /path/to/NC_numu.jsonl \
+  --output "$DEV_ROOT/samples/mc-neutrino/small-v1.jsonl" \
+  --version small-v1 --max-events-per-group 100
+```
+
+Repeat for testbeam and real data with their dataset name and exports. The cap is
+**per `(group, geometry)`**, so a large group cannot crowd out a smaller one.
+Selection sorts by a SHA-256 hash of source/event identity, making the chosen set
+independent of input-file order. It preserves original hits, identities and labels,
+records available/selected counts and input manifests, rejects duplicates, and
+refuses to overwrite existing output. A smaller group contributes all its events.
+
+To prepare `full-v1.jsonl`, use the same input list with a new output/version and
+`--max-events-per-group 0`. Then run with `--sample full`. Here **full means all
+provided selected-hit exports**, not all raw EOS files or the whole physics
+catalog. Both preparation and execution enforce a **256 MiB JSONL input limit**:
+the present runner loads events into memory. Larger campaigns need a separate
+sharded implementation; increasing the limit is not a substitute for that work.
+
+To use a focused subset of groups, copy the registry and edit `required_groups`,
+then pass `--dataset-config /path/to/my-datasets.yaml`. Original converter
+provenance types must still match the chosen dataset. Synthetic fixture manifests
+are rejected for physics dataset registration, including through merged exports.
+
+### Normalization and testing
+
+All dataset reports currently use **unit-normalized in-range bin fractions**.
+There is no automatic luminosity weighting or 10% veto-sampling yield correction.
+Group labels and geometry are preserved, with baseline/candidate comparisons
+within each panel. Exposure-normalized yields remain a separate production
+workflow requiring validated exposure metadata.
+
+Before `--dataset all` starts work, it validates that all three prepared samples
+exist and match the registry. A failed child prevents creation of a new index;
+already completed child runs remain reusable. `--dry-run` creates no result
+folders. A checksum change is rejected when reusing a run name.
+
+Code: `feature_dev/datasets.py` (preparation and resolution),
+`feature_dev/datasets.yaml` (registry), `feature_dev/cli.py` (routing/index), and
+`feature_dev/Snakefile` (each dataset's DAG).
+
+In the LCG environment, run:
+
+```bash
+python3 -m unittest discover -s feature_dev/tests -v
+python3 feature_dev/tests/dataset_integration.py
+python3 feature_dev/tests/integration.py
+```
+
+Dataset integration tests create explicitly artificial exported hits with source
+metadata to test routing; they do not establish real-data physics acceptance.
+
 ## Try the supplied example on lxplus
 
 From this checkout:

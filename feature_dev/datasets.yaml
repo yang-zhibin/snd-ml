@@ -1,0 +1,30 @@
+# Paths are relative to --sample-root (default: <output-root>/samples).
+# Prepare actual selected-hit exports first; there is no synthetic fallback.
+version: 1
+datasets:
+  mc-neutrino:
+    description: Neutrino MC; preserve CC/NC and electron/muon flavour labels.
+    normalization: unit_area
+    required_groups: [CC_nue, CC_numu, NC_nue, NC_numu]
+    samples:
+      small: mc-neutrino/small-v1.jsonl
+      full: mc-neutrino/full-v1.jsonl
+  testbeam:
+    description: Testbeam data and MC; preserve particle, energy and geometry labels.
+    normalization: unit_area
+    samples:
+      small: testbeam/small-v1.jsonl
+      full: testbeam/full-v1.jsonl
+  real-data:
+    description: Collision data with separate no-veto and sampled veto groups.
+    normalization: unit_area
+    required_groups: [real_data_2024_no_veto, real_data_2024_veto_10pct]
+    samples:
+      small: real-data/small-v1.jsonl
+      full: real-data/full-v1.jsonl
+  mc-muon:
+    description: Optional upward-going muon MC; excluded from dataset all.
+    normalization: unit_area
+    samples:
+      small: mc-muon/small-v1.jsonl
+      full: mc-muon/full-v1.jsonl

@@ -393,6 +393,34 @@ features; the gap example adds a seventh.
 
 ## 5. Develop an algorithm and see its plots
 
+### Choose which dataset to rerun
+
+Independent dataset execution is implemented. For prepared selected-hit samples:
+
+```bash
+./run_feature_dev.sh --algorithm gap_clusters --dataset mc-neutrino --sample small --run trial01
+./run_feature_dev.sh --algorithm gap_clusters --dataset testbeam --sample small --run trial01
+./run_feature_dev.sh --algorithm gap_clusters --dataset real-data --sample small --run trial01
+./run_feature_dev.sh --algorithm gap_clusters --dataset all --sample small --run trial01
+```
+
+Outputs are under `feature_dev/<dataset>/<run>/`; the combined index is
+`feature_dev/all/trial01/index.html`. The registry is
+[feature_dev/datasets.yaml](feature_dev/datasets.yaml). Each dataset has separate
+inputs, cache, validation and plots, while sharing the same feature plugin.
+`--dataset all` excludes optional `mc-muon` and `synthetic`.
+
+Real dataset runs require correctly labelled, versioned exports. No qualified
+real samples are bundled. The new `prepare-sample` command creates deterministic
+samples capped per group/geometry, preserving identities and provenance. See
+[dataset preparation and commands](feature_dev/README.md#run-neutrino-mc-testbeam-and-real-data-independently).
+`--sample full` uses all prepared events, with a 256 MiB input guard until sharded
+processing is implemented. These reports use shape normalization only.
+
+For an immediate example use `--dataset synthetic --sample small --run dataset-demo-v1`.
+Legacy commands below still select synthetic hits when `--dataset` is omitted;
+use a new run name after this framework update because source hashes changed.
+
 ### Step A: run the existing example
 
 ```bash
@@ -402,7 +430,7 @@ cd /afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features
 ./run_feature_dev.sh --algorithm gap_clusters --sample small \
   --run tutorial-gap1 --dry-run
 
-# Execute, or reuse the already completed identical run:
+# Execute (choose a fresh run name after framework updates):
 ./run_feature_dev.sh --algorithm gap_clusters --sample small \
   --run tutorial-gap1
 ```

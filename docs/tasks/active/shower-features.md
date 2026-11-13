@@ -74,3 +74,18 @@ explicitly separated into catalog, selected-event and saved-plot snapshots.
 Filesystem inspection found one missing H8 feature file, source
 `unified_tb23_src_e596bffdd9b7f0e203ef`, despite the older coverage JSON; this is
 recorded in the guide. No report regeneration or production job was launched.
+
+### 2026-11-13 — Independent dataset reruns
+
+Implemented `--dataset mc-neutrino|testbeam|real-data|synthetic|mc-muon|all`,
+per-dataset cache/output isolation, fixed-sample preparation with deterministic
+per-group/geometry caps, and a registry for small/full exports. `all` preflights
+all three physics samples and produces a report index. Provenance checks reject
+synthetic/wrong-family inputs for physics registration. Full input is guarded at
+256 MiB until a sharded runner exists. Normalization remains unit-area shapes.
+
+Validation: 30 unit tests, 10 new dataset integration checks and 10 existing
+integration checks passed. The synthetic wrapper demonstration completed under
+`feature_dev/synthetic/dataset-demo-v1/`. Updated both collaborator guides and
+`feature_dev/TEST_RESULTS.md`. Next action remains preparing and qualifying
+correctly grouped real selected-hit exports; no production jobs were launched.
