@@ -339,7 +339,7 @@ On lxplus, run `./run_feature_dev.sh setup` once. It installs and checks a priva
 Snakemake environment and saves its path in this checkout's ignored
 `.feature-dev-snakemake` file. Future workflow commands load this setting and
 LCG automatically; no activation or exports are needed. Full instructions:
-[collaborator setup](../README_SHOWER_FEATURES.md#install-the-environment-and-run-the-example).
+[collaborator setup](../README_SHOWER_FEATURES.md#git-and-environment-setup).
 Use `setup --check` to verify, or `setup --prefix /your/new/environment/path` to
 choose storage. Repeating setup is safe for environments managed by this tool.
 
@@ -347,6 +347,43 @@ Advanced overrides `FEATURE_DEV_PYTHON` and `FEATURE_DEV_SNAKEMAKE` remain
 available and take precedence over automatic selection. Normal workflow runs
 never install packages; only the explicit `setup` command does. The setup is for
 lxplus/LCG 107; other systems need an appropriate analysis Python and Snakemake.
+
+## Environment setup reference
+
+The short setup instructions are in
+[the collaborator guide](../README_SHOWER_FEATURES.md#git-and-environment-setup).
+
+| What you need | Command or action |
+| --- | --- |
+| Check an installed environment | `./run_feature_dev.sh setup --check` |
+| Retry an interrupted setup | Run the same setup command again |
+| Choose another installation directory | `./run_feature_dev.sh setup --prefix /your/new/environment/path` |
+| Choose another output directory | Add `--output-root /your/writable/path` to the workflow command |
+| Preview workflow steps | Add `--dry-run` to the workflow command |
+| Remove stale manual overrides | `unset FEATURE_DEV_PYTHON FEATURE_DEV_SNAKEMAKE` |
+
+Setup requires lxplus with LCG 107/CVMFS, writable storage, and access to the
+Python package index for the initial installation. It installs Snakemake 9.17.2
+in `venvs/shower-snakemake-9.17.2-lcg107` under your AFS work area. Analysis
+packages come from shared LCG. SNDSW is needed only when exporting raw detector
+events; prepared physics samples and their manifests must be supplied separately.
+
+The path is saved in `.feature-dev-snakemake`, a Git-ignored file in this
+checkout. It survives Git updates. A new clone needs its own setup command;
+use `--prefix` to reuse an environment managed by this installer. Setup does
+not change `.bashrc`. Healthy installations are checked without reinstalling;
+unrelated existing environments are refused. Choose a new directory for
+`--prefix`, rather than an existing Conda or other virtual environment.
+
+Explicit `FEATURE_DEV_PYTHON` and `FEATURE_DEV_SNAKEMAKE` exports override saved
+settings. Remove stale exports from your shell startup file if they return in
+new terminals. Installation clears Python path variables to avoid reusing
+incompatible packages from LCG. Do not replace it with `pip install --user`.
+
+If setup fails, keep the full command and error message. Permission or quota
+errors require fixing storage access/space. A missing CVMFS path requires a
+working lxplus/LCG installation. Changing AFS permissions on someone else's
+private environment is not part of setup.
 
 ## Test plan
 
