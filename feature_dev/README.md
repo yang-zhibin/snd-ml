@@ -335,11 +335,18 @@ input types, exact feature schema, finite values, bounds/sentinels, no input
 mutation, optional algorithm invariants, and JSON/ROOT identity/value agreement.
 It catches software errors; it does not establish physical correctness.
 
-On CERN the wrapper selects the repository's LCG 107 environment and discovers
-your existing `miniconda3/envs/snakemake/bin/snakemake`. Elsewhere set
-`FEATURE_DEV_PYTHON` and `FEATURE_DEV_SNAKEMAKE` to suitable existing executables
-(Python with NumPy, PyYAML, uproot and matplotlib; separate Snakemake runtime).
-No dependencies are installed by the runner.
+On lxplus, run `./run_feature_dev.sh setup` once. It installs and checks a private
+Snakemake environment and saves its path in this checkout's ignored
+`.feature-dev-snakemake` file. Future workflow commands load this setting and
+LCG automatically; no activation or exports are needed. Full instructions:
+[collaborator setup](../README_SHOWER_FEATURES.md#install-the-environment-and-run-the-example).
+Use `setup --check` to verify, or `setup --prefix /your/new/environment/path` to
+choose storage. Repeating setup is safe for environments managed by this tool.
+
+Advanced overrides `FEATURE_DEV_PYTHON` and `FEATURE_DEV_SNAKEMAKE` remain
+available and take precedence over automatic selection. Normal workflow runs
+never install packages; only the explicit `setup` command does. The setup is for
+lxplus/LCG 107; other systems need an appropriate analysis Python and Snakemake.
 
 ## Test plan
 

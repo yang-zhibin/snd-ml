@@ -19,6 +19,33 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
+def find_snakemake(work):
+    """Use an explicit executable, then this user's installations, then PATH."""
+    configured = os.environ.get('FEATURE_DEV_SNAKEMAKE')
+    if configured:
+        executable = shutil.which(os.path.expanduser(configured))
+        if executable:
+            return executable
+        raise ValueError(
+            f'FEATURE_DEV_SNAKEMAKE is not an accessible executable: {configured}. '
+            'Install Snakemake in your own account; see README_SHOWER_FEATURES.md '
+            '(run ./run_feature_dev.sh setup). Access to a private environment is not required.'
+        )
+    for candidate in (work/'venvs/shower-snakemake/bin/snakemake',
+                      work/'miniconda3/envs/snakemake/bin/snakemake'):
+        executable = shutil.which(str(candidate))
+        if executable:
+            return executable
+    executable = shutil.which('snakemake')
+    if executable:
+        return executable
+    raise ValueError(
+        'Snakemake was not found. See README_SHOWER_FEATURES.md '
+        '(run ./run_feature_dev.sh setup), or set FEATURE_DEV_SNAKEMAKE '
+        'to your executable. The analysis Python environment is provided separately by LCG.'
+    )
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--algorithm',default='baseline')
@@ -100,11 +127,7 @@ def run_one(args, prepared=None):
     plan['paths']={name:str(output/'.cache'/name/key) for name,key in keys.items()}
     signature=digest(plan)
     manifest={'signature':signature,'stage_keys':keys,'plan':plan,'sample_provenance':sample_manifest}
-    executable=os.environ.get('FEATURE_DEV_SNAKEMAKE')
-    if not executable:
-        local=work/'miniconda3/envs/snakemake/bin/snakemake'
-        executable=str(local) if local.exists() else shutil.which('snakemake')
-    if not executable:raise ValueError('Set FEATURE_DEV_SNAKEMAKE to a Snakemake executable')
+    executable=find_snakemake(work)
     env=os.environ.copy();env.pop('PYTHONPATH',None);env.pop('PYTHONHOME',None)
     def execute(planfile,dry=False):
         command=[executable,'--snakefile',str(ROOT/'feature_dev/Snakefile'),'--cores','1','--rerun-triggers','mtime','--config',f'plan={planfile}',f'wrapper={ROOT / "run_feature_dev.sh"}']

@@ -54,3 +54,20 @@ Dataset integration tests use artificial hit exports explicitly labelled as test
 fixtures in their provenance. No real detector conversion or physics campaign
 was run. Physics dataset samples must still be prepared and qualified; large
 sharded execution and exposure-normalized development reports are not implemented.
+
+## Automatic environment setup — 2026-11-15
+
+- 35 development unit tests passed, including 5 installer tests covering Python
+  path isolation, atomic plain-data configuration, preservation of unrelated
+  environments, failed-install recovery, and read-only verification.
+- Fresh explicit setup installed Snakemake 9.17.2 into an isolated LCG-Python
+  virtual environment; `pip check` passed.
+- `setup --check` passed. Repeated `setup` reused the healthy environment without
+  invoking pip installation.
+- From an `env -i` shell with no FEATURE_DEV overrides, the wrapper loaded the
+  saved configuration and completed calculation, ROOT/JSON validation,
+  histograms and the synthetic HTML report.
+- Shell syntax, ignored-local-config check and `git diff --check` passed.
+- No AFS access permissions or shell startup files were changed. This is an
+  lxplus/CVMFS installer, not a portable laptop setup. Real-data access still
+  requires independently provided selected-hit exports and manifests.

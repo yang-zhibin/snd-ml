@@ -89,3 +89,6 @@ test/test_training_container_3d_ci.py
 /evaluation_region_partitions/region_v2_inspection
 /evaluation_region_partitions/scifi_fiducial_plots
 /train_3d/test_outputs/testbeam_cpu_smoke_v1
+
+# Per-checkout personal environment path, written by run_feature_dev.sh setup.
+/.feature-dev-snakemake

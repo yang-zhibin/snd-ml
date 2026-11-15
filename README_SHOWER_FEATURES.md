@@ -68,43 +68,92 @@ Resolve any merge conflicts before continuing and rerun the relevant tests.
 A failed `--ff-only` pull means the local shared branch has diverged; inspect its
 commits rather than resetting or force-pushing it.
 
-### Check the runtime and run the example
+### Install the environment and run the example
 
-On lxplus the wrapper activates the repository's LCG 107 environment, which
-provides Python, NumPy, PyYAML, uproot, and matplotlib. You also need an existing
-Snakemake installation. It checks your AFS work
-`miniconda3/envs/snakemake/bin/snakemake`, then `PATH`. If needed, point to your
-own existing executable:
+On **lxplus**, open a fresh Bash terminal and enter your existing repository.
+If you are on the shared `task/shower-features` branch, update it first:
 
 ```bash
-# Only needed if automatic discovery cannot find your Snakemake installation:
-export FEATURE_DEV_SNAKEMAKE=/absolute/path/to/environment/bin/snakemake
+git status
+git pull --ff-only origin task/shower-features
 ```
 
-The wrapper installs no packages. Original detector ROOT export needs the
-source's matching SNDSW environment; the synthetic example and already exported
-hit JSONL do not. A GPU is not required.
+If you have uncommitted edits, commit or deliberately stash them before updating.
+If you are on your own development branch, instead use `git fetch origin` then
+`git merge origin/task/shower-features` as described above; keep your branch.
 
-From the clone's root, run:
+**First-time setup — run once in your checkout:**
 
 ```bash
-./run_feature_dev.sh --algorithm gap_clusters \
-  --dataset synthetic --sample small --run first-example --dry-run
+unset FEATURE_DEV_PYTHON FEATURE_DEV_SNAKEMAKE
+./run_feature_dev.sh setup
+```
 
+Wait for `Configured this checkout` and `Future terminals` messages. Setup:
+
+- checks CERN's shared LCG analysis packages;
+- installs Snakemake 9.17.2 in your own AFS work directory, under
+  `venvs/shower-snakemake-9.17.2-lcg107`;
+- isolates pip from LCG's Python path settings and checks the installation;
+- saves the executable path in `.feature-dev-snakemake` in this checkout.
+
+The saved file is ignored by Git and stays in place when you update the branch.
+No Conda, administrator access, or access to Zhibin's private directories is
+needed. Setup does not modify `.bashrc` or activate an environment in your shell.
+The first installation needs access to the Python package index and writable
+space in your AFS work area. Repeating setup verifies a healthy installation
+without reinstalling it. An unrelated existing environment is never modified.
+
+**Run the example:**
+
+```bash
 ./run_feature_dev.sh --algorithm gap_clusters \
   --dataset synthetic --sample small --run first-example
 ```
 
-The command prints the HTML report path. By default it is:
+The final `Report:` line gives the path to `report.html`. Download that file and
+open it in a browser, or use an HTML preview. This is a 24-event synthetic
+software example; no physics-data access is required.
+
+**In every future terminal:** enter the checkout and run the same workflow
+command directly. No `source`, environment activation, or exports are needed.
+Use a new `--run` name when you change code or settings. To check the installation:
+
+```bash
+./run_feature_dev.sh setup --check
+```
+
+For another installation location (for example, if you have no AFS work area):
+
+```bash
+./run_feature_dev.sh setup --prefix /your/writable/path/shower-snakemake
+```
+
+Use a new directory, not an existing Conda/virtual environment. A new clone needs
+its own setup command to save its local configuration; it can reuse the same
+managed environment with `--prefix`. If a managed installation is interrupted,
+rerun the same setup command. A failed installation does not save a new config.
+
+If an old terminal or shell startup file exports `FEATURE_DEV_SNAKEMAKE` or
+`FEATURE_DEV_PYTHON`, those explicit overrides still take precedence. Unset them
+to use the saved setup. The setup command itself always checks the LCG stack.
+
+Default outputs are in your own AFS work area:
 
 ```text
 /afs/cern.ch/work/<initial>/<username>/snd-ml-outputs/unified_shower_features_v1/feature_dev/synthetic/first-example/plot/report.html
 ```
 
-Open that file in a browser or HTML preview. Use `--output-root /your/writable/path`
-to choose another location. The 24 events are synthetic software examples.
-For actual neutrino MC, testbeam, or collision data, follow the
-[dataset preparation instructions](feature_dev/README.md#run-neutrino-mc-testbeam-and-real-data-independently).
+Use `--output-root /your/writable/path` to choose another output location. If no
+AFS work area exists, outputs default to `feature-dev-output` in the current
+directory. Add `--dry-run` to preview a workflow without producing results.
+
+The setup is for lxplus with LCG 107/CVMFS. It installs the orchestrator in a
+private virtual environment while feature calculation uses shared LCG packages;
+the wrapper handles both automatically. It is not a laptop/container installer.
+SNDSW is needed only for exporting new raw detector events. To develop with real
+samples, you also need the prepared selected-hit files and their manifests; see
+[dataset preparation](feature_dev/README.md#run-neutrino-mc-testbeam-and-real-data-independently).
 
 ### Make your first algorithm change
 

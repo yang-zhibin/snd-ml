@@ -89,3 +89,42 @@ integration checks passed. The synthetic wrapper demonstration completed under
 `feature_dev/synthetic/dataset-demo-v1/`. Updated both collaborator guides and
 `feature_dev/TEST_RESULTS.md`. Next action remains preparing and qualifying
 correctly grouped real selected-hit exports; no production jobs were launched.
+
+### 2026-11-15 — Collaborator environment audit
+
+Confirmed LCG 107 has NumPy 1.26.4, uproot 5.3.11, PyYAML 6.0.1 and
+matplotlib 3.8.3, but no Snakemake executable/distribution. A personal executable
+on PATH was using LCG Python, explaining the apparent shared installation.
+
+Tested a separate LCG-Python virtual environment at
+`/tmp/zhibin/shower-snakemake-setup-20261115`. Installing with inherited LCG
+PYTHONPATH reused external packages and reproduced missing `humanfriendly` when
+running isolated. Installing with PYTHONPATH/PYTHONHOME unset resolved this;
+`pip check` passed. Snakemake 9.17.2 completed the synthetic DAG from an `env -i`
+shell with only HOME/USER/LOGNAME/PATH/LANG and FEATURE_DEV_SNAKEMAKE supplied.
+Evidence: `/tmp/zhibin/shower-clean-login.log`; report:
+`/tmp/zhibin/shower-env-audit-20261115/synthetic/clean-login/plot/report.html`.
+These are temporary audit artifacts, not production products.
+
+Updated collaborator setup instructions to clear Python path variables during
+installation. No AFS permissions changed. Coworker's account, storage quota,
+CVMFS access and physics-data permissions have not been tested. Recommend own
+Snakemake venv + centrally provided LCG analysis stack, with fixed selected-hit
+samples shared separately. No SNDSW or GPU needed for exported-hit development.
+
+### 2026-11-15 — One-command collaborator setup
+
+Implemented `./run_feature_dev.sh setup [--prefix PATH]` and `setup --check`.
+The installer uses LCG Python, clears inherited Python/pip target settings,
+installs pinned Snakemake 9.17.2 in a managed private venv, verifies dependencies,
+and atomically saves a plain executable path in ignored `.feature-dev-snakemake`.
+Future wrapper runs read the configuration automatically; explicit environment
+variable overrides still take precedence. Existing unrelated environments are
+refused, interrupted managed installs can be retried, and healthy repeats do
+not reinstall. Nothing changes shell startup files or AFS permissions.
+
+35 development unit tests passed. Fresh install, repeat/check, and a complete
+synthetic DAG in a minimal shell without FEATURE_DEV overrides passed. The
+collaborator README now gives update/setup/run commands and separate guidance
+for collaborators working on their own branches. Setup evidence is recorded in
+`feature_dev/TEST_RESULTS.md`. Real source export qualification is unchanged.
