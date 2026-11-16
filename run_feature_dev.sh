@@ -26,6 +26,15 @@ if [[ ${1:-} == prepare-sample ]]; then
     shift
     exec "$python_bin" "$root/feature_dev/datasets.py" "$@"
 fi
+if [[ ${1:-} == _prepare ]]; then
+    hostname
+    pwd
+    command -v "$python_bin"
+    "$python_bin" --version
+    "$python_bin" -c 'import numpy, uproot, yaml; print("preparation analysis imports: PASS")'
+    shift
+    exec "$python_bin" "$root/feature_dev/prepare.py" "$@"
+fi
 if [[ ${1:-} == _stage ]]; then
     shift
     exec "$python_bin" "$root/feature_dev/engine.py" "$@"

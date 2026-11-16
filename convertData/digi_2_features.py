@@ -1345,9 +1345,10 @@ def process_hits(
 
     step_start = time.perf_counter()
     if getattr(args, "_feature_dev_writer", None) is not None:
+        from selected_hits import export_group
         args._feature_dev_writer.add(
             {k: branch_vars[k][0] for k in ("runId", "eventId", "eventIndex")},
-            SciFi_hits, getattr(args, "feature_dev_group", None) or args.type, getattr(args, "source_uid", "") or "",
+            SciFi_hits, export_group(getattr(args, "feature_dev_group", None) or args.type, branch_vars["pdgCode"][0]), getattr(args, "source_uid", "") or "",
             getattr(args, "source_geometry_id", "unknown") or "unknown",
         )
     selected_scifi_hits_for_density = [entry["raw"] for entry in SciFi_hit_entries]

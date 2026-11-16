@@ -3,7 +3,7 @@
 For the branch overview, physics datasets, feature definitions, and normalization,
 start with [the shower-feature branch guide](../README_SHOWER_FEATURES.md).
 
-New collaborator? Follow the [GitHub clone, update, first-run and contribution instructions](../README_SHOWER_FEATURES.md#get-the-branch-from-github-and-start-working) first.
+New collaborator? Follow the [GitHub clone, update, first-run and contribution instructions](../README_SHOWER_FEATURES.md#git-and-environment-setup) first.
 
 The coworker edits an algorithm and its schema, then runs one command to calculate
 features, validate them, make histograms, and open a standalone HTML report.
@@ -30,10 +30,12 @@ muon MC and the synthetic fixture.
   --dataset all --sample small --run trial01
 ```
 
-These physics commands require prepared selected-hit samples. None have yet been
-qualified for the new interface on real detector inputs. A missing sample fails
-with its expected path; it never substitutes synthetic hits. For an immediately
-runnable software example, use:
+These commands now read the existing source catalogues and automatically prepare
+small selected-hit samples from their EOS inputs on first use. You do not need
+to supply Zhibin's sample directory. You need read access to the shared catalogue,
+digitized ROOT files, geometry and cutflows, plus the established SNDSW build.
+Missing inputs or missing physics groups fail explicitly; there is no synthetic
+fallback. For an example requiring no physics-data access, use:
 
 ```bash
 ./run_feature_dev.sh --algorithm gap_clusters \
@@ -50,13 +52,13 @@ The default output root is your AFS work campaign's `feature_dev` directory:
 
 ```text
 feature_dev/
-  samples/
-    mc-neutrino/small-v1.jsonl       (+ .manifest.json)
-    mc-neutrino/full-v1.jsonl        (+ .manifest.json)
-    testbeam/small-v1.jsonl          (+ .manifest.json)
-    testbeam/full-v1.jsonl           (+ .manifest.json)
-    real-data/small-v1.jsonl         (+ .manifest.json)
-    real-data/full-v1.jsonl          (+ .manifest.json)
+  .samples/<dataset>/<source-signature>/
+    plan.json                      selected sources, fingerprints and sampling
+    exports/<number>/              selected hits, converter ROOT and parity receipt
+    logs/export-<number>.log        converter command and runtime diagnostics
+    small.jsonl                    validated prepared sample (+ manifest)
+    registry.json                  reusable prepared-sample registry
+    complete.json                  checksums required for reuse
   mc-neutrino/trial01/plot/report.html
   testbeam/trial01/plot/report.html
   real-data/trial01/plot/report.html
@@ -69,15 +71,94 @@ its configuration does not invalidate the neutrino or real-data calculations.
 The same run name is allowed in different dataset directories. Algorithm changes
 still require a new run name within each dataset.
 
-`--output-root` changes the output base; `--sample-root` changes the prepared
-sample base (default `<output-root>/samples`). `--dataset-config` selects another
-YAML registry. The shipped registry is `feature_dev/datasets.yaml`; paths in it
-are relative to the sample root, or can be absolute. Only the selected dataset's
-configuration enters its cache key. Full resolved configuration, sample version,
-group counts, geometry labels and input checksums are recorded in the run manifest
-and report.
+`--output-root` changes your cache and result base. The default is
+`/afs/cern.ch/work/<initial>/<username>/snd-ml-outputs/unified_shower_features_v1/feature_dev`
+when your AFS work directory exists, otherwise `./feature-dev-output`.
+No source directory is written. `--dataset-config` selects another YAML registry;
+relative catalogue paths resolve against that registry's directory.
 
-### Prepare samples once, then reuse them
+### Automatic small samples from existing EOS sources
+
+The shipped `datasets.yaml` points to the existing campaign metadata under
+`/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata`.
+Those CSVs supply the authoritative EOS input, geometry and selection paths.
+
+| Dataset | Source strata and default file cap | Event grouping |
+| --- | --- | --- |
+| `mc-neutrino` | 4 files per flavour subfolder | CC/NC and flavour from each event's existing converter `pdgCode` encoding |
+| `testbeam` | 2 files per data/MC family, particle, energy and geometry; includes H4 2024 and H8 2023 | Preserve family, particle, energy and geometry |
+| `real-data` | 2 files per saved no-veto/veto-10% selection, preferring distinct runs | Use existing indexed cutflows; no new veto sampling |
+| `mc-muon` | 2 files per source family and geometry | Preserve upward-going muon source family |
+
+Files are ordered by a stable hash with seed `feature-dev-v1`. Each selected
+file contributes at most its first 100 selected entries. The final sample keeps
+up to 100 events per group/geometry, sorted by source/event identity hash.
+This is a bounded development subset, **not an unbiased sample of the campaign**.
+Missing CC/NC coverage is an error; increase the file/event caps deliberately.
+The converter may still need to inspect the chosen file's cutflow to resolve its
+selection. The input-file cap prevents scanning the entire raw campaign.
+
+Preview without converting or creating result directories:
+
+```bash
+./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters \
+  --run trial01 --dry-run
+```
+
+For an uncached sample, this previews the preparation DAG; analysis is planned
+once the sample exists. `all` preflights every dataset's selected source paths
+before starting any preparation. A failure leaves completed earlier datasets
+reusable and does not create a new combined index.
+
+Preparation alone, or a larger bounded sample:
+
+```bash
+./run_feature_dev.sh --dataset mc-neutrino --sample small --run preparation \
+  --prepare-only
+./run_feature_dev.sh --dataset mc-neutrino --sample small --run trial02 \
+  --files-per-group 6 --events-per-file 200 --algorithm gap_clusters
+```
+
+Hard development limits are 20 files per stratum and 1000 selected entries per
+file. Use Snakemake/HTCondor for long preparation: pass
+`--prepare-profile /absolute/path/to/your/htcondor-profile` (an existing profile
+compatible with your Snakemake installation). The CLI waits for preparation,
+then runs analysis locally. Run the controller in a persistent session. Record
+the launch command, scheduler job IDs, status command and cache/log paths in
+your task record. No HTCondor plugin or profile is installed by this command.
+`launch.json`, `.snakemake/log/` and `logs/export-*.log` live inside the sample cache.
+
+SNDSW export and LCG analysis run in separate processes. Every export must pass
+entry-by-entry `(runId, eventId, eventIndex)` and baseline scalar comparison
+against its freshly produced converter ROOT tree before sample assembly. Scalar
+floats use `rtol=1e-6, atol=1e-7`; integer and identity comparisons are exact.
+This verifies adapter parity, not scientific validity of a candidate algorithm
+or agreement with an older campaign produced with different software.
+
+The source cache key includes catalogue hashes, selected input path/size/mtime,
+geometry and cutflow content hashes, sampling and preparation code. Cache reuse
+checks output hashes; interrupted exports are retried atomically. Source digi
+files are identified by size/mtime rather than hashing entire large ROOT files.
+Shared SNDSW builds are environment dependencies, not bundled immutable images;
+retain converter logs when qualifying samples. Algorithm-only edits reuse the
+prepared hits. Planning still checks source accessibility and fingerprints.
+
+### Optional: reuse an existing prepared sample
+
+`--sample-root` explicitly bypasses automatic EOS preparation. For a sample
+prepared by this workflow, use its printed cache directory and registry:
+
+```bash
+./run_feature_dev.sh --dataset mc-neutrino --sample small --run shared-trial \
+  --dataset-config /shared/cache/registry.json --sample-root /shared/cache \
+  --algorithm gap_clusters
+```
+
+The shared files must be readable; outputs still go to the caller's own area.
+With the shipped registry, manually prepared samples retain the layout
+`<sample-root>/<dataset>/small-v1.jsonl`. No AFS permissions are changed.
+
+### Advanced: manually prepare exported samples
 
 First export selected hits from the correct converter/SNDSW setup as described
 below. Keep source provenance `sample_type`, a nonempty `source_uid`, and explicit
@@ -85,9 +166,9 @@ group and geometry labels. Sample preparation validates these declarations; it
 does not infer particle identity from hit patterns or apply new physics cuts.
 
 - **Neutrino MC:** the default registry requires `CC_nue`, `CC_numu`, `NC_nue`, and
-  `NC_numu`. Supply correctly classified exports. The converter's
-  `--feature-dev-group` labels its entire export; do not assign a mixed CC/NC file
-  one class label. Curating class-specific exports is a separate preparation step.
+  `NC_numu`. Supply correctly classified exports. For mixed neutrino files use
+  `--feature-dev-group __neutrino_truth__` to derive per-event labels. A literal
+  group name labels the entire export and must not be used to mislabel mixed inputs.
 - **Testbeam:** labels should distinguish data/MC, particle and energy; geometry
   remains a separate grouping field. Configure `required_groups` if you want to
   enforce a particular comparison. No fixed set of energies is required by default.
@@ -116,7 +197,7 @@ records available/selected counts and input manifests, rejects duplicates, and
 refuses to overwrite existing output. A smaller group contributes all its events.
 
 To prepare `full-v1.jsonl`, use the same input list with a new output/version and
-`--max-events-per-group 0`. Then run with `--sample full`. Here **full means all
+`--max-events-per-group 0`. Then run with `--sample full --sample-root "$DEV_ROOT/samples"`. Here **full means all
 provided selected-hit exports**, not all raw EOS files or the whole physics
 catalog. Both preparation and execution enforce a **256 MiB JSONL input limit**:
 the present runner loads events into memory. Larger campaigns need a separate
@@ -135,12 +216,13 @@ Group labels and geometry are preserved, with baseline/candidate comparisons
 within each panel. Exposure-normalized yields remain a separate production
 workflow requiring validated exposure metadata.
 
-Before `--dataset all` starts work, it validates that all three prepared samples
-exist and match the registry. A failed child prevents creation of a new index;
+Before `--dataset all` starts work, it preflights all selected source paths
+(or validates all three samples when `--sample-root` is supplied). A failed child prevents creation of a new index;
 already completed child runs remain reusable. `--dry-run` creates no result
 folders. A checksum change is rejected when reusing a run name.
 
-Code: `feature_dev/datasets.py` (preparation and resolution),
+Code: `feature_dev/sources.py`, `prepare.py`, `PrepareSnakefile` and
+`run_export.sh` (automatic source preparation); `feature_dev/datasets.py` (manual preparation and resolution),
 `feature_dev/datasets.yaml` (registry), `feature_dev/cli.py` (routing/index), and
 `feature_dev/Snakefile` (each dataset's DAG).
 
@@ -366,7 +448,7 @@ Setup requires lxplus with LCG 107/CVMFS, writable storage, and access to the
 Python package index for the initial installation. It installs Snakemake 9.17.2
 in `venvs/shower-snakemake-9.17.2-lcg107` under your AFS work area. Analysis
 packages come from shared LCG. SNDSW is needed only when exporting raw detector
-events; prepared physics samples and their manifests must be supplied separately.
+events; physics dataset commands now prepare and validate those exports automatically.
 
 The path is saved in `.feature-dev-snakemake`, a Git-ignored file in this
 checkout. It survives Git updates. A new clone needs its own setup command;
@@ -407,3 +489,13 @@ its normal converter invocation. Check exported identities/counts against ROOT,
 compare baseline scalar branches event by event, inspect geometry/group labels,
 and review candidate differences. These detector-runtime acceptance checks are
 still required; the packaged example is synthetic.
+
+### Current source validation limits (16 November 2026)
+
+Two-event source canaries passed automatic export, baseline parity and full
+report generation for neutrino MC, H4/H8 testbeam data, testbeam MC and both
+collision-data groups. Full default sample coverage remains to be qualified.
+The optional `mc-muon` path is implemented, but its current shared catalogue
+had no entry with both digi and geometry files present from the validation host;
+its command reports the missing input until the catalogue/access is repaired.
+See [TEST_RESULTS.md](TEST_RESULTS.md) for exact evidence and limits.

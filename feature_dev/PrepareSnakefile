@@ -1,0 +1,20 @@
+import json
+from pathlib import Path
+PLAN = config['plan']
+WRAPPER = config['wrapper']
+plan = json.loads(Path(PLAN).read_text())
+BASE = plan['directory']
+rule prepare_all:
+    input: BASE + '/complete.json'
+rule export_source:
+    output: BASE + '/exports/{source}/complete.json'
+    wildcard_constraints: source=r'\d+'
+    threads: 1
+    resources: mem_mb=2500, disk_mb=3000, runtime=3600
+    shell: '{WRAPPER:q} _prepare {PLAN:q} export {wildcards.source:q}'
+rule assemble_sample:
+    input: expand(BASE + '/exports/{source}/complete.json', source=range(len(plan['jobs'])))
+    output: BASE + '/complete.json'
+    threads: 1
+    resources: mem_mb=2500, disk_mb=3000, runtime=3600
+    shell: '{WRAPPER:q} _prepare {PLAN:q} assemble'

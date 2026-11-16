@@ -71,3 +71,59 @@ sharded execution and exposure-normalized development reports are not implemente
 - No AFS access permissions or shell startup files were changed. This is an
   lxplus/CVMFS installer, not a portable laptop setup. Real-data access still
   requires independently provided selected-hit exports and manifests.
+
+## Automatic source preparation — 16 November 2026
+
+Verified on lxplus939 using LCG 107 / Python 3.11.9, the configured personal
+Snakemake 9.17.2 installation, and the existing `env_sndsw_nue.sh` plus pinned
+June25 converter interpreter used by the unified production rules.
+
+- 51 development unit tests passed (35 existing + 16 source-preparation tests).
+- 11 SciFi clustering and 13 unified-feature regressions passed.
+- Both existing integration suites passed: 10 dataset checks and 10 workflow
+  checks, including immutable runs, cache tampering and dry-run isolation.
+- The shipped registry's `--dataset all --dry-run` passed: 8 neutrino, 45
+  testbeam and 4 collision-data source files. The output directory was absent
+  afterward; planning did not export or alter source files.
+- A focused detector canary exported **two selected events per source** from
+  six catalogue records: one neutrino MC, one testbeam MC 2024, one H4 data 2024,
+  one H8 data 2023, and one each of the no-veto/veto-10% collision-data groups.
+  All six passed entry-by-entry identity and **182 baseline scalar** comparisons
+  against their fresh converter ROOT trees. Integer checks were exact;
+  floating-point checks used `rtol=1e-6, atol=1e-7`.
+- The complete baseline/candidate DAG produced three HTML reports and the `all`
+  index. Repeating the identical command reused all three validated samples;
+  all analysis DAGs reported nothing to do. No converters reran.
+- A first canary exposed Snakemake precreating the output parent; this was fixed
+  and regression-tested, including failed-export retry and cache preservation.
+- Shell syntax and `git diff --check` passed.
+
+Reproduction command for the focused real-source canaries (temporary registry
+contains one source per family/group, two events per source; neutrino required
+four-class coverage is deliberately disabled for this two-event adapter test):
+
+```bash
+./run_feature_dev.sh --dataset all \
+  --dataset-config /tmp/zhibin/feature-auto-canary-20261116/all-datasets.json \
+  --sample small --run canary-report --algorithm gap_clusters \
+  --output-root /tmp/zhibin/feature-auto-canary-20261116/all-output
+```
+
+Reports: `/tmp/zhibin/feature-auto-canary-20261116/all-output/` followed by
+`{mc-neutrino,testbeam,real-data}/canary-report/plot/report.html`;
+combined index: `all/canary-report/index.html`. Source plans, export logs and
+parity receipts are under that output root's `.samples/<dataset>/<signature>/`.
+Controller logs: `/tmp/zhibin/feature-auto-canary-20261116/all-run.log` and
+`reuse.log`. Unit/regression logs: `/tmp/zhibin/feature-{unit,clustering,unified}-20261116.log`.
+Integration logs: `/tmp/zhibin/feature-{dataset-integration,integration}-20261116.log`.
+Default-registry preview: `/tmp/zhibin/feature-source-preview-20261116.log`.
+These are temporary, host-local validation artifacts, not shared production samples.
+
+Limits: the complete default samples were not exported; this does not establish
+four-class neutrino coverage, physics acceptance of gap clustering, coworker
+account permissions or HTCondor execution. The optional muon source adapter is
+unit-tested, but detector validation was blocked: none of the 15 existing muon
+catalogue rows had both digi and geometry files present from this host. The
+missing-source preflight failed explicitly without substituting another sample.
+No production products were changed and no batch jobs were submitted. Automatic
+full-campaign preparation remains blocked pending sharded processing.

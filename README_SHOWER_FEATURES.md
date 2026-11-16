@@ -1,6 +1,6 @@
 # Shower-feature branch: a guide for collaborators
 
-This guide describes `task/shower-features`, checked on 13 November 2026.
+This guide describes `task/shower-features`, with automatic source preparation updated on 16 November 2026.
 Start here to understand the physics workflow and develop a new feature.
 The detailed command reference is in [feature_dev/README.md](feature_dev/README.md).
 
@@ -149,9 +149,10 @@ Algorithm-development workflow
 ```
 
 The second workflow lets a collaborator work on the algorithm without rewriting
-ROOT input handling, detector selection, normalization, or plotting. Exporting
-real selected hits is a separate preparation step. The supplied development
-sample is synthetic; it does not automatically load the physics datasets below.
+ROOT input handling, detector selection, normalization, or plotting. Physics
+dataset commands now automatically export a bounded subset from the existing
+EOS sources on first use and cache the validated hits. `--dataset synthetic`
+remains a separate example requiring no detector inputs.
 
 The existing production converter still uses the baseline algorithm. A candidate
 plugin changes the development calculation; promoting it to the production
@@ -285,8 +286,8 @@ particle-only comparisons.
 **24 synthetic events**, eight per artificial source label, including one empty
 hit event. Its JSONL is 32,675 bytes; a completion manifest accompanies it.
 The labels illustrate testbeam/collision/MC grouping but are not real data.
-Real selected-hit exports for this interface are still a preparation and
-acceptance step; the existing production feature ROOT files are not hit exports.
+Physics dataset commands prepare and validate separate selected-hit exports
+automatically; the existing production feature ROOT files are not hit exports.
 
 ## 3. Hit inputs, clustering, and feature definitions
 
@@ -510,7 +511,7 @@ features; the gap example adds a seventh.
 
 ### Choose which dataset to rerun
 
-Independent dataset execution is implemented. For prepared selected-hit samples:
+Run directly from the existing shared source catalogues; no separate sample path is needed:
 
 ```bash
 ./run_feature_dev.sh --algorithm gap_clusters --dataset mc-neutrino --sample small --run trial01
@@ -525,12 +526,27 @@ Outputs are under `feature_dev/<dataset>/<run>/`; the combined index is
 inputs, cache, validation and plots, while sharing the same feature plugin.
 `--dataset all` excludes optional `mc-muon` and `synthetic`.
 
-Real dataset runs require correctly labelled, versioned exports. No qualified
-real samples are bundled. The new `prepare-sample` command creates deterministic
-samples capped per group/geometry, preserving identities and provenance. See
-[dataset preparation and commands](feature_dev/README.md#run-neutrino-mc-testbeam-and-real-data-independently).
-`--sample full` uses all prepared events, with a 256 MiB input guard until sharded
-processing is implemented. These reports use shape normalization only.
+On first use, these commands select a deterministic subset of the existing EOS
+sources, export selected hits through SNDSW, verify event identity and baseline
+scalars against the converter ROOT output, and cache the sample in your own
+output area. Subsequent algorithm iterations reuse the hits. The source files
+are never modified. Missing access or incomplete physics groups cause an error;
+there is no fallback to synthetic events.
+
+Use `--dry-run` to preview, `--prepare-only` to stop after input qualification,
+and `--files-per-group N --events-per-file N` to change the bounded subset.
+Neutrino MC defaults to 4 files per flavour; other datasets use 2 per source
+stratum, with 100 selected entries per file and up to 100 events per final
+group/geometry. Testbeam includes H4 2024 and H8 2023; real data retains its
+existing no-veto and veto-10% indices. For long preparation use
+`--prepare-profile /path/to/your/htcondor-profile`.
+
+The first export requires access to the existing SNDSW build and EOS inputs;
+`setup` installs only the development runner. Your coworker's access must be
+checked on their account. Use `--sample-root` only to opt into an existing shared
+prepared sample. Automatic `--sample full` is blocked pending sharded processing;
+explicit prepared inputs retain the 256 MiB guard. Reports use shape normalization.
+See [automatic preparation and cache details](feature_dev/README.md#automatic-small-samples-from-existing-eos-sources).
 
 For an immediate example use `--dataset synthetic --sample small --run dataset-demo-v1`.
 Legacy commands below still select synthetic hits when `--dataset` is omitted;
@@ -689,6 +705,9 @@ rejected to protect previous results.
 
 ### Step E: use real events
 
+Normally use the `--dataset` commands above; preparation is automatic. The
+following manual export route is for custom sources outside the registry.
+
 Prepare a small fixed export once per source using the existing production
 converter command and its matching SNDSW environment. Append:
 
@@ -728,7 +747,8 @@ The merger preserves source/group/geometry labels and checks duplicate identitie
 Once these selected-hit exports exist, algorithm iterations do not reread raw
 ROOT or rerun hit selection. Validate the exported baseline against the original
 production feature branches before using the results for physics. This real
-SNDSW export/acceptance step has not yet been exercised by the interface tests.
+SNDSW acceptance must be established for each source family; software fixture
+tests alone do not qualify detector samples.
 
 ### What must rerun after an edit?
 

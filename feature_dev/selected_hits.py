@@ -5,6 +5,17 @@ import math
 from pathlib import Path
 
 
+def export_group(group, pdg_code):
+    """Use the converter's existing truth encoding for mixed neutrino inputs."""
+    if group != '__neutrino_truth__':
+        return group
+    labels = {12: 'CC_nue', 14: 'CC_numu', 112: 'NC_nue', 114: 'NC_numu'}
+    try:
+        return labels[abs(int(pdg_code))]
+    except KeyError:
+        raise ValueError(f'Unsupported neutrino truth code: {pdg_code}') from None
+
+
 def sha(path):
     h=hashlib.sha256()
     with Path(path).open('rb') as stream:
