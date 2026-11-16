@@ -537,7 +537,9 @@ Use `--dry-run` to preview, `--prepare-only` to stop after input qualification,
 and `--files-per-group N --events-per-file N` to change the bounded subset.
 Neutrino MC defaults to 4 files per flavour; other datasets use 2 per source
 stratum, with 100 selected entries per file and up to 100 events per final
-group/geometry. Testbeam includes H4 2024 and H8 2023; real data retains its
+group/geometry (25 for testbeam). Automatic assembly processes one source at a
+time, retaining only the capped candidates and preserving the 256 MiB guard.
+Testbeam includes H4 2024 and H8 2023; real data retains its
 existing no-veto and veto-10% indices. For long preparation use
 `--prepare-profile /path/to/your/htcondor-profile`.
 
@@ -787,3 +789,10 @@ acceptance checks, and 100 randomized comparisons with the previous baseline.
 Evidence and limitations: [feature_dev/TEST_RESULTS.md](feature_dev/TEST_RESULTS.md).
 Software validation checks consistency; it does not establish that a new feature
 is physically useful or that different detector geometries are directly comparable.
+
+Standard EOS-backed small-sample validation on 16 November 2026 passed for
+MC neutrino (633 events, all four classes), testbeam (625 events in 25 groups),
+and collision data (200 events in both saved selections). All 57 source exports
+passed event identity and baseline scalar parity; repeated runs reused them
+unchanged. See [validation evidence](feature_dev/TEST_RESULTS.md#standard-small-samples-and-bounded-assembly--16-november-2026).
+Coworker-account access still needs to be checked independently.

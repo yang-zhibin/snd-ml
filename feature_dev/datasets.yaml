@@ -22,7 +22,7 @@ datasets:
       seed: feature-dev-v1
       files_per_group: 2
       events_per_file: 100
-      events_per_group: 100
+      events_per_group: 25
       catalogues:
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_mc_2024.csv
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_data_2024.csv

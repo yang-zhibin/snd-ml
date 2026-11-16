@@ -37,6 +37,35 @@ class DatasetTests(unittest.TestCase):
         self.prepare();other=self.root/'other.jsonl'
         prepare_sample('mc-neutrino',[self.b,self.a],other,'v1',2)
         self.assertEqual(self.out.read_bytes(),other.read_bytes())
+    def test_bounded_matches_global_sampling(self):
+        self.prepare(cap=2)
+        bounded = self.root/'bounded.jsonl'
+        prepare_sample('mc-neutrino', [self.b,self.a], bounded, 'v1', 2, bounded=True)
+        self.assertEqual(self.out.read_bytes(), bounded.read_bytes())
+        a=load_events(self.out)[1]['provenance']
+        b=load_events(bounded)[1]['provenance']
+        self.assertEqual(a['available_groups'], b['available_groups'])
+    def test_bounded_accepts_large_aggregate_but_guards_each_file(self):
+        from unittest.mock import patch
+        limit=max(self.a.stat().st_size,self.b.stat().st_size)+10
+        with patch('datasets.MAX_SAMPLE_BYTES',limit):
+            with self.assertRaisesRegex(ValueError,'256 MiB'): self.prepare(cap=1)
+            prepare_sample('mc-neutrino',[self.a,self.b],self.out,'v1',1,bounded=True)
+            self.assertEqual(len(load_events(self.out)[0]),2)
+        with patch('datasets.MAX_SAMPLE_BYTES',10):
+            with self.assertRaisesRegex(ValueError,'256 MiB'):
+                prepare_sample('mc-neutrino',[self.a],self.root/'bad.jsonl','v1',1,bounded=True)
+    def test_bounded_full_is_rejected(self):
+        with self.assertRaisesRegex(ValueError,'positive'):
+            prepare_sample('mc-neutrino',[self.a],self.out,'v1',0,bounded=True)
+    def test_bounded_oversized_result_has_no_completion_manifest(self):
+        from unittest.mock import patch
+        limit=max(self.a.stat().st_size,self.b.stat().st_size)+10
+        with patch('datasets.MAX_SAMPLE_BYTES',limit):
+            with self.assertRaisesRegex(ValueError,'Prepared sample exceeds'):
+                prepare_sample('mc-neutrino',[self.a,self.b],self.out,'v1',5,bounded=True)
+        self.assertFalse(Path(str(self.out)+'.manifest.json').exists())
+
     def test_full_keeps_every_event(self):self.assertEqual(self.prepare(cap=0),10)
     def test_duplicate_rejected(self):
         with self.assertRaisesRegex(ValueError,'Duplicate'):self.prepare([self.a,self.a])

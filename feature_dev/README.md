@@ -92,7 +92,7 @@ Those CSVs supply the authoritative EOS input, geometry and selection paths.
 
 Files are ordered by a stable hash with seed `feature-dev-v1`. Each selected
 file contributes at most its first 100 selected entries. The final sample keeps
-up to 100 events per group/geometry, sorted by source/event identity hash.
+up to 100 events per group/geometry (25 for testbeam), sorted by source/event identity hash.
 This is a bounded development subset, **not an unbiased sample of the campaign**.
 Missing CC/NC coverage is an error; increase the file/event caps deliberately.
 The converter may still need to inspect the chosen file's cutflow to resolve its
@@ -118,6 +118,12 @@ Preparation alone, or a larger bounded sample:
 ./run_feature_dev.sh --dataset mc-neutrino --sample small --run trial02 \
   --files-per-group 6 --events-per-file 200 --algorithm gap_clusters
 ```
+
+Automatic assembly reads one guarded source at a time and retains only the
+lowest identity hashes per group/geometry. Each source and the retained/final
+sample must fit within 256 MiB; a larger aggregate of bounded source exports is
+allowed. The testbeam retained cap is 25 because the default 45 exports together
+exceed the in-memory input guard used by the manual/full preparation path.
 
 Hard development limits are 20 files per stratum and 1000 selected entries per
 file. Use Snakemake/HTCondor for long preparation: pass
@@ -492,9 +498,14 @@ still required; the packaged example is synthetic.
 
 ### Current source validation limits (16 November 2026)
 
-Two-event source canaries passed automatic export, baseline parity and full
-report generation for neutrino MC, H4/H8 testbeam data, testbeam MC and both
-collision-data groups. Full default sample coverage remains to be qualified.
+Standard small samples passed automatic export, baseline parity, report
+generation and unchanged-cache reuse through HTCondor: 633 neutrino events
+(including all four classes), 625 testbeam events across 25 groups, and 200
+collision-data events across both groups. All 57 source exports passed identity
+and 182 baseline-scalar comparisons. The testbeam size issue found by this test
+was fixed with bounded assembly and a retained cap of 25 per group/geometry.
+Coworker-account access, full campaigns and candidate physics acceptance remain
+unqualified; the optional preparation-profile path was not exercised.
 The optional `mc-muon` path is implemented, but its current shared catalogue
 had no entry with both digi and geometry files present from the validation host;
 its command reports the missing input until the catalogue/access is repaired.

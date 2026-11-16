@@ -127,3 +127,77 @@ catalogue rows had both digi and geometry files present from this host. The
 missing-source preflight failed explicitly without substituting another sample.
 No production products were changed and no batch jobs were submitted. Automatic
 full-campaign preparation remains blocked pending sharded processing.
+
+## Standard small samples and bounded assembly — 16 November 2026
+
+The standard registry was exercised against the existing EOS sources through
+HTCondor controllers running the Snakemake-backed launcher. Controllers use the
+shared checkout and its configured Snakemake 9.17.2 executable; this tests batch
+execution, not the optional `--prepare-profile` integration.
+
+The first complete testbeam export exposed an assembly bug: all 45 source
+exports passed parity, but their combined JSONL size (~542 MiB) exceeded the
+manual-input aggregate guard. Automatic capped assembly now reads one guarded
+source at a time and retains the smallest identity hashes per group/geometry.
+It preserves the 256 MiB per-source and final-sample limits. Testbeam retains
+25 events per group/geometry; neutrino and collision data retain 100. Source
+file selection and the 100-selected-entry cap per file are unchanged.
+
+All 55 development unit tests passed, including bounded/global sampling
+equivalence, aggregate/per-file limits, full-mode rejection and oversized
+output rejection. The dataset integration suite passed all 10 checks.
+Logs: `feature_dev/output/standard-20261116/fix-unit.log` and
+`fix-dataset-integration.log` in the same directory.
+
+The 57 detector exports (8 neutrino, 45 testbeam, 4 collision data) passed exact
+entry identity and all 182 baseline scalar comparisons. For the assembly-only
+fix, those exports were reused after verifying every receipt, identical source
+jobs/catalogue fingerprints, and unchanged converter code. The one-off audit
+is `feature_dev/output/standard-20261116/assembly-reuse-audits.json`; this is
+not an automatic cache-migration feature. Corrected controllers rerun assembly,
+analysis/report generation and identical-command reuse.
+
+Validation harness and scheduler evidence are under
+`feature_dev/output/standard-20261116/`: `run-test.sh`, `submit.py`, `jobs.json`,
+`<dataset>.out`, `<dataset>.err` and `<dataset>.condor.log`. Earlier attempts are
+preserved with `attempt1`/`attempt2` names. The first attempt failed before
+conversion because LCG activation overwrote a generic harness variable; the
+harness now uses `validation_dataset`. The second attempt qualified all source
+exports and found the testbeam assembly limit. Corrected controller IDs are
+`16585806.0` (neutrino), `16585807.0` (testbeam), `16585808.0` (collision data).
+
+All three corrected controllers exited 0; no validation jobs remain active.
+
+| Dataset | Source files | Retained events | Groups/geometries | Sample bytes |
+| --- | ---: | ---: | ---: | ---: |
+| mc-neutrino | 8 | 633 | 16 | 92262386 |
+| testbeam | 45 | 625 | 25 | 78175626 |
+| real-data | 4 | 200 | 2 | 2917300 |
+
+Neutrino class totals: CC_nue 180, CC_numu 298, NC_nue 53, NC_numu 102.
+Testbeam retains 25 events in every one of its 25 groups; collision data retains
+100 events for each saved no-veto/veto-10% group. Each identical rerun reused
+all exported ROOT files with unchanged modification times.
+
+Reproduction (from this checkout, with its configured runtime):
+
+```bash
+./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters \
+  --run standard-test-fixed-20261116 \
+  --output-root "$PWD/feature_dev/output/standard-20261116/results"
+```
+
+Reports: `results/<dataset>/standard-test-fixed-20261116/plot/report.html`;
+JSON assertions: `results/<dataset>-test-result.json`; sample-size summary:
+`fixed-summary.json`, all relative to the validation directory above.
+
+Remaining limits: coworker-account permissions, full campaigns, optional
+`--prepare-profile` execution and physics acceptance are unqualified. Optional
+muon sources remain unavailable as described above. No production products or
+EOS inputs were modified.
+
+The combined `--dataset all` dry-run and actual rerun also passed, reusing all
+three samples with no analysis jobs needed. Index:
+`results/all/standard-test-fixed-20261116/index.html`; logs:
+`fixed-all-dry-run.log` and `fixed-all-reuse.log`. Shell syntax and
+`git diff --check` passed. Verification completed 2026-11-16 (Europe/Zurich).

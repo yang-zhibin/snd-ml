@@ -87,7 +87,7 @@ def assemble(plan):
     with tempfile.TemporaryDirectory(prefix='.assemble-', dir=base) as temporary:
         temporary = Path(temporary)
         prepare_sample(plan['dataset'], [p/'hits.jsonl' for p in exports], temporary/'small.jsonl',
-                       plan['signature'], plan['sampling']['events_per_group'])
+                       plan['signature'], plan['sampling']['events_per_group'], bounded=True)
         write_registry(plan, temporary)
         resolve_dataset(plan['dataset'], 'small', temporary/'registry.json', temporary)
         # Include provenance and parity receipts in the final cache integrity check.

@@ -43,13 +43,20 @@ def group_counts(events):
     return [{'group': g, 'geometry': geo, 'events': n} for (g, geo), n in sorted(counts.items())]
 
 
-def prepare_sample(dataset, inputs, output, version, per_group):
+def prepare_sample(dataset, inputs, output, version, per_group, *, bounded=False):
     if dataset not in DATASETS or not version or per_group < 0:
         raise ValueError('Choose a known dataset, a nonempty version, and a nonnegative per-group cap')
     inputs = [Path(p).resolve() for p in inputs]
-    check_size(inputs)
+    if bounded and per_group <= 0:
+        raise ValueError('Bounded automatic preparation requires a positive per-group cap')
+    if not bounded:
+        check_size(inputs)
     grouped = defaultdict(list); seen = set(); provenance = []
+    available = Counter()
+    event_sizes = {}
+    rank = lambda e: hashlib.sha256(json.dumps(event_key(e)).encode()).hexdigest()
     for source in inputs:
+        check_size([source])
         events, manifest = load_events(source)
         declared = manifest.get('provenance', {}).get('dataset')
         if declared and declared != dataset:
@@ -61,26 +68,46 @@ def prepare_sample(dataset, inputs, output, version, per_group):
             key = event_key(event)
             if key in seen:raise ValueError('Duplicate event across dataset exports')
             seen.add(key)
+            if bounded:
+                event_sizes[key] = len((json.dumps(event, allow_nan=False) + '\n').encode('utf-8'))
             if not event['source_uid']:raise ValueError('Physics exports require a nonempty source_uid')
             if not event['group'] or event['geometry'] in ('', 'unknown'):
                 raise ValueError('Physics exports require explicit group and geometry labels')
-            grouped[(event['group'], event['geometry'])].append(event)
+            key = (event['group'], event['geometry'])
+            grouped[key].append(event)
+            available[key] += 1
+        if bounded:
+            # Discard candidates after each file. Keeping each stratum's smallest
+            # identity hashes is equivalent to sorting the entire input at once.
+            for key in grouped:
+                grouped[key] = sorted(grouped[key], key=rank)[:per_group]
+            retained_bytes = sum(event_sizes[event_key(e)] for rows in grouped.values() for e in rows)
+            if retained_bytes > MAX_SAMPLE_BYTES:
+                raise ValueError('Prepared sample exceeds the 256 MiB development limit; reduce events_per_group')
         provenance.append({'path': str(source), 'manifest': manifest})
     selected = []
     for group in sorted(grouped):
         # Stable under input-file and event ordering; balanced per group/geometry.
-        rows = sorted(grouped[group], key=lambda e: hashlib.sha256(json.dumps(event_key(e)).encode()).hexdigest())
+        rows = sorted(grouped[group], key=rank)
         selected.extend(rows[:per_group] if per_group else rows)
     if not selected:raise ValueError('No selected events')
     writer = SelectedHitWriter(output, {
         'kind': 'prepared dataset', 'dataset': dataset, 'sample_version': version,
         'sampling': 'sha256_identity_per_group_geometry_v1', 'max_events_per_group': per_group,
-        'available_groups': group_counts([e for rows in grouped.values() for e in rows]),
+        'available_groups': [{'group': g, 'geometry': geo, 'events': n} for (g, geo), n in sorted(available.items())],
         'selected_groups': group_counts(selected), 'inputs': provenance,
     })
-    for event in selected:
-        writer.stream.write(json.dumps(event, allow_nan=False) + '\n');writer.count += 1
-    writer.finish(len(selected))
+    output_bytes = 0
+    try:
+        for event in selected:
+            line = json.dumps(event, allow_nan=False) + '\n'
+            output_bytes += len(line.encode('utf-8'))
+            if output_bytes > MAX_SAMPLE_BYTES:
+                raise ValueError('Prepared sample exceeds the 256 MiB development limit; reduce events_per_group')
+            writer.stream.write(line); writer.count += 1
+        writer.finish(len(selected))
+    finally:
+        writer.stream.close()
     return len(selected)
 
 
