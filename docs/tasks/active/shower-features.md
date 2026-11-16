@@ -5,14 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-13 (feature-development interface acceptance)
-- Implementation checkpoint: `246eb59f62c90c430f48884e10a7d4ecc73fdb8d`
-- Implemented: Implementation 559efa5 and plotting update f2d0db9 saved. Output paths now use the AFS work defaults; scientific algorithms unchanged.
-- Validation: Previously recorded: 67 unit tests, 2 metadata tests and synthetic ABCD checks; not rerun here. Storage update: 57 task-tool tests, 28 workflow parses, 4 DAG dry-runs and migrated-file checksum verification passed; focused scientific regressions are detailed in the central migration report.
-- Remaining limitations: Migration/canary validation remains; production has not been authorized.
-- Running jobs: Not queried; verify before running or retiring work.
-
-- Outputs: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1 (existing campaign retained); EOS production roots unchanged.
+- Last verified: 2026-11-16T17:13:29+01:00
+- Implementation checkpoint: d4f663d458d002f66f3426567548385e9c21a018
+- Implemented: Plugin-based feature-development DAG, selected-hit export/merge and baseline comparison interface (4862fc4); independent dataset routing, deterministic sample preparation and registry (431f4e8); managed private Snakemake 9.17.2 setup/check (d4f663d). Production algorithms remain unchanged.
+- Validation: Existing `feature_dev/TEST_RESULTS.md` records 41 initial unit/regression tests, 100 randomized baseline comparisons, 10 integration checks; dataset update records 30 unit tests plus 10 dataset and 10 existing integration checks; setup update records 35 unit tests and fresh/repeat/check/minimal-shell synthetic runs. These scientific/runtime tests were not rerun for this documentation checkpoint. Git state, implementation history, report existence and scheduler state verified below.
+- Remaining limitations: Real SNDSW selected-hit export and event-by-event parity against original ROOT branches remain unvalidated. Default physics sample directory is absent. Synthetic checks do not qualify physics algorithms; gap clustering remains experimental. Sharded large-input execution and exposure normalization are unimplemented. Temporary environment-audit evidence is unavailable on this host; collaborator-account access remains untested. Production has not been authorized.
+- Running jobs: `condor_q -submitter zhibin -af ClusterId ProcId JobStatus Iwd Cmd` returned exit 0 with no rows at verification time; no jobs submitted in this checkpoint. This is the queried scheduler's current view, not a historical or all-pool audit.
+- Outputs: Existing campaign `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1`; three feature-development HTML reports verified present (paths below). EOS production roots unchanged; no output products modified.
 
 ## Goal
 
@@ -20,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Export a small real sample from each source with the existing SNDSW converter invocation plus `--feature-dev-export`, and compare the development baseline against the original ROOT branches before physics use. See `feature_dev/README.md`.
+Prepare and qualify small real selected-hit exports for `mc-neutrino`, `testbeam`, and `real-data` using the documented SNDSW converter `--feature-dev-export` flow, preserving required source groups and `(runId, eventId, eventIndex)` identity; compare the development baseline event by event with original ROOT branches before physics use. Follow `feature_dev/README.md` and `feature_dev/datasets.yaml`. This action was not started during checkpointing.
 
 ## Checkpoint history
 
@@ -128,3 +127,55 @@ synthetic DAG in a minimal shell without FEATURE_DEV overrides passed. The
 collaborator README now gives update/setup/run commands and separate guidance
 for collaborators working on their own branches. Setup evidence is recorded in
 `feature_dev/TEST_RESULTS.md`. Real source export qualification is unchanged.
+
+### 2026-11-16T17:13:29+01:00 — Verified handoff checkpoint
+
+Verified `pwd` and `git branch --show-current` match the worktree/branch above.
+Initial `git status --short` was empty. `git log -8 --format='%h %H %s'`
+and `git show --stat d4f663d` verified the implementation commits and later
+README update. The implementation checkpoint deliberately names an existing
+implementation commit, not this documentation commit.
+
+Implementation files since the previous recorded checkpoint were inspected via
+`git diff --name-only 246eb59..HEAD`: `run_feature_dev.sh`, `.gitignore`,
+`README.md`, `README_SHOWER_FEATURES.md`, the three converter/clustering files
+`convertData/digi_2_features.py`, `convertData/digi_2_features_mc_muon.py`,
+`convertData/scifi_plane_clustering.py`, and `feature_dev/` CLI, engine,
+Snakefile, algorithms, schemas, selected-hit writer, datasets/registry, setup,
+synthetic fixtures, tests and guides. Task record rename/history is preserved.
+This checkpoint changes only `docs/tasks/active/shower-features.md`.
+
+Read `docs/project/ENVIRONMENT_AND_SNAKEMAKE.md` and the LCG wrapper before
+Python use. Activated `snakemake/envs/env_lcg.sh` with nounset disabled;
+set `PYTHONNOUSERSITE=1` and `PYTHONDONTWRITEBYTECODE=1`. Host, directory,
+interpreter/version and standard-library import preflight were recorded in the
+command output. No scientific tests, detector exports or production were run.
+
+`ls -l` verified these existing reports under the campaign output root:
+
+- `feature_dev/tutorial-gap0/plot/report.html` (612262 bytes)
+- `feature_dev/tutorial-gap1/plot/report.html` (614651 bytes)
+- `feature_dev/synthetic/dataset-demo-v1/plot/report.html` (614851 bytes)
+
+`ls -ld` found no default `feature_dev/samples` directory under that output
+root. The historical `/tmp/zhibin/shower-clean-login.log` and
+`/tmp/zhibin/shower-env-audit-20261115/synthetic/clean-login/plot/report.html`
+were absent on this host; historical links and recorded results are retained,
+not represented as revalidated. Report existence does not revalidate content.
+
+Scheduler command: `condor_q -submitter zhibin -af ClusterId ProcId JobStatus Iwd Cmd`
+returned exit 0 with no rows. No new job IDs, job logs or expected job outputs.
+Use that command to refresh scheduler status before any future execution.
+
+Handoff validation command (main checkout script, read-only, invoked from this
+worktree in the activated environment):
+`python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`.
+
+The first handoff check rejected annotations in the machine-readable timestamp
+and SHA fields. Those fields were reduced to the required plain values.
+Reviewed HEAD was `edc4068c1f36bd655521c4896e8517aea1f2533b` (collaborator
+instructions); the implementation SHA remains the earlier setup commit.
+
+Final handoff check: PASS (exit 0). `git diff --check`: PASS (exit 0).
+Only this task record was staged for a documentation checkpoint commit; the
+single Next action remains unstarted.
