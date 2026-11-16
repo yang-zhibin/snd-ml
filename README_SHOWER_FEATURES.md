@@ -3,6 +3,7 @@
 This guide describes `task/shower-features`, with automatic source preparation updated on 16 November 2026.
 Start here to understand the physics workflow and develop a new feature.
 The detailed command reference is in [feature_dev/README.md](feature_dev/README.md).
+SciFi density calculation: [code locations, logic and worked examples](feature_dev/SCIFI_DENSITY.md).
 
 ## Git and environment setup
 

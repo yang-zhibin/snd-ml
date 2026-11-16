@@ -554,3 +554,7 @@ Plane dictionaries also contain `station`, `is_vertical`, `total_nhits` and
 these are two orderings of the same objects. Iterate over only one ordering.
 For a new scalar, edit `calculate_features` and declare its name, units and
 missing value in the YAML schema. Treat `hits` as read-only; empty events are valid.
+
+For SciFi neighbour-count density, see the
+[calculation report](SCIFI_DENSITY.md): code locations, worked examples,
+output branches and local/SNDSW differences.
