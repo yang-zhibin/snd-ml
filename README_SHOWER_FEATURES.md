@@ -796,3 +796,9 @@ and collision data (200 events in both saved selections). All 57 source exports
 passed event identity and baseline scalar parity; repeated runs reused them
 unchanged. See [validation evidence](feature_dev/TEST_RESULTS.md#standard-small-samples-and-bounded-assembly--16-november-2026).
 Coworker-account access still needs to be checked independently.
+
+For the values inside `hits`, `clusters` and `parameters`, see the
+[annotated executable example](feature_dev/algorithms/gap_clusters.py) and
+[plugin data reference](feature_dev/README.md#reading-the-values-passed-to-your-plugin).
+They include units, optional-coordinate handling, cluster fields and a lookup
+from cluster channels back to the original hits.

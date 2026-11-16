@@ -510,3 +510,30 @@ The optional `mc-muon` path is implemented, but its current shared catalogue
 had no entry with both digi and geometry files present from the validation host;
 its command reports the missing input until the catalogue/access is repaired.
 See [TEST_RESULTS.md](TEST_RESULTS.md) for exact evidence and limits.
+
+### Reading the values passed to your plugin
+
+Start with the inline walkthrough in [gap_clusters.py](algorithms/gap_clusters.py).
+It documents every hit field, the plane/orientation structure, cluster members
+and summary fields, their units, and a member-to-hit lookup for coordinate use.
+The example's output and clustering definitions are unchanged.
+
+| Input | Meaning and use |
+| --- | --- |
+| `hits` | Selected SciFi hit dictionaries for one event; possibly empty. Read `h['qdc']` for charge. Do not modify the input. |
+| `station`, `isVertical`, `layer_channel` | Together identify a hit within the event. Station 1–5, boolean orientation, channel 0–1535; all dimensionless. |
+| `qdc` | Nonnegative detector QDC, not a calibrated energy. |
+| `x_cm`, `y_cm`, `z_cm` | Optional geometry coordinates in cm, exported from `GetSiPMPosition` endpoint A; not reconstructed 3D space points. Check presence before use. |
+| `time_ns` | Optional converter time in ns, subject to its configured calibration/time-zero convention and invalid-time sentinel; presence alone does not establish validity. |
+| `parameters` | Dictionary of explicit algorithm settings from `--parameters`, e.g. `{"max_missing_channels": 1}`. |
+| `clusters` | Whatever your `cluster_hits` returns. This example uses a dictionary with `planes` and `orientations`; it is not a universal interface requirement. |
+| `c['channels']`, `c['qdcs']` | Aligned tuples of actual member channels and charges; bridge gaps do not create hits. Use the station/view/channel key to retrieve original hit coordinates. |
+| `c['nhits']`, `c['qdc']` | Actual member count and summed QDC. Channel span can exceed member count and is not a distance in cm. |
+| Returned features | Event scalar dictionary with exact schema keys, finite Python numbers, declared units and missing-value conventions. |
+
+For a first extension, reuse `cluster_hits` and modify only `calculate_features`.
+Follow the charge-fragmentation calculation: iterate once over clusters, compute
+an event summary, handle empty/zero-charge input, and declare the output in the
+YAML schema. A coordinate feature should explicitly decide what to do when an
+optional field is absent. Keep source labels and MC truth outside the algorithm;
+they are for report grouping, not inputs to the candidate feature.
