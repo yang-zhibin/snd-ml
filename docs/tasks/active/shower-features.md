@@ -5,12 +5,12 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-16T20:33:14+01:00
-- Implementation checkpoint: 71cab7be2b6597a50b24e348cfa977092625c60e
-- Implemented: Automatic deterministic small samples from existing EOS catalogues for mc-neutrino, testbeam and real-data; optional mc-muon adapter. Separate SNDSW export and LCG parity/assembly, Snakemake DAG, content-addressed caches and explicit prepared-input override. Fixed standard testbeam assembly: retain capped candidates one source at a time, preserve 256 MiB guards, retain 25 events per testbeam group/geometry (100 elsewhere). Updated collaborator instructions. Annotated gap_clusters example now explains hit keys/units, optional coordinates/timing, every cluster field, member-to-hit lookup and schema-backed feature calculation; both collaborator guides link the reference.
-- Validation: Annotated example: all 55 development tests passed; executable AST exactly matches previous implementation after excluding the module docstring. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`.
+- Last verified: 2026-11-16T20:39:50+01:00
+- Implementation checkpoint: 87b3ff61f7eb44c534aef6f96e4dcbf4998971e1
+- Implemented: Automatic deterministic small samples from existing EOS catalogues for mc-neutrino, testbeam and real-data; optional mc-muon adapter. Separate SNDSW export and LCG parity/assembly, Snakemake DAG, content-addressed caches and explicit prepared-input override. Fixed standard testbeam assembly: retain capped candidates one source at a time, preserve 256 MiB guards, retain 25 events per testbeam group/geometry (100 elsewhere). Updated collaborator instructions. Example uses NumPy-style Parameters/Returns/Examples docstrings, executable expected-output examples and compact hit/cluster reference tables.
+- Validation: Latest documentation revision: 7 doctest statements passed under LCG107/Python3.11.9; executable AST unchanged excluding docstrings; git diff --check passed. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`.
 - Remaining limitations: Coworker-account access, optional --prepare-profile integration, full campaigns and candidate physics acceptance are unqualified. Optional muon detector validation is blocked: none of 15 catalogue rows had both digi and geometry present on lxplus939. Full automatic preparation remains blocked pending sharding. Shape normalization only. SNDSW shared builds are not immutable images; digi fingerprints use size/mtime. Test artifacts are ignored worktree-local files. Comment-only plugin edits change its source hash, so a new run name is required; existing report evidence predates this documentation edit.
-- Running jobs: None submitted for the example documentation update. Prior standard-test controllers 16585806.0, 16585807.0, 16585808.0 exited 0; no next action was started.
+- Running jobs: None. Documentation revision submitted no jobs; previous standard-test jobs exited 0. Coworker next action not started.
 - Outputs: `feature_dev/output/standard-20261116/results/all/standard-test-fixed-20261116/index.html`; individual reports at `results/<dataset>/standard-test-fixed-20261116/plot/report.html`, samples/receipts at `results/.samples/`, summaries at `results/<dataset>-test-result.json` and `fixed-summary.json`, relative to `feature_dev/output/standard-20261116/`. Logs, harness, job IDs and reuse audits are in that validation directory. Existing EOS inputs and production products were not modified. Latest unit log: `feature_dev/output/standard-20261116/annotated-example-unit.log`.
 
 ## Goal
@@ -19,7 +19,8 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-After the coworker's checkout includes implementation `71cab7be2b6597a50b24e348cfa977092625c60e`, verify access from their own account with `./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run access-check --dry-run`. This coworker-account check has not been started.
+After the coworker's checkout includes implementation `87b3ff61f7eb44c534aef6f96e4dcbf4998971e1`, verify access from their own account with `./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run access-check --dry-run`. This coworker-account check has not been started.
+
 
 ## Checkpoint history
 
@@ -416,3 +417,22 @@ Main launcher read-only command
 `python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`
 returned `Handoff shower-features: PASS`. Documentation implementation is
 `71cab7b`; this separate task-only checkpoint records it.
+
+### 2026-11-16T20:39:50+01:00 — Concise API reference and runnable examples
+
+Implementation `87b3ff61f7eb44c534aef6f96e4dcbf4998971e1` changes only `feature_dev/algorithms/gap_clusters.py`
+and `feature_dev/README.md`: replace long inline commentary with NumPy-style
+Parameters/Returns/Examples sections; show concrete clusters and expected 0.5
+fragmentation; move detailed fields to compact tables and retain coordinate
+member lookup. No algorithm or schema change.
+
+Verified pwd and branch: named shower-features worktree, task/shower-features.
+LCG107 Python3.11.9 preflight passed. `doctest.testmod(gap_clusters)` passed
+all 7 statements. AST comparison against prior committed plugin, stripping
+module/function docstrings, passed; `git diff --check` passed. Validation ran
+in-process with stdout results; no new detector outputs or jobs. Existing
+output paths and detector validation limits remain in Current state. No full
+rerun needed for documentation-only changes. Single next action not started.
+
+Main launcher `--check-handoff shower-features` returned
+`Handoff shower-features: PASS` using the read-only main-checkout launcher.
