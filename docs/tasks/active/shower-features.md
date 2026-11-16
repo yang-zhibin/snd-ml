@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-16T17:13:29+01:00
-- Implementation checkpoint: d4f663d458d002f66f3426567548385e9c21a018
-- Implemented: Plugin-based feature-development DAG, selected-hit export/merge and baseline comparison interface (4862fc4); independent dataset routing, deterministic sample preparation and registry (431f4e8); managed private Snakemake 9.17.2 setup/check (d4f663d). Production algorithms remain unchanged.
-- Validation: Existing `feature_dev/TEST_RESULTS.md` records 41 initial unit/regression tests, 100 randomized baseline comparisons, 10 integration checks; dataset update records 30 unit tests plus 10 dataset and 10 existing integration checks; setup update records 35 unit tests and fresh/repeat/check/minimal-shell synthetic runs. These scientific/runtime tests were not rerun for this documentation checkpoint. Git state, implementation history, report existence and scheduler state verified below.
-- Remaining limitations: Real SNDSW selected-hit export and event-by-event parity against original ROOT branches remain unvalidated. Default physics sample directory is absent. Synthetic checks do not qualify physics algorithms; gap clustering remains experimental. Sharded large-input execution and exposure normalization are unimplemented. Temporary environment-audit evidence is unavailable on this host; collaborator-account access remains untested. Production has not been authorized.
-- Running jobs: `condor_q -submitter zhibin -af ClusterId ProcId JobStatus Iwd Cmd` returned exit 0 with no rows at verification time; no jobs submitted in this checkpoint. This is the queried scheduler's current view, not a historical or all-pool audit.
-- Outputs: Existing campaign `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1`; three feature-development HTML reports verified present (paths below). EOS production roots unchanged; no output products modified.
+- Last verified: 2026-11-16T19:27:43+01:00
+- Implementation checkpoint: daf2aff43f19ba5c7595cc7c3d11e95d4956ce50
+- Implemented: Automatic bounded source-catalogue preparation for mc-neutrino, testbeam (2024 MC/H4 and 2023 H8), real-data (saved no-veto/veto-10% indices) and optional mc-muon. Separate SNDSW export and LCG parity/assembly processes, Snakemake preparation DAG, deterministic source selection, event-level neutrino truth labels, validated content-addressed caches, explicit prepared-sample override, batch-profile forwarding and updated collaborator instructions. Existing plugin analysis and production clustering remain unchanged.
+- Validation: 51 development unit tests, 11 clustering tests, 13 unified-feature regressions and both 10-check integration suites passed. Actual default-registry all-dataset preparation dry-run passed (8 neutrino/45 testbeam/4 real-data files), creating no result directory. Six two-event detector-source canaries passed exact entry identity and 182 baseline scalar comparisons, generated three reports plus index, and reused all caches on identical rerun. See `feature_dev/TEST_RESULTS.md` and dated evidence below.
+- Remaining limitations: Full default samples and four-class neutrino coverage were not qualified; the focused two-event neutrino canary deliberately disabled four-class coverage. Optional muon detector canary blocked because none of 15 catalogue rows had both digi and geometry files present from lxplus939. Coworker access and HTCondor execution untested. Full automatic campaigns remain blocked pending sharding; shape normalization only; gap clustering is not physics-qualified. SNDSW shared builds are not immutable images, and digi fingerprints use size/mtime. Temporary canary artifacts are host-local.
+- Running jobs: All local validation processes finished. `condor_q -submitter zhibin -af ClusterId ProcId JobStatus Iwd Cmd` returned exit 0 with no rows during final verification. No batch jobs submitted; no job IDs. No full default export or production campaign started.
+- Outputs: Temporary canaries under `/tmp/zhibin/feature-auto-canary-20261116/all-output` (three dataset reports, all index, `.samples` plans/exports/parity receipts/logs); initial single-source canary under the sibling `output` directory. Existing campaign `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1` and EOS products were read only. Default user runs cache samples under their own output root's `.samples/<dataset>/<signature>`.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Prepare and qualify small real selected-hit exports for `mc-neutrino`, `testbeam`, and `real-data` using the documented SNDSW converter `--feature-dev-export` flow, preserving required source groups and `(runId, eventId, eventIndex)` identity; compare the development baseline event by event with original ROOT branches before physics use. Follow `feature_dev/README.md` and `feature_dev/datasets.yaml`. This action was not started during checkpointing.
+After the coworker's checkout includes implementation `daf2aff`, verify access from their own account with `./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run access-check --dry-run`. This coworker-account check has not been started.
 
 ## Checkpoint history
 
@@ -179,3 +179,87 @@ instructions); the implementation SHA remains the earlier setup commit.
 Final handoff check: PASS (exit 0). `git diff --check`: PASS (exit 0).
 Only this task record was staged for a documentation checkpoint commit; the
 single Next action remains unstarted.
+
+### 2026-11-16 — Automatic catalogue preparation implementation in progress
+
+User authorized implementation for MC neutrinos, testbeam, real data and muon
+MC, plus collaborator instructions. Verified worktree/branch and clean Git
+before edits. Source inspection found existing unified CSVs with EOS digi,
+geometry and cutflow paths, including real-data comparison indexed selections
+and H8 testbeam indices. Mixed neutrino truth must be classified per event.
+Added preparation planner/workers/Snakemake rules and a separate SNDSW wrapper;
+CLI integration, tests and instructions are in progress. No conversion or jobs
+started. Existing historical next actions are superseded by this implementation
+request; the single current Next action will be refreshed after validation.
+
+### 2026-11-16T19:21:04+01:00 — Preparation validation milestone
+
+35 existing unit tests and 16 preparation tests passed; the 10-check existing
+dataset integration passed. Shared-catalogue `--dataset all --dry-run` passed
+(8 neutrino, 45 testbeam, 4 real-data source files); no output directory was
+created. Log: `/tmp/zhibin/feature-source-preview-20261116.log`.
+A two-event single-neutrino-source canary passed export, parity and assembly
+through the actual SNDSW/LCG preparation DAG after fixing Snakemake's precreated
+output-parent handling. Log: `/tmp/zhibin/feature-auto-canary-20261116/run-retry.log`.
+
+Now validating two selected events per representative source across the three
+testbeam families, two real-data groups and upward muon MC. These are bounded
+local canaries, not production or HTCondor jobs. Commands use
+`./run_feature_dev.sh --dataset all` (then `--dataset mc-muon`),
+`--dataset-config /tmp/zhibin/feature-auto-canary-20261116/all-datasets.json`,
+`--sample small --run canary-report --algorithm gap_clusters`, and
+`--output-root /tmp/zhibin/feature-auto-canary-20261116/all-output`.
+Expected reports: `<output-root>/<dataset>/canary-report/plot/report.html`;
+converter logs/receipts: `<output-root>/.samples/<dataset>/<signature>/`.
+Controller logs: `/tmp/zhibin/feature-auto-canary-20261116/all-run.log` and
+`muon-run.log`; inspect with `tail -n 40` while local processes run.
+No full default export or production campaign was started.
+
+### 2026-11-16T19:27:43+01:00 — Automatic preparation implementation and handoff
+
+Verified on `lxplus939.cern.ch`: `pwd` and `git branch --show-current` match
+this record. Implementation commit `daf2aff43f19ba5c7595cc7c3d11e95d4956ce50`
+exists before this documentation checkpoint. No other checkout was edited.
+
+Changed implementation files: `feature_dev/sources.py`, `prepare.py`,
+`PrepareSnakefile`, `run_export.sh`, `cli.py`, `datasets.yaml`, `selected_hits.py`,
+`tests/test_sources.py`, `run_feature_dev.sh`, and
+`convertData/digi_2_features.py`. Updated `README_SHOWER_FEATURES.md`,
+`feature_dev/README.md` and `feature_dev/TEST_RESULTS.md`. This separate
+checkpoint updates only `docs/tasks/active/shower-features.md`; historical
+records and links above are preserved.
+
+Commands/results (LCG activation and preflight in the same shell, user-site and
+bytecode disabled):
+
+- `python3 -m unittest discover -s feature_dev/tests -p 'test_*.py'`: 51 passed.
+- `python3 -m unittest discover -s convertData -p 'test_scifi_plane_clustering.py'`: 11 passed.
+- `python3 -m unittest discover -s convertData -p 'test_unified_shower_features.py'`: 13 passed.
+- `python3 feature_dev/tests/dataset_integration.py`: all 10 checks passed.
+- `python3 feature_dev/tests/integration.py`: all 10 checks passed.
+- `bash -n run_feature_dev.sh feature_dev/run_export.sh`: passed.
+- `git diff --check`: passed.
+- `./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run source-preview --dry-run --output-root /tmp/zhibin/feature-source-preview-20261116`: all three preparation DAGs passed; `test ! -e /tmp/zhibin/feature-source-preview-20261116` passed.
+- Actual detector command and exact temporary registry are recorded in the preceding milestone and `feature_dev/TEST_RESULTS.md`. All three reports and index completed; identical rerun returned three `Reusing validated` messages and three `Nothing to be done` analysis DAGs. Six source parity receipts each recorded 2 events and 182 scalars. Report sizes: neutrino 575912 bytes, testbeam 733676 bytes, real-data 601766 bytes.
+- Optional muon default preview and focused canary rejected missing inputs before exporting. Read-only inspection found 0/15 rows with both digi/geometry files present. No alternative physics input was substituted and no shared catalogue was modified.
+
+Evidence logs: `/tmp/zhibin/feature-unit-20261116.log`,
+`feature-clustering-20261116.log`, `feature-unified-20261116.log`,
+`feature-dataset-integration-20261116.log`, `feature-integration-20261116.log`,
+`feature-source-preview-20261116.log`, `feature-muon-preview-20261116.log`
+(all in `/tmp/zhibin/`); canary controller logs are
+`/tmp/zhibin/feature-auto-canary-20261116/all-run.log` and `reuse.log`.
+Reports are under `/tmp/zhibin/feature-auto-canary-20261116/all-output/` at
+`<dataset>/canary-report/plot/report.html`; combined index is
+`all/canary-report/index.html`. Per-source logs/ROOT/JSONL/validation receipts
+remain in `.samples/<dataset>/<signature>/`. These temporary artifacts may
+not survive host changes; the tracked test report records the verified results.
+
+No scheduler submissions, job IDs or scheduler logs. Status command remains
+`condor_q -submitter zhibin -af ClusterId ProcId JobStatus Iwd Cmd`; it returned
+exit 0/no rows at final verification. The single Next action is not started.
+
+Handoff command, invoked read-only from this worktree in LCG:
+`python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`.
+
+Final handoff validation: PASS (exit 0). Final whitespace check: PASS (exit 0).
