@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-16T19:27:43+01:00
-- Implementation checkpoint: daf2aff43f19ba5c7595cc7c3d11e95d4956ce50
-- Implemented: Automatic bounded source-catalogue preparation for mc-neutrino, testbeam (2024 MC/H4 and 2023 H8), real-data (saved no-veto/veto-10% indices) and optional mc-muon. Separate SNDSW export and LCG parity/assembly processes, Snakemake preparation DAG, deterministic source selection, event-level neutrino truth labels, validated content-addressed caches, explicit prepared-sample override, batch-profile forwarding and updated collaborator instructions. Existing plugin analysis and production clustering remain unchanged.
-- Validation: 51 development unit tests, 11 clustering tests, 13 unified-feature regressions and both 10-check integration suites passed. Actual default-registry all-dataset preparation dry-run passed (8 neutrino/45 testbeam/4 real-data files), creating no result directory. Six two-event detector-source canaries passed exact entry identity and 182 baseline scalar comparisons, generated three reports plus index, and reused all caches on identical rerun. See `feature_dev/TEST_RESULTS.md` and dated evidence below.
-- Remaining limitations: Full default samples and four-class neutrino coverage were not qualified; the focused two-event neutrino canary deliberately disabled four-class coverage. Optional muon detector canary blocked because none of 15 catalogue rows had both digi and geometry files present from lxplus939. Coworker access and HTCondor execution untested. Full automatic campaigns remain blocked pending sharding; shape normalization only; gap clustering is not physics-qualified. SNDSW shared builds are not immutable images, and digi fingerprints use size/mtime. Temporary canary artifacts are host-local.
-- Running jobs: All local validation processes finished. `condor_q -submitter zhibin -af ClusterId ProcId JobStatus Iwd Cmd` returned exit 0 with no rows during final verification. No batch jobs submitted; no job IDs. No full default export or production campaign started.
-- Outputs: Temporary canaries under `/tmp/zhibin/feature-auto-canary-20261116/all-output` (three dataset reports, all index, `.samples` plans/exports/parity receipts/logs); initial single-source canary under the sibling `output` directory. Existing campaign `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1` and EOS products were read only. Default user runs cache samples under their own output root's `.samples/<dataset>/<signature>`.
+- Last verified: 2026-11-16T20:23:47+01:00
+- Implementation checkpoint: b2bbd1b018383808f74c5b4b92adb8f040757582
+- Implemented: Automatic deterministic small samples from existing EOS catalogues for mc-neutrino, testbeam and real-data; optional mc-muon adapter. Separate SNDSW export and LCG parity/assembly, Snakemake DAG, content-addressed caches and explicit prepared-input override. Fixed standard testbeam assembly: retain capped candidates one source at a time, preserve 256 MiB guards, retain 25 events per testbeam group/geometry (100 elsewhere). Updated collaborator instructions.
+- Validation: 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`.
+- Remaining limitations: Coworker-account access, optional --prepare-profile integration, full campaigns and candidate physics acceptance are unqualified. Optional muon detector validation is blocked: none of 15 catalogue rows had both digi and geometry present on lxplus939. Full automatic preparation remains blocked pending sharding. Shape normalization only. SNDSW shared builds are not immutable images; digi fingerprints use size/mtime. Test artifacts are ignored worktree-local files.
+- Running jobs: None. Corrected controllers 16585806.0 (neutrino), 16585807.0 (testbeam), 16585808.0 (real data) all exited 0; explicit-ID condor_q returned no jobs. Earlier testbeam 16585792.0 exited 1 at the aggregate-size guard after all exports passed, now fixed. Initial harness attempts failed before conversion; preserved in history/logs.
+- Outputs: `feature_dev/output/standard-20261116/results/all/standard-test-fixed-20261116/index.html`; individual reports at `results/<dataset>/standard-test-fixed-20261116/plot/report.html`, samples/receipts at `results/.samples/`, summaries at `results/<dataset>-test-result.json` and `fixed-summary.json`, relative to `feature_dev/output/standard-20261116/`. Logs, harness, job IDs and reuse audits are in that validation directory. Existing EOS inputs and production products were not modified.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-After the coworker's checkout includes implementation `daf2aff`, verify access from their own account with `./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run access-check --dry-run`. This coworker-account check has not been started.
+After the coworker's checkout includes implementation `b2bbd1b018383808f74c5b4b92adb8f040757582`, verify access from their own account with `./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run access-check --dry-run`. This coworker-account check has not been started.
 
 ## Checkpoint history
 
@@ -263,3 +263,130 @@ Handoff command, invoked read-only from this worktree in LCG:
 `python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`.
 
 Final handoff validation: PASS (exit 0). Final whitespace check: PASS (exit 0).
+
+### 2026-11-16 — Standard small-sample validation authorized
+
+User requested testing the implementation here. Verified worktree/branch and
+clean Git; setup/check and LCG analysis imports passed. The installed personal
+Snakemake 9.17.2 has no cluster-generic executor plugin. The existing HTCondor
+profile writes logs into the integration checkout, so it is not used here.
+Instead, submit three bounded HTCondor controllers that each run the unchanged
+Snakemake-backed CLI for mc-neutrino, testbeam or real-data, then repeat it and
+assert export ROOT mtimes are unchanged. No environment installation/change.
+
+Implementation: `daf2aff43f19ba5c7595cc7c3d11e95d4956ce50` (HEAD checkpoint
+`20858c3`). Validation helpers/artifacts are ignored under this worktree's
+`feature_dev/output/standard-20261116/`. Launch command:
+`env -u PYTHONPATH -u PYTHONHOME PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 feature_dev/output/standard-20261116/submit.py`.
+Each worker runs `./run_feature_dev.sh --dataset DATASET --sample small
+--algorithm gap_clusters --run standard-test-20261116 --output-root
+/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features/feature_dev/output/standard-20261116/results` twice.
+Limits: 1 CPU/3 GB RAM/2 hours per controller; 8/45/4 bounded source exports.
+Expected output: `results/DATASET/standard-test-20261116/plot/report.html` and
+`results/DATASET-test-result.json`, with all standard required groups enabled.
+Scheduler IDs will be recorded immediately after submission. Logs:
+`feature_dev/output/standard-20261116/DATASET.{out,err,condor.log}`; status:
+`condor_q -submitter zhibin -af ClusterId ProcId JobStatus HoldReason`.
+
+Submitted at 2026-11-16T19:41:42+01:00: mc-neutrino `16585787.0`,
+testbeam `16585788.0`, real-data `16585789.0`. Submission metadata saved in
+`feature_dev/output/standard-20261116/jobs.json`. Exact status command:
+`condor_q 16585787 16585788 16585789 -af ClusterId ProcId JobStatus HoldReason`.
+
+First batch attempt exited before source preparation: LCG activation overwrote
+the test harness's generic Bash `dataset` variable with `G4CHANNELING`.
+The product CLI correctly rejected that invalid argument. Fixed the ignored
+validation harness to use `validation_dataset`; product code unchanged. Saved
+first-attempt logs and IDs as `*.attempt1.{out,err}` and `jobs-attempt1.json`.
+Retrying the same three standard workflows with the corrected harness.
+
+Retry job IDs: mc-neutrino `16585791.0`, testbeam `16585792.0`, real-data
+`16585793.0`. Current status command:
+`condor_q 16585791 16585792 16585793 -af ClusterId ProcId JobStatus HoldReason`.
+
+### 2026-11-16T19:54:00+01:00 — Two standard dataset tests passed
+
+Neutrino job `16585791.0` completed: 8 source exports passed parity; assembled
+633 events (CC_nue 180, CC_numu 298, NC_nue 53, NC_numu 102), generated a
+4,818,590-byte report, and repeated the command without changing export ROOT
+mtimes. Collision-data job `16585793.0` completed: 4 source exports passed;
+100 no-veto + 100 veto-10% events, 673,407-byte report, unchanged export mtimes
+on rerun. Machine-readable evidence is in
+`feature_dev/output/standard-20261116/results/{mc-neutrino,real-data}-test-result.json`.
+Testbeam `16585792.0` continues; 15/45 source receipts validated at this check.
+
+### 2026-11-16T20:11:00+01:00 — Default testbeam size failure found
+
+Testbeam controller `16585792.0` exited 1 after all 45 source exports passed
+parity. Assembly rejected the combined ~542 MiB of JSONL at the 256 MiB guard.
+No sample/report was published. Fix direction: automatic capped preparation
+processes one guarded source at a time, retaining only deterministic per-group
+candidates; preserve the guard on the final sample and on manual/full inputs.
+Reduce the default testbeam retained cap to 25 per group/geometry. Preserve the
+45 validated exports for testing this assembly-only fix after verifying source
+plans and converter code hashes are unchanged. No detector physics changes.
+
+Bounded fix implemented in `feature_dev/datasets.py` and automatic assembly:
+trim deterministic candidates after each source, enforce per-source/retained/
+final JSONL byte guards, preserve aggregate guard for manual/full preparation.
+Testbeam default retained cap is now 25 per group/geometry. All 55 development
+unit tests passed, including four new aggregate-size, deterministic-equivalence,
+full-mode rejection and incomplete-output regression checks.
+
+For validation only, reused previously validated source-export directories under
+new cache signatures after checking exact job and catalogue fingerprints and
+verifying all export receipts. The only changed preparation code hashes are
+`datasets.py` and `prepare.py`; converter code and invocation are unchanged.
+Audit: `feature_dev/output/standard-20261116/assembly-reuse-audits.json`.
+This is a recorded test-artifact reuse operation, not a general cache migration
+feature. Each new cache has its own `reuse-audit.json`. Detector ROOT/JSONL
+products were not edited. Retry uses run name `standard-test-fixed-20261116`;
+old reports/logs preserved as described above. Standard batch controllers will
+re-run assembly, full analysis and cache reuse on all three datasets.
+
+Corrected standard test jobs: neutrino `16585806.0`, testbeam `16585807.0`,
+collision data `16585808.0`. Status:
+`condor_q 16585806 16585807 16585808 -af ClusterId ProcId JobStatus HoldReason`.
+
+### 2026-11-16T20:23:47+01:00 — Standard EOS tests complete; bounded assembly fixed
+
+Verified `pwd` and `git branch --show-current`: the named worktree and
+`task/shower-features`. Implementation commit: `b2bbd1b018383808f74c5b4b92adb8f040757582` (separate from this
+checkpoint). Changed implementation/docs: `feature_dev/datasets.py`,
+`feature_dev/prepare.py`, `feature_dev/datasets.yaml`,
+`feature_dev/tests/test_datasets.py`, `README_SHOWER_FEATURES.md`,
+`feature_dev/README.md`, `feature_dev/TEST_RESULTS.md`. This checkpoint changes
+only `docs/tasks/active/shower-features.md`; linked historical records preserved.
+
+All corrected HTCondor controllers (16585806.0, 16585807.0, 16585808.0) exited 0;
+`condor_q 16585806 16585807 16585808 -af ClusterId JobStatus` returned no jobs.
+The 57 exports were parity-qualified in the original test; the assembly-only
+fix reused them after verifying identical source jobs/catalogue fingerprints,
+unchanged converter hashes and all receipts. Audit:
+`feature_dev/output/standard-20261116/assembly-reuse-audits.json`.
+
+Retained samples: neutrino 633 events / 92,262,386 bytes (CC_nue180,
+CC_numu298, NC_nue53, NC_numu102); testbeam 625 / 78,175,626 bytes (25 events
+in each of 25 groups); collision data 200 / 2,917,300 bytes (100/group).
+Every report exists and each identical rerun preserved export ROOT mtimes.
+Commands/results: 55 development unit tests PASS (`fix-unit.log`); dataset
+integration 10 checks PASS (`fix-dataset-integration.log`); shell syntax PASS;
+`git diff --check` PASS. Both logs are under the validation directory.
+
+Combined command (also passed with `--dry-run`):
+`./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run standard-test-fixed-20261116 --output-root "$PWD/feature_dev/output/standard-20261116/results"`.
+All three samples reused and all three analysis DAGs reported nothing to do.
+Combined index and report paths are in Current state; command logs are
+`fixed-all-dry-run.log` and `fixed-all-reuse.log`. Summary:
+`fixed-summary.json`; per-dataset assertions `results/<dataset>-test-result.json`.
+Runtime: LCG107 Python3.11.9 analysis, configured Snakemake9.17.2,
+existing SNDSW converter stack. Controllers run Snakemake locally within
+HTCondor; optional profile forwarding itself remains untested. No production
+jobs remain and no next action was started. Coworker permissions, optional
+muon sources, full campaigns and physics acceptance remain unqualified.
+
+Main launcher check:
+`python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`
+returned `Handoff shower-features: PASS`; evidence:
+`feature_dev/output/standard-20261116/handoff-check.log`. The main checkout was
+read only. Final task-only checkpoint follows implementation `b2bbd1b`.
