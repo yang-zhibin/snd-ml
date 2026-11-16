@@ -513,27 +513,44 @@ See [TEST_RESULTS.md](TEST_RESULTS.md) for exact evidence and limits.
 
 ### Reading the values passed to your plugin
 
-Start with the inline walkthrough in [gap_clusters.py](algorithms/gap_clusters.py).
-It documents every hit field, the plane/orientation structure, cluster members
-and summary fields, their units, and a member-to-hit lookup for coordinate use.
-The example's output and clustering definitions are unchanged.
+See [gap_clusters.py](algorithms/gap_clusters.py) for **Parameters**, **Returns**
+and runnable **Examples** for both functions.
 
-| Input | Meaning and use |
+**Hit fields** — one dictionary per selected SciFi hit:
+
+| Key | Type | Unit / meaning |
+| --- | --- | --- |
+| `station` | int | 1–5 |
+| `isVertical` | bool | True: vertical; False: horizontal |
+| `layer_channel` | int | 0–1535 within a station/view |
+| `qdc` | float | Nonnegative detector QDC; not GeV |
+| `x_cm`, `y_cm`, `z_cm` | float, optional | cm; geometry endpoint A, not a reconstructed space point |
+| `time_ns` | float, optional | ns; converter timing convention; may contain an invalid sentinel |
+
+**Cluster fields** — `clusters['planes'][(station, vertical)]['clusters']`:
+
+| Key | Meaning / unit |
 | --- | --- |
-| `hits` | Selected SciFi hit dictionaries for one event; possibly empty. Read `h['qdc']` for charge. Do not modify the input. |
-| `station`, `isVertical`, `layer_channel` | Together identify a hit within the event. Station 1–5, boolean orientation, channel 0–1535; all dimensionless. |
-| `qdc` | Nonnegative detector QDC, not a calibrated energy. |
-| `x_cm`, `y_cm`, `z_cm` | Optional geometry coordinates in cm, exported from `GetSiPMPosition` endpoint A; not reconstructed 3D space points. Check presence before use. |
-| `time_ns` | Optional converter time in ns, subject to its configured calibration/time-zero convention and invalid-time sentinel; presence alone does not establish validity. |
-| `parameters` | Dictionary of explicit algorithm settings from `--parameters`, e.g. `{"max_missing_channels": 1}`. |
-| `clusters` | Whatever your `cluster_hits` returns. This example uses a dictionary with `planes` and `orientations`; it is not a universal interface requirement. |
-| `c['channels']`, `c['qdcs']` | Aligned tuples of actual member channels and charges; bridge gaps do not create hits. Use the station/view/channel key to retrieve original hit coordinates. |
-| `c['nhits']`, `c['qdc']` | Actual member count and summed QDC. Channel span can exceed member count and is not a distance in cm. |
-| Returned features | Event scalar dictionary with exact schema keys, finite Python numbers, declared units and missing-value conventions. |
+| `station`, `is_vertical` | Station and view; note the different spelling from hit `isVertical` |
+| `channels`, `qdcs` | Aligned tuples of actual channels and QDC values |
+| `nhits`, `qdc` | Member count and total QDC |
+| `first_channel`, `last_channel` | Inclusive channel indices, not distances in cm |
+| `spatial_id`, `orientation_rank` | Zero-based ID within plane; one-based QDC rank within view |
+| `qdc_per_hit`, `qdc_std` | Mean and population standard deviation, in QDC |
+| `qdc_cv`, `qdc_roughness` | std/mean; mean adjacent absolute QDC difference/mean (dimensionless; zero for zero mean) |
 
-For a first extension, reuse `cluster_hits` and modify only `calculate_features`.
-Follow the charge-fragmentation calculation: iterate once over clusters, compute
-an event summary, handle empty/zero-charge input, and declare the output in the
-YAML schema. A coordinate feature should explicitly decide what to do when an
-optional field is absent. Keep source labels and MC truth outside the algorithm;
-they are for report grouping, not inputs to the candidate feature.
+**Example: read a cluster's hit coordinates**
+
+```python
+# Channel numbers repeat: use station + view + channel to identify a hit.
+hit_by_key = {(h['station'], h['isVertical'], h['layer_channel']): h for h in hits}
+c = clusters['planes'][(1, True)]['clusters'][0]  # requires a nonempty plane
+members = [hit_by_key[(c['station'], c['is_vertical'], ch)] for ch in c['channels']]
+z_cm = [h.get('z_cm') for h in members]  # None means absent; never replace it with 0.
+```
+
+Plane dictionaries also contain `station`, `is_vertical`, `total_nhits` and
+`total_qdc`. Orientation dictionaries contain `clusters` and `ranked_clusters`;
+these are two orderings of the same objects. Iterate over only one ordering.
+For a new scalar, edit `calculate_features` and declare its name, units and
+missing value in the YAML schema. Treat `hits` as read-only; empty events are valid.
