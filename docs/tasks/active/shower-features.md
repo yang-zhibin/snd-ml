@@ -5,12 +5,12 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-16T20:39:50+01:00
+- Last verified: 2026-11-16T20:43:54+01:00
 - Implementation checkpoint: 87b3ff61f7eb44c534aef6f96e4dcbf4998971e1
 - Implemented: Automatic deterministic small samples from existing EOS catalogues for mc-neutrino, testbeam and real-data; optional mc-muon adapter. Separate SNDSW export and LCG parity/assembly, Snakemake DAG, content-addressed caches and explicit prepared-input override. Fixed standard testbeam assembly: retain capped candidates one source at a time, preserve 256 MiB guards, retain 25 events per testbeam group/geometry (100 elsewhere). Updated collaborator instructions. Example uses NumPy-style Parameters/Returns/Examples docstrings, executable expected-output examples and compact hit/cluster reference tables.
-- Validation: Latest documentation revision: 7 doctest statements passed under LCG107/Python3.11.9; executable AST unchanged excluding docstrings; git diff --check passed. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`.
+- Validation: Latest documentation revision: 7 doctest statements passed under LCG107/Python3.11.9; executable AST unchanged excluding docstrings; git diff --check passed. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`. Latest read-only audit located local/SNDSW SciFi density code and identified strict versus inclusive 1 cm boundary; numerical equivalence was not tested.
 - Remaining limitations: Coworker-account access, optional --prepare-profile integration, full campaigns and candidate physics acceptance are unqualified. Optional muon detector validation is blocked: none of 15 catalogue rows had both digi and geometry present on lxplus939. Full automatic preparation remains blocked pending sharding. Shape normalization only. SNDSW shared builds are not immutable images; digi fingerprints use size/mtime. Test artifacts are ignored worktree-local files. Comment-only plugin edits change its source hash, so a new run name is required; existing report evidence predates this documentation edit.
-- Running jobs: None. Documentation revision submitted no jobs; previous standard-test jobs exited 0. Coworker next action not started.
+- Running jobs: None submitted for the density code-location audit. Previous standard-test jobs exited 0; coworker next action not started.
 - Outputs: `feature_dev/output/standard-20261116/results/all/standard-test-fixed-20261116/index.html`; individual reports at `results/<dataset>/standard-test-fixed-20261116/plot/report.html`, samples/receipts at `results/.samples/`, summaries at `results/<dataset>-test-result.json` and `fixed-summary.json`, relative to `feature_dev/output/standard-20261116/`. Logs, harness, job IDs and reuse audits are in that validation directory. Existing EOS inputs and production products were not modified. Latest unit log: `feature_dev/output/standard-20261116/annotated-example-unit.log`.
 
 ## Goal
@@ -20,6 +20,7 @@ Unify shower feature computation and diagnostics.
 ## Next action
 
 After the coworker's checkout includes implementation `87b3ff61f7eb44c534aef6f96e4dcbf4998971e1`, verify access from their own account with `./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run access-check --dry-run`. This coworker-account check has not been started.
+
 
 
 ## Checkpoint history
@@ -436,3 +437,28 @@ rerun needed for documentation-only changes. Single next action not started.
 
 Main launcher `--check-handoff shower-features` returned
 `Handoff shower-features: PASS` using the read-only main-checkout launcher.
+
+### 2026-11-16T20:43:54+01:00 — Locate SciFi density implementations (read-only audit)
+
+Verified pwd/branch and clean initial Git status in the authorized worktree.
+Implementation checkpoint remains `87b3ff6` (no algorithm edits). Searches:
+`rg -n -i 'density|scifi.*dens|dens.*scifi' convertData feature_dev snakemake/envs`,
+targeted `sed` reads, and `readlink -f` of the configured SNDSW release.
+`env_sndsw_nue.sh` selects latest-event_level_info_output-release, resolving to
+`/afs/cern.ch/work/z/zhibin/public/SndBuild/sw/rhel9_x86-64/sndsw/master-local14`.
+
+Local: `convertData/digi_2_features.py:1043` hitWeightDensity (inclusive +/-1 cm,
+self excluded); `:1007` fill_mycode_density (rank by x+y, return min(x,y)).
+Older duplicate: `convertData/digi_2_nueAnalysis.py:247`.
+SNDSW Python: resolved release `analysis/analyses/snd_analysis_2024_0mu/sciFiTools.py:72`
+getSumDensity, called at local converter line 1355. It uses strict distance <1 cm
+and endpoint midpoint coordinates, whereas local hit records use endpoint A.
+SNDSW C++ source: `/afs/cern.ch/work/z/zhibin/public/SndBuild/sndsw/analysis/tools/sndSciFiTools.cxx:635`
+hitWeightComputation and :706 hitDensityPerStation use the inclusive sliding
+window corresponding to the local helper. Source inspection only; no compiled
+binary provenance or event-level density parity established. No algorithms,
+external checkouts, outputs or jobs changed. Only this task checkpoint updated;
+linked historical records and the single next action preserved.
+
+Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS. No next action started.
