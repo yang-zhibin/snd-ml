@@ -1,0 +1,66 @@
+version: my-features-v1
+extends: baseline.yaml
+features:
+
+  leading_charge_fraction:
+    dtype: float64
+    description: Fraction of event SciFi QDC in the highest-charge cluster across both orientations.
+    missing_value: -999.0
+    valid_range: [0, 1]
+    histogram: {bins: 25, range: [0, 1]}
+
+  scifi_vertical_cluster1_density:
+    dtype: float64
+    description: Hit density of the leading vertical cluster (1 cm window).
+    missing_value: -999.0
+    valid_range: [0, 10000]
+    histogram: {bins: 50, range: [0, 100]}
+
+  scifi_vertical_cluster1_density_fraction:
+    dtype: float64
+    description: Fraction of event density in the leading vertical cluster.
+    missing_value: -999.0
+    valid_range: [0, 1]
+    histogram: {bins: 25, range: [0, 1]}
+
+  scifi_vertical_cluster2_density:
+    dtype: float64
+    description: Hit density of the second vertical cluster (1 cm window).
+    missing_value: -999.0
+    valid_range: [0, 10000]
+    histogram: {bins: 50, range: [0, 100]}
+
+  scifi_vertical_cluster2_density_fraction:
+    dtype: float64
+    description: Fraction of event density in the second vertical cluster.
+    missing_value: -999.0
+    valid_range: [0, 1]
+    histogram: {bins: 25, range: [0, 1]}
+
+  scifi_horizontal_cluster1_density:
+    dtype: float64
+    description: Hit density of the leading horizontal cluster (1 cm window).
+    missing_value: -999.0
+    valid_range: [0, 10000]
+    histogram: {bins: 50, range: [0, 100]}
+
+  scifi_horizontal_cluster1_density_fraction:
+    dtype: float64
+    description: Fraction of event density in the leading horizontal cluster.
+    missing_value: -999.0
+    valid_range: [0, 1]
+    histogram: {bins: 25, range: [0, 1]}
+
+  scifi_horizontal_cluster2_density:
+    dtype: float64
+    description: Hit density of the second horizontal cluster (1 cm window).
+    missing_value: -999.0
+    valid_range: [0, 10000]
+    histogram: {bins: 50, range: [0, 100]}
+    
+  scifi_horizontal_cluster2_density_fraction:
+    dtype: float64
+    description: Fraction of event density in the second horizontal cluster.
+    missing_value: -999.0
+    valid_range: [0, 1]
+    histogram: {bins: 25, range: [0, 1]}
