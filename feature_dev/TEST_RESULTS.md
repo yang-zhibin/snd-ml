@@ -201,3 +201,28 @@ three samples with no analysis jobs needed. Index:
 `results/all/standard-test-fixed-20261116/index.html`; logs:
 `fixed-all-dry-run.log` and `fixed-all-reuse.log`. Shell syntax and
 `git diff --check` passed. Verification completed 2026-11-16 (Europe/Zurich).
+
+## Mixed LHCb/SNDSW Python startup — 17 November 2026
+
+The original committed export wrapper retained LHCb entries on PATH. With
+`/cvmfs/lhcb.cern.ch/lib/lcg/releases/Python/3.12.11-531c6/x86_64-el9-gcc13-opt/bin`
+first on PATH, it reproduced the reported fatal `init_sys_streams` /
+`cannot import name 'text_encoding' from 'io'` error. Both SNDSW release setup
+scripts capture the incoming interpreter's sys.path, so changing only the
+release date does not resolve the contamination.
+
+The isolation change already present in the worktree was preserved and tested:
+start a clean child environment before SNDSW activation, retain credential and
+scratch variables, use the existing pinned converter Python, and print the
+actual interpreter/stdlib. On lxplus9111 it passed ROOT and SndlhcGeo imports
+with Python 3.9.25, `/usr/lib64/python3.9/io.py`, ROOT 6.36.04 and no LHCb paths
+in sys.path. No source data, geometry or event conversion was opened/run.
+
+Evidence (ignored worktree-local files):
+`feature_dev/output/python-env-audit-20261117/` contains `probe.sh`, a snapshot
+of the old wrapper with only its repository root adjusted, `probe.log`,
+`old-lhcb.log`, `new-lhcb.log`, and `contaminated.log` for the additional
+PYTHONHOME/PYTHONPATH/stale-SNDLHC-state probe. Each child was limited to 30 CPU
+seconds, 3 GiB virtual memory and 90 seconds wall time; core dumps disabled.
+No batch jobs or shared-environment changes. Coworker-account imports and EOS
+permissions remain to be verified independently.

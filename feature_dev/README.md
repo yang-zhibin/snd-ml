@@ -558,3 +558,41 @@ missing value in the YAML schema. Treat `hits` as read-only; empty events are va
 For SciFi neighbour-count density, see the
 [calculation report](SCIFI_DENSITY.md): code locations, worked examples,
 output branches and local/SNDSW differences.
+
+### SNDSW startup: `cannot import name 'text_encoding' from 'io'`
+
+A path mentioning LHCb `python3.12` indicates mixed Python runtimes. Both the
+Oct7 and June25 SNDSW setup scripts capture the `sys.path` of the first
+`python3` on the incoming `PATH`. Merely changing the SNDSW release does not
+remove an inherited LHCb/Conda Python or stale setup state.
+
+`feature_dev/run_export.sh` now starts SNDSW in an isolated child environment:
+clean system PATH, no inherited Python/library/module settings, then the
+established SNDSW setup and pinned converter interpreter. It preserves identity,
+credential-file paths and temporary-directory settings. Your shell is unchanged.
+Keep the repository's `env_sndsw_nue.sh`; no release switch or package install
+is needed for this fix.
+
+After updating to a revision containing the wrapper fix, run this **import-only**
+check from the repository root (Bash on lxplus):
+
+```bash
+(
+  ulimit -c 0
+  ulimit -t 30
+  ulimit -v 3145728
+  timeout --kill-after=5s 90s bash feature_dev/run_export.sh \
+    -c 'import sys, io, ROOT, SndlhcGeo; print("SNDSW import check passed")'
+)
+```
+
+The wrapper prints the actual converter interpreter, Python version, standard
+library location and ROOT version. It should not load the LHCb Python 3.12
+standard library. This check reads no dataset and submits no jobs. A timeout or
+an import failure needs its full output checked before conversion.
+
+Validated on lxplus9111 with Python 3.9.25 / ROOT 6.36.04, including an incoming
+LHCb Python 3.12 environment. This verifies runtime isolation, not another
+account's catalogue/EOS access. After the import check passes, preview access
+with `--dataset mc-neutrino --sample small --run env-check --dry-run` through
+`./run_feature_dev.sh`; use a new run name when changing wrapper revisions.
