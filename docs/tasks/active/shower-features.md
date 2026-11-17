@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-16T21:25:41+01:00
-- Implementation checkpoint: 87b3ff61f7eb44c534aef6f96e4dcbf4998971e1
-- Implemented: Automatic deterministic small samples from existing EOS catalogues for mc-neutrino, testbeam and real-data; optional mc-muon adapter. Separate SNDSW export and LCG parity/assembly, Snakemake DAG, content-addressed caches and explicit prepared-input override. Fixed standard testbeam assembly: retain capped candidates one source at a time, preserve 256 MiB guards, retain 25 events per testbeam group/geometry (100 elsewhere). Updated collaborator instructions. Example uses NumPy-style Parameters/Returns/Examples docstrings, executable expected-output examples and compact hit/cluster reference tables. Coworker report `feature_dev/SCIFI_DENSITY.md` documents local and SNDSW density functions, formulas, examples, branches and comparison limits; linked from both guides.
-- Validation: Latest documentation revision: 7 doctest statements passed under LCG107/Python3.11.9; executable AST unchanged excluding docstrings; git diff --check passed. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`. Latest read-only audit located local/SNDSW SciFi density code and identified strict versus inclusive 1 cm boundary; numerical equivalence was not tested. Density report: all five runnable example assertions and relative file-link checks passed; no density algorithm changed. GitHub origin push succeeded through fe87462; remote branch SHA verified with git ls-remote.
-- Remaining limitations: Coworker-account access, optional --prepare-profile integration, full campaigns and candidate physics acceptance are unqualified. Optional muon detector validation is blocked: none of 15 catalogue rows had both digi and geometry present on lxplus939. Full automatic preparation remains blocked pending sharding. Shape normalization only. SNDSW shared builds are not immutable images; digi fingerprints use size/mtime. Test artifacts are ignored worktree-local files. Comment-only plugin edits change its source hash, so a new run name is required; existing report evidence predates this documentation edit.
-- Running jobs: None. User explicitly approved GitHub origin; push through fe87462 succeeded. No coworker-account check started.
-- Outputs: `feature_dev/output/standard-20261116/results/all/standard-test-fixed-20261116/index.html`; individual reports at `results/<dataset>/standard-test-fixed-20261116/plot/report.html`, samples/receipts at `results/.samples/`, summaries at `results/<dataset>-test-result.json` and `fixed-summary.json`, relative to `feature_dev/output/standard-20261116/`. Logs, harness, job IDs and reuse audits are in that validation directory. Existing EOS inputs and production products were not modified. Latest unit log: `feature_dev/output/standard-20261116/annotated-example-unit.log`. New tracked document: `feature_dev/SCIFI_DENSITY.md`.
+- Last verified: 2026-11-17T15:41:43+01:00
+- Implementation checkpoint: 11ce8a4639da6eb9e668e80c79fe4cab32cae417
+- Implemented: Automatic deterministic small samples from existing EOS catalogues for mc-neutrino, testbeam and real-data; optional mc-muon adapter. Separate SNDSW export and LCG parity/assembly, Snakemake DAG, content-addressed caches and explicit prepared-input override. Fixed standard testbeam assembly: retain capped candidates one source at a time, preserve 256 MiB guards, retain 25 events per testbeam group/geometry (100 elsewhere). Updated collaborator instructions. Example uses NumPy-style Parameters/Returns/Examples docstrings, executable expected-output examples and compact hit/cluster reference tables. Coworker report `feature_dev/SCIFI_DENSITY.md` documents local and SNDSW density functions, formulas, examples, branches and comparison limits; linked from both guides. SNDSW export now activates in a clean child environment, preserving credential/scratch settings, preventing inherited LHCb Python contamination and printing actual converter runtime paths.
+- Validation: Latest documentation revision: 7 doctest statements passed under LCG107/Python3.11.9; executable AST unchanged excluding docstrings; git diff --check passed. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`. Latest read-only audit located local/SNDSW SciFi density code and identified strict versus inclusive 1 cm boundary; numerical equivalence was not tested. Density report: all five runnable example assertions and relative file-link checks passed; no density algorithm changed. GitHub origin push succeeded through fe87462; remote branch SHA verified with git ls-remote. Access audit: all configured catalogue paths inventoried; 9 AFS directory ACLs inspected, representative EOS parent ACLs sampled for every catalogue/input kind, SNDSW runtime ACLs inspected.  Authorized AFS grant completed: all three catalogue ACLs verified as svicenti rl; existing owner/admin/anyuser entries preserved. Username recheck: getent and pts confirm svicenti=Silvia Vicentini UID182858; svicentini is absent. Existing three svicenti rl entries reverified; no ACL changes on recheck. Runtime audit on lxplus9111 reproduced the exact reported text_encoding failure with the committed old wrapper and LHCb3.12 on PATH. Isolated wrapper passed ROOT/SndlhcGeo imports with Python3.9.25/ROOT6.36.04, both PATH-only and PYTHONHOME/PYTHONPATH/stale-SNDLHC-state contamination; no LHCb sys.path entries. Shell syntax and diff checks passed. Fix push succeeded; git ls-remote verified remote 11f3d340df41c6241a89a459928747404163a775 before this checkpoint.
+- Remaining limitations: Coworker-account access, optional --prepare-profile integration, full campaigns and candidate physics acceptance are unqualified. Optional muon detector validation is blocked: none of 15 catalogue rows had both digi and geometry present on lxplus939. Full automatic preparation remains blocked pending sharding. Shape normalization only. SNDSW shared builds are not immutable images; digi fingerprints use size/mtime. Test artifacts are ignored worktree-local files. Comment-only plugin edits change its source hash, so a new run name is required; existing report evidence predates this documentation edit. svicenti (UID182858) now has rl on the three AFS catalogue directories. The private EOS testbeam cutflow share is unchanged; effective access must be tested from her account. PTS membership query denied; EOS e-group membership not established. New runtime fix tested for imports only; no dataset conversions rerun. Coworker runtime not tested directly. Fix 11ce8a4 is now published to GitHub origin/task/shower-features; coworker runtime check remains pending.
+- Running jobs: None. Only bounded import probes ran (30 CPU seconds, 3 GiB virtual memory, 90s wall timeout per child, core dumps disabled); all exited. No datasets converted or shared environments modified.
+- Outputs: `feature_dev/output/standard-20261116/results/all/standard-test-fixed-20261116/index.html`; individual reports at `results/<dataset>/standard-test-fixed-20261116/plot/report.html`, samples/receipts at `results/.samples/`, summaries at `results/<dataset>-test-result.json` and `fixed-summary.json`, relative to `feature_dev/output/standard-20261116/`. Logs, harness, job IDs and reuse audits are in that validation directory. Existing EOS inputs and production products were not modified. Latest unit log: `feature_dev/output/standard-20261116/annotated-example-unit.log`. New tracked document: `feature_dev/SCIFI_DENSITY.md`. Access inventory/ACL evidence: `feature_dev/output/access-audit-20261117/{catalogue-paths,afs-acls,eos-acl-samples}.json` (ignored local artifacts). Verified grant evidence: `feature_dev/output/access-audit-20261117/granted-afs-acls.json`. Runtime evidence: `feature_dev/output/python-env-audit-20261117/{probe.sh,old-run-export.sh,probe.log,old-lhcb.log,new-lhcb.log,contaminated.log}`; import-check instructions in feature_dev/README.md.
 
 ## Goal
 
@@ -19,7 +19,8 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-After the coworker's checkout includes implementation `87b3ff6` and density report `5ea1dc6`, verify access from their own account with `./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run access-check --dry-run`. This coworker-account check has not been started.
+Have svicenti test the import-only command in `feature_dev/README.md` after receiving commit `11ce8a4`; then report its runtime paths and result before retrying dataset conversion. This coworker-account runtime check has not been started; private EOS testbeam sharing remains unresolved and unchanged.
+
 
 ## Checkpoint history
 
@@ -514,4 +515,143 @@ new tests, outputs or jobs. Single next action restored to coworker access
 verification and not started. Historical records preserved.
 
 Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS.
+
+### 2026-11-17T13:52:42+01:00 — svicenti source-path and access audit
+
+Verified pwd/task/shower-features/clean initial Git state. Implementation remains
+`87b3ff6`; no code changed. Traced datasets.yaml, sources.build_plan and
+converter_arguments, run_export.sh, env_sndsw_nue.sh, cli.py output defaults.
+LCG107/Python3.11.9 preflight on lxplus973 passed. Parsed all configured CSVs:
+1866 neutrino rows, 475 testbeam, 22301 real-data and 15 optional muon rows.
+Only digi_path/geo_path/cutflow_path are used as source-file inputs; existing
+feature ROOT outputs in catalogue rows are not required.
+
+AFS: fs listacl inspected all nine catalogue-path directories. All grant
+system:anyuser l, so no additional parent lookup grants are needed. Three leaf
+directories need svicenti read access, relative to
+`/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/`:
+- `manifests` (neutrino, 2024 testbeam, optional muon catalogues)
+- `testbeam_2023_h8_v2` (H8 catalogue)
+- `real_data_distributions/unified_real_data_distributions_v1/source_manifests`
+All have only administrator/owner full rights plus anyuser lookup; no svicenti
+entry. getent passwd confirms svicenti UID182858. pts membership svicenti
+returned permission denied; no effective-account access claim is made.
+
+EOS: eos attr ls sampled first/last source parent per catalogue and each input
+kind (full raw results saved). Experiment paths inspected grant
+`eos-experiment-sndlhc-readers:rx` and writers:rwx, including:
+- MonteCarlo/Neutrinos/Genie/2024 digi+geometry
+- users/zhibin/MC_neutrino cutflows
+- MonteCarlo/testbeam2024, convertedData/commissioning/testbeam_24 and
+  testbeam_June2023_H8 digi+geometry
+- users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/testbeam_data_2023_h8
+- convertedData/physics/2024 and users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/real_data_2024
+All those paths are under `/eos/experiment/sndlhc/`. Her EOS e-group membership
+was not established. ACL sampling is not an exhaustive file-level audit.
+
+Additional likely blocker: both 2024 testbeam catalogues reference
+`/eos/user/z/zhibin/TestBeam/binary_full_v1/cutflows`. EOS-user attr ls shows
+sys.acl `u:187895:rx,u:1066349:rx`, empty user.acl and sys.mask700; neither ID
+is svicenti. This share needs targeted read access for testbeam. Do not replace
+existing ACLs or open the entire personal EOS area. No EOS grants were applied.
+Optional muon path samples include nonexistent directories, consistent with
+previous missing-source limitation, not merely an access issue.
+
+Runtime: inspected public/SndBuild ancestors, module directory/BASE module,
+master-local14 root/lib/python and analysis package ancestors. All sampled AFS
+ACLs grant anyuser rl. No new runtime grant identified; transitive imports and
+symlink targets were not exhaustively tested as svicenti. LCG/SNDSW CVMFS paths
+remain shared runtime requirements. cli.py chooses the invoking user's own
+work output root; she needs no write access to zhibin's outputs or worktree.
+
+Evidence: `feature_dev/output/access-audit-20261117/catalogue-paths.json`,
+`afs-acls.json`, `eos-acl-samples.json`. Commands: fs listacl, pts membership,
+getent passwd, eos attr ls/ls -ld and standard-library CSV inventory using
+PyYAML config. No ROOT processing, batch jobs, source-data changes, ACL changes
+or coworker login attempted. Only this tracked checkpoint changes.
+
+Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS. Permission changes remain unstarted.
+
+### 2026-11-17T14:06:05+01:00 — Authorized AFS catalogue grants applied
+
+Verified pwd/branch and clean initial Git status in the authorized worktree.
+User explicitly authorized the previously shown fs setacl command. Before ACLs
+had only administrators/owner rlidwka and anyuser l. Ran successfully (exit 0):
+
+```bash
+metadata=/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata
+fs setacl -dir "$metadata/manifests" "$metadata/testbeam_2023_h8_v2" "$metadata/real_data_distributions/unified_real_data_distributions_v1/source_manifests" -acl svicenti rl
+```
+
+Post-change fs listacl and assertions verified svicenti rl on all three targets
+and preserved all existing entries. Grants permit reading files directly inside
+those directories; no write/delete/admin rights added. No parent, child or EOS
+ACLs changed. Evidence: `feature_dev/output/access-audit-20261117/granted-afs-acls.json`.
+No code changes (implementation remains `87b3ff6`), processing jobs or data
+outputs. Only tracked change is this task record. Verification ran with
+LCG107/Python3.11.9 and runtime preflight. User-account end-to-end access remains
+untested; no impersonation or next-action execution attempted. Historical
+records preserved. Private EOS testbeam cutflows still require separate access.
+
+Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS. Next action not started.
+
+### 2026-11-17T14:22:24+01:00 — Recheck svicenti versus svicentini
+
+User queried whether the username should be svicentini. Verified pwd/branch
+and clean Git status. `getent passwd svicenti` returned Silvia Vicentini,
+UID182858; `pts examine svicenti` confirmed AFS identity182858.
+`getent passwd svicentini` returned no account and `pts examine svicentini`
+reported user/group does not exist. All three target `fs listacl` results
+still show svicenti rl and preserved previous entries. No ACL change made:
+there is no verified replacement AFS identity. Coworker can confirm her login
+with whoami on lxplus; effective access remains untested from her account.
+No code changes, jobs or new outputs; implementation remains `87b3ff6`.
+Only this checkpoint changed; historical records and single next action retained.
+
+Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS. No next action started.
+
+### 2026-11-17T15:34:16+01:00 — Reproduce and isolate LHCb Python contamination
+
+Verified authorized pwd, task/shower-features branch, and initial dirty state:
+only `feature_dev/run_export.sh` had a pre-existing isolation fix. Preserved and
+validated that change without replacing it. Implementation commit
+`11ce8a4639da6eb9e668e80c79fe4cab32cae417` includes the wrapper and updated
+`feature_dev/README.md`, `feature_dev/TEST_RESULTS.md`. No env_sndsw_nue.sh,
+shared installation, ACL or external checkout changes.
+
+Read both Oct7 and June25 setUp.sh files: both capture sys.path from the first
+python3 on PATH. Old wrapper removes LCG/miniconda3 paths but leaves LHCb.
+Controlled LHCb3.12.11 PATH reproduced init_sys_streams/text_encoding failure
+in the old wrapper. Clean-environment wrapper passes ROOT/SndlhcGeo imports
+with pinned June25 Python3.9.25, system 3.9 stdlib and ROOT6.36.04. Additional
+PYTHONHOME/PYTHONPATH plus stale setup marker probe also passed. Exit codes:
+old wrapper 1; new wrapper 0; additional contaminated environment 0. Logs and
+probe script paths are recorded in Current state. Shell syntax/diff checks PASS.
+
+Tests ran sequentially on lxplus9111 under timeout and process resource limits;
+no data conversion, dataset reads, jobs, installations or node-wide settings.
+No attempt to execute under the coworker's identity. Fix committed locally;
+not pushed this turn. Full detector parity and account-specific access remain
+outside these import-only checks. Single next action not started.
+
+Main launcher's read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS. Separate task-only checkpoint records implementation.
+
+### 2026-11-17T15:41:43+01:00 — Publish validated SNDSW runtime fix
+
+Verified authorized pwd, branch task/shower-features, clean Git status and
+GitHub origin URL. User requested the push. Command
+`git push origin HEAD:refs/heads/task/shower-features` succeeded,
+`3d305cc..11f3d34`. `git ls-remote --heads origin refs/heads/task/shower-features`
+confirmed `11f3d340df41c6241a89a459928747404163a775`, including implementation
+`11ce8a4639da6eb9e668e80c79fe4cab32cae417`. This task-only checkpoint will be
+pushed to the same approved branch. No implementation changes, new tests,
+outputs or jobs; earlier bounded import evidence remains applicable. Single
+coworker-account import-check next action preserved and not started.
+
+Main launcher's read-only `--check-handoff shower-features`: PASS.
 `git diff --check`: PASS.
