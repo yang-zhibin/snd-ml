@@ -11,8 +11,8 @@ export PYTHONPATH="$SNDSW_ROOT:$root/convertData:${PYTHONPATH:-}"
 set -euo pipefail
 hostname
 pwd
-command -v python3
-python3 --version
+#command -v python3
+#python3 --version
 converter_python=/cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python
 "$converter_python" -c 'import ROOT, SndlhcGeo; print(ROOT.__version__)'
 exec "$converter_python" "$@"
