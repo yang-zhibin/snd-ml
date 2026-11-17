@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-16T21:25:41+01:00
+- Last verified: 2026-11-17T13:52:42+01:00
 - Implementation checkpoint: 87b3ff61f7eb44c534aef6f96e4dcbf4998971e1
 - Implemented: Automatic deterministic small samples from existing EOS catalogues for mc-neutrino, testbeam and real-data; optional mc-muon adapter. Separate SNDSW export and LCG parity/assembly, Snakemake DAG, content-addressed caches and explicit prepared-input override. Fixed standard testbeam assembly: retain capped candidates one source at a time, preserve 256 MiB guards, retain 25 events per testbeam group/geometry (100 elsewhere). Updated collaborator instructions. Example uses NumPy-style Parameters/Returns/Examples docstrings, executable expected-output examples and compact hit/cluster reference tables. Coworker report `feature_dev/SCIFI_DENSITY.md` documents local and SNDSW density functions, formulas, examples, branches and comparison limits; linked from both guides.
-- Validation: Latest documentation revision: 7 doctest statements passed under LCG107/Python3.11.9; executable AST unchanged excluding docstrings; git diff --check passed. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`. Latest read-only audit located local/SNDSW SciFi density code and identified strict versus inclusive 1 cm boundary; numerical equivalence was not tested. Density report: all five runnable example assertions and relative file-link checks passed; no density algorithm changed. GitHub origin push succeeded through fe87462; remote branch SHA verified with git ls-remote.
-- Remaining limitations: Coworker-account access, optional --prepare-profile integration, full campaigns and candidate physics acceptance are unqualified. Optional muon detector validation is blocked: none of 15 catalogue rows had both digi and geometry present on lxplus939. Full automatic preparation remains blocked pending sharding. Shape normalization only. SNDSW shared builds are not immutable images; digi fingerprints use size/mtime. Test artifacts are ignored worktree-local files. Comment-only plugin edits change its source hash, so a new run name is required; existing report evidence predates this documentation edit.
-- Running jobs: None. User explicitly approved GitHub origin; push through fe87462 succeeded. No coworker-account check started.
-- Outputs: `feature_dev/output/standard-20261116/results/all/standard-test-fixed-20261116/index.html`; individual reports at `results/<dataset>/standard-test-fixed-20261116/plot/report.html`, samples/receipts at `results/.samples/`, summaries at `results/<dataset>-test-result.json` and `fixed-summary.json`, relative to `feature_dev/output/standard-20261116/`. Logs, harness, job IDs and reuse audits are in that validation directory. Existing EOS inputs and production products were not modified. Latest unit log: `feature_dev/output/standard-20261116/annotated-example-unit.log`. New tracked document: `feature_dev/SCIFI_DENSITY.md`.
+- Validation: Latest documentation revision: 7 doctest statements passed under LCG107/Python3.11.9; executable AST unchanged excluding docstrings; git diff --check passed. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`. Latest read-only audit located local/SNDSW SciFi density code and identified strict versus inclusive 1 cm boundary; numerical equivalence was not tested. Density report: all five runnable example assertions and relative file-link checks passed; no density algorithm changed. GitHub origin push succeeded through fe87462; remote branch SHA verified with git ls-remote. Access audit: all configured catalogue paths inventoried; 9 AFS directory ACLs inspected, representative EOS parent ACLs sampled for every catalogue/input kind, SNDSW runtime ACLs inspected. No permissions changed.
+- Remaining limitations: Coworker-account access, optional --prepare-profile integration, full campaigns and candidate physics acceptance are unqualified. Optional muon detector validation is blocked: none of 15 catalogue rows had both digi and geometry present on lxplus939. Full automatic preparation remains blocked pending sharding. Shape normalization only. SNDSW shared builds are not immutable images; digi fingerprints use size/mtime. Test artifacts are ignored worktree-local files. Comment-only plugin edits change its source hash, so a new run name is required; existing report evidence predates this documentation edit. svicenti (UID182858) lacks a named read grant on three AFS catalogue directories and the private EOS testbeam cutflow share; effective access must be tested from her account. PTS membership query denied; EOS e-group membership not established.
+- Running jobs: None submitted for the path/ACL audit. No permissions changed or coworker-account tests started.
+- Outputs: `feature_dev/output/standard-20261116/results/all/standard-test-fixed-20261116/index.html`; individual reports at `results/<dataset>/standard-test-fixed-20261116/plot/report.html`, samples/receipts at `results/.samples/`, summaries at `results/<dataset>-test-result.json` and `fixed-summary.json`, relative to `feature_dev/output/standard-20261116/`. Logs, harness, job IDs and reuse audits are in that validation directory. Existing EOS inputs and production products were not modified. Latest unit log: `feature_dev/output/standard-20261116/annotated-example-unit.log`. New tracked document: `feature_dev/SCIFI_DENSITY.md`. Access inventory/ACL evidence: `feature_dev/output/access-audit-20261117/{catalogue-paths,afs-acls,eos-acl-samples}.json` (ignored local artifacts).
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-After the coworker's checkout includes implementation `87b3ff6` and density report `5ea1dc6`, verify access from their own account with `./run_feature_dev.sh --dataset all --sample small --algorithm gap_clusters --run access-check --dry-run`. This coworker-account check has not been started.
+Review and apply the targeted grants for svicenti: AFS `rl` on the three catalogue directories recorded below, and read sharing for the EOS-user testbeam cutflow directory if testbeam is required; then verify from her account. This audit made no permission changes and did not start this next action.
 
 ## Checkpoint history
 
@@ -515,3 +515,60 @@ verification and not started. Historical records preserved.
 
 Main launcher read-only `--check-handoff shower-features`: PASS.
 `git diff --check`: PASS.
+
+### 2026-11-17T13:52:42+01:00 — svicenti source-path and access audit
+
+Verified pwd/task/shower-features/clean initial Git state. Implementation remains
+`87b3ff6`; no code changed. Traced datasets.yaml, sources.build_plan and
+converter_arguments, run_export.sh, env_sndsw_nue.sh, cli.py output defaults.
+LCG107/Python3.11.9 preflight on lxplus973 passed. Parsed all configured CSVs:
+1866 neutrino rows, 475 testbeam, 22301 real-data and 15 optional muon rows.
+Only digi_path/geo_path/cutflow_path are used as source-file inputs; existing
+feature ROOT outputs in catalogue rows are not required.
+
+AFS: fs listacl inspected all nine catalogue-path directories. All grant
+system:anyuser l, so no additional parent lookup grants are needed. Three leaf
+directories need svicenti read access, relative to
+`/afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/`:
+- `manifests` (neutrino, 2024 testbeam, optional muon catalogues)
+- `testbeam_2023_h8_v2` (H8 catalogue)
+- `real_data_distributions/unified_real_data_distributions_v1/source_manifests`
+All have only administrator/owner full rights plus anyuser lookup; no svicenti
+entry. getent passwd confirms svicenti UID182858. pts membership svicenti
+returned permission denied; no effective-account access claim is made.
+
+EOS: eos attr ls sampled first/last source parent per catalogue and each input
+kind (full raw results saved). Experiment paths inspected grant
+`eos-experiment-sndlhc-readers:rx` and writers:rwx, including:
+- MonteCarlo/Neutrinos/Genie/2024 digi+geometry
+- users/zhibin/MC_neutrino cutflows
+- MonteCarlo/testbeam2024, convertedData/commissioning/testbeam_24 and
+  testbeam_June2023_H8 digi+geometry
+- users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/testbeam_data_2023_h8
+- convertedData/physics/2024 and users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/real_data_2024
+All those paths are under `/eos/experiment/sndlhc/`. Her EOS e-group membership
+was not established. ACL sampling is not an exhaustive file-level audit.
+
+Additional likely blocker: both 2024 testbeam catalogues reference
+`/eos/user/z/zhibin/TestBeam/binary_full_v1/cutflows`. EOS-user attr ls shows
+sys.acl `u:187895:rx,u:1066349:rx`, empty user.acl and sys.mask700; neither ID
+is svicenti. This share needs targeted read access for testbeam. Do not replace
+existing ACLs or open the entire personal EOS area. No EOS grants were applied.
+Optional muon path samples include nonexistent directories, consistent with
+previous missing-source limitation, not merely an access issue.
+
+Runtime: inspected public/SndBuild ancestors, module directory/BASE module,
+master-local14 root/lib/python and analysis package ancestors. All sampled AFS
+ACLs grant anyuser rl. No new runtime grant identified; transitive imports and
+symlink targets were not exhaustively tested as svicenti. LCG/SNDSW CVMFS paths
+remain shared runtime requirements. cli.py chooses the invoking user's own
+work output root; she needs no write access to zhibin's outputs or worktree.
+
+Evidence: `feature_dev/output/access-audit-20261117/catalogue-paths.json`,
+`afs-acls.json`, `eos-acl-samples.json`. Commands: fs listacl, pts membership,
+getent passwd, eos attr ls/ls -ld and standard-library CSV inventory using
+PyYAML config. No ROOT processing, batch jobs, source-data changes, ACL changes
+or coworker login attempted. Only this tracked checkpoint changes.
+
+Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS. Permission changes remain unstarted.
