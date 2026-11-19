@@ -308,3 +308,37 @@ extended normalization integration passed, including ROOT publication, exposure
 refresh, unchanged calculation timestamp and detection of the deliberately
 corrupted exported ROOT file. All 10 existing launcher integration checks passed.
 `git diff --check` passed. All local test processes completed.
+
+## 2026-11-19 — Production converter plugins
+
+Evidence directory (ignored): `feature_dev/output/production-plugin-20261119/`.
+LCG 107 on lxplus9102: Python 3.11.9, ROOT 6.34.02, NumPy 1.26.4,
+uproot 5.3.11. Isolated SNDSW: Python 3.9.25, ROOT 6.36.04.
+
+- `python3 -m unittest discover -s feature_production/tests -p 'test_*.py'`:
+  20 passed (`unit.log`), including plugin validation/isolation, known density,
+  ROOT round trip, metadata checksum, shard compatibility and exposure copy,
+  streaming audited yields/empty sources, capped plans and output isolation.
+- Existing `feature_dev/tests`: 75 passed (`dev-unit.log`). Existing converter
+  `test_unified_shower_features.py`: 13 passed; shard validator tests: 3 passed
+  (`production-regression.log`).
+- Actual EOS command: `./run_shower_features.sh --dataset mc-neutrino --plugin
+  silvia --sample small --files-per-group 1 --events-per-file 2 --run smoke
+  --output-root "$PWD/feature_dev/output/production-plugin-20261119/results"`.
+  Both source jobs, validators and report passed (`smoke.log`). Four events;
+  all 13 plugin scalars equal coworker commit d8cd5d0 on identical exported
+  hits. Separate source-0 no-plugin conversion: all 438 original branches on
+  two entries exactly match (`parity.json`, `parity.log`, `baseline-check/`).
+- Identical rerun: nothing to do; cache verified (`reuse.log`).
+- Full MC shape DAG dry-run: 1866 source jobs plus distribution/aggregate,
+  no execution (`full-dry-run.log`). Initial small dry-run exposed a duplicate
+  plan keyword; fixed before successful dry-run and real smoke.
+- Report: `results/mc-neutrino/smoke/plots/report.html`; ROOT:
+  `results/mc-neutrino/smoke/sources/{0,1}/features.root`, each with validation,
+  baseline parity, input fingerprints and checksums. Source logs under `logs/`.
+
+No HTCondor submission or full conversion, no coworker-account execution, and
+no new real testbeam/data/muon run. Full per-file resource requirements and
+physical audit qualification remain unverified. Unit yield fixtures validate
+accounting, not the physical provenance of real luminosities. Small sample
+exposure remains explicitly invalid for yields. No input datasets modified.

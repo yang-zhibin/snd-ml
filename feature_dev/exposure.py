@@ -36,6 +36,15 @@ def validate_audit(audit, sample_sha, events, provenance):
     gaps or overlap. Empty sources use an empty range list. Reference data
     populations have the same coverage contract, but are external to this sample.
     """
+    counts = Counter(event['source_uid'] for event in events)
+    groups = {}
+    for event in events:
+        groups.setdefault((event['group'], event['geometry']), set()).add(event['source_uid'])
+    return validate_coverage(audit, sample_sha, counts, groups, provenance)
+
+
+def validate_coverage(audit, sample_sha, counts, group_sources, provenance):
+    """Validate the same audit using streaming source counts/group membership."""
     _uncapped(provenance)
     if audit.get('version') != 1 or audit.get('sample_sha256') != sample_sha:
         raise ValueError('Exposure audit version/sample SHA mismatch')
@@ -82,11 +91,11 @@ def validate_audit(audit, sample_sha, events, provenance):
                 expected[uid] = count
             total += lumi * probability
         exposures[name] = total
-    observed = Counter(event['source_uid'] for event in events)
+    observed = Counter(counts)
     if any(uid not in expected for uid in observed) or observed != +expected:
         raise ValueError('Sample event counts do not match audited source coverage')
     records = {}
-    actual_groups = {(e['group'], e['geometry']) for e in events}
+    actual_groups = set(group_sources)
     used = set()
     for group in audit.get('groups', []):
         key = (group['group'], group['geometry'])
@@ -94,8 +103,7 @@ def validate_audit(audit, sample_sha, events, provenance):
         if key in records or name not in populations or populations[name]['role'] == 'reference_data':
             raise ValueError('Duplicate group or invalid population')
         used.add(name)
-        if any(e['source_uid'] not in source_sets[name] for e in events
-               if (e['group'], e['geometry']) == key):
+        if set(group_sources.get(key, set())) - source_sets[name]:
             raise ValueError('Group contains a source from another parent population')
         role = populations[name]['role']
         source = exposures[name]

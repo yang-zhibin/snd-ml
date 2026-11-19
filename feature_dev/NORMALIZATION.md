@@ -1,5 +1,7 @@
 # Shape and yield normalization
 
+For the new converter-based launcher, see [production normalization](../feature_production/README.md#normalization-and-root-metadata). The prepared-JSONL limitations below apply to the older development launcher.
+
 The development launcher supports `--normalization auto|shape|yield`.
 
 | Input | `auto` | `yield` |

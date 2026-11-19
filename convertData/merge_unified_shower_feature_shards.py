@@ -33,6 +33,8 @@ COMMON_RECEIPT_FIELDS = (
     "available_selected_event_count",
     "conversion_max_events",
     "converter_commit",
+    "feature_plugin_sha256",
+    "production_exposure_sha256",
 )
 
 
@@ -110,7 +112,14 @@ def copy_metadata(source: ROOT.TFile, output: ROOT.TFile) -> None:
         if name in copied or name in TREE_NAMES or name in SHARD_METADATA_NAMES:
             continue
         value = source.Get(name)
-        if not value or value.InheritsFrom("TTree"):
+        if not value:
+            continue
+        if value.InheritsFrom("TTree"):
+            if name == 'source_exposure':
+                output.cd()
+                clone = value.CloneTree(-1, 'fast')
+                clone.Write(name)
+                copied.add(name)
             continue
         output.cd()
         value.Write(name)

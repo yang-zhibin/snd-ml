@@ -1407,6 +1407,13 @@ def process_hits(
     process_vetoHitTime(MuFilter_hits, branch_vars)
     record_timing(timing, timing_counts, "process_hits.veto_time", step_start)
 
+    if getattr(args, '_production_plugin', None) is not None:
+        try:
+            args._production_plugin.fill(SciFi_hits)
+        except Exception as error:
+            raise ValueError("Plugin failed for source={} run={} event={} index={}: {}".format(
+                args.source_uid, branch_vars['runId'][0], branch_vars['eventId'][0],
+                branch_vars['eventIndex'][0], error)) from error
     record_timing(timing, timing_counts, "process_hits.total", process_start)
 
     return 
@@ -1416,6 +1423,12 @@ def process_hits(
 
 
 def main(args):
+    args._production_plugin = None
+    if getattr(args, 'feature_plugin_spec', None):
+        import json
+        from feature_plugin import Plugin
+        with open(args.feature_plugin_spec) as stream:
+            args._production_plugin = Plugin(json.load(stream))
     # Optional development export; ordinary production output is unchanged.
     args._feature_dev_writer = None
     if getattr(args, "feature_dev_export", None):
@@ -1645,6 +1658,8 @@ def main(args):
             for name, dtype in reco_track_vector_dtypes.items()
         }
         branch_vector_vars(new_tree, reco_track_vector_branches)
+    if args._production_plugin is not None:
+        args._production_plugin.create_branches(new_tree)
     record_timing(timing, timing_counts, "setup.branches", step_start)
 
     
@@ -1861,6 +1876,8 @@ def main(args):
     # Finalize the output file
     step_start = time.perf_counter()
     new_tree.Write()
+    if args._production_plugin is not None:
+        args._production_plugin.write_metadata(ROOT)
     record_timing(timing, timing_counts, "finalize.write_sndData", step_start)
 
     step_start = time.perf_counter()
@@ -2001,6 +2018,7 @@ if __name__ == "__main__":
         ),
     )
 
+    parser.add_argument("--feature-plugin-spec", help="Resolved production plugin JSON specification")
     parser.add_argument("--feature-dev-group", help="Explicit comparison group label for selected-hit export")
     parser.add_argument("--feature-dev-export", help="Write selected-hit JSONL and completion manifest; refuses overwrite")
     args = parser.parse_args()

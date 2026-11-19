@@ -1,5 +1,11 @@
 # Develop shower features
 
+**Production plugin workflow (19 November 2026):** use
+[`run_shower_features.sh` and the production guide](../feature_production/README.md).
+It calculates coworker features inside the existing converter, reads the EOS
+catalogues, and supports bounded local runs and per-source batch campaigns.
+The older standalone development workflow is documented below.
+
 For the branch overview, physics datasets, feature definitions, and normalization,
 start with [the shower-feature branch guide](../README_SHOWER_FEATURES.md).
 
