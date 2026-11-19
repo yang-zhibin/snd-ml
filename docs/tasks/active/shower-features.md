@@ -5,7 +5,7 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:23:47+01:00
+- Last verified: 2026-11-19T15:36:34+01:00
 - Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
 - Implemented: Production converter/Silvia plugin and shared EM shower ROOT backend retained. Geometry components now combine into one histogram/PDF per feature or pair and selection; no geo_* output directories. Common automatic ranges span geometries. Shapes sum raw counts then normalize once; yields sum separately audited, weighted geometry components with variances preserved. ROOT files retain raw histograms, weighted yield histograms when applicable and original geometry/component metadata. Profiles retain raw binned-TH2 means. Configurable histograms.yaml/plotting.yaml and source reuse remain supported. Instructions updated. Changes committed locally; not pushed.
 - Validation: Verified pwd/task branch and initially clean Git. Larger MC run on lxplus9102: --files-per-group 2 --events-per-file 500; dry-run and access preflight exit0, actual sequential Snakemake run exit0/all eight tasks complete. Four source files contain394 selected events (70,62,127,135), classes CC_nue97/CC_numu199/NC_nue35/NC_numu63. Source validation/baseline parity and independent source/config/histogram/plot receipts pass. Verified13 plugin branches, selected entry identity via validator, all96 histogram count/variance conservation,24 PDFs/page counts and shape normalization, no geo_* directories. Earlier31 unit tests are historical passing evidence; not rerun because no implementation changed.
@@ -1346,3 +1346,14 @@ processes, no batch IDs, no full campaign or coworker qualification started.
 Only task record and validation documentation changed.
 Main launcher `--check-handoff shower-features`: PASS (exit0).
 `git diff --check`: PASS. Task-only validation checkpoint committed; not pushed.
+
+### 2026-11-19T15:36:34+01:00 — Coworker examples checked
+
+Verified pwd, task branch and clean Git; inspected feature_plugins/README.md,
+feature_plugins/silvia/features.py, feature_dev/algorithms/gap_clusters.py and
+tutorial links in feature_dev/README.md and README_SHOWER_FEATURES.md. Both
+production Silvia example and prior annotated standalone gap-clustering example
+remain present. No implementation edits, new tests, generated outputs or jobs;
+previous394-event verification and implementation SHA remain current. Only this
+checkpoint changed; single Next action unchanged and unstarted.
+Main launcher handoff check and git diff --check: PASS (exit0).
