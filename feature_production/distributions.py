@@ -1,6 +1,5 @@
 """Stream production sndData columns into source/geometry-separated histograms."""
 from collections import Counter, defaultdict
-import html
 import json
 import math
 from pathlib import Path
@@ -88,25 +87,54 @@ def distributions(plan):
 
 
 def render(histograms,out,plan):
-    import base64
+    """Write a multipage PDF, preserving group/geometry strata and vector plots."""
+    import textwrap
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    parts=['<!doctype html><meta charset="utf-8"><title>Production features</title>',
-           '<h1>Production features: '+html.escape(plan['plugin']['name'])+'</h1>',
-           '<p>Dataset: '+html.escape(plan['dataset'])+'; normalization: '+plan['normalization']+'. Geometry strata remain separate.</p>']
-    for feature,item in histograms.items():
-        keys=sorted({(c['group'],c['geometry']) for c in item['curves']})
-        # One bounded figure per group/geometry, even for a large campaign.
-        for index,key in enumerate(keys):
-            fig,ax=plt.subplots(figsize=(8,4))
-            selected=[c for c in item['curves'] if (c['group'],c['geometry'])==key]
-            for curve in selected:
-                ax.stairs(curve['normalized'],curve['edges'],label=curve['algorithm'])
-            ax.set_xlabel(item['description']);ax.set_ylabel('Events per bin' if plan['normalization']=='yield' else 'Fraction per bin')
-            ax.set_title(key[0]);ax.legend();fig.tight_layout()
-            path=out/(feature+'-'+str(index)+'.png');fig.savefig(path,dpi=100);plt.close(fig)
-            parts+=['<h2>'+html.escape(feature+' / '+key[0])+'</h2>', '<p>Geometry: '+html.escape(key[1])+'</p>',
-                    '<pre>'+html.escape(json.dumps([dict(algorithm=c['algorithm'],normalization=c['normalization'],selected=c['selected'],missing=c['missing'],underflow=c['underflow'],overflow=c['overflow']) for c in selected]))+'</pre>',
-                    '<img src="data:image/png;base64,'+base64.b64encode(path.read_bytes()).decode()+'">']
-    (out/'report.html').write_text('\n'.join(parts)+'\n')
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    with PdfPages(out/'report.pdf') as report:
+        report.infodict()['Title'] = 'Production features: ' + plan['plugin']['name']
+        fig = plt.figure(figsize=(11.7, 8.3))
+        fig.text(.08, .85, 'Production feature distributions', fontsize=22)
+        summary = [
+            'Dataset: ' + plan['dataset'],
+            'Plugin: ' + plan['plugin']['name'],
+            'Sample: ' + plan.get('sample', 'unspecified'),
+            'Normalization: ' + plan['normalization'],
+            'Physics groups and geometries are shown separately.',
+            'Missing values are excluded; underflow and overflow are recorded.',
+            'Detailed bin counts, sumw2 and exposure records: histograms.json',
+        ]
+        if not histograms:
+            summary.append('No feature distributions are available for this selection.')
+        fig.text(.08, .72, '\n\n'.join(summary), fontsize=12, va='top')
+        report.savefig(fig)
+        plt.close(fig)
+        for feature,item in histograms.items():
+            keys=sorted({(c['group'],c['geometry']) for c in item['curves']})
+            for index,key in enumerate(keys):
+                fig,ax=plt.subplots(figsize=(11.7,8.3))
+                fig.subplots_adjust(left=.1, right=.96, bottom=.30, top=.78)
+                selected=[c for c in item['curves'] if (c['group'],c['geometry'])==key]
+                for curve in selected:
+                    ax.stairs(curve['normalized'],curve['edges'],label=curve['algorithm'])
+                ax.set_xlabel(textwrap.fill(item['description'], 100))
+                ax.set_ylabel('Events per bin' if plan['normalization']=='yield' else 'Fraction per bin')
+                fig.text(.1, .94, textwrap.fill(feature + ' / ' + key[0], 95), fontsize=13, va='top')
+                fig.text(.1, .87, textwrap.fill('Geometry: ' + key[1], 130), fontsize=8, va='top')
+                ax.legend()
+                details=[]
+                for curve in selected:
+                    details.append('{}: selected={}, missing={}, underflow={}, overflow={}'.format(
+                        curve['algorithm'], curve['selected'], curve['missing'],
+                        curve['underflow'], curve['overflow']))
+                    norm=curve['normalization']
+                    details.append('  Normalization: ' + json.dumps({
+                        k:v for k,v in norm.items() if k not in ('group','geometry')}, sort_keys=True))
+                fig.text(.1, .19, '\n'.join(textwrap.fill(line, 145) for line in details),
+                         fontsize=7, va='top')
+                report.savefig(fig)
+                fig.savefig(out/(feature+'-'+str(index)+'.png'),dpi=100)
+                plt.close(fig)

@@ -144,7 +144,7 @@ def main():
         write_json(run/'plan.json',plan);write_json(run/'plugin.json',plan['plugin'])
         (run/'logs').mkdir(exist_ok=True)
         execute(run/'plan.json')
-        print('Report:',run/'plots/report.html')
+        print('Report:',run/'plots/report.pdf')
         print('Production ROOT files:',plan['source_directory'])
 
 if __name__=='__main__':

@@ -342,3 +342,17 @@ no new real testbeam/data/muon run. Full per-file resource requirements and
 physical audit qualification remain unverified. Unit yield fixtures validate
 accounting, not the physical provenance of real luminosities. Small sample
 exposure remains explicitly invalid for yields. No input datasets modified.
+
+## 2026-11-19 — PDF production reports
+
+Production report renderer now writes a vector multipage `plots/report.pdf`
+instead of HTML; launcher output and production guide updated. Individual PNGs
+and histogram/coverage/normalization JSON remain available. Re-rendered existing
+four-event real MC smoke histograms into the new ignored evidence directory
+`feature_dev/output/production-pdf-20261119/` without changing the original run.
+`pdfinfo report.pdf` confirms 61 pages (one summary + 60 plot strata), matching
+the histogram-derived expected count. Page 2 rasterized with `pdftoppm` and
+visually inspected: title, geometry, axes, legend and count/normalization footer
+readable without overlap. LCG107 Python3.11.9/matplotlib3.8.3 on lxplus9102.
+All 20 production plugin/campaign tests passed (`unit.log`); git diff --check
+passed. No new detector conversion, physics recalculation or batch submission.

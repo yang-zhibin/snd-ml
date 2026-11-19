@@ -43,12 +43,15 @@ Override with `--output-root /your/writable/path`. A run contains:
   logs/source-<index>.log       # converter and validator commands/output
   sources/<index>/features.root
   sources/<index>/validation.json, inputs.json, complete.json
-  plots/report.html, histograms.json, coverage.json, normalization.json
+  plots/report.pdf, histograms.json, coverage.json, normalization.json
 ```
 
 Small runs additionally save selected hits and a baseline parity receipt.
 Use `--feature-root /your/writable/eos/directory` to put `sources/` under
 `<feature-root>/<dataset>/<run>/`; logs, plans and plots stay under output-root.
+Open `plots/report.pdf` for the multipage report: a summary followed by one
+plot per feature/group/geometry, with counts and normalization details.
+Individual PNG plots and machine-readable JSON remain available.
 All workers must see the checkout and both output locations at the same paths.
 Existing production campaign files and shared input catalogues are not changed.
 
