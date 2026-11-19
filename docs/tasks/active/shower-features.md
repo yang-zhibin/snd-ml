@@ -5,13 +5,14 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T14:26:27+01:00
+- Last verified: 2026-11-19T14:35:52+01:00
 - Implementation checkpoint: 864b937251f30a86645173b1285f7cc287f76ee8
 - Implemented: Production converter optionally loads a schema-checked plugin from feature_plugins/, calculates it on isolated final SciFi hits, and writes namespaced scalar branches in the same sndData entries. Silvia's 13 features migrated from d8cd5d0; valid-coordinate formulas preserved, missing coordinates explicitly unknown. Original branches retained. Plugin provenance and catalogue source exposure embedded in ROOT; validation and shard metadata checks extended. New run_shower_features.sh and per-user Snakemake campaign read existing EOS catalogues for selectable datasets, run bounded small samples or full per-source jobs, validate/publish atomically and stream distributions with audited yield support. Shared exposure validation reused. Guides and tests updated. Implementation committed locally; not pushed. Production reports now use multipage vector PDF (report.pdf), with summary and per-feature/group/geometry pages; launcher and guide updated.
-- Validation: Verified pwd/branch and clean initial Git state. LCG107 Python3.11.9/matplotlib3.8.3 on lxplus9102: re-rendered previously validated four-event MC histograms; PDF has 61 pages, exactly the expected summary plus 60 plot strata. Rasterized page2 visually inspected: readable plot and metadata. All 20 production plugin/campaign tests passed; git diff --check passed. Prior detector parity and 111-test evidence remains in checkpoint history and TEST_RESULTS; detector conversion not repeated for this presentation change.
+- Validation: Verified pwd/task branch and clean starting Git. Actual small MC run on lxplus9102 using default output root completed all four Snakemake tasks: two sources, two events each, production validation and baseline parity (182 scalars and aligned identity per source), distributions and 61-page PDF. Independently verified both ROOT entry counts, 13 silvia__ branches, identity fields, plugin/exposure metadata, successful receipts and all product checksums. No report.html in new run. LCG107 Python3.11.9 preflight; isolated SNDSW converter/validator logs retained. Prior unit/parity evidence remains in history; no code changed or unit tests repeated this turn.
 - Remaining limitations: No full batch execution or coworker-account qualification; one job per source, not intra-file sharding. Full resource/profile and credential lifetime require qualification. Private testbeam cutflow access and optional muon inputs remain unqualified; no new actual testbeam/data/muon conversion. Automatic authoritative luminosity audit generation is not implemented; real-data event_count_only catalogue values do not establish yields. Source ROOT metadata retains catalogue values and embeds supplied audit; final audited group weights/coverage live in plots/normalization.json. Small samples are debugging selections, not valid yield populations. Statistical errors omit luminosity systematics. Legacy prepared-JSONL workflow remains available. Immutable run identity includes Git HEAD; use a new run name after commits/code/settings changes.
-- Running jobs: No jobs submitted; local rendering and tests completed. No detector conversions this turn. Global scheduler state not re-queried; previous query failed (Collector has no record of schedd/submitter). Next action remains unstarted.
-- Outputs: New PDF feature_dev/output/production-pdf-20261119/report.pdf (61 pages), pdfinfo.txt, page2.png, individual plot PNGs and unit.log. Reused histograms/plan from feature_dev/output/production-plugin-20261119/results/mc-neutrino/smoke/ read-only; original ROOTs, receipts and legacy report.html preserved. New runs publish plots/report.pdf. Durable instructions feature_production/README.md; validation feature_dev/TEST_RESULTS.md. No EOS input changes.
+- Running jobs: Bounded local run completed (exit0); no HTCondor jobs submitted or remaining local task processes. Global scheduler state not queried. Account/batch qualification Next action remains unstarted.
+- Outputs: Default root actual run /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325/: plots/report.pdf (61 pages), sources/{0,1}/features.root and validation/parity/input/checksum receipts, plan.json/plugin.json, logs/source-{0,1}.log, plots histogram/coverage/normalization JSON. Controller/verification evidence feature_dev/output/production-small-20261119/{run.log,verification.json,pdfinfo.txt}. Previous smoke and PDF examples retained untouched. No EOS inputs modified.
+
 
 
 ## Goal
@@ -1117,5 +1118,31 @@ feature_production/tests -p 'test_*.py'`: 20 passed, unit.log in evidence direct
 `git diff --check`: passed. No new physics validation or HTCondor qualification;
 previous limitations retained. No job IDs; no submitted jobs. Single current
 Next action remains account/batch qualification and was not started.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T14:35:52+01:00 — Small MC run in the default output directory
+
+Existing implementation SHA remains `864b937251f30a86645173b1285f7cc287f76ee8`;
+executed checkout HEAD `d369eac`. No implementation edits. Verified worktree,
+branch and clean initial state. User authorized a small MC neutrino test.
+
+Command: `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small --files-per-group 1 --events-per-file 2 --run mc-small-20261119-143325`.
+Exit0, all four tasks completed at 14:34:50 local time. Two source jobs ran
+sequentially locally; no batch job IDs. Default output (no output-root override):
+`/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325`.
+PDF: `plots/report.pdf`; ROOT files: `sources/{0,1}/features.root`;
+commands/runtime/conversion/validation logs: `logs/source-{0,1}.log`.
+
+LCG107 Python3.11.9 preflight on lxplus9102. Post-run uproot inspection and
+verify_receipt: two entries and 13 plugin branches per source; identity and
+plugin/exposure metadata present; validation_passed true; source and plot
+checksums match. Baseline parity receipts record two events/182 scalars each.
+`pdfinfo plots/report.pdf`: valid 61-page PDF; no HTML produced.
+Controller log, verification JSON and PDF info saved in
+`feature_dev/output/production-small-20261119/` (ignored evidence).
+No full run, physical yield qualification, other dataset or coworker-account
+execution. Existing limits retained. Single Next action remains unchanged and
+unstarted. Only this task checkpoint changed in Git.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
