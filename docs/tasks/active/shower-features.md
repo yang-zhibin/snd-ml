@@ -5,13 +5,14 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T14:40:36+01:00
+- Last verified: 2026-11-19T14:49:38+01:00
 - Implementation checkpoint: 864b937251f30a86645173b1285f7cc287f76ee8
 - Implemented: Production converter optionally loads a schema-checked plugin from feature_plugins/, calculates it on isolated final SciFi hits, and writes namespaced scalar branches in the same sndData entries. Silvia's 13 features migrated from d8cd5d0; valid-coordinate formulas preserved, missing coordinates explicitly unknown. Original branches retained. Plugin provenance and catalogue source exposure embedded in ROOT; validation and shard metadata checks extended. New run_shower_features.sh and per-user Snakemake campaign read existing EOS catalogues for selectable datasets, run bounded small samples or full per-source jobs, validate/publish atomically and stream distributions with audited yield support. Shared exposure validation reused. Guides and tests updated. Implementation committed locally; not pushed. Production reports now use multipage vector PDF (report.pdf), with summary and per-feature/group/geometry pages; launcher and guide updated. Correction: only conversion and shared exposure helpers are reused; distribution rendering is a separate Matplotlib implementation, not the existing production ROOT plotting backend.
-- Validation: Read-only trace of user-specified em_shower_neutrino_v1/plots paths confirmed EM shower rules, not unified_feature_distributions.py: make_group_hist.py -> plot_comparison.py for 1D; make_group_hist2d.py -> plot_group_hist2d.py for 2D. Read exact energy-v2 histogram/evaluation YAML and scifi35 region definition. Existing count_scifi and total_qdc_vs_hits summaries confirm four-class comparisons and unit-area 1D scaling. User path resolves to /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/plots. No runtime/physics tests or plotting execution this turn.
+- Validation: Planning inspection verified existing ROOT backend contracts: make_group_hist requires region/particle_group/feature_partition_path metadata; plot_comparison consumes hist plus lumi/integral/selection metadata and constructs legacy paths; 2D consumes hist2d/profile_x. Current production source files can contain mixed truth classes and cannot simply be relabelled partition metadata without group filtering. Existing range requirements and shape-only 2D scaling need explicit compatible extensions. No implementation/testing/conversion this turn; prior smoke results retained.
 - Remaining limitations: No full batch execution or coworker-account qualification; one job per source, not intra-file sharding. Full resource/profile and credential lifetime require qualification. Private testbeam cutflow access and optional muon inputs remain unqualified; no new actual testbeam/data/muon conversion. Automatic authoritative luminosity audit generation is not implemented; real-data event_count_only catalogue values do not establish yields. Source ROOT metadata retains catalogue values and embeds supplied audit; final audited group weights/coverage live in plots/normalization.json. Small samples are debugging selections, not valid yield populations. Statistical errors omit luminosity systematics. Legacy prepared-JSONL workflow remains available. Immutable run identity includes Git HEAD; use a new run name after commits/code/settings changes. Priority gap: new production launcher bypasses existing ROOT plotting/backend style; requested reuse is incomplete.
-- Running jobs: None launched; read-only script/config/output-summary inspection. Global scheduler not queried. Integration Next action not started.
+- Running jobs: None launched; implementation planning only. Next action not started; global scheduler unqueried.
 - Outputs: Default root actual run /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325/: plots/report.pdf (61 pages), sources/{0,1}/features.root and validation/parity/input/checksum receipts, plan.json/plugin.json, logs/source-{0,1}.log, plots histogram/coverage/normalization JSON. Controller/verification evidence feature_dev/output/production-small-20261119/{run.log,verification.json,pdfinfo.txt}. Previous smoke and PDF examples retained untouched. No EOS inputs modified.
+
 
 
 
@@ -23,7 +24,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Integrate coworker production features with the user's EM shower backend: make_group_hist.py/plot_comparison.py for 1D and make_group_hist2d.py/plot_group_hist2d.py for 2D, using energy-v2 histogram/evaluation configuration as the style reference and preserving explicit selection/normalization semantics; validate bounded MC outputs. This correction has not started.
+Implement the ROOT plotting integration plan in the latest Checkpoint history entry, starting with editable configuration, deterministic range resolution and shared group/selection filtering tests; do not execute full production. No implementation step has started.
 
 ## Checkpoint history
 
@@ -1185,5 +1186,91 @@ No products edited/generated, jobs submitted or tests run. Existing
 implementation SHA 864b937251f30a86645173b1285f7cc287f76ee8 unchanged.
 Only task record updated. Exact reference replaces previous generic backend
 proposal; Next action remains unstarted. Previous outputs/limits/history retained.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T14:49:38+01:00 — ROOT plotting integration implementation plan
+
+Scope: user requests an implementation plan for the previously proposed output
+structure, own EM shower plotting backend, automatic ranges when unspecified,
+and documented editing locations. No code changes yet. Existing implementation
+SHA remains 864b937251f30a86645173b1285f7cc287f76ee8. Verified pwd, branch and
+clean Git; read backend contracts and current production Snakefile.
+
+1. Configuration: add feature_production/config/histograms.yaml and
+plotting.yaml; CLI --hist-config/--plot-config overrides. Snapshot requested and
+resolved YAML under each run/config. Defaults control bins, optional ranges,
+expressions, missing sentinels, log axes, selection names, class labels/colors,
+normalization and explicitly chosen 2D pairs. Default selection is converter
+selected events; scifi35 explicitly selects count_scifi > 35. Preserve original
+EM shower config as reference without silently imposing its selection. Plugin
+schema supplies feature names/types/units/missing values; historical schema
+histogram ranges do not silently defeat automatic ranges in the new plot config.
+User plot config takes precedence; retain explicit reference ranges where set.
+
+2. Range resolution: bounded-memory scan of validated source ROOTs, applying the
+same selection, truth-group filter, expressions, finite-value and sentinel cuts
+as filling. One common min/max across comparison classes per feature/selection/
+geometry, including both compared algorithms when requested. Default 50 bins;
+integer-aware edges, deterministic constant-value padding; empty fallback [0,1]
+with no-valid-data annotation. Pad upper edge to include observed max in ROOT
+normal bins. For 2D determine each missing axis range from jointly valid pairs.
+No implicit quantile clipping. Reject invalid explicit ranges/log-axis bounds;
+record effective edges, accepted counts and fallback reason in resolved config.
+
+3. ROOT histogram integration: call/refactor shared make_group_hist.py and
+make_group_hist2d.py entry points; introduce explicit input/output adapters rather
+than cloning their filling logic. Current sources contain mixed CC/NC truth:
+add explicit per-group event filters and preserve family/source_uid/geometry
+identity; do not assign an entire source to one class. Preserve empty groups,
+parent coverage and audited exposure without summing duplicated source rows.
+Make existing CLI/config behavior backward compatible. Produce hist/metadata
+and hist2d/profile_x compatible with the existing plotters, with explicit
+missing-value exclusions and under/overflow policy. Profiles retain existing
+binned-TH2 ProfileX semantics and errors.
+
+4. Rendering: invoke plot_comparison.py shared drawing functions for 1D and
+plot_group_hist2d.py for 2D; extend explicit input/output path support so new
+campaigns need not imitate legacy directory layouts. Preserve class colors,
+markers/error bars, legends, annotations and per-feature log settings. Honor
+ratio configuration explicitly (current renderer auto-enables it for two curves).
+Generalize 2D panel layout/group styles for testbeam/real-data; preserve 2x2 for
+four neutrino classes. Empty classes produce honest empty annotations. No second
+Matplotlib implementation. Retire the new standalone PDF report renderer.
+
+5. Normalization: keep audited coverage validation, including zero-selected
+parents, upstream of plots. Feed validated scales into shared plotters: shape
+in-range normalization with configured folding, MC target/parent luminosity,
+data weight1 at effective exposure, no extra sampling factor. Small/testbeam
+remain shapes. Extend 2D's current unconditional shape scaling to explicit
+shape/yield modes and correct color-axis labels; profiles remain mean Y, not
+scaled event yields. Save scales/exposure and sumw2 in summaries/metadata.
+No automatic claim of authoritative exposure from catalogues.
+
+6. DAG/output: source validation -> range resolution/coverage -> grouped ROOT
+histograms -> per-feature/pair PDF + summary.csv -> aggregate receipt. Named
+Snakemake targets; separate configuration/content fingerprints for conversion,
+histograms and rendering, so style-only changes do not require reconversion.
+Frozen campaign input settings remain immutable; preserve existing run products.
+Layout under run: config/, sources/, histograms/1d/<feature>/<selection>/<geometry>/<class>.root,
+histograms/2d/<pair>/<selection>/<geometry>/<class>.root,
+plots/1d/<feature>/<selection>/<geometry>/{plot.pdf,summary.csv},
+plots/2d/<pair>/<selection>/<geometry>/{plot.pdf,summary.csv}, logs/.
+Always use geometry level for stable layout. PDFs per feature or configured
+pair; 2D PDF contains density panels and profile overlay. Keep campaign coverage,
+normalization and complete receipts; no combinatorial auto-generation of pairs.
+
+7. Acceptance: tests for explicit/automatic ranges, negative/constant/empty and
+missing values, exact max-edge inclusion, common class ranges and 2D pair masks;
+class selection, no accidental cut changes, empty parents, audited shape/yield
+scales/errors, geometry separation, cache invalidation and legacy plotting
+regressions. Verify backend calls directly and compare histogram bins and PDF
+style with EM shower reference at identical settings. Reuse bounded MC ROOTs
+for initial plotting test, then a bounded end-to-end small MC run. Inspect PDF
+pages and CSV/ROOT agreement. Full batch remains dry-run only. Update production
+and plugin guides with exact configuration examples and output tree.
+
+Only task record edited; no implementation or Next action executed. Historical
+output paths, job evidence and validation limits preserved above.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
