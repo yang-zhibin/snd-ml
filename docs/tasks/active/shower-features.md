@@ -5,13 +5,14 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T13:51:55+01:00
-- Implementation checkpoint: 799e23d0c082f441aea8565ddc228e2462042fe3
-- Implemented: Production converter optionally loads a schema-checked plugin from feature_plugins/, calculates it on isolated final SciFi hits, and writes namespaced scalar branches in the same sndData entries. Silvia's 13 features migrated from d8cd5d0; valid-coordinate formulas preserved, missing coordinates explicitly unknown. Original branches retained. Plugin provenance and catalogue source exposure embedded in ROOT; validation and shard metadata checks extended. New run_shower_features.sh and per-user Snakemake campaign read existing EOS catalogues for selectable datasets, run bounded small samples or full per-source jobs, validate/publish atomically and stream distributions with audited yield support. Shared exposure validation reused. Guides and tests updated. Implementation committed locally; not pushed.
-- Validation: Verified pwd/task branch. On lxplus9102, LCG107 Python3.11.9/ROOT6.34.02/numpy1.26.4/uproot5.3.11; isolated SNDSW Python3.9.25/ROOT6.36.04. 20 new plugin/campaign tests, 75 existing development tests, 13 converter tests and 3 shard validator tests passed. Actual EOS MC smoke: two sources, at most two selected events each, all four DAG tasks passed. All 13 plugin outputs match original coworker code on four events; separate no-plugin conversion matches all 438 original branches on two events. Repeat run verifies cache and does no work. Full MC shape dry-run planned 1866 source jobs without execution. Setup --check, bash syntax and git diff --check passed.
+- Last verified: 2026-11-19T14:26:27+01:00
+- Implementation checkpoint: 864b937251f30a86645173b1285f7cc287f76ee8
+- Implemented: Production converter optionally loads a schema-checked plugin from feature_plugins/, calculates it on isolated final SciFi hits, and writes namespaced scalar branches in the same sndData entries. Silvia's 13 features migrated from d8cd5d0; valid-coordinate formulas preserved, missing coordinates explicitly unknown. Original branches retained. Plugin provenance and catalogue source exposure embedded in ROOT; validation and shard metadata checks extended. New run_shower_features.sh and per-user Snakemake campaign read existing EOS catalogues for selectable datasets, run bounded small samples or full per-source jobs, validate/publish atomically and stream distributions with audited yield support. Shared exposure validation reused. Guides and tests updated. Implementation committed locally; not pushed. Production reports now use multipage vector PDF (report.pdf), with summary and per-feature/group/geometry pages; launcher and guide updated.
+- Validation: Verified pwd/branch and clean initial Git state. LCG107 Python3.11.9/matplotlib3.8.3 on lxplus9102: re-rendered previously validated four-event MC histograms; PDF has 61 pages, exactly the expected summary plus 60 plot strata. Rasterized page2 visually inspected: readable plot and metadata. All 20 production plugin/campaign tests passed; git diff --check passed. Prior detector parity and 111-test evidence remains in checkpoint history and TEST_RESULTS; detector conversion not repeated for this presentation change.
 - Remaining limitations: No full batch execution or coworker-account qualification; one job per source, not intra-file sharding. Full resource/profile and credential lifetime require qualification. Private testbeam cutflow access and optional muon inputs remain unqualified; no new actual testbeam/data/muon conversion. Automatic authoritative luminosity audit generation is not implemented; real-data event_count_only catalogue values do not establish yields. Source ROOT metadata retains catalogue values and embeds supplied audit; final audited group weights/coverage live in plots/normalization.json. Small samples are debugging selections, not valid yield populations. Statistical errors omit luminosity systematics. Legacy prepared-JSONL workflow remains available. Immutable run identity includes Git HEAD; use a new run name after commits/code/settings changes.
-- Running jobs: No HTCondor jobs submitted by this implementation; all local tests/conversions finished. Scheduler query returned exit1 (Collector has no record of schedd/submitter), so no claim of globally empty queue. No next-action work started.
-- Outputs: Evidence under feature_dev/output/production-plugin-20261119/: unit.log, dev-unit.log, production-regression.log, smoke.log, parity.log/parity.json, reuse.log, full-dry-run.log, setup-check.log, baseline-check/. Valid report results/mc-neutrino/smoke/plots/report.html; source ROOT and validation/baseline parity/input/checksum receipts under results/mc-neutrino/smoke/sources/{0,1}/. Converter commands/logs under results/mc-neutrino/smoke/logs/. Four-event output is a shape/debug sample. No EOS input files changed. Durable instructions: feature_production/README.md, feature_plugins/README.md and feature_dev/TEST_RESULTS.md. Historical linked records retained.
+- Running jobs: No jobs submitted; local rendering and tests completed. No detector conversions this turn. Global scheduler state not re-queried; previous query failed (Collector has no record of schedd/submitter). Next action remains unstarted.
+- Outputs: New PDF feature_dev/output/production-pdf-20261119/report.pdf (61 pages), pdfinfo.txt, page2.png, individual plot PNGs and unit.log. Reused histograms/plan from feature_dev/output/production-plugin-20261119/results/mc-neutrino/smoke/ read-only; original ROOTs, receipts and legacy report.html preserved. New runs publish plots/report.pdf. Durable instructions feature_production/README.md; validation feature_dev/TEST_RESULTS.md. No EOS input changes.
+
 
 ## Goal
 
@@ -1098,3 +1099,23 @@ Main launcher handoff check is run after this record update; result recorded bel
 
 Main launcher `--check-handoff shower-features`: PASS (exit0).
 `git diff --check`: PASS. Single Next action remains unstarted.
+
+### 2026-11-19T14:26:27+01:00 — PDF production report
+
+Implementation commit `864b937251f30a86645173b1285f7cc287f76ee8` predates this
+record. Changed feature_production/distributions.py (PdfPages renderer), cli.py
+(printed PDF path), README.md (output instructions), feature_dev/TEST_RESULTS.md.
+Only authorized worktree on task/shower-features edited. Starting Git clean.
+
+Validation: LCG activation and preflight in same shell, user-site/bytecode
+excluded. Called distributions.render with the existing smoke histograms.json
+and plan.json, output feature_dev/output/production-pdf-20261119/. No old run
+modified. `pdfinfo .../report.pdf`: 61 pages, matching expected count 61;
+`pdftoppm -f 2 -singlefile -scale-to 1200 -png .../report.pdf .../page2`:
+passed, page visually inspected. `python3 -m unittest discover -s
+feature_production/tests -p 'test_*.py'`: 20 passed, unit.log in evidence directory.
+`git diff --check`: passed. No new physics validation or HTCondor qualification;
+previous limitations retained. No job IDs; no submitted jobs. Single current
+Next action remains account/batch qualification and was not started.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
