@@ -148,6 +148,46 @@ def validate(plan):
     write_json(Path(plan['paths']['validate'])/'validation.json',{'passed':True,'events':len(records),'features_sha256':sha(out/'features.json'),'root_sha256':sha(out/'features.root'),'checks':['identity/order','schema/types/ranges','finite values','algorithm-specific checks during calculation','ROOT/JSON agreement']})
 
 
+def export_features(plan):
+    """Copy validated calculated trees, attach exposure metadata, verify the copy."""
+    import shutil
+    import numpy as np
+    import uproot
+    from root_metadata import write_metadata, validate_metadata
+    raw=Path(plan['paths']['calculate'])/'features.root'
+    receipt=read_json(Path(plan['paths']['validate'])/'validation.json')
+    raw_sha=sha(raw)
+    if raw_sha != receipt['root_sha256']:
+        raise ValueError('Calculated ROOT file changed after validation')
+    events,manifest=load_events(plan['sample'])
+    # Revalidate exposure accounting at the export boundary, not only in the CLI.
+    from exposure import validate_audit
+    if plan.get('exposure_audit'):
+        if validate_audit(plan['exposure_audit'],sha(plan['sample']),events,manifest['provenance']) != plan['normalization']:
+            raise ValueError('Export normalization differs from exposure audit')
+    out=Path(plan['paths']['export']);out.mkdir(parents=True,exist_ok=True)
+    temporary=out/'features.tmp.root'
+    try:
+        shutil.copyfile(raw,temporary)
+        write_metadata(temporary,plan,events,raw_sha)
+        validate_metadata(temporary,plan,events,raw_sha)
+        with uproot.open(raw) as original, uproot.open(temporary) as packaged:
+            for name in ('baseline','candidate'):
+                if original[name].num_entries != packaged[name].num_entries:
+                    raise ValueError('Packaged feature entry count changed')
+                for start in range(0,original[name].num_entries,10000):
+                    before=original[name].arrays(entry_start=start,entry_stop=start+10000,library='np')
+                    after=packaged[name].arrays(entry_start=start,entry_stop=start+10000,library='np')
+                    if set(before) != set(after):raise ValueError('Packaged feature branches changed')
+                    for key in before:np.testing.assert_array_equal(before[key],after[key])
+        os.replace(temporary,out/'features.root')
+    finally:
+        temporary.unlink(missing_ok=True)
+    write_json(out/'validation.json',dict(passed=True,root_sha256=sha(out/'features.root'),
+        calculated_root_sha256=raw_sha,checks=['all feature branches and entry order unchanged',
+        'all exposure/normalization fields match plan','embedded audit and checksum match']))
+
+
 def histograms(plan):
     import numpy as np
     receipt=read_json(Path(plan['paths']['validate'])/'validation.json');f=Path(plan['paths']['calculate'])/'features.json'
@@ -210,7 +250,7 @@ def stage(planfile,name):
     plan=read_json(planfile)
     for path,expected in plan['source_hashes'].items():
         if sha(path)!=expected:raise ValueError(f'Input changed after planning: {path}')
-    {'calculate':calculate,'validate':validate,'histogram':histograms,'plot':report}[name](plan)
+    {'calculate':calculate,'validate':validate,'histogram':histograms,'export':export_features,'plot':report}[name](plan)
     out=Path(plan['paths'][name])
     write_json(out/'complete.json',{p.name:sha(p) for p in out.iterdir() if p.is_file() and p.name!='complete.json'})
 

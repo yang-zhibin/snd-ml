@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import uproot
+import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from engine import ROOT, read_json, write_json
 from selected_hits import SelectedHitWriter, sha
@@ -50,7 +52,32 @@ def main():
     assert 'target_exposure_fb' in report.read_text() and 'data:image/png;base64' in report.read_text()
     repeat=run('yield','--normalization','yield','--exposure-manifest',str(audit_path))
     assert repeat['signature']==yields['signature']
-    print('PASS: full shape/yield DAGs, shared calculation cache, MC scale and sumw2 for both algorithms, exposure report, identical rerun, missing-audit/small-yield refusal')
+    packaged=root/'results/mc-neutrino/yield/features.root'
+    assert packaged.is_file()
+    original_sha=sha(packaged)
+    calc=Path(yields['plan']['paths']['calculate'])/'features.root'
+    calc_stamp=calc.stat().st_mtime_ns
+    with uproot.open(packaged) as f:
+        assert f['source_exposure'].num_entries==3
+        np.testing.assert_allclose(f['normalization']['event_weight'].array(library='np'),[2/15,2/15])
+        assert json.loads(str(f['exposure_audit_json']))==audit
+    with uproot.open(root/'results/mc-neutrino/shape/features.root') as f:
+        assert not f['source_exposure']['exposure_valid'].array(library='np').any()
+        assert np.isnan(f['normalization']['event_weight'].array(library='np')).all()
+    audit['populations']['target']['sources'][0]['luminosity_fb']=40
+    changed_audit=root/'changed-exposure.json';write_json(changed_audit,audit)
+    changed=run('changed-exposure','--normalization','yield','--exposure-manifest',str(changed_audit))
+    assert changed['stage_keys']['calculate']==yields['stage_keys']['calculate']
+    assert changed['stage_keys']['export']!=yields['stage_keys']['export']
+    assert calc.stat().st_mtime_ns==calc_stamp
+    assert sha(packaged)==original_sha
+    with uproot.open(root/'results/mc-neutrino/changed-exposure/features.root') as f:
+        np.testing.assert_allclose(f['normalization']['event_weight'].array(library='np'),[4/15,4/15])
+    # Tampering with the published copy must fail cache checks on rerun.
+    with uproot.update(root/'results/mc-neutrino/changed-exposure/features.root') as f:
+        f['exposure_audit_json']='{}'
+    run('changed-exposure','--normalization','yield','--exposure-manifest',str(changed_audit),ok=False)
+    print('PASS: full shape/yield DAGs, shared calculation cache, MC scale and sumw2 for both algorithms, exposure report, identical rerun, missing-audit/small-yield refusal, ROOT metadata, refreshed exposure without recalculation, original export preserved, ROOT tamper rejection')
     print(report)
 
 if __name__=='__main__':main()

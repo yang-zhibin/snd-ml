@@ -268,3 +268,43 @@ all 10 existing launcher integration checks passed. `git diff --check` passed.
 An added ABCD reference fixture initially summed to 14630 rather than 14640;
 its nonempty-source test luminosity was corrected to 14635 plus the existing
 5 fb^-1 empty-source contribution, then the complete unit suite passed.
+
+## 2026-11-19 — Exposure metadata in published feature ROOT files
+
+Implementation adds a Snakemake export stage that copies validated feature trees
+and writes source_exposure/normalization TTrees, the canonical exposure audit and
+its SHA-256, and metadata version/unit/sample/calculation hashes. Published file:
+`<run>/features.root` (link to `export/features.root`). Internal calculation files
+remain reusable and contain no normalization metadata. Export validation compares
+every copied branch/entry and every metadata field against the calculation/plan.
+
+Environment: lxplus9120, LCG107 Python3.11.9, uproot5.3.11, NumPy1.26.4;
+`source snakemake/envs/env_lcg.sh` in the command shell with user-site/bytecode off.
+Commands:
+
+```bash
+python3 -m unittest discover -s feature_dev/tests -p 'test_*.py'
+python3 feature_dev/tests/normalization_integration.py feature_dev/output/root-exposure-20261119/integration
+FEATURE_DEV_SNAKEMAKE=/afs/cern.ch/work/z/zhibin/venvs/shower-snakemake-9.17.2-lcg107/bin/snakemake python3 feature_dev/tests/integration.py
+```
+
+New tests cover ROOT round trips, source/normalization values, zero-selected and
+external reference sources, data weight1 at effective exposure, explicit NaN/false
+shape metadata, embedded audit checksum, corrupted metadata rejection, exposure
+changes without recalculation and preservation of previously published files.
+The existing launcher suite covers default shape runs and cache/schema behavior.
+
+Evidence: `feature_dev/output/root-exposure-20261119/{unit,integration,legacy-integration}.log`.
+Standalone four-event yield fixture:
+`feature_dev/output/root-exposure-20261119/integration/results/mc-neutrino/yield/features.root`.
+Its `export/validation.json` records metadata and unchanged-feature checks.
+The sibling shape fixture contains explicit invalid/unknown exposure metadata.
+The changed-exposure fixture is intentionally corrupted at the end of the test
+to exercise cache tamper detection; use the original yield fixture for inspection.
+No EOS conversion or batch jobs; no physical exposure/coverage qualification.
+
+Final verification 2026-11-19T11:21:51+01:00: 75 development unit tests passed;
+extended normalization integration passed, including ROOT publication, exposure
+refresh, unchanged calculation timestamp and detection of the deliberately
+corrupted exported ROOT file. All 10 existing launcher integration checks passed.
+`git diff --check` passed. All local test processes completed.

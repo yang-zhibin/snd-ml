@@ -136,3 +136,70 @@ shape/yield DAGs and checks shared calculation caches, baseline/candidate
 weights, sumw2, report metadata, repeat reuse and early refusal cases.
 These fixtures validate software behavior, not physical luminosities or EOS
 campaign coverage.
+
+## Metadata inside features.root
+
+New runs publish **`<run>/features.root`**, a link to `export/features.root`.
+Copy this file with symlinks dereferenced to obtain a standalone ROOT product.
+It contains the unchanged `baseline` and `candidate` event trees plus:
+
+| Object | Content |
+| --- | --- |
+| `source_exposure` (TTree) | One row per unique source, including zero-selected sources and reference-data sources |
+| `normalization` (TTree) | One row per group/geometry, with source/target exposures and event weight |
+| `exposure_audit_json` (TObjString) | Complete validated audit, serialized as canonical JSON; `null` when unavailable |
+| `exposure_audit_sha256` (TObjString) | SHA-256 of the exact UTF-8 string stored above |
+| `feature_metadata_json` (TObjString) | Metadata version 1, audit version, units, sample SHA, calculated ROOT SHA and coverage status |
+
+`source_exposure` branches:
+
+- `source_uid`, `population`, `role`: source identity and its parent population.
+- `in_sample`: false for external `reference_data` sources; true for sample
+  sources, including those with zero selected events.
+- `luminosity_fb`: parent-file exposure, in **fb⁻¹**.
+- `sampling_probability`, `effective_luminosity_fb`: probability and its product
+  with parent exposure. MC sampling must be 1.
+- `selected_entries`: selected-event count for that source. For reference data,
+  this describes its external audited stream, not entries in the feature trees.
+- `exposure_valid`: whether these exposure values are known from an audit.
+
+`normalization` branches: `group`, `geometry`, `population`, `target_population`,
+`mode`, `source_exposure_fb`, `target_exposure_fb`, `event_weight`,
+`exposure_valid`, and `weight_valid`. Exposures use **fb⁻¹**; weights are
+**dimensionless**. A data population targets itself. MC references the named
+data population. Do not sum repeated population exposures across CC/NC rows.
+
+Without an audit (small samples, testbeam, or explicitly requested shapes),
+source IDs and observed counts remain available, but luminosities/probabilities
+are **NaN with `exposure_valid=false`**. Shape records have
+`weight_valid=false` and NaN `event_weight`: the per-feature in-range shape
+normalization is recorded in histogram JSON, not as a universal event weight.
+No per-event luminosity branch is added. Join event `source_uid` to the source
+metadata; never sum file luminosity once per event.
+
+Example with uproot:
+
+```python
+import json
+import uproot
+
+with uproot.open("/path/to/run/features.root") as root:
+    sources = root["source_exposure"].arrays(library="np")
+    normalizations = root["normalization"].arrays(library="np")
+    audit = json.loads(str(root["exposure_audit_json"]))
+    print(sources["source_uid"], sources["luminosity_fb"])
+    print(normalizations["group"], normalizations["event_weight"])
+    # Check exposure_valid / weight_valid before using numeric values.
+```
+
+The export stage checks every metadata field and embedded audit against the run
+plan, and compares every copied feature branch and event identity to the
+validated calculation file. `export/validation.json` records the checks and file
+hashes; the stage receipt detects later file tampering on reuse.
+
+`calculate/features.root` remains an **internal calculation cache without these
+metadata objects**. Changing exposure regenerates the published copy, without
+recalculating features or modifying a prior run's published file. Use a new run
+name after changing inputs. Existing outputs are not patched retrospectively.
+The exposure audit's original coverage limitations still apply: embedding it
+makes the file self-contained, but does not independently establish EOS coverage.

@@ -211,7 +211,7 @@ def run_one(args, prepared=None):
         exposure_audit, sha(sample), events, sample_manifest['provenance'])
     parameters=json.loads(args.parameters)
     if not isinstance(parameters,dict):raise ValueError('--parameters must be a JSON object')
-    source_files=[ROOT/'feature_dev/exposure.py',ROOT/'evaluation_region_partitions/normalization.py',algorithm,ROOT/'convertData/scifi_plane_clustering.py',ROOT/'feature_dev/engine.py',ROOT/'feature_dev/selected_hits.py',*sorted((ROOT/'feature_dev/algorithms').glob('*.py')),ROOT/'feature_dev/cli.py',ROOT/'feature_dev/datasets.py',ROOT/'feature_dev/sources.py',ROOT/'feature_dev/Snakefile',ROOT/'run_feature_dev.sh',*[p.resolve() for p in args.dependency]]
+    source_files=[ROOT/'feature_dev/root_metadata.py',ROOT/'feature_dev/exposure.py',ROOT/'evaluation_region_partitions/normalization.py',algorithm,ROOT/'convertData/scifi_plane_clustering.py',ROOT/'feature_dev/engine.py',ROOT/'feature_dev/selected_hits.py',*sorted((ROOT/'feature_dev/algorithms').glob('*.py')),ROOT/'feature_dev/cli.py',ROOT/'feature_dev/datasets.py',ROOT/'feature_dev/sources.py',ROOT/'feature_dev/Snakefile',ROOT/'run_feature_dev.sh',*[p.resolve() for p in args.dependency]]
     hashes={str(p):sha(p) for p in source_files}
     hashes[str(sample)]=sha(sample);hashes[str(sample)+'.manifest.json']=sha(str(sample)+'.manifest.json')
     import numpy, uproot, yaml, matplotlib, platform
@@ -230,7 +230,8 @@ def run_one(args, prepared=None):
         calculation[name]={**plan[name],'schema':{n:{k:v for k,v in d.items() if k not in ('histogram','description')} for n,d in plan[name]['schema']['features'].items()}}
     calc=digest(calculation);valid=digest([calc,'validation-v1'])
     hist=digest([valid,plan['candidate']['schema'],normalization,plan.get('exposure_audit')]);plot=digest([hist,'report-v1'])
-    keys=dict(calculate=calc,validate=valid,histogram=hist,plot=plot)
+    export=digest([valid,normalization,plan.get('exposure_audit'),'root-metadata-v1'])
+    keys=dict(calculate=calc,validate=valid,export=export,histogram=hist,plot=plot)
     output=args.output_root.resolve()
     if args.dataset:output=output/args.dataset
     run=output/args.run
@@ -269,7 +270,9 @@ def run_one(args, prepared=None):
             link=run/name
             if not link.exists():link.symlink_to(path,target_is_directory=True)
         print(f'Report: {run / "plot/report.html"}')
-        print(f'Features: {run / "calculate/features.root"}')
+        published=run/'features.root'
+        if not published.exists():published.symlink_to(Path(plan['paths']['export'])/'features.root')
+        print(f'Features: {published}')
         return {'dataset':args.dataset,'manifest':str(run/'manifest.json'),'signature':signature}
 
 if __name__=='__main__':

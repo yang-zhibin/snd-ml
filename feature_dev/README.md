@@ -277,13 +277,15 @@ Outputs default to your own AFS work:
   manifest.json         resolved schemas, parameters, source hashes, input provenance
   plan.json             executable stage plan
   code/                 source snapshots
-  calculate/            features.json and features.root (baseline/candidate trees)
+  features.root         published feature trees with exposure metadata (symlink)
+  calculate/            internal reusable features.json and features.root
+  export/               published features.root and metadata validation.json
   validate/             validation.json
   histogram/            histograms.json
   plot/                 PNGs and standalone report.html
 ```
 
-The four stage directories link to a shared `.cache` under the output root.
+The five stage directories link to a shared `.cache` under the output root.
 Keep that cache when retaining runs. Copy `plot/report.html` to share one report;
 it embeds its images. To archive a whole run, copy it with symlinks dereferenced.
 Use `--output-root /your/writable/directory` for another location. Existing EOS
@@ -602,3 +604,7 @@ Small samples and testbeam default to shape comparisons. Audited prepared full
 MC/data samples can use `--normalization yield --exposure-manifest exposure.json`.
 See [normalization modes, formulas and audit format](NORMALIZATION.md).
 Automatic full-dataset preparation still requires the separate sharded workflow.
+
+Use `<run>/features.root` when sharing or validating feature files. It includes
+source luminosities, normalization records and the audit; see the
+[ROOT metadata reference](NORMALIZATION.md#metadata-inside-featuresroot).

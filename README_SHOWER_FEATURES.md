@@ -687,7 +687,9 @@ For Zhibin, the last command writes:
     plan.json                     stage plan
     code/                         source snapshots
     calculate/features.json       event identities and both algorithms' features
-    calculate/features.root       baseline and candidate ROOT trees
+    calculate/features.root       internal reusable feature trees
+    features.root                 published trees with exposure/normalization metadata
+    export/validation.json        metadata and copied-feature validation
     validate/validation.json      validation result
     histogram/histograms.json     counts, bin fractions, missing/flow counts
     plot/*.png                    individual plots
@@ -814,3 +816,6 @@ require a validated parent-source exposure audit for yields; MC scales to the
 chosen data exposure and data keeps weight 1. See the
 [normalization guide](feature_dev/NORMALIZATION.md) for commands and the audit
 format. Automatic full-campaign plugin processing remains unavailable.
+
+Published `<run>/features.root` now embeds source luminosities, normalization
+records and the complete exposure audit. See the [ROOT metadata reference](feature_dev/NORMALIZATION.md#metadata-inside-featuresroot).
