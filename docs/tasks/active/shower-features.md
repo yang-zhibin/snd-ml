@@ -5,11 +5,11 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T11:22:49+01:00
+- Last verified: 2026-11-19T12:05:32+01:00
 - Implementation checkpoint: d9b330d81a04ca74eb9d359578b4eeb013bdf455
 - Implemented: Existing EOS small-sample preparation, feature plugin examples, SciFi density guide and isolated SNDSW runtime retained. Audited prepared-full-sample normalization remains available (MC target-data/parent exposure, data weight1 at effective exposure, small/testbeam shapes). New Snakemake export stage publishes <run>/features.root with unchanged baseline/candidate trees plus source_exposure and normalization TTrees, complete canonical audit JSON/checksum and metadata version/units/sample/calculation hashes. Empty sources and external reference sources are retained and labelled. Unknown shape exposure/weight uses NaN and false validity flags. Export revalidates audited accounting and compares every metadata field and every copied feature branch/identity. Exposure changes regenerate an immutable published copy while reusing calculated features. Updated both guides, normalization reference, tests and results. Local implementation commit created; not pushed.
-- Validation: Verified pwd/task branch and clean starting checkout. On lxplus9120, LCG107/Python3.11.9, uproot5.3.11 and NumPy1.26.4: 75 development unit tests passed. Extended four-event normalization integration passed: complete shape/yield DAGs, ROOT metadata round trips, checksum, explicit unknown shape values, empty/reference sources, data effective exposure, same MC weights for both algorithms, changed-exposure refresh with unchanged calculation timestamp, previous export preserved, and deliberately corrupted exported ROOT rejected by cache checks. All 10 existing launcher integration checks passed. git diff --check passed. Prior 11 production histogram tests and earlier EOS/runtime checks remain recorded in feature_dev/TEST_RESULTS.md; production histogram code unchanged this turn.
-- Remaining limitations: Full automatic plugin campaigns and automatic exposure-audit generation remain unimplemented; prepared inputs retain 256 MiB guard. Audit producer must establish complete parent and external reference coverage; embedding the audit does not independently verify EOS coverage. Current real-data zero-active-exposure catalogues are insufficient for yields. Internal calculate/features.root intentionally has no exposure objects; consumers must use published <run>/features.root (copy with links dereferenced). Old outputs are not patched. Shape weights/exposures are unknown rather than fabricated; shape sumw2 omits covariance and yield errors omit luminosity systematics. No new EOS, coworker-account, HTCondor or physical exposure qualification; optional muon availability remains unqualified.
+- Validation: Remote source review found Silvia branch origin/task/silvia-shower-algorithm at d8cd5d08b4da94a0b453749573ba10150da68f72; no coworker code executed or merged. Verified pwd/task branch and clean starting checkout. On lxplus9120, LCG107/Python3.11.9, uproot5.3.11 and NumPy1.26.4: 75 development unit tests passed. Extended four-event normalization integration passed: complete shape/yield DAGs, ROOT metadata round trips, checksum, explicit unknown shape values, empty/reference sources, data effective exposure, same MC weights for both algorithms, changed-exposure refresh with unchanged calculation timestamp, previous export preserved, and deliberately corrupted exported ROOT rejected by cache checks. All 10 existing launcher integration checks passed. git diff --check passed. Prior 11 production histogram tests and earlier EOS/runtime checks remain recorded in feature_dev/TEST_RESULTS.md; production histogram code unchanged this turn.
+- Remaining limitations: Coworker integration is pending review: energy joins omit source_uid/eventId, plots combine geometries and show candidate-only shapes, and missing coordinates yield zero density. Her engine changes overlap local exposure implementation; remote task/shower-features remains at 4f37831 and lacks local normalization/ROOT metadata commits. Full automatic plugin campaigns and automatic exposure-audit generation remain unimplemented; prepared inputs retain 256 MiB guard. Audit producer must establish complete parent and external reference coverage; embedding the audit does not independently verify EOS coverage. Current real-data zero-active-exposure catalogues are insufficient for yields. Internal calculate/features.root intentionally has no exposure objects; consumers must use published <run>/features.root (copy with links dereferenced). Old outputs are not patched. Shape weights/exposures are unknown rather than fabricated; shape sumw2 omits covariance and yield errors omit luminosity systematics. No new EOS, coworker-account, HTCondor or physical exposure qualification; optional muon availability remains unqualified.
 - Running jobs: No batch jobs or EOS conversions launched. All bounded local unit/integration test processes completed; no task test process remains running.
 - Outputs: Ignored local evidence: feature_dev/output/root-exposure-20261119/{unit,integration,legacy-integration}.log. Valid four-event ROOT example: feature_dev/output/root-exposure-20261119/integration/results/mc-neutrino/yield/features.root; export/validation.json contains copied-feature and metadata checks, plot/report.html is the report. Sibling shape/ has invalid/unknown exposure metadata. Sibling changed-exposure/ was deliberately corrupted after successful refresh to test tamper detection; do not use it as a valid product. Earlier normalization evidence remains under feature_dev/output/normalization-20261119/. Durable reference: feature_dev/NORMALIZATION.md; results: feature_dev/TEST_RESULTS.md. No EOS inputs/products modified.
 
@@ -878,3 +878,33 @@ are preserved and the single Next action remains unstarted.
 
 Main launcher `python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`: PASS.
 Evidence: feature_dev/output/root-exposure-20261119/handoff.log. Final diff check passed.
+
+### 2026-11-19T12:05:32+01:00 — Review coworker GitHub push
+
+Verified pwd, task/shower-features and clean initial Git state. `git fetch origin`
+succeeded and discovered origin/task/silvia-shower-algorithm. Latest commit:
+d8cd5d08b4da94a0b453749573ba10150da68f72, Silvia Vicentini,
+2026-11-19T11:10:15+01:00, Add energy features and improved report plots. Earlier
+feature commit 5c01ce4 adds my_features.py/schema; 22a3609 and merge d6408c5
+record environment changes and adoption of the SNDSW fix. `git log`, `git diff`
+and `git show` inspected these changes without switching branches or editing
+other checkouts. Compared with origin/task/shower-features, changed files are
+feature_dev/algorithms/my_features.py, schemas/my_features.yaml, engine.py, and
+snakemake/envs/env_sndsw_nue.sh (comment only).
+
+Features include leading QDC fraction and top-two vertical/horizontal cluster
+density/fraction/station. Density uses ordered hit pairs within inclusive1cm.
+Report adds candidate class overlays, neutrino energy and energy-density 2D plots.
+Source-review concerns: energy joins use (runId,eventIndex), omitting eventId and
+source_uid; geometry strata are merged; baseline curves are hidden; missing
+coordinates are dropped, potentially reporting zero density rather than missing.
+No new tests in her diff. These are source findings, not reproduced runtime failures.
+
+Remote task/shower-features is still 4f37831; pre-checkpoint HEAD was ten local
+commits ahead of it, and diverged 10-local/4-remote versus Silvia's branch. Local
+normalization/export changes overlap engine.py and are not in her branch. No merge,
+cherry-pick, push, EOS processing or jobs. Implementation checkpoint remains
+d9b330d81a04ca74eb9d359578b4eeb013bdf455; previous output paths/tests unchanged.
+Only this task record changed. Single Next action preserved and not started.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
