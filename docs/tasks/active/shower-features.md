@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:08:45+01:00
-- Implementation checkpoint: 5f2c0a453898b925b8e0129dbf3635e835485983
-- Implemented: Existing production converter and Silvia plugin retained. Production plotting now actually calls the shared EM shower ROOT histogram helpers and plot_comparison.py/plot_group_hist2d.py; standalone Matplotlib renderer removed. Editable histograms.yaml/plotting.yaml, CLI overrides, requested/resolved snapshots, deterministic automatic ranges excluding nonfinite/sentinels, common class bounds within selection/geometry, mixed-source truth filtering, explicit selection cuts, empty-class annotations, per-feature/pair PDF and CSV, ROOT histogram metadata/variances, audited 1D/2D yields and unchanged binned ProfileX means. Named Snakemake source/range/histogram/plot stages with recursive receipts. Explicit --reuse-sources verifies compatible immutable inputs/code and reuses histograms for style-only settings. Testbeam labels safely encoded in filenames with original labels preserved. Instructions/tests updated; implementation committed locally, not pushed.
-- Validation: Verified pwd/task branch and clean initial Git. On lxplus9102 LCG107 Python3.11.9/ROOT6.34.02/NumPy1.26.4/uproot5.3.11: 30 production/plugin/campaign/ROOT tests passed, including direct backend calls, legacy 1D/2D count/variance parity, ranges, selections, pair masks, missing branches, geometry/testbeam labels and shape/yield fixtures. 14 EM shower workflow regressions passed. Actual EOS small run completed six stages/two sources/four events with converter validation and 182-scalar baseline parity per source; independent verification passed all receipts, 192 histograms, raw sumw2/count conservation, 48 PDFs and CSV scales. Repeated run exit0/nothing to do. Style-only new run scheduled only plots/all using the same source ROOTs and histograms. ROOT 1D/2D pages visually inspected. Full dry-run planned 1866 source jobs plus four aggregate/stage tasks, no execution. Final paired-cut accounting correction passed a dedicated unit test; it does not change default MC selections.
-- Remaining limitations: Four events validate software, not physics distributions. No full batch execution/resource qualification or coworker-account test. Real testbeam/data/muon access remains unqualified; testbeam grouping/yield accounting tested with fixtures. Authoritative luminosity audits still supplied externally; event_count_only catalogues cannot establish yields. Additional plot selections do not redefine parent exposure. 2D profiles retain legacy binned-TH2 approximation, not unbinned means. Default plots separate geometries, so a tiny sample can leave most class panels empty. Histogram/plot stages run one sequential ROOT process each; full runtime requires batch qualification. Run identity includes Git HEAD; choose new names after commits/settings changes and use --reuse-sources explicitly. Source-reusing runs depend on the referenced old run remaining available. Initial fresh controller tool returned143 after final success messages; subsequent repeat and independent receipt/product checks passed. No claims of physics luminosity accuracy or global scheduler status.
-- Running jobs: All bounded local tests/conversions/rendering finished. No HTCondor jobs submitted, no job IDs. Full campaign and coworker qualification Next action not started; global scheduler not queried.
-- Outputs: Default base /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/. Fresh run root-backend-small-20261119/ has sources/{0,1}/features.root, validators/parity receipts and logs; config/ requested/resolved YAML plus coverage; histograms/1d and 2d; plots/1d and 2d PDFs/CSV, coverage/normalization and complete receipts. Example plot suffixes: plots/1d/count_scifi/selected/geo_c4519b199b177c78/plot.pdf and plots/2d/total_qdc_vs_hits/selected/geo_c4519b199b177c78/plot.pdf. Source-reuse runs root-backend-reuse-20261119/, root-backend-style-20261119/, root-backend-final-20261119/ retain source directories from their plan. Evidence feature_dev/output/root-backend-20261119/ includes unit.log, legacy.log, reuse.log, small.log, repeat.log, style.log/style.yaml, final.log, full-dry-run.log, verify_outputs.py/verification.json, one-d.png/two-d.png. Old products and EOS inputs untouched. Durable guide feature_production/README.md; settings feature_production/config/; validation feature_dev/TEST_RESULTS.md.
+- Last verified: 2026-11-19T15:17:34+01:00
+- Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
+- Implemented: Production converter/Silvia plugin and shared EM shower ROOT backend retained. Geometry components now combine into one histogram/PDF per feature or pair and selection; no geo_* output directories. Common automatic ranges span geometries. Shapes sum raw counts then normalize once; yields sum separately audited, weighted geometry components with variances preserved. ROOT files retain raw histograms, weighted yield histograms when applicable and original geometry/component metadata. Profiles retain raw binned-TH2 means. Configurable histograms.yaml/plotting.yaml and source reuse remain supported. Instructions updated. Changes committed locally; not pushed.
+- Validation: Verified pwd and task branch. LCG107 on lxplus9102, Python3.11.9/ROOT6.34.02: 31 production tests passed including legacy backend parity and new two-geometry fixture (raw4, yield1.2, variance0.4). Bounded actual MC source-reuse run exit0, four of four tasks completed using two existing source ROOTs/four events. Independent checks passed config/histogram/plot receipts, 24 PDFs, 96 ROOT histograms, zero geo_* directories, count_scifi counts 1/2/1/0 and corresponding raw variances. git diff --check passed. Earlier fresh-conversion and 14 legacy workflow tests remain historical evidence below, not rerun for this change.
+- Remaining limitations: Four events validate software, not physics. Physical luminosity audits remain external; distinct weights are fixture-tested. No full batch resource qualification, coworker-account test, or new real testbeam/data/muon access check. Additional plot selections do not redefine exposure. Profiles are binned approximations. Sequential ROOT histogram/plot processes need full-scale qualification. Source-reusing runs depend on referenced source runs remaining available. Use new run names after code/settings changes. No global scheduler claim.
+- Running jobs: Bounded local test and plotting processes finished exit0. No HTCondor jobs submitted or job IDs; global scheduler not queried. Next action not started.
+- Outputs: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/combined-geometry-20261119/ contains config snapshots/coverage, histograms/1d and 2d, plots/1d and 2d PDFs/CSV and complete receipts. Example: plots/1d/count_scifi/selected/plot.pdf and plots/2d/total_qdc_vs_hits/selected/plot.pdf. Source ROOTs remain in root-backend-small-20261119/sources/{0,1}/features.root. Evidence: feature_dev/output/combined-geometry-20261119/{unit.log,run.log,verification.json}. Earlier runs unchanged. Changed files: feature_production/distributions.py, feature_production/README.md, feature_production/tests/test_campaign.py, feature_production/tests/test_root_plots.py, evaluation_region_partitions/plot_group_hist2d.py, feature_dev/TEST_RESULTS.md and this task record.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Qualify the new ROOT plotting workflow on Silvia's account using --check-access and an agreed bounded HTCondor canary/profile, verifying input/cutflow permissions, credentials, output paths and resource mapping before full production; do not start a full campaign from this checkpoint.
+Qualify the combined-geometry ROOT plotting workflow on Silvia's account using --check-access and an agreed bounded HTCondor canary/profile, verifying input/cutflow permissions, credentials, output paths and resource mapping before full production; do not start a full campaign from this checkpoint.
 
 ## Checkpoint history
 
@@ -1306,3 +1306,24 @@ geometry identifiers, resolved ranges and normalization are retained for review.
 Main launcher `--check-handoff shower-features`: PASS (exit0).
 `git diff --check`: PASS. Implementation SHA predates this task-only checkpoint;
 Next action remains unstarted.
+
+### 2026-11-19T15:17:34+01:00 — Combined geometry plots
+
+Implementation commit: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa.
+Removed geometry directory levels, combining raw shapes and independently weighted
+yields while preserving geometry provenance. Changed files and validation limits
+are listed in Current state; previous historical records remain preserved.
+
+Commands/results: `python3 -m unittest discover -s feature_production/tests -p
+ 'test_*.py'`: 31 passed. `./run_shower_features.sh --dataset mc-neutrino
+--plugin silvia --sample small --files-per-group 1 --events-per-file 2
+--run combined-geometry-20261119 --reuse-sources
+/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/root-backend-small-20261119`:
+exit0, four tasks complete. Independent uproot/receipt checks: 24 PDFs, 96 ROOT
+histograms, four conserved events, no geometry directories. Logs and exact output
+paths are recorded above and in feature_dev/TEST_RESULTS.md. No new conversions,
+full campaign or batch jobs. Local sessions finished; no job IDs. Handoff command:
+`python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`.
+Handoff check: PASS (exit0); git diff --check: PASS. Implementation and task
+checkpoint committed separately; no push performed. The single Next action
+remains unstarted.
