@@ -5,7 +5,7 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T12:05:32+01:00
+- Last verified: 2026-11-19T12:10:31+01:00
 - Implementation checkpoint: d9b330d81a04ca74eb9d359578b4eeb013bdf455
 - Implemented: Existing EOS small-sample preparation, feature plugin examples, SciFi density guide and isolated SNDSW runtime retained. Audited prepared-full-sample normalization remains available (MC target-data/parent exposure, data weight1 at effective exposure, small/testbeam shapes). New Snakemake export stage publishes <run>/features.root with unchanged baseline/candidate trees plus source_exposure and normalization TTrees, complete canonical audit JSON/checksum and metadata version/units/sample/calculation hashes. Empty sources and external reference sources are retained and labelled. Unknown shape exposure/weight uses NaN and false validity flags. Export revalidates audited accounting and compares every metadata field and every copied feature branch/identity. Exposure changes regenerate an immutable published copy while reusing calculated features. Updated both guides, normalization reference, tests and results. Local implementation commit created; not pushed.
 - Validation: Remote source review found Silvia branch origin/task/silvia-shower-algorithm at d8cd5d08b4da94a0b453749573ba10150da68f72; no coworker code executed or merged. Verified pwd/task branch and clean starting checkout. On lxplus9120, LCG107/Python3.11.9, uproot5.3.11 and NumPy1.26.4: 75 development unit tests passed. Extended four-event normalization integration passed: complete shape/yield DAGs, ROOT metadata round trips, checksum, explicit unknown shape values, empty/reference sources, data effective exposure, same MC weights for both algorithms, changed-exposure refresh with unchanged calculation timestamp, previous export preserved, and deliberately corrupted exported ROOT rejected by cache checks. All 10 existing launcher integration checks passed. git diff --check passed. Prior 11 production histogram tests and earlier EOS/runtime checks remain recorded in feature_dev/TEST_RESULTS.md; production histogram code unchanged this turn.
@@ -906,5 +906,23 @@ normalization/export changes overlap engine.py and are not in her branch. No mer
 cherry-pick, push, EOS processing or jobs. Implementation checkpoint remains
 d9b330d81a04ca74eb9d359578b4eeb013bdf455; previous output paths/tests unchanged.
 Only this task record changed. Single Next action preserved and not started.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T12:10:31+01:00 — Coworker interface explanation
+
+Verified pwd/task branch and clean initial Git status. Read feature_dev/README.md,
+engine.py evaluate/validate_values, and algorithms/gap_clusters.py. Interface is
+per-event cluster_hits(hits, parameters), calculate_features(hits, clusters,
+parameters), optional validate_algorithm; exact schema keys and finite Python
+int/float outputs, read-only selected hits, optional cm/ns coordinates. Plugin
+receives no labels, truth/energy, identity, geometry metadata or luminosity.
+Existing cluster layout exposes planes and orientation-ranked clusters; ranking
+is descending QDC. Runner owns dataset selection, baseline comparison, validation,
+normalization and outputs. Silvia's plugin/schema are on her remote branch and
+local exposure/ROOT publication additions remain unpublished. No source changes,
+tests, jobs or new artifacts; implementation SHA, output paths and validation
+limits remain unchanged. Next action retained and not started. Only task record
+updated for continuity.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
