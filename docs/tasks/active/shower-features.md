@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T10:37:37+01:00
-- Implementation checkpoint: 11ce8a4639da6eb9e668e80c79fe4cab32cae417
-- Implemented: Automatic deterministic small samples from existing EOS catalogues for mc-neutrino, testbeam and real-data; optional mc-muon adapter. Separate SNDSW export and LCG parity/assembly, Snakemake DAG, content-addressed caches and explicit prepared-input override. Fixed standard testbeam assembly: retain capped candidates one source at a time, preserve 256 MiB guards, retain 25 events per testbeam group/geometry (100 elsewhere). Updated collaborator instructions. Example uses NumPy-style Parameters/Returns/Examples docstrings, executable expected-output examples and compact hit/cluster reference tables. Coworker report `feature_dev/SCIFI_DENSITY.md` documents local and SNDSW density functions, formulas, examples, branches and comparison limits; linked from both guides. SNDSW export now activates in a clean child environment, preserving credential/scratch settings, preventing inherited LHCb Python contamination and printing actual converter runtime paths.
-- Validation: Latest documentation revision: 7 doctest statements passed under LCG107/Python3.11.9; executable AST unchanged excluding docstrings; git diff --check passed. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`. Latest read-only audit located local/SNDSW SciFi density code and identified strict versus inclusive 1 cm boundary; numerical equivalence was not tested. Density report: all five runnable example assertions and relative file-link checks passed; no density algorithm changed. GitHub origin push succeeded through fe87462; remote branch SHA verified with git ls-remote. Access audit: all configured catalogue paths inventoried; 9 AFS directory ACLs inspected, representative EOS parent ACLs sampled for every catalogue/input kind, SNDSW runtime ACLs inspected.  Authorized AFS grant completed: all three catalogue ACLs verified as svicenti rl; existing owner/admin/anyuser entries preserved. Username recheck: getent and pts confirm svicenti=Silvia Vicentini UID182858; svicentini is absent. Existing three svicenti rl entries reverified; no ACL changes on recheck. Runtime audit on lxplus9111 reproduced the exact reported text_encoding failure with the committed old wrapper and LHCb3.12 on PATH. Isolated wrapper passed ROOT/SndlhcGeo imports with Python3.9.25/ROOT6.36.04, both PATH-only and PYTHONHOME/PYTHONPATH/stale-SNDLHC-state contamination; no LHCb sys.path entries. Shell syntax and diff checks passed. Fix push succeeded; git ls-remote verified remote 11f3d340df41c6241a89a459928747404163a775 before this checkpoint. Production-workflow source audit: current neutrino catalogue has 1866 rows; full target processes one source file per job with max_events=0, ROOT event loop and TChain/RDataFrame histograms. User reports coworker small sample now works; not independently retested. Normalization source check: feature_dev uses per-curve in-range count fractions, excluding missing/out-of-range values, without bin-width or exposure scaling. Luminosity audit verified CSV metadata, production scaling code and read-only task/em-shower ROOT embedding; current real-data profiles are event_count_only with zero active exposure and unused sampling weights. ABCD branch source audit at 8d381ad confirms MC target-region-data/source-MC scaling, unweighted data, full parent MC exposure and sumw2 closure; veto regions use effective1.960319252235 versus no-veto19.780680927948 fb^-1.
-- Remaining limitations: Coworker-account access, optional --prepare-profile integration, full campaigns and candidate physics acceptance are unqualified. Optional muon detector validation is blocked: none of 15 catalogue rows had both digi and geometry present on lxplus939. Full automatic preparation remains blocked pending sharding. Shape normalization only. SNDSW shared builds are not immutable images; digi fingerprints use size/mtime. Test artifacts are ignored worktree-local files. Comment-only plugin edits change its source hash, so a new run name is required; existing report evidence predates this documentation edit. svicenti (UID182858) now has rl on the three AFS catalogue directories. The private EOS testbeam cutflow share is unchanged; effective access must be tested from her account. PTS membership query denied; EOS e-group membership not established. New runtime fix tested for imports only; no dataset conversions rerun. Coworker runtime not tested directly. Fix 11ce8a4 is now published to GitHub origin/task/shower-features; coworker runtime check remains pending. Existing production rules calculate production features, not the arbitrary feature_dev candidate plugin; connecting full plugin execution remains unimplemented. Production shell rules still contain older environment cleanup and need runtime isolation reuse before coworker deployment. Yield integration must restore validated parent-source exposure and apply veto sampling weights; capped small samples are not unbiased yield estimates. User requests testbeam shape-only and MC/real-data luminosity-normalized yields. ABCD effective-exposure convention must not be combined with an additional inverse-sampling correction; current shower 10% manifests are a separate selection and require their own coverage validation.
-- Running jobs: None launched. Luminosity audit read source/config/CSV files only; no ROOT events processed or external branches edited.
-- Outputs: `feature_dev/output/standard-20261116/results/all/standard-test-fixed-20261116/index.html`; individual reports at `results/<dataset>/standard-test-fixed-20261116/plot/report.html`, samples/receipts at `results/.samples/`, summaries at `results/<dataset>-test-result.json` and `fixed-summary.json`, relative to `feature_dev/output/standard-20261116/`. Logs, harness, job IDs and reuse audits are in that validation directory. Existing EOS inputs and production products were not modified. Latest unit log: `feature_dev/output/standard-20261116/annotated-example-unit.log`. New tracked document: `feature_dev/SCIFI_DENSITY.md`. Access inventory/ACL evidence: `feature_dev/output/access-audit-20261117/{catalogue-paths,afs-acls,eos-acl-samples}.json` (ignored local artifacts). Verified grant evidence: `feature_dev/output/access-audit-20261117/granted-afs-acls.json`. Runtime evidence: `feature_dev/output/python-env-audit-20261117/{probe.sh,old-run-export.sh,probe.log,old-lhcb.log,new-lhcb.log,contaminated.log}`; import-check instructions in feature_dev/README.md.
+- Last verified: 2026-11-19T10:54:34+01:00
+- Implementation checkpoint: 5ea499c9c5345467d33e94ba1c00220486704256
+- Implemented: Existing EOS-backed small-sample preparation, documented feature plugins and SciFi density report, and isolated SNDSW export runtime retained. Added auto/shape/yield normalization for bounded prepared samples; small/testbeam shapes, audited full MC target-data/parent-MC exposure scaling and data weight 1 at represented exposure. Parent sources are deduplicated, empty sources included, CC/NC can share a flavour parent, ve/vm remain separate. Audit validates sample SHA, source counts, group membership, shard coverage, sampling and nested caps. Histograms preserve raw counts/fractions, normalized bins, sumw2, flows and exposures; HTML labels yields and records exposures. Histogram-only normalization changes reuse calculated features. Shared positive finite exposure ratio is also used by the existing production histogram script. Guides and persistent integration harness added. Local implementation commit created; not pushed this turn.
+- Validation: On lxplus9120 with LCG107/Python3.11.9, 70 development unit tests and 11 production histogram tests passed; new four-event full shape/yield Snakemake DAG checks passed, including both algorithms, sumw2, exposure reporting, calculation-cache reuse, repeat reuse, missing-audit and small-yield rejection. All 10 existing launcher integration checks passed. ABCD numeric reference ratios tested for ve14640/vm13350 and data19.780680927948/1.960319252235 fb^-1. git diff --check passed. Earlier dataset/runtime validation remains documented in feature_dev/TEST_RESULTS.md and historical checkpoints.
+- Remaining limitations: This is the exposure-validation/histogram phase, not full automatic plugin production. Full preparation remains blocked pending sharding; prepared inputs retain the 256 MiB guard. Audit parent completeness and external reference-data coverage are declarations supported by producer-supplied evidence, not independently revalidated against EOS. Existing real-data event_count_only/zero-exposure catalogues are insufficient for yields. Production distribution rules do not ingest these audits or run arbitrary plugins. No new EOS campaign, coworker-account, HTCondor or physics acceptance validation. Shape sumw2 fixes its denominator and excludes covariance; luminosity systematics are not included. Optional muon input availability remains unqualified. Prior SNDSW runtime fix remains committed at 11ce8a4; no runtime changes in this phase.
+- Running jobs: No batch jobs or EOS conversions launched. All bounded local test processes completed successfully; no task test process remains running.
+- Outputs: Ignored local evidence at feature_dev/output/normalization-20261119/: unit.log, production-tests.log, verified-integration.log, legacy-integration.log. Persistent artificial report: verified-integration/results/mc-neutrino/yield/plot/report.html; raw/normalized histogram JSON: yield/histogram/histograms.json; shape report under sibling shape/. Input fixture and exposure.json under verified-integration/. Earlier exploratory integration/ and final-integration/ fixtures also passed. Durable guide: feature_dev/NORMALIZATION.md; results: feature_dev/TEST_RESULTS.md. Existing EOS data/products unchanged.
 
 ## Goal
 
@@ -19,8 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Design the existing-distribution integration with testbeam shape normalization and MC/real-data luminosity-normalized yields, including unique parent-source exposure, validated sampling weights, and full per-source plugin processing. Do not treat the capped small sample as an unbiased yield sample. This implementation/design follow-up has not been started.
-
+Design the per-source full-campaign plugin workflow and automatic exposure-audit production from complete parent catalogues and validation receipts, then connect audited results to the existing production distribution rules. Keep capped small samples shape-only. This follow-up has not been started.
 
 ## Checkpoint history
 
@@ -781,3 +780,39 @@ artifacts or jobs; single integration next action preserved, not started.
 
 Main launcher read-only `--check-handoff shower-features`: PASS.
 `git diff --check`: PASS. No next action started.
+
+### 2026-11-19T10:54:34+01:00 — Audited prepared-sample yield normalization
+
+Implementation: `5ea499c9c5345467d33e94ba1c00220486704256` (existing code commit,
+not this record). Verified pwd and branch; starting checkout was clean. Only this
+worktree was edited. No push, EOS conversion, full processing or batch submission.
+
+Changed implementation files: feature_dev/exposure.py, cli.py, engine.py,
+datasets.py, datasets.yaml, sources.py; evaluation_region_partitions/normalization.py
+and unified_feature_distributions.py. Tests: feature_dev/tests/test_exposure.py
+and normalization_integration.py. Docs: feature_dev/NORMALIZATION.md, README.md,
+TEST_RESULTS.md and README_SHOWER_FEATURES.md. This checkpoint updates only the
+task record after the implementation commit.
+
+Validation environment: source snakemake/envs/env_lcg.sh with nounset disabled,
+then strict shell; PYTHONNOUSERSITE=1 and PYTHONDONTWRITEBYTECODE=1. Preflight
+recorded lxplus9120, expected worktree, LCG107 python3 path, Python3.11.9,
+NumPy1.26.4/uproot5.3.11 imports. Commands/results:
+
+- `python3 -m unittest discover -s feature_dev/tests -p 'test_*.py'`: 70 passed.
+- `python3 -m unittest discover -s evaluation_region_partitions -p 'test_unified_feature_distributions*.py'`: 11 passed, including tiny ROOT fixtures.
+- `python3 feature_dev/tests/normalization_integration.py feature_dev/output/normalization-20261119/verified-integration`: passed both full prepared shape/yield DAGs and cache/error/report assertions.
+- `python3 feature_dev/tests/integration.py`: 10 checks passed; FEATURE_DEV_SNAKEMAKE selected the existing shower-snakemake-9.17.2-lcg107 environment.
+- `git diff --check`: passed.
+
+Evidence and output paths are listed in Current state and TEST_RESULTS.md.
+The new ABCD fixture initially had an incorrect test denominator (14630); corrected
+the fixture to 14635+5=14640 and reran all 70 unit tests successfully. No algorithm
+fix was needed. Runtime software checks do not establish EOS parent completeness,
+external data coverage, luminosity systematics or campaign physics acceptance.
+The next action remains unstarted.
+
+Main-launcher handoff validation:
+`python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`
+returned `Handoff shower-features: PASS`; log:
+`feature_dev/output/normalization-20261119/handoff.log`. Final diff check passed.
