@@ -5,13 +5,14 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T14:35:52+01:00
+- Last verified: 2026-11-19T14:38:37+01:00
 - Implementation checkpoint: 864b937251f30a86645173b1285f7cc287f76ee8
-- Implemented: Production converter optionally loads a schema-checked plugin from feature_plugins/, calculates it on isolated final SciFi hits, and writes namespaced scalar branches in the same sndData entries. Silvia's 13 features migrated from d8cd5d0; valid-coordinate formulas preserved, missing coordinates explicitly unknown. Original branches retained. Plugin provenance and catalogue source exposure embedded in ROOT; validation and shard metadata checks extended. New run_shower_features.sh and per-user Snakemake campaign read existing EOS catalogues for selectable datasets, run bounded small samples or full per-source jobs, validate/publish atomically and stream distributions with audited yield support. Shared exposure validation reused. Guides and tests updated. Implementation committed locally; not pushed. Production reports now use multipage vector PDF (report.pdf), with summary and per-feature/group/geometry pages; launcher and guide updated.
-- Validation: Verified pwd/task branch and clean starting Git. Actual small MC run on lxplus9102 using default output root completed all four Snakemake tasks: two sources, two events each, production validation and baseline parity (182 scalars and aligned identity per source), distributions and 61-page PDF. Independently verified both ROOT entry counts, 13 silvia__ branches, identity fields, plugin/exposure metadata, successful receipts and all product checksums. No report.html in new run. LCG107 Python3.11.9 preflight; isolated SNDSW converter/validator logs retained. Prior unit/parity evidence remains in history; no code changed or unit tests repeated this turn.
-- Remaining limitations: No full batch execution or coworker-account qualification; one job per source, not intra-file sharding. Full resource/profile and credential lifetime require qualification. Private testbeam cutflow access and optional muon inputs remain unqualified; no new actual testbeam/data/muon conversion. Automatic authoritative luminosity audit generation is not implemented; real-data event_count_only catalogue values do not establish yields. Source ROOT metadata retains catalogue values and embeds supplied audit; final audited group weights/coverage live in plots/normalization.json. Small samples are debugging selections, not valid yield populations. Statistical errors omit luminosity systematics. Legacy prepared-JSONL workflow remains available. Immutable run identity includes Git HEAD; use a new run name after commits/code/settings changes.
-- Running jobs: Bounded local run completed (exit0); no HTCondor jobs submitted or remaining local task processes. Global scheduler state not queried. Account/batch qualification Next action remains unstarted.
+- Implemented: Production converter optionally loads a schema-checked plugin from feature_plugins/, calculates it on isolated final SciFi hits, and writes namespaced scalar branches in the same sndData entries. Silvia's 13 features migrated from d8cd5d0; valid-coordinate formulas preserved, missing coordinates explicitly unknown. Original branches retained. Plugin provenance and catalogue source exposure embedded in ROOT; validation and shard metadata checks extended. New run_shower_features.sh and per-user Snakemake campaign read existing EOS catalogues for selectable datasets, run bounded small samples or full per-source jobs, validate/publish atomically and stream distributions with audited yield support. Shared exposure validation reused. Guides and tests updated. Implementation committed locally; not pushed. Production reports now use multipage vector PDF (report.pdf), with summary and per-feature/group/geometry pages; launcher and guide updated. Correction: only conversion and shared exposure helpers are reused; distribution rendering is a separate Matplotlib implementation, not the existing production ROOT plotting backend.
+- Validation: Read-only call-chain audit confirmed feature_production/Snakefile -> worker distributions -> feature_production/distributions.py::render uses Matplotlib/PdfPages. Existing snakemake/rules/unified_shower_distributions.smk calls evaluation_region_partitions/unified_feature_distributions.py plot (ROOT TCanvas). Existing EM shower comparison rules call evaluation_region_partitions/plot_comparison.py (also ROOT). User-reported style mismatch is confirmed; earlier smoke validates execution and accounting, not compliance with requested backend/style. No new tests/conversions needed for this inspection; prior results retained in history.
+- Remaining limitations: No full batch execution or coworker-account qualification; one job per source, not intra-file sharding. Full resource/profile and credential lifetime require qualification. Private testbeam cutflow access and optional muon inputs remain unqualified; no new actual testbeam/data/muon conversion. Automatic authoritative luminosity audit generation is not implemented; real-data event_count_only catalogue values do not establish yields. Source ROOT metadata retains catalogue values and embeds supplied audit; final audited group weights/coverage live in plots/normalization.json. Small samples are debugging selections, not valid yield populations. Statistical errors omit luminosity systematics. Legacy prepared-JSONL workflow remains available. Immutable run identity includes Git HEAD; use a new run name after commits/code/settings changes. Priority gap: new production launcher bypasses existing ROOT plotting/backend style; requested reuse is incomplete.
+- Running jobs: No jobs/conversions/tests launched this turn; read-only code audit only. Global scheduler state unqueried. Plotting replacement Next action not started.
 - Outputs: Default root actual run /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325/: plots/report.pdf (61 pages), sources/{0,1}/features.root and validation/parity/input/checksum receipts, plan.json/plugin.json, logs/source-{0,1}.log, plots histogram/coverage/normalization JSON. Controller/verification evidence feature_dev/output/production-small-20261119/{run.log,verification.json,pdfinfo.txt}. Previous smoke and PDF examples retained untouched. No EOS inputs modified.
+
 
 
 
@@ -21,7 +22,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Qualify the production launcher on Silvia's account using --check-access and an agreed bounded HTCondor canary/profile, verifying EOS/cutflow permissions, credentials, writable outputs and resource mapping before authorizing full production; do not start a full campaign from this checkpoint.
+Replace the standalone Matplotlib production renderer with integration into the existing ROOT production distribution backend, preserving its configured styles, comparisons and normalization semantics; validate against the existing bounded MC outputs before account/batch qualification. This correction has not started.
 
 ## Checkpoint history
 
@@ -1144,5 +1145,19 @@ Controller log, verification JSON and PDF info saved in
 No full run, physical yield qualification, other dataset or coworker-account
 execution. Existing limits retained. Single Next action remains unchanged and
 unstarted. Only this task checkpoint changed in Git.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T14:38:37+01:00 — Plotting backend mismatch confirmed
+
+User questioned the PDF style. Verified pwd/branch and clean Git; inspected
+feature_production/Snakefile, distributions.py, existing unified distribution
+rules/script and plot_comparison.py. New renderer directly uses Matplotlib
+stairs and PdfPages. It does not call either existing ROOT plotting script.
+Previous statements implying full plotting-backend reuse were inaccurate;
+converter and exposure helper reuse do not imply renderer reuse. No code,
+products or jobs changed. Implementation SHA remains 864b937251f30a86645173b1285f7cc287f76ee8.
+Only task record updated; previous outputs/history preserved. Current Next
+action replaced with the plotting integration correction, not executed.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
