@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:51:19+01:00
+- Last verified: 2026-11-19T15:53:10+01:00
 - Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
-- Implemented: Production implementation remains cd13b6c; no runtime changes. Added feature_dev/DATA_FORMAT.md describing digi ROOT/geometry/selection inputs, MC tracks/points/links, retained truth labels, selected-hit dictionaries, cluster structure, event summaries, separate Hit3D arrays, units/missing values, identity and source metadata. Linked from coworker, production and plugin guides. Normalization docs and prior examples retained. Local changes not pushed.
-- Validation: Verified pwd/task branch and clean initial Git. Reviewed digi_2_features.py, digi_2_hits3D.py, feature_plugin.py, selected_hits.py and clustering/interface code. LCG107 Python3.11.9/uproot preflight on lxplus9102. Read-only inspected one raw MC file: cbmsim branch names/MCTrack leaves and corresponding larger-mc source0 feature file (70 entries,451 branches,13 Silvia). Five-entry documented scalar-read example, named feature branches and local documentation links pass; git diff --check passes. No conversions or full test suite rerun. Earlier394-event pipeline and31 tests remain historical evidence.
+- Implemented: Production code unchanged at cd13b6c. Added original luminosity provenance to feature_dev/NORMALIZATION.md: MC exposure constants, real-data run tables/file allocation, passing-muon sampling, muon collision-table calculation, manifest propagation and exact verified source-row example. Distinguishes repository provenance from external physics justification. Existing data-format and coworker guides retained; local changes not pushed.
+- Validation: Verified pwd/task branch and clean Git. Read update_path_file.py, combine_veto_ineff_lumi.py, generate_passing_muon_metadata.py and MC/data manifest builders. LCG107 Python3.11.9 preflight; read larger-mc plan source0 and upstream CSV row327: same digi path, lumi_per_file15, n_event71. Documentation local links and git diff --check pass. No runtime changes or new conversion/tests. Physical origins of constants/run-table measurements not independently validated.
 - Remaining limitations: Raw MC/feature format verified on one source; real-data, testbeam and Hit3D descriptions are code/interface references, not new file validation. Optional collections and settings vary; branch count is not a frozen schema. Previous four-file394-event shape sample is not full/representative physics validation. Physical luminosity audits external; full batch/coworker qualification unperformed. No new scheduler claim.
-- Running jobs: No new processing or batch jobs; no job IDs. Read-only metadata inspections completed. Scheduler not queried; single Next action unchanged and unstarted.
-- Outputs: New feature_dev/DATA_FORMAT.md; links updated in README_SHOWER_FEATURES.md, feature_production/README.md and feature_plugins/README.md; this task record updated. No scientific products regenerated. Read-only raw input /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/337/sndLHC.Genie-TGeant4_dig.root; feature output /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/sources/0/features.root. Existing pipeline evidence feature_dev/output/larger-mc-20261119/ retained.
+- Running jobs: No new jobs or conversions, no job IDs. Read-only inspection complete; scheduler not queried. Single Next action unchanged/unstarted.
+- Outputs: Changed feature_dev/NORMALIZATION.md and this task record only. Read-only provenance: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_ve_metadata.csv row327 and /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/plan.json source0. Existing394-event outputs/evidence remain unchanged; no new scientific products.
 
 ## Goal
 
@@ -1410,4 +1410,17 @@ checks and git diff --check passed. No new conversion, testsuite, products or
 jobs. Only documentation changed; other datasets and Hit3D are code-reviewed
 references, not newly file-validated. Single Next action remains unstarted.
 Main launcher --check-handoff shower-features: PASS (exit0).
+Task-only documentation commit; not pushed.
+
+### 2026-11-19T15:53:10+01:00 — Original luminosity provenance documented
+
+Traced metadata generation and copying into feature ROOT: 2024 neutrino15fb-1
+constant, older filename conventions, SND run-luminosity tables, passing-muon
+pp24 sampling and muon collision exposure. Added source links, allocation formula
+and double-sampling warning to NORMALIZATION.md. Upstream MC CSV row327 agrees
+with test plan source0 (same digi, lumi15). Commands: targeted rg/sed code review;
+LCG-activated Python json/csv read-only comparison and local link check passed.
+Implementation remains cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa. No external
+physics calibration verification, no new jobs/outputs; Next action not started.
+Main launcher --check-handoff shower-features and git diff --check: PASS.
 Task-only documentation commit; not pushed.

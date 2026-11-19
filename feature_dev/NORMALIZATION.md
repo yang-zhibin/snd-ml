@@ -35,6 +35,69 @@ The catalogue values and audited values are stored separately. The plotter uses
 **the validated audit** for yields; embedding a catalogue luminosity in ROOT does
 not establish complete campaign coverage.
 
+### Where does the luminosity originally come from?
+
+The feature converter **copies luminosity from upstream CSV metadata**. It does
+not measure luminosity or extract these values from the digi ROOT event tree.
+The provenance chain is:
+
+```text
+MC production exposure convention / real-data run-luminosity table
+    → updated source CSV (lumi_per_file)
+    → shower-feature manifest
+    → plan.json → source feature ROOT metadata
+
+Verified parent/data exposure + complete coverage
+    → audit.json → final plotting weights
+```
+
+| Dataset | Original input used by this repository | How file luminosity is assigned |
+| --- | --- | --- |
+| Current 2024 neutrino MC | Production exposure convention encoded in [update_path_file.py](../snakemake/metadata/update_path_file.py), `update_csv_file` | Assigns **15 fb⁻¹ per file** when the input metadata filename contains `2024` |
+| Older neutrino MC | Filename conventions in the same function | `100fb-1` → 100 fb⁻¹/file; `20fb-1` → 20 fb⁻¹/file; the `2024` condition overrides these if also matched |
+| Real collision data | `SND_lumi.csv`, combined with `SND_veto_ineff.csv` into `SND_lumi_with_ineff.csv` by [combine_veto_ineff_lumi.py](../snakemake/metadata/combine_veto_ineff_lumi.py) | `drop_run_without_lumi_and_add_ineff` in `update_path_file.py` distributes a run's `lumi` across its files in proportion to input `n_event` |
+| Passing-muon data (separate upstream workflow) | `/eos/user/i/idioniso/1_Data/Tracks/pp24.csv`, configured in [passing_muon_real_data_2024.yaml](../snakemake/metadata/configs/passing_muon_real_data_2024.yaml) | [generate_passing_muon_metadata.py](../snakemake/metadata/generate_passing_muon_metadata.py) converts `lumi_nb` to fb⁻¹, apportions files and applies the recorded sampling scale once |
+| MC muon background | `SND_muon_background_table.csv` (`output_path`, `n_collisions`), read by `process_muon_path` in `update_path_file.py` | Divides represented collisions across matched files, then divides by the code's cross section `80 × 10¹² fb` |
+| Testbeam | No luminosity required for the current shape plots | Normalize histogram counts to unit area |
+
+For ordinary real-data metadata, the allocation is:
+
+```text
+L_file = L_run × N_input_events_in_file / sum(N_input_events_in_run)
+```
+
+This distributes an **already supplied run luminosity**; it does not derive
+luminosity from selected events. The updater's default run-table path is
+`/afs/cern.ch/user/z/zhibin/work/snd-ml/snakemake/metadata/SND_lumi_with_ineff.csv`,
+which can be overridden with `--lumi`. Adding the inefficiency column does not
+itself apply an inefficiency correction to luminosity in this updater.
+
+For passing-muon metadata, `lumi_per_file` already includes the sampling
+reduction (`full_lumi_per_file / scale`). When constructing an audit, use either
+full luminosity with its sampling probability, or already-effective luminosity
+with probability 1. **Do not apply the sampling reduction twice.**
+
+The shower manifest builder
+[prepare_unified_shower_feature_manifests.py](../snakemake/metadata/prepare_unified_shower_feature_manifests.py)
+copies `lumi_per_file` and records `source_metadata_file` and
+`source_metadata_row`, so each value can be traced to its upstream CSV.
+The real-data builder
+[prepare_unified_real_data_feature_manifests.py](../snakemake/metadata/prepare_unified_real_data_feature_manifests.py)
+keeps the upstream value as `source_lumi_per_file`, but sets active
+`lumi_per_file=0` and `exposure_kind=event_count_only`. That preserved value
+alone is not an approved exposure for yield plots.
+
+**Verified example:** source 0 of `larger-mc-20261119` points to row 327
+(zero-based data row) of
+`/afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_ve_metadata.csv`.
+That row and the run plan both contain `lumi_per_file=15` for the same digi file.
+
+These are the original inputs/conventions visible in the repository. The code
+does not establish the physics justification of the MC constants or how the
+experiment originally measured the run-table luminosities. Those external
+production/luminosity records still need verification when preparing a yield
+audit; the copied ROOT metadata is provenance, not a substitute for that audit.
+
 ### Metadata inside features.root
 
 Each `sources/<index>/features.root` contains:
