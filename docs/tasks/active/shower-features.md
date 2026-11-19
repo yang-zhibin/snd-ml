@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T11:01:36+01:00
-- Implementation checkpoint: 5ea499c9c5345467d33e94ba1c00220486704256
-- Implemented: Existing EOS-backed small-sample preparation, documented feature plugins and SciFi density report, and isolated SNDSW export runtime retained. Added auto/shape/yield normalization for bounded prepared samples; small/testbeam shapes, audited full MC target-data/parent-MC exposure scaling and data weight 1 at represented exposure. Parent sources are deduplicated, empty sources included, CC/NC can share a flavour parent, ve/vm remain separate. Audit validates sample SHA, source counts, group membership, shard coverage, sampling and nested caps. Histograms preserve raw counts/fractions, normalized bins, sumw2, flows and exposures; HTML labels yields and records exposures. Histogram-only normalization changes reuse calculated features. Shared positive finite exposure ratio is also used by the existing production histogram script. Guides and persistent integration harness added. Local implementation commit created; not pushed this turn.
-- Validation: Read-only luminosity-location follow-up verified current CSV headers/representative rows, metadata allocation code and new audit/run storage; no code changes or new tests. On lxplus9120 with LCG107/Python3.11.9, 70 development unit tests and 11 production histogram tests passed; new four-event full shape/yield Snakemake DAG checks passed, including both algorithms, sumw2, exposure reporting, calculation-cache reuse, repeat reuse, missing-audit and small-yield rejection. All 10 existing launcher integration checks passed. ABCD numeric reference ratios tested for ve14640/vm13350 and data19.780680927948/1.960319252235 fb^-1. git diff --check passed. Earlier dataset/runtime validation remains documented in feature_dev/TEST_RESULTS.md and historical checkpoints.
-- Remaining limitations: This is the exposure-validation/histogram phase, not full automatic plugin production. Full preparation remains blocked pending sharding; prepared inputs retain the 256 MiB guard. Audit parent completeness and external reference-data coverage are declarations supported by producer-supplied evidence, not independently revalidated against EOS. Existing real-data event_count_only/zero-exposure catalogues are insufficient for yields. Production distribution rules do not ingest these audits or run arbitrary plugins. No new EOS campaign, coworker-account, HTCondor or physics acceptance validation. Shape sumw2 fixes its denominator and excludes covariance; luminosity systematics are not included. Optional muon input availability remains unqualified. Prior SNDSW runtime fix remains committed at 11ce8a4; no runtime changes in this phase.
-- Running jobs: No batch jobs or EOS conversions launched. All bounded local test processes completed successfully; no task test process remains running.
-- Outputs: Ignored local evidence at feature_dev/output/normalization-20261119/: unit.log, production-tests.log, verified-integration.log, legacy-integration.log. Persistent artificial report: verified-integration/results/mc-neutrino/yield/plot/report.html; raw/normalized histogram JSON: yield/histogram/histograms.json; shape report under sibling shape/. Input fixture and exposure.json under verified-integration/. Earlier exploratory integration/ and final-integration/ fixtures also passed. Durable guide: feature_dev/NORMALIZATION.md; results: feature_dev/TEST_RESULTS.md. Existing EOS data/products unchanged.
+- Last verified: 2026-11-19T11:22:49+01:00
+- Implementation checkpoint: d9b330d81a04ca74eb9d359578b4eeb013bdf455
+- Implemented: Existing EOS small-sample preparation, feature plugin examples, SciFi density guide and isolated SNDSW runtime retained. Audited prepared-full-sample normalization remains available (MC target-data/parent exposure, data weight1 at effective exposure, small/testbeam shapes). New Snakemake export stage publishes <run>/features.root with unchanged baseline/candidate trees plus source_exposure and normalization TTrees, complete canonical audit JSON/checksum and metadata version/units/sample/calculation hashes. Empty sources and external reference sources are retained and labelled. Unknown shape exposure/weight uses NaN and false validity flags. Export revalidates audited accounting and compares every metadata field and every copied feature branch/identity. Exposure changes regenerate an immutable published copy while reusing calculated features. Updated both guides, normalization reference, tests and results. Local implementation commit created; not pushed.
+- Validation: Verified pwd/task branch and clean starting checkout. On lxplus9120, LCG107/Python3.11.9, uproot5.3.11 and NumPy1.26.4: 75 development unit tests passed. Extended four-event normalization integration passed: complete shape/yield DAGs, ROOT metadata round trips, checksum, explicit unknown shape values, empty/reference sources, data effective exposure, same MC weights for both algorithms, changed-exposure refresh with unchanged calculation timestamp, previous export preserved, and deliberately corrupted exported ROOT rejected by cache checks. All 10 existing launcher integration checks passed. git diff --check passed. Prior 11 production histogram tests and earlier EOS/runtime checks remain recorded in feature_dev/TEST_RESULTS.md; production histogram code unchanged this turn.
+- Remaining limitations: Full automatic plugin campaigns and automatic exposure-audit generation remain unimplemented; prepared inputs retain 256 MiB guard. Audit producer must establish complete parent and external reference coverage; embedding the audit does not independently verify EOS coverage. Current real-data zero-active-exposure catalogues are insufficient for yields. Internal calculate/features.root intentionally has no exposure objects; consumers must use published <run>/features.root (copy with links dereferenced). Old outputs are not patched. Shape weights/exposures are unknown rather than fabricated; shape sumw2 omits covariance and yield errors omit luminosity systematics. No new EOS, coworker-account, HTCondor or physical exposure qualification; optional muon availability remains unqualified.
+- Running jobs: No batch jobs or EOS conversions launched. All bounded local unit/integration test processes completed; no task test process remains running.
+- Outputs: Ignored local evidence: feature_dev/output/root-exposure-20261119/{unit,integration,legacy-integration}.log. Valid four-event ROOT example: feature_dev/output/root-exposure-20261119/integration/results/mc-neutrino/yield/features.root; export/validation.json contains copied-feature and metadata checks, plot/report.html is the report. Sibling shape/ has invalid/unknown exposure metadata. Sibling changed-exposure/ was deliberately corrupted after successful refresh to test tamper detection; do not use it as a valid product. Earlier normalization evidence remains under feature_dev/output/normalization-20261119/. Durable reference: feature_dev/NORMALIZATION.md; results: feature_dev/TEST_RESULTS.md. No EOS inputs/products modified.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Design the per-source full-campaign plugin workflow and automatic exposure-audit production from complete parent catalogues and validation receipts, then connect audited results to the existing production distribution rules. Keep capped small samples shape-only. This follow-up has not been started.
+Design the per-source full-campaign plugin workflow and automatic exposure-audit production from complete parent catalogues and validation receipts, then connect audited results to the existing production distribution rules. Keep capped small samples shape-only and publish the ROOT exposure metadata with campaign features. This follow-up has not been started.
 
 ## Checkpoint history
 
@@ -846,3 +846,35 @@ regeneration or jobs. Implementation SHA, validation limits, output paths and
 single Next action remain unchanged; no follow-up implementation started.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T11:22:49+01:00 — Published ROOT exposure metadata
+
+Implementation: d9b330d81a04ca74eb9d359578b4eeb013bdf455 (existing code commit,
+not this checkpoint). Only the authorized worktree/branch was edited. New files:
+feature_dev/root_metadata.py and tests/test_root_metadata.py. Changed code:
+feature_dev/engine.py, cli.py, Snakefile and tests/normalization_integration.py.
+Updated docs: feature_dev/NORMALIZATION.md, README.md, TEST_RESULTS.md, and
+README_SHOWER_FEATURES.md. Published <run>/features.root links to export/features.root;
+internal calculate/features.root remains normalization-independent. ROOT stores
+source/normalization trees, explicit validity flags, audit/checksum and provenance.
+Source metadata includes empty and external reference sources. No per-event
+luminosity duplication. Every copied feature value and identity was compared.
+
+Verification: shell activated snakemake/envs/env_lcg.sh with nounset off before
+strict mode, PYTHONNOUSERSITE=1/PYTHONDONTWRITEBYTECODE=1; preflight recorded
+lxplus9120, expected pwd, LCG107 python3, Python3.11.9, uproot5.3.11/NumPy1.26.4.
+Commands/results:
+
+- python3 -m unittest discover -s feature_dev/tests -p 'test_*.py': 75 passed.
+- python3 feature_dev/tests/normalization_integration.py feature_dev/output/root-exposure-20261119/integration: passed complete DAGs, metadata, exposure refresh/cache reuse, old export preservation and tamper rejection.
+- FEATURE_DEV_SNAKEMAKE=/afs/cern.ch/work/z/zhibin/venvs/shower-snakemake-9.17.2-lcg107/bin/snakemake python3 feature_dev/tests/integration.py: all 10 checks passed.
+- git diff --check: passed.
+
+Logs and ROOT output paths are listed in Current state; the changed-exposure
+fixture is intentionally corrupted for the negative test. No batch jobs, EOS
+conversions or push. No actual parent exposure qualification; validation used
+bounded artificial inputs. All local tests completed. Existing historical links
+are preserved and the single Next action remains unstarted.
+
+Main launcher `python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`: PASS.
+Evidence: feature_dev/output/root-exposure-20261119/handoff.log. Final diff check passed.
