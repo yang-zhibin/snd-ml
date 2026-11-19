@@ -217,17 +217,10 @@ Small and testbeam runs use in-range bin fractions. For full MC/data, `auto`
 requires an audited exposure manifest; explicitly choose `shape` for inspection.
 Yield invocation adds `--normalization yield --exposure-manifest /path/audit.json`.
 
-Use the [audit format and physics rules](../feature_dev/NORMALIZATION.md), with
-these production-specific differences:
-
-- Supply `campaign_sha256` from the plan/coverage report instead of a prepared
-  JSONL `sample_sha256`. The campaign identity is independent of the plugin and
-  audit, so a shape run can establish coverage for a later yield run.
-- Source IDs in audit populations are `family:source_uid` (`audit_source_id` in
-  ROOT metadata). Use exact group/geometry names from `coverage.json`.
-- Include every parent source, including zero-selected outputs. Establish
-  authoritative luminosities and external reference-data coverage separately;
-  coverage reports are evidence, not automatically approved exposure audits.
+See the [normalization guide](../feature_dev/NORMALIZATION.md) for required
+information, storage locations, formulas and reading examples, and the
+[audit JSON reference](../feature_dev/NORMALIZATION_AUDIT.md) for the production
+`campaign_sha256` format and coverage rules.
 
 MC weight is target data exposure / parent MC exposure; data weight is 1 at
 its effective sampled exposure. The same weights apply to production and plugin

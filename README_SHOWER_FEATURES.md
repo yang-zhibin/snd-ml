@@ -184,7 +184,8 @@ to avoid repeating conversion.
 Small samples and testbeam plots use unit-area shapes. Full MC and real-data
 yield plots require a validated luminosity audit. Source ROOT files retain
 exposure metadata for validation; the small sample is not assigned a physical
-yield. See [normalization and ROOT metadata](feature_production/README.md#normalization-and-root-metadata).
+yield. See the [normalization guide](feature_dev/NORMALIZATION.md) for the required
+information, storage locations and calculation.
 
 Full processing requires a configured Snakemake HTCondor profile. Preview first:
 

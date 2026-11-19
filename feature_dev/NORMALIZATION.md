@@ -1,207 +1,181 @@
-# Shape and yield normalization
+# Plot normalization
 
-For the new converter-based launcher, see [production normalization](../feature_production/README.md#normalization-and-root-metadata). The prepared-JSONL limitations below apply to the older development launcher.
+This guide describes `run_shower_features.sh`.
+**Luminosity belongs to a source file or parent population, not to each event.**
+The plotter calculates an event weight from that exposure.
 
-The development launcher supports `--normalization auto|shape|yield`.
+## 1. Choose shape or yield
 
-| Input | `auto` | `yield` |
+| Goal | Mode | Information needed |
 | --- | --- | --- |
-| Small/capped sample | In-range bin fractions | Rejected |
-| Testbeam or synthetic | In-range bin fractions | Rejected |
-| Prepared full MC or collision data | Requires an exposure audit | Requires an exposure audit |
+| Compare distribution shapes, including testbeam | `--normalization shape` | Histogram counts only |
+| Compare MC predictions with real-data event yields | `--normalization yield` | Complete source coverage, MC luminosity and target data luminosity |
 
-Use shapes for the existing automatic small-sample workflow:
+`auto` chooses shapes for small samples and testbeam. For full MC or real data,
+it requires a luminosity audit. Capped samples cannot use yield normalization.
+Use explicit `shape` to inspect a full sample without an audit.
 
-```bash
-./run_feature_dev.sh --algorithm gap_clusters --dataset mc-neutrino \
-  --sample small --run trial01
-```
+## 2. What information is needed, and where is it saved?
 
-For an **uncapped prepared sample with audited coverage**:
+All luminosities below are integrated luminosities in **fb⁻¹**.
+Paths are relative to `<output-root>/<dataset>/<run>/`.
 
-```bash
-./run_feature_dev.sh --algorithm gap_clusters --dataset mc-neutrino \
-  --sample full --sample-root /path/to/prepared-samples \
-  --normalization yield --exposure-manifest /path/to/exposure.json \
-  --run full-yield01
-```
+| Information | Where to find it | How it is used |
+| --- | --- | --- |
+| Source identity and original catalogue row | `plan.json` → `jobs`; input catalogues listed in [datasets.yaml](datasets.yaml) | Identify each parent file once |
+| Catalogue luminosity per file | Catalogue `source_lumi_per_file` (fallback `lumi_per_file`); copied to each feature ROOT file | Retain original exposure information for validation |
+| Sampling probability and exposure type | Catalogue/plan; ROOT `production_exposure_json` | Determine whether a physical exposure is known |
+| Saved selected-event count and validation | `sources/<index>/validation.json` | Check that processing covered the selected stream |
+| Campaign source counts, identities and geometries | `config/coverage.json` | Build/check the audit against actual outputs |
+| **Audited** source luminosities, sampling and group mapping | Your `--exposure-manifest audit.json`; embedded as `exposure_audit` in `plan.json` and ROOT `production_exposure_json` | Authoritative inputs to yield calculation |
+| Final source/target exposure and weight per group/geometry | `plots/normalization.json` (`source_exposure_fb`, `target_exposure_fb`, `scale`) | Inspect the weights actually used |
+| Raw/weighted bins and component metadata | `histograms/1d/.../<class>.root` or `histograms/2d/.../<class>.root` | Validate the resulting histogram |
 
-The sample location comes from `datasets.yaml` (or `--dataset-config`).
-Use `--normalization shape` to inspect a prepared full sample without an audit.
-Run each yield dataset separately. Automatic full preparation is still blocked:
-this change does not implement full-campaign plugin sharding or remove the
-256 MiB input guard. Never relabel a capped sample as a complete campaign.
+The catalogue values and audited values are stored separately. The plotter uses
+**the validated audit** for yields; embedding a catalogue luminosity in ROOT does
+not establish complete campaign coverage.
 
-## Calculation
+### Metadata inside features.root
 
-For each group and geometry:
+Each `sources/<index>/features.root` contains:
 
-- **MC:** event weight = target data luminosity / complete parent MC luminosity.
-  CC and NC from the same flavour reference the same parent population.
-  Electron and muon neutrino populations have separate denominators.
-- **Data:** event weight = 1. For uniform random sampling with probability `p`,
-  represented exposure = `p × parent luminosity`. Do not also apply `1/p`.
-- **Testbeam/shapes:** divide by the in-range count; no bin-width scaling.
-
-Histograms retain raw `counts`, legacy shape `fractions`, `normalized` bins,
-`sumw2`, raw and normalized flows, and the normalization/exposure record.
-For constant weight `w`, bin variance is `n × w²`. Shape `sumw2` treats the
-observed normalization denominator as fixed; it is not a covariance estimate.
-Missing values are excluded. The last bin includes its upper edge; flow bins
-are saved separately. Baseline and candidate use the same exposure weight.
-Changing only normalization reuses calculated features and rebuilds histograms.
-The standalone HTML report displays the exposures and labels yields in events
-per bin. Luminosity uncertainty is not included in statistical errors.
-
-## Exposure audit format (version 1)
-
-This minimal **illustrative** MC audit has one nonempty source and one empty
-source. Replace every value with a verified campaign measurement. Never copy
-these values as physics inputs.
-
-```json
-{
-  "version": 1,
-  "sample_sha256": "SHA256_OF_PREPARED_JSONL",
-  "populations": {
-    "ve": {
-      "role": "mc",
-      "coverage_evidence": "path/to/complete-parent-catalogue-and-validation-receipts",
-      "sources": [
-        {"source_uid": "ve-file-1", "luminosity_fb": 15,
-         "sampling_probability": 1, "selected_entries": 4,
-         "processed_ranges": [[0, 2], [2, 4]]},
-        {"source_uid": "ve-file-empty", "luminosity_fb": 15,
-         "sampling_probability": 1, "selected_entries": 0,
-         "processed_ranges": []}
-      ]
-    },
-    "veto_data": {
-      "role": "reference_data",
-      "coverage_evidence": "path/to/audited-target-data-coverage",
-      "sources": [
-        {"source_uid": "data-file-1", "luminosity_fb": 20,
-         "sampling_probability": 0.1, "sampling_method": "uniform_random",
-         "selected_entries": 2, "processed_ranges": [[0, 2]]}
-      ]
-    }
-  },
-  "groups": [
-    {"group": "CC_nue", "geometry": "YOUR_GEOMETRY",
-     "population": "ve", "target_population": "veto_data"},
-    {"group": "NC_nue", "geometry": "YOUR_GEOMETRY",
-     "population": "ve", "target_population": "veto_data"}
-  ]
-}
-```
-
-`luminosity_fb` means integrated luminosity in **fb⁻¹**. Source luminosity is
-counted once, including sources with zero selected events. `processed_ranges`
-are half-open ranges in the selected-event stream of that parent source; they
-must partition `[0, selected_entries)` exactly. They are not raw ROOT entry
-ranges. For a real-data sample, use role `data`, its actual source IDs and
-counts, and omit `target_population`. MC subsampling is currently rejected.
-
-Prepare the audit from the full parent catalogue and successful per-source
-receipts, including empty outputs, before joining the selected-hit products.
-Record the complete selected counts and shard ranges, check source identities,
-and obtain the final sample digest with `sha256sum sample.jsonl`. An omitted
-failed source must never be disguised as a smaller completed population.
-
-The validator checks duplicate sources, range gaps/overlaps, positive exposures,
-known sampling, nested cap metadata, matching group membership, sample digest,
-and exact selected-event counts per source. The audit is copied into the run
-manifest and contributes to the histogram cache key.
-
-**Validation boundary:** `coverage_evidence` is an audit reference, not an
-independently executed catalogue check. External reference-data event counts
-and completeness of the declared parent population must be established by the
-audit producer. This release does not automatically generate trustworthy
-exposure audits from EOS. Current real-data development catalogues have
-`event_count_only`/zero active exposure; those are not sufficient for yields.
-Do not invent their luminosity from selected-event counts.
-
-## Existing distribution workflow
-
-`evaluation_region_partitions/normalization.py` supplies the positive-exposure
-ratio used by this launcher and the existing production distribution script.
-The production script's existing `common_exposure_19fb` mode remains unchanged;
-it does not consume this new audit or run arbitrary development plugins.
-Connecting the audited per-source plugin campaign to production distribution
-rules remains a separate implementation step.
-
-## Validation
-
-`feature_dev/tests/test_exposure.py` covers the accounting and refusal rules.
-`feature_dev/tests/normalization_integration.py` runs tiny artificial full-sample
-shape/yield DAGs and checks shared calculation caches, baseline/candidate
-weights, sumw2, report metadata, repeat reuse and early refusal cases.
-These fixtures validate software behavior, not physical luminosities or EOS
-campaign coverage.
-
-## Metadata inside features.root
-
-New runs publish **`<run>/features.root`**, a link to `export/features.root`.
-Copy this file with symlinks dereferenced to obtain a standalone ROOT product.
-It contains the unchanged `baseline` and `candidate` event trees plus:
-
-| Object | Content |
+| ROOT object | Content |
 | --- | --- |
-| `source_exposure` (TTree) | One row per unique source, including zero-selected sources and reference-data sources |
-| `normalization` (TTree) | One row per group/geometry, with source/target exposures and event weight |
-| `exposure_audit_json` (TObjString) | Complete validated audit, serialized as canonical JSON; `null` when unavailable |
-| `exposure_audit_sha256` (TObjString) | SHA-256 of the exact UTF-8 string stored above |
-| `feature_metadata_json` (TObjString) | Metadata version 1, audit version, units, sample SHA, calculated ROOT SHA and coverage status |
+| `sndData` | Standard and plugin features, one entry per saved event |
+| `source_exposure` | One metadata row for this source file |
+| `production_exposure_json` | Source identity, exposure type, campaign hash, validity and supplied audit |
 
-`source_exposure` branches:
+The `source_exposure` branches are `source_uid`, `audit_source_id`,
+`luminosity_fb`, `sampling_probability`, `effective_luminosity_fb` and
+`exposure_valid`. The effective value is `luminosity_fb × sampling_probability`
+when valid. Small/unknown exposure has `exposure_valid=false` and an invalid
+(NaN) effective luminosity. A catalogue luminosity may still be retained.
 
-- `source_uid`, `population`, `role`: source identity and its parent population.
-- `in_sample`: false for external `reference_data` sources; true for sample
-  sources, including those with zero selected events.
-- `luminosity_fb`: parent-file exposure, in **fb⁻¹**.
-- `sampling_probability`, `effective_luminosity_fb`: probability and its product
-  with parent exposure. MC sampling must be 1.
-- `selected_entries`: selected-event count for that source. For reference data,
-  this describes its external audited stream, not entries in the feature trees.
-- `exposure_valid`: whether these exposure values are known from an audit.
+There is **no per-event luminosity branch** and no campaign `normalization` tree
+in these production source files. Do not multiply file luminosity by the number
+of events, or sum it again for every event. Campaign weights are saved separately
+in `plots/normalization.json`.
 
-`normalization` branches: `group`, `geometry`, `population`, `target_population`,
-`mode`, `source_exposure_fb`, `target_exposure_fb`, `event_weight`,
-`exposure_valid`, and `weight_valid`. Exposures use **fb⁻¹**; weights are
-**dimensionless**. A data population targets itself. MC references the named
-data population. Do not sum repeated population exposures across CC/NC rows.
+## 3. Calculate the normalization
 
-Without an audit (small samples, testbeam, or explicitly requested shapes),
-source IDs and observed counts remain available, but luminosities/probabilities
-are **NaN with `exposure_valid=false`**. Shape records have
-`weight_valid=false` and NaN `event_weight`: the per-feature in-range shape
-normalization is recorded in histogram JSON, not as a universal event weight.
-No per-event luminosity branch is added. Join event `source_uid` to the source
-metadata; never sum file luminosity once per event.
+### Shapes: testbeam or distribution comparisons
 
-Example with uproot:
+For each class and feature, combine raw counts across geometries, then divide
+by their in-range total:
+
+```text
+shape_bin = bin_count / sum_of_bin_counts
+```
+
+Example: counts `[20, 30, 50]` become `[0.2, 0.3, 0.5]`.
+There is no bin-width scaling. Missing/nonfinite feature values are excluded.
+The total is evaluated after the configured flow handling: by default 1D
+overflow is folded into the last bin; 2D flows remain outside the integral.
+
+### MC yields
+
+For each audited parent population:
+
+```text
+L_MC   = sum of luminosities of its unique parent MC files
+L_data = sum of (data-file luminosity × sampling probability)
+w_MC   = L_data / L_MC
+bin_yield = bin_count × w_MC
+```
+
+Example: MC files represent `10 + 15 = 25 fb⁻¹`, and target data represent
+`5 fb⁻¹`. Each MC event has weight `5/25 = 0.2`; 100 events predict 20 events.
+
+- Count each parent file once, including files with zero selected events.
+- CC and NC from the same flavour use the same parent MC exposure. Do not
+  estimate separate luminosities from their selected-event counts.
+- Electron-neutrino and muon-neutrino populations have separate MC denominators.
+- Additional plot cuts change event counts, not the parent luminosity.
+- MC subsampling is currently rejected for yield mode.
+
+### Real-data yields
+
+Data events have weight **1** at their effective recorded exposure.
+For a uniform random 10% sample of `50 fb⁻¹`:
+
+```text
+L_data = 50 × 0.1 = 5 fb⁻¹
+w_data = 1
+```
+
+Normalize MC to that same `5 fb⁻¹`. Do not also multiply the data by 10.
+This sampling correction applies to a known random sampling procedure, not an
+event-selection efficiency or the first N events of a file.
+
+### Combining geometries and errors
+
+Apply each component's audited weight before adding its bins:
+
+```text
+combined_bin = sum(component_bin_count × component_weight)
+variance     = sum(component_bin_count × component_weight²)
+error        = sqrt(variance)
+```
+
+The output has one combined plot. Geometry and weights remain in its metadata.
+Do not apply another luminosity scale to an already weighted histogram.
+Audit mappings must describe the intended parent populations and target data
+exposures; combining plots does not establish that mapping automatically.
+
+ROOT histogram files store raw `hist`/`hist2d` and, for yields,
+`hist_yield`/`hist2d_yield`. `production_histogram_json` records the components.
+CSV yield summaries leave the single `scale_factor` blank because component
+weights can differ. Statistical errors exclude luminosity uncertainty; shape
+errors treat the observed normalization denominator as fixed. The 2D profile
+page remains a raw-event binned mean, not a yield-weighted profile.
+
+## 4. Prepare the audit and run
+
+1. Establish complete source coverage from the parent catalogue and successful
+   source validation records, including empty files. A full shape run can provide
+   `config/coverage.json`; a small run cannot establish full coverage.
+2. Obtain verified MC and target-data luminosities and sampling probabilities.
+   Current real-data `event_count_only` catalogue rows do not provide physical
+   luminosity; selected-event counts cannot supply it.
+3. Write [the audit JSON](NORMALIZATION_AUDIT.md), using the campaign hash,
+   source IDs and group/geometry names from the campaign records.
+4. Run the full campaign with the audit and a configured HTCondor profile:
+
+```bash
+./run_shower_features.sh --dataset mc-neutrino --plugin silvia \
+  --sample full --normalization yield \
+  --exposure-manifest /path/to/audit.json \
+  --profile /path/to/htcondor-profile --run full-yield01
+```
+
+Use `--dataset real-data` with its own data audit for a data yield run.
+The validator checks identities, counts, processed ranges and group membership.
+The audit producer must establish physical luminosity and complete parent/data
+coverage; the software does not infer these from EOS automatically.
+
+## 5. Read the saved values
+
+Run in the documented [LCG analysis environment](../docs/project/ENVIRONMENT_AND_SNAKEMAKE.md):
 
 ```python
 import json
+from pathlib import Path
 import uproot
 
-with uproot.open("/path/to/run/features.root") as root:
-    sources = root["source_exposure"].arrays(library="np")
-    normalizations = root["normalization"].arrays(library="np")
-    audit = json.loads(str(root["exposure_audit_json"]))
-    print(sources["source_uid"], sources["luminosity_fb"])
-    print(normalizations["group"], normalizations["event_weight"])
-    # Check exposure_valid / weight_valid before using numeric values.
+run = Path("/path/to/output/mc-neutrino/full-yield01")
+with uproot.open(run / "sources/0/features.root") as root:
+    source = root["source_exposure"].arrays(library="np")
+    context = json.loads(str(root["production_exposure_json"]))
+    print(source["luminosity_fb"], source["exposure_valid"])
+    print(context["coverage_status"])  # requires_campaign_validation
+
+weights = json.loads((run / "plots/normalization.json").read_text())
+for row in weights:
+    print(row["group"], row["geometry"], row.get("scale"))
+    # Shape mode has no universal event weight; its scale depends on the feature.
 ```
 
-The export stage checks every metadata field and embedded audit against the run
-plan, and compares every copied feature branch and event identity to the
-validated calculation file. `export/validation.json` records the checks and file
-hashes; the stage receipt detects later file tampering on reuse.
-
-`calculate/features.root` remains an **internal calculation cache without these
-metadata objects**. Changing exposure regenerates the published copy, without
-recalculating features or modifying a prior run's published file. Use a new run
-name after changing inputs. Existing outputs are not patched retrospectively.
-The exposure audit's original coverage limitations still apply: embedding it
-makes the file self-contained, but does not independently establish EOS coverage.
+Implementation: [source metadata](../feature_production/worker.py),
+[audit validation](exposure.py), [histograms and weights](../feature_production/distributions.py).
+The older `run_feature_dev.sh` has a different ROOT layout; its retained reference
+is [standalone normalization](NORMALIZATION_STANDALONE.md).

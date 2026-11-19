@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:41:19+01:00
+- Last verified: 2026-11-19T15:47:31+01:00
 - Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
-- Implemented: Production implementation remains cd13b6c: converter/Silvia plugin, combined geometries, shared ROOT plots, automatic ranges and independently audited yield weights. Rewrote README_SHOWER_FEATURES.md as the current coworker guide: own checkout/setup, development branch, examples, dataset access, retained file/event caps, PDF outputs, configuration and full/yield references. Previous walkthrough preserved in README_SHOWER_FEATURES_STANDALONE.md with historical notice; root README and production reference updated. No runtime code changes. Local changes not pushed.
-- Validation: Documentation review verified pwd/task branch and clean initial Git; inspected current CLI, plugin reference and retained example files. Local file links in new coworker/production guides pass; ./run_shower_features.sh --help exit0; git diff --check passes. LCG107 Python3.11.9 preflight recorded on lxplus9102. No conversions or unit tests rerun for documentation-only change. Earlier verified larger MC run:394 events, four sources,96 histograms,24 PDFs, all source/stage receipts, parity, histogram counts/variances and shape checks passed;31 production unit tests remain historical evidence.
+- Implemented: Production implementation unchanged at cd13b6c: converter/Silvia plugin, combined-geometry ROOT plots and audited component yield weights. Current coworker guide retained. Rewrote feature_dev/NORMALIZATION.md around mode choice, required inputs/storage, per-file ROOT metadata, formulas/examples, audit/run steps and reading saved values. Detailed production JSON example moved to NORMALIZATION_AUDIT.md; prior standalone guide retained in NORMALIZATION_STANDALONE.md with scope notice. Updated coworker/production links. No runtime changes; local commits not pushed.
+- Validation: Verified pwd/task branch and clean initial Git. Reviewed worker.py source exposure, distributions.py coverage/weights and exposure.py validator. LCG107 Python3.11.9/uproot preflight on lxplus9102; local documentation links pass. Parsed documented JSON and ran validate_coverage with matching illustrative source memberships: both CC/NC weights equal2/30 as stated. Read existing larger-mc source0 ROOT metadata: expected branches present, capped exposure invalid/NaN, no campaign normalization tree; shape records match guide. git diff --check passes. No production or full test-suite rerun for documentation-only edits. Previous394-event production and31-test results remain historical evidence.
 - Remaining limitations: Four-file sample uses shape normalization and is not a full or representative physics sample. No file reached500 selected events. Physical luminosity audits remain external; weighted geometry combination tested previously with fixtures. No full batch resource qualification, coworker-account test or new real testbeam/data/muon access check. Profiles remain binned approximations. Source reuse depends on retained runs. New run names required after code/HEAD changes. No global scheduler claim.
-- Running jobs: No new production processes or batch jobs launched. Previously bounded run finished exit0. No HTCondor job IDs; scheduler not queried. Single Next action remains unstarted.
-- Outputs: Documentation changed: README.md, README_SHOWER_FEATURES.md, new README_SHOWER_FEATURES_STANDALONE.md, feature_production/README.md and this task record. CLI-help evidence /tmp/zhibin/shower-readme-help-20261119.txt (temporary). Existing scientific products remain /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/ with sources/{0,1,2,3}/features.root, validation/parity receipts, logs, config, histograms and plots. Example plots/1d/count_scifi/selected/plot.pdf. Existing validation evidence feature_dev/output/larger-mc-20261119/{dry-run.log,preflight.log,run.log,verify.py,verification.json}; no outputs regenerated.
+- Running jobs: No new conversion, plotting or batch jobs. Prior bounded run finished; no new job IDs. Scheduler not queried. Single Next action unchanged and unstarted.
+- Outputs: Changed feature_dev/NORMALIZATION.md, new feature_dev/NORMALIZATION_AUDIT.md and NORMALIZATION_STANDALONE.md, feature_production/README.md, README_SHOWER_FEATURES.md and this task record. Checks reported in tool output; no generated scientific products. Read-only verification used /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/sources/0/features.root and plots/normalization.json. Existing394-event output/evidence remain at that campaign directory and feature_dev/output/larger-mc-20261119/.
 
 ## Goal
 
@@ -1377,3 +1377,20 @@ only; no new scientific tests, outputs or jobs. Historical records preserved;
 coworker/full-campaign Next action unchanged and not started.
 Main launcher --check-handoff shower-features: PASS; previous walkthrough
 preservation check: PASS. Task-only documentation commit; not pushed.
+
+### 2026-11-19T15:47:31+01:00 — Normalization guide clarified
+
+Production-first guide now identifies required source/target exposure, storage
+locations, per-file versus event information, shape/MC/data formulas and geometry
+combination. Complete JSON format is in NORMALIZATION_AUDIT.md; standalone
+reference preserved separately with scope notice. Changed files listed above.
+Existing implementation commit cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa retained.
+
+Validation in activated LCG107/Python3.11.9: local links pass; parsed documented
+audit passed exposure.validate_coverage and asserted both weights2/30. Actual
+source0 ROOT metadata and shape normalization records from larger-mc-20261119
+match the guide. This validates documentation/software consistency, not physical
+luminosities, new yield outputs or full coverage. No new jobs/IDs or products.
+Next action remains unchanged and unstarted.
+Main launcher --check-handoff shower-features and git diff --check: PASS.
+Task-only documentation commit; no push.
