@@ -216,11 +216,10 @@ are rejected for physics dataset registration, including through merged exports.
 
 ### Normalization and testing
 
-All dataset reports currently use **unit-normalized in-range bin fractions**.
-There is no automatic luminosity weighting or 10% veto-sampling yield correction.
-Group labels and geometry are preserved, with baseline/candidate comparisons
-within each panel. Exposure-normalized yields remain a separate production
-workflow requiring validated exposure metadata.
+Small samples and testbeam use **unit-normalized in-range bin fractions**.
+Prepared full MC/data samples require an exposure audit for `auto`/`yield`, or
+explicit `--normalization shape`. Group labels and geometry are preserved.
+See [normalization modes and audit requirements](NORMALIZATION.md).
 
 Before `--dataset all` starts work, it preflights all selected source paths
 (or validates all three samples when `--sample-root` is supplied). A failed child prevents creation of a new index;
@@ -392,8 +391,8 @@ converter arguments and checksum. Subsequent algorithm development reads these
 fixed exports; it does not rerun detector selection or need SNDSW.
 
 Reports split groups by label **and geometry**, comparing candidate and baseline
-within each panel. Histograms use unit-normalized **in-range bin fractions**,
-not luminosity-normalized yields or probability density per unit x. Missing
+within each panel. Shape histograms use **in-range bin fractions**; audited full
+MC/data runs can show luminosity-normalized yields (see [guide](NORMALIZATION.md)). Missing
 values and under/overflow counts are displayed. The last bin includes its upper
 edge, following NumPy. There are no additional physics cuts in this runner:
 the exported selected sample defines the population.
@@ -596,3 +595,10 @@ LHCb Python 3.12 environment. This verifies runtime isolation, not another
 account's catalogue/EOS access. After the import check passes, preview access
 with `--dataset mc-neutrino --sample small --run env-check --dry-run` through
 `./run_feature_dev.sh`; use a new run name when changing wrapper revisions.
+
+### Shape versus luminosity-normalized yields
+
+Small samples and testbeam default to shape comparisons. Audited prepared full
+MC/data samples can use `--normalization yield --exposure-manifest exposure.json`.
+See [normalization modes, formulas and audit format](NORMALIZATION.md).
+Automatic full-dataset preparation still requires the separate sharded workflow.

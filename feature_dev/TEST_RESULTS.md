@@ -226,3 +226,45 @@ PYTHONHOME/PYTHONPATH/stale-SNDLHC-state probe. Each child was limited to 30 CPU
 seconds, 3 GiB virtual memory and 90 seconds wall time; core dumps disabled.
 No batch jobs or shared-environment changes. Coworker-account imports and EOS
 permissions remain to be verified independently.
+
+## 2026-11-19 — Audited luminosity normalization
+
+Environment: lxplus9120, LCG107 Python 3.11.9, NumPy 1.26.4, uproot 5.3.11;
+activated with `source snakemake/envs/env_lcg.sh`, user site and bytecode disabled.
+All inputs were tiny artificial fixtures; no EOS conversion or HTCondor job.
+
+Commands (from this checkout):
+
+```bash
+python3 -m unittest discover -s feature_dev/tests -p 'test_*.py'
+python3 -m unittest discover -s evaluation_region_partitions -p 'test_unified_feature_distributions*.py'
+python3 feature_dev/tests/normalization_integration.py feature_dev/output/normalization-20261119/verified-integration
+python3 feature_dev/tests/integration.py
+```
+
+The normalization integration checks full shape/yield DAGs, exposure-scaled bins
+and sumw2 for both algorithms, calculation-cache reuse, standalone report metadata,
+identical reruns and rejection of missing audits/small-sample yields. Unit tests
+include the audited ABCD reference ratios (ve 14640, vm 13350 fb^-1), shared CC/NC
+exposure, empty sources, source deduplication, missing/overlapping shards, sampling
+and cap checks. These are arithmetic comparisons, not execution of the ABCD
+branch or a physical coverage qualification.
+
+Logs: `feature_dev/output/normalization-20261119/{unit,production-tests,verified-integration,legacy-integration}.log`.
+The persistent four-event report is
+`feature_dev/output/normalization-20261119/verified-integration/results/mc-neutrino/yield/plot/report.html`.
+Its sibling `shape/` report uses the same calculated features; `yield/histogram/histograms.json`
+contains counts, normalized bins, sumw2, flow bins and exposure metadata.
+The audit and prepared fixture are in `verified-integration/`.
+
+Limits: exposure audit completeness and external reference-data coverage are
+supplied by the audit producer; they are not independently verified against EOS.
+Full automatic plugin processing, production audit ingestion and campaign-scale
+validation remain outside this phase. The bounded prepared-input guard remains.
+
+Final verification 2026-11-19T10:53:39+01:00: 70 development unit tests and
+11 production histogram tests passed; the normalization integration passed and
+all 10 existing launcher integration checks passed. `git diff --check` passed.
+An added ABCD reference fixture initially summed to 14630 rather than 14640;
+its nonempty-source test luminosity was corrected to 14635 plus the existing
+5 fb^-1 empty-source contribution, then the complete unit suite passed.

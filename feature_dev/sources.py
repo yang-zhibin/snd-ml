@@ -127,7 +127,7 @@ def build_plan(dataset, config_path, output_root, files_per_group=None, events_p
             'sampling': {'seed': seed, 'files_per_group': files, 'events_per_file': events,
                          'events_per_group': cap, 'event_policy': 'first selected entries, then identity hash per group/geometry'},
             'code': {str(p): sha(p) for p in code_paths}}
-    if entry.get('normalization', 'unit_area') != 'unit_area':
+    if entry.get('normalization', 'unit_area') not in ('unit_area', 'auto'):
         raise ValueError('Automatic preparation supports only unit_area')
     plan['signature'] = digest(plan)
     plan['directory'] = str(Path(output_root).resolve()/'.samples'/dataset/plan['signature'])

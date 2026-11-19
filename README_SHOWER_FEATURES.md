@@ -505,7 +505,8 @@ for each `(group, geometry)`. It uses in-range bin fractions, reports missing
 values and under/overflow, and includes the rightmost edge in the final NumPy
 bin. It applies **no extra `count_scifi > 35` cut**: the exported sample defines
 the population. It does not automatically reproduce the production's 30+7 plots
-or apply luminosity normalization. The supplied baseline schema plots six
+and supports luminosity normalization only with an explicit full-sample exposure
+audit (see [guide](feature_dev/NORMALIZATION.md)). The supplied baseline schema plots six
 features; the gap example adds a seventh.
 
 ## 5. Develop an algorithm and see its plots
@@ -548,7 +549,8 @@ The first export requires access to the existing SNDSW build and EOS inputs;
 `setup` installs only the development runner. Your coworker's access must be
 checked on their account. Use `--sample-root` only to opt into an existing shared
 prepared sample. Automatic `--sample full` is blocked pending sharded processing;
-explicit prepared inputs retain the 256 MiB guard. Reports use shape normalization.
+explicit prepared inputs retain the 256 MiB guard. Small-sample reports use shape
+normalization; audited full MC/data inputs can use yields.
 See [automatic preparation and cache details](feature_dev/README.md#automatic-small-samples-from-existing-eos-sources).
 
 For an immediate example use `--dataset synthetic --sample small --run dataset-demo-v1`.
@@ -803,3 +805,12 @@ For the values inside `hits`, `clusters` and `parameters`, see the
 [plugin data reference](feature_dev/README.md#reading-the-values-passed-to-your-plugin).
 They include units, optional-coordinate handling, cluster fields and a lookup
 from cluster channels back to the original hits.
+
+### Luminosity normalization
+
+The development launcher now accepts `--normalization auto|shape|yield`.
+Small samples and testbeam stay shape-normalized. Prepared full MC/data samples
+require a validated parent-source exposure audit for yields; MC scales to the
+chosen data exposure and data keeps weight 1. See the
+[normalization guide](feature_dev/NORMALIZATION.md) for commands and the audit
+format. Automatic full-campaign plugin processing remains unavailable.

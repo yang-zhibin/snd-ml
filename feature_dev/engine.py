@@ -13,6 +13,7 @@ import tempfile
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'convertData'),str(ROOT/'feature_dev/algorithms')]
 from selected_hits import sha
+from exposure import normalize_counts
 from scifi_plane_clustering import scalar_feature_dtypes
 
 
@@ -167,6 +168,9 @@ def histograms(plan):
                 curves.append({'algorithm':name,'group':group,'geometry':geometry,'counts':counts.tolist(),'edges':edges.tolist(),
                     'fractions':(counts/total if total else counts.astype(float)).tolist(),'selected':len(all_values),'missing':len(all_values)-len(values),
                     'underflow':sum(v<h['range'][0] for v in values),'overflow':sum(v>h['range'][1] for v in values)})
+        for curve in curves:
+            record=next((r for r in plan.get('normalization', []) if (r['group'],r['geometry']) == (curve['group'],curve['geometry'])), {'mode':'shape'})
+            curve.update(normalize_counts(curve['counts'], record, curve['underflow'], curve['overflow']))
         result[feature]={'description':definition['description'],'curves':curves}
     if not result:raise ValueError('No histogram definitions')
     write_json(Path(plan['paths']['histogram'])/'histograms.json',result)
@@ -181,18 +185,19 @@ def report(plan):
     manifest=read_json(str(plan['sample'])+'.manifest.json')
     parts=['<!doctype html><html><meta charset="utf-8"><title>Feature comparison</title><style>body{font:16px sans-serif;max-width:1100px;margin:30px auto}img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:5px}</style><body>',
            '<h1>Selected-hit feature comparison</h1>', '<p>'+html.escape(str(manifest['provenance']))+'</p>',
-           '<p>Same events for baseline and candidate. Groups remain separated by source label and geometry. Unit-normalized in-range bin fractions; no luminosity/yield normalization. The rightmost bin includes its upper edge.</p>',
+           '<p>Same events for baseline and candidate. Groups remain separated by source label and geometry. Normalization and exposure are recorded below. Shapes use in-range bin fractions; yields use counts per bin at the stated data exposure. The rightmost bin includes its upper edge.</p>',
            '<p>Sample SHA-256: '+sha(plan['sample'])+'</p>',
            '<p>Candidate: '+html.escape(plan['candidate']['algorithm'])+'; parameters: '+html.escape(json.dumps(plan['candidate']['parameters'],sort_keys=True))+'</p>',
            '<p>Validation passed: identity, finite values, schema, ROOT/JSON agreement and enabled algorithm checks.</p>']
+    parts.append('<p>Normalization: '+html.escape(json.dumps(plan.get('normalization', []),sort_keys=True))+'</p>')
     if plan.get('dataset'):
         parts.append('<p>Dataset selection: '+html.escape(json.dumps(plan['dataset'],sort_keys=True))+'</p>')
     for feature,item in hist.items():
         groups=sorted({(c['group'],c['geometry']) for c in item['curves']});fig,axes=plt.subplots(len(groups),1,figsize=(9,3*len(groups)),squeeze=False)
         for ax,(group,geometry) in zip(axes[:,0],groups):
             for c in item['curves']:
-                if (c['group'],c['geometry'])==(group,geometry):ax.stairs(c['fractions'],c['edges'],label=c['algorithm'],linewidth=1.8)
-            ax.set_title(group+' | '+geometry);ax.set_ylabel('Fraction per bin');ax.legend()
+                if (c['group'],c['geometry'])==(group,geometry):ax.stairs(c['normalized'],c['edges'],label=c['algorithm'],linewidth=1.8)
+            ax.set_title(group+' | '+geometry);ax.set_ylabel('Events per bin' if c['normalization']['mode']=='yield' else 'Fraction per bin');ax.legend()
         axes[-1,0].set_xlabel(feature);fig.tight_layout();p=out/(feature+'.png');fig.savefig(p,dpi=110);plt.close(fig)
         parts+=['<h2>'+html.escape(feature)+'</h2><p>'+html.escape(item['description'])+'</p>', '<img alt="'+html.escape(feature)+'" src="data:image/png;base64,'+base64.b64encode(p.read_bytes()).decode()+'">',
                 '<table><tr><th>Algorithm/group/geometry</th><th>Selected</th><th>Missing</th><th>Underflow</th><th>Overflow</th></tr>']
