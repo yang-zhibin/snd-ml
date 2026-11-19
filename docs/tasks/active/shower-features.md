@@ -5,7 +5,7 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T11:00:12+01:00
+- Last verified: 2026-11-19T11:01:36+01:00
 - Implementation checkpoint: 5ea499c9c5345467d33e94ba1c00220486704256
 - Implemented: Existing EOS-backed small-sample preparation, documented feature plugins and SciFi density report, and isolated SNDSW export runtime retained. Added auto/shape/yield normalization for bounded prepared samples; small/testbeam shapes, audited full MC target-data/parent-MC exposure scaling and data weight 1 at represented exposure. Parent sources are deduplicated, empty sources included, CC/NC can share a flavour parent, ve/vm remain separate. Audit validates sample SHA, source counts, group membership, shard coverage, sampling and nested caps. Histograms preserve raw counts/fractions, normalized bins, sumw2, flows and exposures; HTML labels yields and records exposures. Histogram-only normalization changes reuse calculated features. Shared positive finite exposure ratio is also used by the existing production histogram script. Guides and persistent integration harness added. Local implementation commit created; not pushed this turn.
 - Validation: Read-only luminosity-location follow-up verified current CSV headers/representative rows, metadata allocation code and new audit/run storage; no code changes or new tests. On lxplus9120 with LCG107/Python3.11.9, 70 development unit tests and 11 production histogram tests passed; new four-event full shape/yield Snakemake DAG checks passed, including both algorithms, sumw2, exposure reporting, calculation-cache reuse, repeat reuse, missing-audit and small-yield rejection. All 10 existing launcher integration checks passed. ABCD numeric reference ratios tested for ve14640/vm13350 and data19.780680927948/1.960319252235 fb^-1. git diff --check passed. Earlier dataset/runtime validation remains documented in feature_dev/TEST_RESULTS.md and historical checkpoints.
@@ -834,3 +834,15 @@ or jobs; only this checkpoint changed. Existing logs/outputs and single Next
 action remain valid; that action was not started.
 
 Main launcher `--check-handoff shower-features`: PASS. `git diff --check`: PASS.
+
+### 2026-11-19T11:01:36+01:00 — ROOT luminosity storage clarification
+
+Read-only source inspection after verifying pwd, branch and clean Git status:
+feature_dev/engine.py writes baseline/candidate feature trees without luminosity
+metadata; exposure remains in JSON run/histogram records. The production
+unified_feature_distributions.py writer stores sample_exposure as a ROOT
+TParameter<double> and exposure_kind as TNamed. No source changes, output
+regeneration or jobs. Implementation SHA, validation limits, output paths and
+single Next action remain unchanged; no follow-up implementation started.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
