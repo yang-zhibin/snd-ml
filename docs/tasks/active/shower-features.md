@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T13:29:01+01:00
-- Implementation checkpoint: d9b330d81a04ca74eb9d359578b4eeb013bdf455
-- Implemented: Existing EOS small-sample preparation, feature plugin examples, SciFi density guide and isolated SNDSW runtime retained. Audited prepared-full-sample normalization remains available (MC target-data/parent exposure, data weight1 at effective exposure, small/testbeam shapes). New Snakemake export stage publishes <run>/features.root with unchanged baseline/candidate trees plus source_exposure and normalization TTrees, complete canonical audit JSON/checksum and metadata version/units/sample/calculation hashes. Empty sources and external reference sources are retained and labelled. Unknown shape exposure/weight uses NaN and false validity flags. Export revalidates audited accounting and compares every metadata field and every copied feature branch/identity. Exposure changes regenerate an immutable published copy while reusing calculated features. Updated both guides, normalization reference, tests and results. Local implementation commit created; not pushed.
-- Validation: Remote source review found Silvia branch origin/task/silvia-shower-algorithm at d8cd5d08b4da94a0b453749573ba10150da68f72; no coworker code executed or merged. Verified pwd/task branch and clean starting checkout. On lxplus9120, LCG107/Python3.11.9, uproot5.3.11 and NumPy1.26.4: 75 development unit tests passed. Extended four-event normalization integration passed: complete shape/yield DAGs, ROOT metadata round trips, checksum, explicit unknown shape values, empty/reference sources, data effective exposure, same MC weights for both algorithms, changed-exposure refresh with unchanged calculation timestamp, previous export preserved, and deliberately corrupted exported ROOT rejected by cache checks. All 10 existing launcher integration checks passed. git diff --check passed. Prior 11 production histogram tests and earlier EOS/runtime checks remain recorded in feature_dev/TEST_RESULTS.md; production histogram code unchanged this turn.
-- Remaining limitations: User prefers production-converter plugins in a separate coworker folder; this replacement design is not implemented. Current production paths are hard-coded to Zhibin and production runtime isolation still needs alignment. Silvia has catalogue read ACLs, but EOS membership/account execution and private testbeam cutflow access remain unverified.  Coworker integration is pending review: energy joins omit source_uid/eventId, plots combine geometries and show candidate-only shapes, and missing coordinates yield zero density. Her engine changes overlap local exposure implementation; remote task/shower-features remains at 4f37831 and lacks local normalization/ROOT metadata commits. Full automatic plugin campaigns and automatic exposure-audit generation remain unimplemented; prepared inputs retain 256 MiB guard. Audit producer must establish complete parent and external reference coverage; embedding the audit does not independently verify EOS coverage. Current real-data zero-active-exposure catalogues are insufficient for yields. Internal calculate/features.root intentionally has no exposure objects; consumers must use published <run>/features.root (copy with links dereferenced). Old outputs are not patched. Shape weights/exposures are unknown rather than fabricated; shape sumw2 omits covariance and yield errors omit luminosity systematics. No new EOS, coworker-account, HTCondor or physical exposure qualification; optional muon availability remains unqualified.
-- Running jobs: No batch jobs or EOS conversions launched. All bounded local unit/integration test processes completed; no task test process remains running.
-- Outputs: Ignored local evidence: feature_dev/output/root-exposure-20261119/{unit,integration,legacy-integration}.log. Valid four-event ROOT example: feature_dev/output/root-exposure-20261119/integration/results/mc-neutrino/yield/features.root; export/validation.json contains copied-feature and metadata checks, plot/report.html is the report. Sibling shape/ has invalid/unknown exposure metadata. Sibling changed-exposure/ was deliberately corrupted after successful refresh to test tamper detection; do not use it as a valid product. Earlier normalization evidence remains under feature_dev/output/normalization-20261119/. Durable reference: feature_dev/NORMALIZATION.md; results: feature_dev/TEST_RESULTS.md. No EOS inputs/products modified.
+- Last verified: 2026-11-19T13:51:55+01:00
+- Implementation checkpoint: 799e23d0c082f441aea8565ddc228e2462042fe3
+- Implemented: Production converter optionally loads a schema-checked plugin from feature_plugins/, calculates it on isolated final SciFi hits, and writes namespaced scalar branches in the same sndData entries. Silvia's 13 features migrated from d8cd5d0; valid-coordinate formulas preserved, missing coordinates explicitly unknown. Original branches retained. Plugin provenance and catalogue source exposure embedded in ROOT; validation and shard metadata checks extended. New run_shower_features.sh and per-user Snakemake campaign read existing EOS catalogues for selectable datasets, run bounded small samples or full per-source jobs, validate/publish atomically and stream distributions with audited yield support. Shared exposure validation reused. Guides and tests updated. Implementation committed locally; not pushed.
+- Validation: Verified pwd/task branch. On lxplus9102, LCG107 Python3.11.9/ROOT6.34.02/numpy1.26.4/uproot5.3.11; isolated SNDSW Python3.9.25/ROOT6.36.04. 20 new plugin/campaign tests, 75 existing development tests, 13 converter tests and 3 shard validator tests passed. Actual EOS MC smoke: two sources, at most two selected events each, all four DAG tasks passed. All 13 plugin outputs match original coworker code on four events; separate no-plugin conversion matches all 438 original branches on two events. Repeat run verifies cache and does no work. Full MC shape dry-run planned 1866 source jobs without execution. Setup --check, bash syntax and git diff --check passed.
+- Remaining limitations: No full batch execution or coworker-account qualification; one job per source, not intra-file sharding. Full resource/profile and credential lifetime require qualification. Private testbeam cutflow access and optional muon inputs remain unqualified; no new actual testbeam/data/muon conversion. Automatic authoritative luminosity audit generation is not implemented; real-data event_count_only catalogue values do not establish yields. Source ROOT metadata retains catalogue values and embeds supplied audit; final audited group weights/coverage live in plots/normalization.json. Small samples are debugging selections, not valid yield populations. Statistical errors omit luminosity systematics. Legacy prepared-JSONL workflow remains available. Immutable run identity includes Git HEAD; use a new run name after commits/code/settings changes.
+- Running jobs: No HTCondor jobs submitted by this implementation; all local tests/conversions finished. Scheduler query returned exit1 (Collector has no record of schedd/submitter), so no claim of globally empty queue. No next-action work started.
+- Outputs: Evidence under feature_dev/output/production-plugin-20261119/: unit.log, dev-unit.log, production-regression.log, smoke.log, parity.log/parity.json, reuse.log, full-dry-run.log, setup-check.log, baseline-check/. Valid report results/mc-neutrino/smoke/plots/report.html; source ROOT and validation/baseline parity/input/checksum receipts under results/mc-neutrino/smoke/sources/{0,1}/. Converter commands/logs under results/mc-neutrino/smoke/logs/. Four-event output is a shape/debug sample. No EOS input files changed. Durable instructions: feature_production/README.md, feature_plugins/README.md and feature_dev/TEST_RESULTS.md. Historical linked records retained.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Implement the production-plugin loader and converter hook with Silvia's existing two-function API, isolated hit inputs, explicit namespaced output mapping and schema validation; prove no-plugin compatibility and unchanged original branches on a bounded fixture before wiring the per-user Snakemake launcher and full production. This implementation is planned but has not started.
+Qualify the production launcher on Silvia's account using --check-access and an agreed bounded HTCondor canary/profile, verifying EOS/cutflow permissions, credentials, writable outputs and resource mapping before authorizing full production; do not start a full campaign from this checkpoint.
 
 ## Checkpoint history
 
@@ -1067,3 +1067,34 @@ d9b330d81a04ca74eb9d359578b4eeb013bdf455; prior validation limits/output paths
 retained. Single Next action updated to first planned milestone, not executed.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T13:51:55+01:00 — Production plugin implementation and bounded validation
+
+Implementation commit: `799e23d0c082f441aea8565ddc228e2462042fe3` (created before
+this checkpoint). Verified worktree/branch; only authorized checkout edited.
+Changed files: new convertData/feature_plugin.py; converter and muon wrapper;
+production validator and shard merger; feature_dev/exposure.py; new
+feature_plugins/ (Silvia implementation/schema/interface guide),
+feature_production/ (planner, worker, distributions, Snakefile, tests and guide),
+run_shower_features.sh; README_SHOWER_FEATURES.md; feature_dev README,
+NORMALIZATION and TEST_RESULTS. Full exact list: `git show --stat 799e23d`.
+
+Commands/results (LCG activation in same shell, user site/bytecode disabled):
+
+- `python3 -m unittest discover -s feature_production/tests -p 'test_*.py'`: 20 passed.
+- `python3 -m unittest discover -s feature_dev/tests -p 'test_*.py'`: 75 passed.
+- `python3 -m unittest discover -s convertData -p 'test_unified_shower_features.py'`: 13 passed.
+- `python3 -m unittest discover -s convertData -p 'test_validate_unified_shower_feature_shards.py'`: 3 passed.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small --files-per-group 1 --events-per-file 2 --run smoke --output-root "$PWD/feature_dev/output/production-plugin-20261119/results"`: passed conversion, validation and report. Identical repeat: nothing to do. Final wrapper-only change forwards setup arguments; checked with setup --check, no physics calculation changed afterward.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample full --normalization shape --run full-plan --dry-run --output-root "$PWD/feature_dev/output/production-plugin-20261119/results"`: 1866 per-source jobs planned, no execution/products.
+- Original coworker calculation on same four exported events: all 13 outputs match. No-plugin source0 conversion: all 438 original branches and two entry identities match (parity.json).
+- `./run_shower_features.sh setup --check`: passed, existing private Snakemake healthy; no installation.
+- `bash -n run_shower_features.sh`, `git diff --check`: passed.
+- `condor_q -submitter zhibin -af ClusterId ProcId JobStatus Iwd Cmd`: exit1, Collector has no record of schedd/submitter. No submitted task job IDs. Use this command to refresh scheduler evidence; global queue state unverified.
+
+Outputs/logs and validation limits are replaced in Current state above, with
+full evidence also in feature_dev/TEST_RESULTS.md. No full campaign started.
+Main launcher handoff check is run after this record update; result recorded below.
+
+Main launcher `--check-handoff shower-features`: PASS (exit0).
+`git diff --check`: PASS. Single Next action remains unstarted.
