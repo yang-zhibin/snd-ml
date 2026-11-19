@@ -48,19 +48,19 @@ Override with `--output-root /your/writable/path`. A run contains:
   sources/<index>/features.root
   sources/<index>/validation.json, inputs.json, complete.json
   histograms/
-    1d/<feature>/<selection>/<geometry>/<class>.root
-    2d/<pair>/<selection>/<geometry>/<class>.root
+    1d/<feature>/<selection>/<class>.root
+    2d/<pair>/<selection>/<class>.root
     summary.json, complete.json
   plots/
-    1d/<feature>/<selection>/<geometry>/plot.pdf, summary.csv
-    2d/<pair>/<selection>/<geometry>/plot.pdf, summary.csv
+    1d/<feature>/<selection>/plot.pdf, summary.csv
+    2d/<pair>/<selection>/plot.pdf, summary.csv
     coverage.json, normalization.json, complete.json
 ```
 
 Open the **per-feature PDF** under `plots/1d/` or **per-pair PDF** under
-`plots/2d/`. There is no combined `report.pdf` or HTML. Geometry directories are
-stable `geo_<hash>` keys; `config/coverage.json` maps them to original geometry
-identifiers. Four MC classes appear in each comparison; empty classes are
+`plots/2d/`. There is no combined `report.pdf` or HTML. Geometries are combined in each class distribution; there are no `geo_*`
+output folders. Original geometry identifiers remain in `config/coverage.json`
+and each ROOT histogram's `production_histogram_json` for validation. Four MC classes appear in each comparison; empty classes are
 explicitly shown. Testbeam and real-data groups retain their catalogue labels.
 
 The 1D figures use `evaluation_region_partitions/plot_comparison.py`, including
@@ -69,7 +69,12 @@ standard deviation. 2D uses `plot_group_hist2d.py`: density panels on page 1,
 profile comparison on page 2. Profiles are means derived from the binned TH2,
 matching the existing EM-shower workflow. ROOT filling is shared with
 `make_group_hist.py` and `make_group_hist2d.py`; histogram files retain raw
-counts/errors and normalization metadata. Plots apply audited scales once.
+counts/errors and normalization metadata. Yield plots sum components after applying each component's audited scale,
+including squared weights in variances. ROOT files keep both raw counts and
+`hist_yield`/`hist2d_yield`; summaries retain the component exposures. Because
+weights can differ, a combined yield has no single scale factor (CSV field
+left empty). Shapes merge raw counts first and normalize once. Profiles remain
+raw event means from the combined binned TH2.
 
 Small runs additionally save selected hits and a baseline parity receipt.
 Use `--feature-root /your/writable/eos/directory` to put `sources/` under
@@ -122,7 +127,7 @@ features2d:
 ```
 
 Automatic bounds scan finite, non-missing selected values across all classes in
-the **same selection and geometry**, with padding so observed maxima stay in
+the **same selection across all geometries**, with padding so observed maxima stay in
 normal ROOT bins. No quantile trimming. Integer features use half-integer bounds;
 constant values get padding; empty samples use `[0,1]` (`[1,10]` for log-x),
 with the reason recorded in `resolved.yaml`. Explicit bounds preserve ROOT's
@@ -213,7 +218,7 @@ these production-specific differences:
 MC weight is target data exposure / parent MC exposure; data weight is 1 at
 its effective sampled exposure. The same weights apply to production and plugin
 features. Counts, flows, missing values and statistical sumw2 are retained.
-Classes are compared within each selection/geometry; geometries stay separate. Energy comes from the same `sndData` entry.
+Classes are compared within each selection with geometries combined. Energy comes from the same `sndData` entry.
 There is no external event join.
 
 Each source ROOT file stores `feature_plugin_json` and its SHA256, plus

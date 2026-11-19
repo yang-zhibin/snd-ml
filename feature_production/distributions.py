@@ -150,11 +150,11 @@ def resolve(plan):
             df=frame(plan,stratum,expression); actions=[]
             for name,feature in features.items():
                 valid,col,_=feature_frame(df,name,feature)
-                actions.append((('1d',name,selection,stratum['geometry_key'],'x'), valid.Count(),valid.Min(col),valid.Max(col)))
+                actions.append((('1d',name,selection,'combined','x'), valid.Count(),valid.Min(col),valid.Max(col)))
             for name,pair in pairs.items():
                 valid,x,y,_=pair_frame(df,name,pair,features)
                 for axis,col in [('x',x),('y',y)]:
-                    actions.append((('2d',name,selection,stratum['geometry_key'],axis),valid.Count(),valid.Min(col),valid.Max(col)))
+                    actions.append((('2d',name,selection,'combined',axis),valid.Count(),valid.Min(col),valid.Max(col)))
             # All actions on this graph are booked before the first GetValue.
             for key,count,low,high in actions:
                 count=int(count.GetValue()); stats=extrema.setdefault(key,[0,None,None])
@@ -165,7 +165,7 @@ def resolve(plan):
                     stats[0]+=count
     resolved={}
     for (kind,name,selection,geometry,axis),stats in extrema.items():
-        key='/'.join((kind,name,selection,geometry))
+        key='/'.join((kind,name,selection))
         if kind=='1d':
             resolved[key]=dict(features[name],**resolve_axis(features[name],*stats))
         else:
@@ -192,17 +192,17 @@ def fill(plan):
     base=Path(plan['directory']);verify_receipt(base/'config')
     if (base/'histograms/complete.json').exists():verify_receipt(base/'histograms');return
     resolved=read_json(base/'config/resolved.json');evidence=read_json(base/'config/coverage.json')
-    features,pairs=specifications(plan);summary=[]
+    features,pairs=specifications(plan);summary=[]; combined={}
     with publication(base/'histograms') as out:
         for stratum in evidence['strata']:
             for selection,expression in plan['plot_settings']['histograms']['selections'].items():
                 df=frame(plan,stratum,expression);pending=[]
                 for name in features:
-                    key='/'.join(('1d',name,selection,stratum['geometry_key']));cfg=resolved[key]
+                    key='/'.join(('1d',name,selection));cfg=resolved[key]
                     valid,column,selected=feature_frame(df,name,cfg)
                     pending.append((key,cfg,selected,valid.Count(),book_histogram(valid,name,cfg,column)))
                 for name,pair in pairs.items():
-                    key='/'.join(('2d',name,selection,stratum['geometry_key']));cfg=resolved[key]
+                    key='/'.join(('2d',name,selection));cfg=resolved[key]
                     valid,x,y,selected=pair_frame(df,name,pair,features)
                     pending.append((key,cfg,selected,valid.Count(),book_histogram2d(valid,name,cfg,x,y)))
                 for key,cfg,selected,valid,result in pending:
@@ -216,13 +216,36 @@ def fill(plan):
                                   raw_integral=float(hist.Integral()),source_ids=stratum['source_ids'],
                                   config=cfg,normalization=next(r for r in evidence['normalizations'] if
                                       r['group']==stratum['group'] and r['geometry']==stratum['geometry']))
-                    f=ROOT.TFile(str(path),'RECREATE')
-                    if f.IsZombie():raise ValueError('Cannot create histogram '+str(path))
-                    hist.Write('hist2d' if is2d else 'hist')
-                    if is2d:profile.Write('profile_x')
-                    ROOT.TObjString(json.dumps(metadata,sort_keys=True)).Write('production_histogram_json')
-                    write_metadata(f,dict(selected_entries=total,raw_integral=float(hist.Integral()),selection=expression))
-                    f.Close();summary.append(dict(path=str(path.relative_to(out)),**metadata))
+                    slot=combined.setdefault((key,stratum['group']),dict(hist=None,weighted=None,components=[]))
+                    if slot['hist'] is None:
+                        slot['hist']=hist.Clone('combined_raw');slot['hist'].SetDirectory(0)
+                    else: slot['hist'].Add(hist)
+                    if plan['normalization']=='yield':
+                        weighted=hist.Clone('weighted_component');weighted.SetDirectory(0)
+                        weighted.Scale(metadata['normalization']['scale'])
+                        if slot['weighted'] is None: slot['weighted']=weighted
+                        else: slot['weighted'].Add(weighted)
+                    slot['components'].append(metadata)
+        for (key,group),slot in combined.items():
+            hist=slot['hist'];components=slot['components'];is2d=key.startswith('2d/')
+            path=out/key/(group_key(group)+'.root');path.parent.mkdir(parents=True,exist_ok=True)
+            metadata=dict(group=group,geometry='combined',geometries=sorted({r['geometry'] for r in components}),
+                          selection=components[0]['selection'],config=components[0]['config'],
+                          source_ids=sorted({s for r in components for s in r['source_ids']}),
+                          raw_integral=float(hist.Integral()),components=components,
+                          normalization=dict(mode=plan['normalization'],preweighted=plan['normalization']=='yield',
+                                             components=[dict(r['normalization'],geometry=r['geometry']) for r in components]))
+            for field in ('selected_entries','valid_entries','missing_entries'):
+                metadata[field]=sum(r[field] for r in components)
+            f=ROOT.TFile(str(path),'RECREATE')
+            if f.IsZombie():raise ValueError('Cannot create histogram '+str(path))
+            hist.Write('hist2d' if is2d else 'hist')
+            if slot['weighted'] is not None:slot['weighted'].Write('hist2d_yield' if is2d else 'hist_yield')
+            if is2d:
+                profile=hist.ProfileX('profile_x');profile.SetDirectory(0);profile.Write('profile_x')
+            ROOT.TObjString(json.dumps(metadata,sort_keys=True)).Write('production_histogram_json')
+            write_metadata(f,dict(selected_entries=metadata['selected_entries'],raw_integral=float(hist.Integral()),selection=metadata['selection']))
+            f.Close();summary.append(dict(path=str(path.relative_to(out)),**metadata))
         write_json(out/'summary.json',summary)
 
 
@@ -245,11 +268,11 @@ def render(plan):
         for key,items in grouped.items():
             items.sort(key=lambda r:(list(NEUTRINOS).index(r['group']) if r['group'] in NEUTRINOS else 99,r['group']))
             destination=out/key;destination.mkdir(parents=True)
-            pdf=destination/'plot.pdf';cfg=resolved[key];kind,name,selection,geometry=key.split('/')
+            pdf=destination/'plot.pdf';cfg=resolved[key];kind,name,selection=key.split('/')
             if kind=='2d':
                 args=SimpleNamespace(hist_config=base/'config/pairs.yaml',pair=name,region=selection,
                     output=pdf,summary=destination/'summary.csv',hist=[(r['group'],str(base/'histograms'/r['path'])) for r in items],
-                    normalization=plan['normalization'],scales={r['group']:r['normalization'].get('scale',0) for r in items},
+                    normalization=plan['normalization'],preweighted=plan['normalization']=='yield',scales={r['group']:1. for r in items},
                     exposures={r['group']:r['normalization'] for r in items},
                     styles=plan['plot_settings']['plotting'].get('plot',{}).get('particle_styles',{}),
                     labels=plan['plot_settings']['plotting'].get('plot',{}).get('particle_labels',{}),pair_config=cfg)
@@ -258,17 +281,18 @@ def render(plan):
             curves=[];rows=[]
             for index,record in enumerate(items):
                 f=ROOT.TFile.Open(str(base/'histograms'/record['path']))
-                raw=f.Get('hist').Clone('raw_'+str(index));raw.SetDirectory(0);f.Close()
+                raw=f.Get('hist').Clone('raw_'+str(index));raw.SetDirectory(0)
+                plotted=f.Get('hist_yield' if plan['normalization']=='yield' else 'hist').Clone('plotted_'+str(index));plotted.SetDirectory(0);f.Close()
                 norm=record['normalization'];cfg=dict(cfg,plot_normalization='unit_area' if norm['mode']=='shape' else 'lumi')
                 # Existing normalization function accepts a reference/source ratio.
-                weight=norm.get('scale',0.)
-                scaled,scale=plot_comparison.normalized_hist_for_plot(raw,'scaled_'+str(index),cfg,weight,1.)
+                weight=1.
+                scaled,scale=plot_comparison.normalized_hist_for_plot(plotted,'scaled_'+str(index),cfg,weight,1.)
                 curves.append(dict(hist_scaled=scaled,scaled_integral=float(scaled.Integral()),group_name=record['group'],
                                    group_label=(plan['plot_settings']['plotting'].get('plot',{}).get('particle_labels',{}).get(record['group'],record['group'])+' (no valid events)') if not record['valid_entries'] else None,
                                    base_cut_key='none',extra_cut_key='none'))
                 rows.append(dict(group=record['group'],geometry=record['geometry'],selection=record['selection'],
                     selected_entries=record['selected_entries'],valid_entries=record['valid_entries'],missing_entries=record['missing_entries'],
-                    raw_integral=float(raw.Integral()),scaled_integral=float(scaled.Integral()),scale_factor=scale,
+                    raw_integral=float(raw.Integral()),scaled_integral=float(scaled.Integral()),scale_factor=scale if norm['mode']=='shape' else '',
                     normalization=norm['mode'],exposure=json.dumps(norm,sort_keys=True),
                     underflow=float(raw.GetBinContent(0)),overflow=float(raw.GetBinContent(raw.GetNbinsX()+1))))
             canvas=ROOT.TCanvas('production_plot','',1000,800)
@@ -278,7 +302,7 @@ def render(plan):
             eval_cfg.setdefault('plot',{}).update(region_preselection_label='Selection: '+items[0]['selection'],
                                                   region_labels={selection:selection})
             plot_comparison.draw_overlay(canvas,pdf,name,cfg,eval_cfg,'particles_in_region',selection,
-                                         name+' / '+selection+' / '+geometry,1.,curves)
+                                         name+' / '+selection,1.,curves)
             canvas.Close();csv_summary(destination/'summary.csv',rows)
         write_json(out/'coverage.json',read_json(base/'config/coverage.json'))
         write_json(out/'normalization.json',read_json(base/'config/coverage.json')['normalizations'])

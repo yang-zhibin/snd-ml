@@ -51,7 +51,9 @@ def plot(args: argparse.Namespace) -> None:
         if not root_file or root_file.IsZombie():
             raise RuntimeError(f"Could not open {path}")
         opened.append(root_file)
-        hist = root_file.Get("hist2d")
+        preweighted = bool(getattr(args, "preweighted", False))
+        raw_hist = root_file.Get("hist2d")
+        hist = root_file.Get("hist2d_yield" if preweighted else "hist2d")
         profile = root_file.Get("profile_x")
         if not hist or not profile:
             raise KeyError(f"Missing hist2d/profile_x in {path}")
@@ -71,8 +73,8 @@ def plot(args: argparse.Namespace) -> None:
                 "pair": args.pair,
                 "particle_group": particle_group,
                 "entries": int(hist.GetEntries()),
-                "normalization": mode, "raw_integral": integral,
-                "scale_factor": scale, "scaled_integral": float(hist.Integral()),
+                "normalization": mode, "raw_integral": float(raw_hist.Integral()),
+                "scale_factor": "" if preweighted else scale, "scaled_integral": float(hist.Integral()),
                 "exposure": json.dumps(getattr(args, "exposures", {}).get(particle_group, {}), sort_keys=True),
                 "mean_x": hist.GetMean(1),
                 "mean_y": hist.GetMean(2),

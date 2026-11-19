@@ -86,7 +86,7 @@ class CampaignTests(unittest.TestCase):
         with patch('distributions.render'):distributions(plan)
         from plot_settings import geometry_key
         import ROOT
-        path=Path(plan['directory'])/'histograms/1d/silvia__density/selected'/geometry_key('geo')/'CC_nue.root'
+        path=Path(plan['directory'])/'histograms/1d/silvia__density/selected'/'CC_nue.root'
         with uproot.open(path) as f:
             np.testing.assert_allclose(f['hist'].values(),[1,1])
         records=read_json(Path(plan['directory'])/'config/coverage.json')

@@ -44,9 +44,9 @@ class BackendTests(unittest.TestCase):
             distributions(plan)
             self.assertEqual(one.call_count,1);self.assertEqual(two.call_count,1)
         base=Path(plan['directory']);geo=geometry_key('geo')
-        info=subprocess.check_output(['pdfinfo',str(base/'plots/2d/density_pair/selected'/geo/'plot.pdf')],text=True)
+        info=subprocess.check_output(['pdfinfo',str(base/'plots/2d/density_pair/selected'/'plot.pdf')],text=True)
         self.assertRegex(info,r'Pages:\s+2')
-        with (base/'plots/1d/silvia__density/selected'/geo/'summary.csv').open() as stream:
+        with (base/'plots/1d/silvia__density/selected'/'summary.csv').open() as stream:
             rows=list(csv.DictReader(stream))
         row=next(r for r in rows if r['group']=='CC_nue')
         self.assertEqual(float(row['scale_factor']),.5)
@@ -58,9 +58,9 @@ class BackendTests(unittest.TestCase):
         plan['plot_settings']['histograms']['features2d']={'density_pair':dict(x='silvia__density',y='silvia__density')}
         distributions(plan)
         base=Path(plan['directory']);geo=geometry_key('geo')
-        with (base/'plots/2d/density_pair/selected'/geo/'summary.csv').open() as stream:
+        with (base/'plots/2d/density_pair/selected'/'summary.csv').open() as stream:
             row=next(r for r in csv.DictReader(stream) if r['particle_group']=='CC_nue')
-        self.assertAlmostEqual(float(row['scale_factor']),2/15)
+        self.assertEqual(row['scale_factor'],'')
         self.assertAlmostEqual(float(row['scaled_integral']),4/15)
         self.assertEqual(row['normalization'],'yield')
     def test_legacy_histogram_entry_points_match(self):
@@ -84,7 +84,7 @@ class BackendTests(unittest.TestCase):
         args.output=str(self.root/'legacy2.root');make_histogram(args)
         base=Path(plan['directory'])/'histograms';geo=geometry_key('geo')
         for legacy,new,key in [('legacy1.root','1d/silvia__density','hist'),('legacy2.root','2d/pair','hist2d')]:
-            with uproot.open(self.root/legacy) as old, uproot.open(base/new/'selected'/geo/'CC_nue.root') as current:
+            with uproot.open(self.root/legacy) as old, uproot.open(base/new/'selected'/'CC_nue.root') as current:
                 np.testing.assert_array_equal(old[key].values(flow=True),current[key].values(flow=True))
                 np.testing.assert_array_equal(old[key].variances(flow=True),current[key].variances(flow=True))
 
@@ -96,7 +96,7 @@ class BackendTests(unittest.TestCase):
         resolve(plan);fill(plan);render(plan)
         records=json.loads((Path(plan['directory'])/'histograms/summary.json').read_text())
         self.assertEqual(len(records),2)
-        self.assertNotEqual(records[0]['geometry'],records[1]['geometry'])
+        self.assertNotEqual(records[0]['geometries'],records[1]['geometries'])
         self.assertIn(':pdg11:',records[0]['group'])
         self.assertNotIn(':',Path(records[0]['path']).name)
 
@@ -111,6 +111,39 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(row['selected_entries'],1)
         self.assertEqual(row['valid_entries'],1)
         self.assertEqual(row['missing_entries'],0)
+
+    def test_geometry_combination_preserves_audited_weights(self):
+        from common import write_json, sha
+        from worker import attach_exposure
+        plan=self.fixture('yield')
+        second=Path(plan['source_directory'])/'1/features.root'
+        with uproot.open(second) as f: context=json.loads(str(f['production_exposure_json']))
+        with uproot.recreate(second) as f:
+            f.mktree('sndData',dict(pdgCode='int32',silvia__density='float64'))
+            f['sndData'].extend(dict(pdgCode=np.array([12,12]),silvia__density=np.array([7.,9.])))
+        attach_exposure(second,context)
+        write_json(second.parent/'validation.json',dict(validation_passed=True,feature_sha256=sha(second),written_event_count=2))
+        write_json(second.parent/'complete.json',{p.name:sha(p) for p in second.parent.iterdir() if p.name!='complete.json'})
+        plan['jobs'][1]['record']['source_geometry_id']='second_geometry'
+        audit=plan['exposure_audit']; second_source=audit['populations']['ve']['sources'].pop()
+        second_source.update(selected_entries=2,processed_ranges=[[0,2]])
+        audit['populations']['ve2']=dict(role='mc',coverage_evidence='fixture',sources=[second_source])
+        audit['groups'].append(dict(group='CC_nue',geometry='second_geometry',population='ve2',target_population='data'))
+        plan['plot_settings']['histograms']['features']['silvia__density']={'bins':4}
+        plan['plot_settings']['histograms']['features2d']={'pair':dict(x='silvia__density',y='silvia__density')}
+        distributions(plan)
+        base=Path(plan['directory'])
+        resolved=json.loads((base/'config/resolved.json').read_text())['1d/silvia__density/selected']
+        self.assertEqual((resolved['observed_min'],resolved['observed_max']),(1.,9.))
+        for kind,name,raw,yielded in [('1d','silvia__density','hist','hist_yield'),('2d','pair','hist2d','hist2d_yield')]:
+            with uproot.open(base/'histograms'/kind/name/'selected/CC_nue.root') as f:
+                self.assertEqual(np.sum(f[raw].values(flow=True)),4)
+                self.assertAlmostEqual(np.sum(f[yielded].values(flow=True)),1.2)
+                self.assertAlmostEqual(np.sum(f[yielded].variances(flow=True)),.4)
+                meta=json.loads(str(f['production_histogram_json']))
+                self.assertEqual(meta['geometries'],['geo','second_geometry'])
+        self.assertEqual(len(list((base/'plots/1d').rglob('plot.pdf'))),1)
+        self.assertFalse(any(p.name.startswith('geo_') for p in (base/'plots').rglob('*')))
 
     def test_missing_plot_branch_rejected(self):
         plan=self.fixture()
@@ -145,13 +178,13 @@ class BackendTests(unittest.TestCase):
         resolve(plan);fill(plan)
         base=Path(plan['directory']);geo=geometry_key('geo')
         ranges=json.loads((base/'config/resolved.json').read_text())
-        r=ranges['1d/silvia__density/selected/'+geo]
+        r=ranges['1d/silvia__density/selected']
         self.assertEqual(r['valid_values'],3);self.assertEqual(r['observed_max'],7)
-        r=ranges['2d/pair/selected/'+geo]
+        r=ranges['2d/pair/selected']
         self.assertEqual(r['x_resolution']['valid_values'],2)
-        with uproot.open(base/'histograms/1d/silvia__density/selected'/geo/'CC_numu.root') as f:
+        with uproot.open(base/'histograms/1d/silvia__density/selected'/'CC_numu.root') as f:
             self.assertEqual(sum(f['hist'].values()),1)
-        with uproot.open(base/'histograms/1d/silvia__density/cut'/geo/'CC_nue.root') as f:
+        with uproot.open(base/'histograms/1d/silvia__density/cut'/'CC_nue.root') as f:
             self.assertEqual(sum(f['hist'].values()),1)
 
 if __name__=='__main__':unittest.main()

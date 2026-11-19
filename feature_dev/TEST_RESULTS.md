@@ -418,3 +418,34 @@ Limits: four events validate software behavior, not physics distributions.
 Actual testbeam/data account access, full processing resources/HTCondor, and
 physical luminosity audits remain unqualified. Testbeam grouping and yields
 are tested with fixtures. No EOS inputs or previous published runs modified.
+
+## 2026-11-19 — Combine geometries in production plots
+
+Removed geometry directories from histogram and PDF paths. Common ranges span
+all geometries; raw histograms are added before shape normalization. Yield
+histograms add independently exposure-weighted geometry components, preserving
+Sumw2 and original geometry/audit metadata. The shared ROOT plotting backend is
+unchanged in style; 2D profiles remain binned raw-event means.
+
+Validation on lxplus9102, LCG107 Python3.11.9/ROOT6.34.02:
+
+- `python3 -m unittest discover -s feature_production/tests -p 'test_*.py'`:
+  31 passed. New two-geometry fixture verifies raw count4, weighted yield1.2
+  and variance0.4 with different exposure scales; existing backend parity,
+  testbeam, campaign and plugin checks pass.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small
+  --files-per-group 1 --events-per-file 2 --run combined-geometry-20261119
+  --reuse-sources /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/root-backend-small-20261119`:
+  exit0, four of four tasks complete, existing two source ROOTs/four events reused.
+- Independent receipt and uproot checks: 24 PDFs, 96 ROOT histograms, zero
+  geo_* directories, count_scifi class counts 1/2/1/0 and matching raw variances.
+  All config/histogram/plot receipts passed. `git diff --check` passed.
+
+Evidence: `feature_dev/output/combined-geometry-20261119/{unit.log,run.log,verification.json}`.
+Output: `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/combined-geometry-20261119/`,
+including `plots/1d/count_scifi/selected/plot.pdf` and
+`plots/2d/total_qdc_vs_hits/selected/plot.pdf`.
+
+Limits: tiny MC sample checks software only; luminosity correctness uses fixtures,
+not a new physical audit. No full campaign, HTCondor submission or coworker-account
+qualification. Existing outputs are retained.
