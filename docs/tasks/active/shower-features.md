@@ -5,7 +5,7 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T13:26:43+01:00
+- Last verified: 2026-11-19T13:29:01+01:00
 - Implementation checkpoint: d9b330d81a04ca74eb9d359578b4eeb013bdf455
 - Implemented: Existing EOS small-sample preparation, feature plugin examples, SciFi density guide and isolated SNDSW runtime retained. Audited prepared-full-sample normalization remains available (MC target-data/parent exposure, data weight1 at effective exposure, small/testbeam shapes). New Snakemake export stage publishes <run>/features.root with unchanged baseline/candidate trees plus source_exposure and normalization TTrees, complete canonical audit JSON/checksum and metadata version/units/sample/calculation hashes. Empty sources and external reference sources are retained and labelled. Unknown shape exposure/weight uses NaN and false validity flags. Export revalidates audited accounting and compares every metadata field and every copied feature branch/identity. Exposure changes regenerate an immutable published copy while reusing calculated features. Updated both guides, normalization reference, tests and results. Local implementation commit created; not pushed.
 - Validation: Remote source review found Silvia branch origin/task/silvia-shower-algorithm at d8cd5d08b4da94a0b453749573ba10150da68f72; no coworker code executed or merged. Verified pwd/task branch and clean starting checkout. On lxplus9120, LCG107/Python3.11.9, uproot5.3.11 and NumPy1.26.4: 75 development unit tests passed. Extended four-event normalization integration passed: complete shape/yield DAGs, ROOT metadata round trips, checksum, explicit unknown shape values, empty/reference sources, data effective exposure, same MC weights for both algorithms, changed-exposure refresh with unchanged calculation timestamp, previous export preserved, and deliberately corrupted exported ROOT rejected by cache checks. All 10 existing launcher integration checks passed. git diff --check passed. Prior 11 production histogram tests and earlier EOS/runtime checks remain recorded in feature_dev/TEST_RESULTS.md; production histogram code unchanged this turn.
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Finalize the production-plugin implementation plan: load coworker algorithms from a separate folder in digi_2_features.py, preserve existing features, validate additional schema/branches, parameterize user-owned output/metadata paths, reuse the isolated runtime wrapper and add account-level input checks before full Snakemake/HTCondor production. The new production-plugin implementation has not been started.
+Implement the production-plugin loader and converter hook with Silvia's existing two-function API, isolated hit inputs, explicit namespaced output mapping and schema validation; prove no-plugin compatibility and unchanged original branches on a bounded fixture before wiring the per-user Snakemake launcher and full production. This implementation is planned but has not started.
 
 ## Checkpoint history
 
@@ -1007,5 +1007,63 @@ conversion or batch submission. No output products generated; implementation
 remains d9b330d81a04ca74eb9d359578b4eeb013bdf455. Existing validation and output
 paths retained. Next action updated to user's production-plugin direction and
 not started. Only this task record changed.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T13:29:01+01:00 — Production-plugin implementation plan
+
+Verified pwd/task branch and clean initial Git status. Read converter branch
+creation/event loop, validate_unified_shower_feature_file.py, source CLI builder,
+unified production rules and the clean feature_dev/run_export.sh wrapper. User
+requests a plan only; no plugin implementation, conversion, tests or jobs started.
+
+Planned sequence:
+1. Separate feature_plugins/silvia folder containing algorithm/schema/tests.
+Preserve cluster_hits(hits,parameters), calculate_features(hits,clusters,parameters)
+and optional validator. Loader supplies standardized copied selected hits with
+x_cm/y_cm/z_cm/time_ns and tracks helper imports. Resolve YAML in launcher to
+JSON for SNDSW, without importing the LCG development engine into the converter.
+Explicit export mapping/prefix prevents existing baseline keys returned by her
+plugin (including overlapping station fields) from overwriting production.
+2. Add converter plugin arguments, load once/create typed branches before event
+loop, initialize sentinel buffers every event, run on final selected SciFi hits
+inside process_hits, fill extra outputs before sndData.Fill. Preserve no-plugin
+behavior and original branch values; extend MC_muon compatibility arguments.
+3. Extend validator/shard merger for extra schema, finite values, identity,
+plugin source/config/schema hashes, and consistent metadata across shards.
+Embed source exposure and plugin provenance in production ROOT using the
+existing metadata conventions, including unknown validity for capped samples;
+merge exposure per source without double counting. Retain zero-selected sources
+in campaign coverage and refuse yields without a complete validated audit.
+4. Add one production launcher with dataset/plugin/small-full/run/output/profile
+options and named Snakemake targets; parameterize manifest, feature, shard, log
+and plot roots instead of hard-coded Zhibin roots. Read frozen shared input
+catalogues, create own campaign snapshot, hash plugin/schema/helpers/config,
+reuse the clean runtime wrapper, record commands/job IDs/logs. Small=bounded
+local production test; full=per-source/sharded HTCondor production. Keep old
+development entry point until parity and migration are validated.
+5. Extend existing distribution configuration to plugin outputs; use energy
+already in sndData instead of unsafe external joins. Preserve source/geometry
+strata, use shapes for capped/testbeam samples and audited luminosity yields
+for eligible full MC/data.
+6. Add per-account preflight for catalogue/digi/geometry/cutflow/runtime/output
+and batch credentials. Existing catalogue grants confirmed, private testbeam
+cutflow and experiment EOS effective access remain unresolved; no ACL edits.
+Validate synthetic fixtures first, then one bounded real source in the matching
+environment, and only subsequently qualify batch execution. No full campaign
+as part of initial implementation validation.
+
+Acceptance: inherited baseline returns cannot replace production branches;
+plugin results match old interface for identical hits/parameters; original
+identity/order and baseline values unchanged; missing coordinate behavior is
+explicit (sentinel/error, not false zero); ROOT branches/provenance/exposure
+round-trip; deterministic reruns and config invalidation; shard metadata/exposure
+deduplication; small local dry-run and full batch dry-run; output isolation and
+clear missing-input failures. Final account access qualification requires Silvia
+to run preflight with her credentials. Proposed CLI/paths are not available yet.
+
+Only task record changed. Implementation SHA remains
+d9b330d81a04ca74eb9d359578b4eeb013bdf455; prior validation limits/output paths
+retained. Single Next action updated to first planned milestone, not executed.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
