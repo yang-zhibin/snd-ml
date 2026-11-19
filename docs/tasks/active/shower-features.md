@@ -5,13 +5,14 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T14:38:37+01:00
+- Last verified: 2026-11-19T14:40:36+01:00
 - Implementation checkpoint: 864b937251f30a86645173b1285f7cc287f76ee8
 - Implemented: Production converter optionally loads a schema-checked plugin from feature_plugins/, calculates it on isolated final SciFi hits, and writes namespaced scalar branches in the same sndData entries. Silvia's 13 features migrated from d8cd5d0; valid-coordinate formulas preserved, missing coordinates explicitly unknown. Original branches retained. Plugin provenance and catalogue source exposure embedded in ROOT; validation and shard metadata checks extended. New run_shower_features.sh and per-user Snakemake campaign read existing EOS catalogues for selectable datasets, run bounded small samples or full per-source jobs, validate/publish atomically and stream distributions with audited yield support. Shared exposure validation reused. Guides and tests updated. Implementation committed locally; not pushed. Production reports now use multipage vector PDF (report.pdf), with summary and per-feature/group/geometry pages; launcher and guide updated. Correction: only conversion and shared exposure helpers are reused; distribution rendering is a separate Matplotlib implementation, not the existing production ROOT plotting backend.
-- Validation: Read-only call-chain audit confirmed feature_production/Snakefile -> worker distributions -> feature_production/distributions.py::render uses Matplotlib/PdfPages. Existing snakemake/rules/unified_shower_distributions.smk calls evaluation_region_partitions/unified_feature_distributions.py plot (ROOT TCanvas). Existing EM shower comparison rules call evaluation_region_partitions/plot_comparison.py (also ROOT). User-reported style mismatch is confirmed; earlier smoke validates execution and accounting, not compliance with requested backend/style. No new tests/conversions needed for this inspection; prior results retained in history.
+- Validation: Read-only trace of user-specified em_shower_neutrino_v1/plots paths confirmed EM shower rules, not unified_feature_distributions.py: make_group_hist.py -> plot_comparison.py for 1D; make_group_hist2d.py -> plot_group_hist2d.py for 2D. Read exact energy-v2 histogram/evaluation YAML and scifi35 region definition. Existing count_scifi and total_qdc_vs_hits summaries confirm four-class comparisons and unit-area 1D scaling. User path resolves to /afs/cern.ch/work/z/zhibin/snd-ml-outputs/em_shower_neutrino_v1/plots. No runtime/physics tests or plotting execution this turn.
 - Remaining limitations: No full batch execution or coworker-account qualification; one job per source, not intra-file sharding. Full resource/profile and credential lifetime require qualification. Private testbeam cutflow access and optional muon inputs remain unqualified; no new actual testbeam/data/muon conversion. Automatic authoritative luminosity audit generation is not implemented; real-data event_count_only catalogue values do not establish yields. Source ROOT metadata retains catalogue values and embeds supplied audit; final audited group weights/coverage live in plots/normalization.json. Small samples are debugging selections, not valid yield populations. Statistical errors omit luminosity systematics. Legacy prepared-JSONL workflow remains available. Immutable run identity includes Git HEAD; use a new run name after commits/code/settings changes. Priority gap: new production launcher bypasses existing ROOT plotting/backend style; requested reuse is incomplete.
-- Running jobs: No jobs/conversions/tests launched this turn; read-only code audit only. Global scheduler state unqueried. Plotting replacement Next action not started.
+- Running jobs: None launched; read-only script/config/output-summary inspection. Global scheduler not queried. Integration Next action not started.
 - Outputs: Default root actual run /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325/: plots/report.pdf (61 pages), sources/{0,1}/features.root and validation/parity/input/checksum receipts, plan.json/plugin.json, logs/source-{0,1}.log, plots histogram/coverage/normalization JSON. Controller/verification evidence feature_dev/output/production-small-20261119/{run.log,verification.json,pdfinfo.txt}. Previous smoke and PDF examples retained untouched. No EOS inputs modified.
+
 
 
 
@@ -22,7 +23,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Replace the standalone Matplotlib production renderer with integration into the existing ROOT production distribution backend, preserving its configured styles, comparisons and normalization semantics; validate against the existing bounded MC outputs before account/batch qualification. This correction has not started.
+Integrate coworker production features with the user's EM shower backend: make_group_hist.py/plot_comparison.py for 1D and make_group_hist2d.py/plot_group_hist2d.py for 2D, using energy-v2 histogram/evaluation configuration as the style reference and preserving explicit selection/normalization semantics; validate bounded MC outputs. This correction has not started.
 
 ## Checkpoint history
 
@@ -1159,5 +1160,30 @@ converter and exposure helper reuse do not imply renderer reuse. No code,
 products or jobs changed. Implementation SHA remains 864b937251f30a86645173b1285f7cc287f76ee8.
 Only task record updated; previous outputs/history preserved. Current Next
 action replaced with the plotting integration correction, not executed.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T14:40:36+01:00 — Exact user plotting reference traced
+
+Read-only inspection: user AFS home/work output alias resolves to the work AFS
+em_shower_neutrino_v1/plots directory. snakemake/rules/em_shower_neutrino_evaluation.smk
+constructs both requested directory hierarchies from partition/region and
+histogram/evaluation versions. 1D uses make_group_hist.py and plot_comparison.py;
+2D uses make_group_hist2d.py and plot_group_hist2d.py. Read relevant functions,
+configuration hist_features_v1.yaml (em_shower_hist_features_energy_v2),
+evaluation_options_v1.yaml (em_shower_evaluation_scifi35_energy_v2), regions_v1.yaml.
+
+Verified existing count_scifi/none/none/summary.csv and
+2d/.../total_qdc_vs_hits/scifi35/summary.csv: four neutrino classes; count_scifi
+1D integrals normalized to one. Config selects count_scifi > 35, fixed class
+colors, per-feature bins/cuts/log axes, overflow folding for 1D. Actual 1D
+renderer draws E1 error bars (despite YAML HIST), mean/std legend, and automatic
+ratio for exactly two curves; configuration flags alone do not describe it.
+2D renderer gives a 2x2 unit-integral COLZ/log-z density page and an overlaid
+ProfileX page (profiles made from binned TH2). Current 2D is shape-only.
+No products edited/generated, jobs submitted or tests run. Existing
+implementation SHA 864b937251f30a86645173b1285f7cc287f76ee8 unchanged.
+Only task record updated. Exact reference replaces previous generic backend
+proposal; Next action remains unstarted. Previous outputs/limits/history retained.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
