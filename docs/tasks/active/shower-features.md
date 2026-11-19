@@ -5,7 +5,7 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T12:10:31+01:00
+- Last verified: 2026-11-19T12:14:35+01:00
 - Implementation checkpoint: d9b330d81a04ca74eb9d359578b4eeb013bdf455
 - Implemented: Existing EOS small-sample preparation, feature plugin examples, SciFi density guide and isolated SNDSW runtime retained. Audited prepared-full-sample normalization remains available (MC target-data/parent exposure, data weight1 at effective exposure, small/testbeam shapes). New Snakemake export stage publishes <run>/features.root with unchanged baseline/candidate trees plus source_exposure and normalization TTrees, complete canonical audit JSON/checksum and metadata version/units/sample/calculation hashes. Empty sources and external reference sources are retained and labelled. Unknown shape exposure/weight uses NaN and false validity flags. Export revalidates audited accounting and compares every metadata field and every copied feature branch/identity. Exposure changes regenerate an immutable published copy while reusing calculated features. Updated both guides, normalization reference, tests and results. Local implementation commit created; not pushed.
 - Validation: Remote source review found Silvia branch origin/task/silvia-shower-algorithm at d8cd5d08b4da94a0b453749573ba10150da68f72; no coworker code executed or merged. Verified pwd/task branch and clean starting checkout. On lxplus9120, LCG107/Python3.11.9, uproot5.3.11 and NumPy1.26.4: 75 development unit tests passed. Extended four-event normalization integration passed: complete shape/yield DAGs, ROOT metadata round trips, checksum, explicit unknown shape values, empty/reference sources, data effective exposure, same MC weights for both algorithms, changed-exposure refresh with unchanged calculation timestamp, previous export preserved, and deliberately corrupted exported ROOT rejected by cache checks. All 10 existing launcher integration checks passed. git diff --check passed. Prior 11 production histogram tests and earlier EOS/runtime checks remain recorded in feature_dev/TEST_RESULTS.md; production histogram code unchanged this turn.
@@ -924,5 +924,23 @@ local exposure/ROOT publication additions remain unpublished. No source changes,
 tests, jobs or new artifacts; implementation SHA, output paths and validation
 limits remain unchanged. Next action retained and not started. Only task record
 updated for continuity.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T12:14:35+01:00 — Whole-branch workflow explanation
+
+Verified pwd/task branch and clean initial Git status. Read README_SHOWER_FEATURES.md,
+docs/project/OVERVIEW.md, feature_dev/PrepareSnakefile, prepare.py and Snakefile.
+Confirmed two distinct flows: existing production conversion/validation/histogram
+bundles and bounded plugin development. Development resolves EOS catalogues, exports
+selected hits in SNDSW, checks identities/baseline parity in LCG, assembles a fixed
+sample, calculates baseline/candidate, validates, publishes exposure-bearing ROOT
+and creates histograms/report. Cached exports and feature calculations are reused
+when their inputs permit it. Production still uses its baseline converter; arbitrary
+plugin promotion and automatic full-plugin campaigns are not implemented. Latest
+local normalization/ROOT metadata additions remain unpublished; Silvia branch is
+not merged. Read-only source explanation only: no implementation changes, new
+validation jobs, tests or outputs; prior SHA/limits/output paths remain authoritative.
+Single Next action preserved and not started. Only this checkpoint changed.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
