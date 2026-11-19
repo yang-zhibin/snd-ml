@@ -46,6 +46,9 @@ per file. File groups are not quotas for the plotted CC/NC classes. These caps
 apply only to `--sample small`; full mode reads all catalogue sources.
 The first selected events are a debugging sample, not an unbiased yield sample.
 
+See [data formats and structure](../feature_dev/DATA_FORMAT.md) for the meaning
+of input collections, saved event features, hit fields and MC truth.
+
 ## Outputs
 
 Default: `/afs/cern.ch/work/<initial>/<user>/snd-ml-outputs/shower-features/`.

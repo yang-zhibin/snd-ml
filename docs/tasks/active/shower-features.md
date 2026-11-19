@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:47:31+01:00
+- Last verified: 2026-11-19T15:51:19+01:00
 - Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
-- Implemented: Production implementation unchanged at cd13b6c: converter/Silvia plugin, combined-geometry ROOT plots and audited component yield weights. Current coworker guide retained. Rewrote feature_dev/NORMALIZATION.md around mode choice, required inputs/storage, per-file ROOT metadata, formulas/examples, audit/run steps and reading saved values. Detailed production JSON example moved to NORMALIZATION_AUDIT.md; prior standalone guide retained in NORMALIZATION_STANDALONE.md with scope notice. Updated coworker/production links. No runtime changes; local commits not pushed.
-- Validation: Verified pwd/task branch and clean initial Git. Reviewed worker.py source exposure, distributions.py coverage/weights and exposure.py validator. LCG107 Python3.11.9/uproot preflight on lxplus9102; local documentation links pass. Parsed documented JSON and ran validate_coverage with matching illustrative source memberships: both CC/NC weights equal2/30 as stated. Read existing larger-mc source0 ROOT metadata: expected branches present, capped exposure invalid/NaN, no campaign normalization tree; shape records match guide. git diff --check passes. No production or full test-suite rerun for documentation-only edits. Previous394-event production and31-test results remain historical evidence.
-- Remaining limitations: Four-file sample uses shape normalization and is not a full or representative physics sample. No file reached500 selected events. Physical luminosity audits remain external; weighted geometry combination tested previously with fixtures. No full batch resource qualification, coworker-account test or new real testbeam/data/muon access check. Profiles remain binned approximations. Source reuse depends on retained runs. New run names required after code/HEAD changes. No global scheduler claim.
-- Running jobs: No new conversion, plotting or batch jobs. Prior bounded run finished; no new job IDs. Scheduler not queried. Single Next action unchanged and unstarted.
-- Outputs: Changed feature_dev/NORMALIZATION.md, new feature_dev/NORMALIZATION_AUDIT.md and NORMALIZATION_STANDALONE.md, feature_production/README.md, README_SHOWER_FEATURES.md and this task record. Checks reported in tool output; no generated scientific products. Read-only verification used /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/sources/0/features.root and plots/normalization.json. Existing394-event output/evidence remain at that campaign directory and feature_dev/output/larger-mc-20261119/.
+- Implemented: Production implementation remains cd13b6c; no runtime changes. Added feature_dev/DATA_FORMAT.md describing digi ROOT/geometry/selection inputs, MC tracks/points/links, retained truth labels, selected-hit dictionaries, cluster structure, event summaries, separate Hit3D arrays, units/missing values, identity and source metadata. Linked from coworker, production and plugin guides. Normalization docs and prior examples retained. Local changes not pushed.
+- Validation: Verified pwd/task branch and clean initial Git. Reviewed digi_2_features.py, digi_2_hits3D.py, feature_plugin.py, selected_hits.py and clustering/interface code. LCG107 Python3.11.9/uproot preflight on lxplus9102. Read-only inspected one raw MC file: cbmsim branch names/MCTrack leaves and corresponding larger-mc source0 feature file (70 entries,451 branches,13 Silvia). Five-entry documented scalar-read example, named feature branches and local documentation links pass; git diff --check passes. No conversions or full test suite rerun. Earlier394-event pipeline and31 tests remain historical evidence.
+- Remaining limitations: Raw MC/feature format verified on one source; real-data, testbeam and Hit3D descriptions are code/interface references, not new file validation. Optional collections and settings vary; branch count is not a frozen schema. Previous four-file394-event shape sample is not full/representative physics validation. Physical luminosity audits external; full batch/coworker qualification unperformed. No new scheduler claim.
+- Running jobs: No new processing or batch jobs; no job IDs. Read-only metadata inspections completed. Scheduler not queried; single Next action unchanged and unstarted.
+- Outputs: New feature_dev/DATA_FORMAT.md; links updated in README_SHOWER_FEATURES.md, feature_production/README.md and feature_plugins/README.md; this task record updated. No scientific products regenerated. Read-only raw input /eos/experiment/sndlhc/MonteCarlo/Neutrinos/Genie/2024/nu12/volume_volTarget/337/sndLHC.Genie-TGeant4_dig.root; feature output /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/sources/0/features.root. Existing pipeline evidence feature_dev/output/larger-mc-20261119/ retained.
 
 ## Goal
 
@@ -1394,3 +1394,20 @@ luminosities, new yield outputs or full coverage. No new jobs/IDs or products.
 Next action remains unchanged and unstarted.
 Main launcher --check-handoff shower-features and git diff --check: PASS.
 Task-only documentation commit; no push.
+
+### 2026-11-19T15:51:19+01:00 — Data format guide added
+
+Added feature_dev/DATA_FORMAT.md and linked coworker/production/plugin guides.
+Covers raw detector collections, MC truth and saved truth subset, feature/hit
+units, geometry coordinate meaning, clusters, separate Hit3D schema and event
+identity. Existing implementation cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa retained.
+
+Validation commands in activated LCG107: uproot.open on raw MC source and saved
+source0 feature ROOT (paths above); keys/typenames/MCTrack leaves inspected.
+Asserted70 entries,451 branches,13 plugin branches and documented feature names.
+Documented arrays(..., entry_stop=5, library=np) example passed. Local link
+checks and git diff --check passed. No new conversion, testsuite, products or
+jobs. Only documentation changed; other datasets and Hit3D are code-reviewed
+references, not newly file-validated. Single Next action remains unstarted.
+Main launcher --check-handoff shower-features: PASS (exit0).
+Task-only documentation commit; not pushed.

@@ -199,6 +199,9 @@ requirements. The small-sample file/event caps do not apply to `--sample full`.
 
 ## Further reference
 
+- [Data formats and structure](feature_dev/DATA_FORMAT.md): raw inputs, MC truth,
+  hit/cluster fields, event features, Hit3D and metadata.
+
 - [Production reference](feature_production/README.md): complete output layout,
   plot settings, source reuse, batch execution and luminosity metadata.
 - [Standalone development guide](feature_dev/README.md): the retained

@@ -6,6 +6,9 @@ Silvia's commit `d8cd5d08b4da94a0b453749573ba10150da68f72`.
 Use `--plugin silvia` or `--plugin /absolute/path/to/your_plugin` with
 [the production launcher](../feature_production/README.md).
 
+See [data formats and structure](../feature_dev/DATA_FORMAT.md) for raw inputs,
+MC truth and the distinction between hit and event features.
+
 ## Functions
 
 ```python
