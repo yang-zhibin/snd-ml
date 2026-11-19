@@ -5,10 +5,10 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T10:54:34+01:00
+- Last verified: 2026-11-19T11:00:12+01:00
 - Implementation checkpoint: 5ea499c9c5345467d33e94ba1c00220486704256
 - Implemented: Existing EOS-backed small-sample preparation, documented feature plugins and SciFi density report, and isolated SNDSW export runtime retained. Added auto/shape/yield normalization for bounded prepared samples; small/testbeam shapes, audited full MC target-data/parent-MC exposure scaling and data weight 1 at represented exposure. Parent sources are deduplicated, empty sources included, CC/NC can share a flavour parent, ve/vm remain separate. Audit validates sample SHA, source counts, group membership, shard coverage, sampling and nested caps. Histograms preserve raw counts/fractions, normalized bins, sumw2, flows and exposures; HTML labels yields and records exposures. Histogram-only normalization changes reuse calculated features. Shared positive finite exposure ratio is also used by the existing production histogram script. Guides and persistent integration harness added. Local implementation commit created; not pushed this turn.
-- Validation: On lxplus9120 with LCG107/Python3.11.9, 70 development unit tests and 11 production histogram tests passed; new four-event full shape/yield Snakemake DAG checks passed, including both algorithms, sumw2, exposure reporting, calculation-cache reuse, repeat reuse, missing-audit and small-yield rejection. All 10 existing launcher integration checks passed. ABCD numeric reference ratios tested for ve14640/vm13350 and data19.780680927948/1.960319252235 fb^-1. git diff --check passed. Earlier dataset/runtime validation remains documented in feature_dev/TEST_RESULTS.md and historical checkpoints.
+- Validation: Read-only luminosity-location follow-up verified current CSV headers/representative rows, metadata allocation code and new audit/run storage; no code changes or new tests. On lxplus9120 with LCG107/Python3.11.9, 70 development unit tests and 11 production histogram tests passed; new four-event full shape/yield Snakemake DAG checks passed, including both algorithms, sumw2, exposure reporting, calculation-cache reuse, repeat reuse, missing-audit and small-yield rejection. All 10 existing launcher integration checks passed. ABCD numeric reference ratios tested for ve14640/vm13350 and data19.780680927948/1.960319252235 fb^-1. git diff --check passed. Earlier dataset/runtime validation remains documented in feature_dev/TEST_RESULTS.md and historical checkpoints.
 - Remaining limitations: This is the exposure-validation/histogram phase, not full automatic plugin production. Full preparation remains blocked pending sharding; prepared inputs retain the 256 MiB guard. Audit parent completeness and external reference-data coverage are declarations supported by producer-supplied evidence, not independently revalidated against EOS. Existing real-data event_count_only/zero-exposure catalogues are insufficient for yields. Production distribution rules do not ingest these audits or run arbitrary plugins. No new EOS campaign, coworker-account, HTCondor or physics acceptance validation. Shape sumw2 fixes its denominator and excludes covariance; luminosity systematics are not included. Optional muon input availability remains unqualified. Prior SNDSW runtime fix remains committed at 11ce8a4; no runtime changes in this phase.
 - Running jobs: No batch jobs or EOS conversions launched. All bounded local test processes completed successfully; no task test process remains running.
 - Outputs: Ignored local evidence at feature_dev/output/normalization-20261119/: unit.log, production-tests.log, verified-integration.log, legacy-integration.log. Persistent artificial report: verified-integration/results/mc-neutrino/yield/plot/report.html; raw/normalized histogram JSON: yield/histogram/histograms.json; shape report under sibling shape/. Input fixture and exposure.json under verified-integration/. Earlier exploratory integration/ and final-integration/ fixtures also passed. Durable guide: feature_dev/NORMALIZATION.md; results: feature_dev/TEST_RESULTS.md. Existing EOS data/products unchanged.
@@ -816,3 +816,21 @@ Main-launcher handoff validation:
 `python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`
 returned `Handoff shower-features: PASS`; log:
 `feature_dev/output/normalization-20261119/handoff.log`. Final diff check passed.
+
+### 2026-11-19T11:00:12+01:00 — Luminosity storage clarification
+
+Verified pwd, task/shower-features branch and clean initial checkout. Implementation
+remains 5ea499c9c5345467d33e94ba1c00220486704256. Read-only `rg`, `sed`, and
+`head -2` inspections confirmed mc_neutrino.csv carries lumi_per_file=15.0 in its
+first row, plus source_metadata_file pointing to MC_neutrino_2024_ve_metadata.csv.
+The real-data no-veto catalogue preserves source_lumi_per_file (first row
+0.0016445188131982) while lumi_per_file=0 and exposure_kind=event_count_only.
+update_path_file.py allocates run lumi proportional to original n_event.
+Selected-hit writer has no per-event luminosity/weight field; new exposure audit
+has source luminosity_fb and run manifest plan.exposure_audit/plan.normalization;
+histograms.json stores per-curve scales/exposures. These are exposure and event
+weights, not a luminosity to sum once per selected event. No new output products
+or jobs; only this checkpoint changed. Existing logs/outputs and single Next
+action remain valid; that action was not started.
+
+Main launcher `--check-handoff shower-features`: PASS. `git diff --check`: PASS.
