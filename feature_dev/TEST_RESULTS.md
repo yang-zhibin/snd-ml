@@ -356,3 +356,65 @@ visually inspected: title, geometry, axes, legend and count/normalization footer
 readable without overlap. LCG107 Python3.11.9/matplotlib3.8.3 on lxplus9102.
 All 20 production plugin/campaign tests passed (`unit.log`); git diff --check
 passed. No new detector conversion, physics recalculation or batch submission.
+
+## 2026-11-19 — Existing ROOT backend and automatic ranges
+
+Replaced the standalone production Matplotlib renderer with shared EM-shower
+ROOT filling/drawing: make_group_hist.py, make_group_hist2d.py,
+plot_comparison.py and plot_group_hist2d.py. Added explicit plot config files,
+range resolution, selection/geometry strata, per-feature/pair PDFs and CSV,
+audited 2D yields, and compatible source/histogram reuse.
+
+Evidence: `feature_dev/output/root-backend-20261119/`. Environment lxplus9102,
+LCG107/Python3.11.9/ROOT6.34.02/NumPy1.26.4/uproot5.3.11. Detector conversions
+used the existing isolated SNDSW wrapper.
+
+- Production plugin/campaign/ROOT tests: `python3 -m unittest discover -s
+  feature_production/tests -p 'test_*.py'` (unit.log). Covers range extremes,
+  constants, empty samples, integer bounds, invalid/log bounds, missing and
+  nonfinite values, paired-axis validity, missing branch rejection, class cuts,
+  geometry/testbeam label preservation, parent coverage and yield scales,
+  direct calls into both existing plotters and two-page 2D PDFs. Legacy 1D/2D
+  histogram entry points match the new workflow's counts and variances exactly
+  on the same fixture. Final test count/result recorded in the task checkpoint.
+- `python3 -m unittest discover -s evaluation_region_partitions -p
+  'test_em_shower*workflow.py'`: 14 passed (legacy.log).
+- Existing MC ROOT reuse: `./run_shower_features.sh --dataset mc-neutrino
+  --plugin silvia --sample small --files-per-group 1 --events-per-file 2
+  --run root-backend-reuse-20261119 --reuse-sources
+  /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325`:
+  four stages passed (reuse.log), no source conversions.
+- Fresh actual EOS command: same dataset/plugin/caps, `--run
+  root-backend-small-20261119`, without --reuse-sources. Six tasks completed;
+  two ROOT files/two entries each, 13 plugin branches, source validators and
+  baseline parity passed (small.log). The controller tool reported exit143
+  after its final success/path messages; identical rerun returned exit0,
+  nothing to do, with all receipts validated (repeat.log).
+- Colour-only override (`style.yaml`, CC_numu orange), new run
+  root-backend-style-20261119 with --reuse-sources pointing to the fresh run:
+  only plots/all scheduled; sources and histogram products reused (style.log).
+- Final-code reuse run root-backend-final-20261119 completed four stages
+  (final.log); subsequent small fix to paired-cut missing accounting is covered
+  by its dedicated unit test, without changing default MC pair selections.
+- `--sample full --normalization shape --run root-backend-full-preview
+  --dry-run`: 1866 source tasks plus ranges/histograms/plots/all planned;
+  no submitted jobs or campaign output directory (full-dry-run.log).
+- Independent verifier (`verify_outputs.py`, verification.json) validated all
+  receipts, four source events and identities, 192 ROOT histograms, raw sumw2,
+  valid-entry conservation, 48 PDFs (46 one-page 1D, two two-page 2D), CSV scales
+  and unit integrals, immutable source reuse and histogram reuse. All passed.
+- Rasterized 1D and 2D density pages inspected: ROOT colours/markers/legends,
+  selection labels and empty-class annotations readable. Preview images one-d.png
+  and two-d.png. AFS home/work alias is not used for new output routing.
+
+Default output root:
+`/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/`.
+Fresh run outputs under `root-backend-small-20261119/`; reused-source runs keep
+ROOT files in their source run and record that location in plan.json. Example
+PDF paths: `plots/1d/count_scifi/selected/geo_c4519b199b177c78/plot.pdf` and
+`plots/2d/total_qdc_vs_hits/selected/geo_c4519b199b177c78/plot.pdf`.
+
+Limits: four events validate software behavior, not physics distributions.
+Actual testbeam/data account access, full processing resources/HTCondor, and
+physical luminosity audits remain unqualified. Testbeam grouping and yields
+are tested with fixtures. No EOS inputs or previous published runs modified.

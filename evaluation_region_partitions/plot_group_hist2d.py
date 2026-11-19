@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
+import json
 from pathlib import Path
 
 import ROOT
@@ -29,13 +31,21 @@ def parse_hist(value: str) -> tuple[str, str]:
 
 
 def plot(args: argparse.Namespace) -> None:
-    with open(args.hist_config, "r", encoding="utf-8") as handle:
-        pair_cfg = yaml.safe_load(handle)["features2d"][args.pair]
+    pair_cfg = getattr(args, 'pair_config', None)
+    if pair_cfg is None:
+        with open(args.hist_config, "r", encoding="utf-8") as handle:
+            pair_cfg = yaml.safe_load(handle)["features2d"][args.pair]
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     opened = []
     items = []
     rows = []
+    mode = getattr(args, "normalization", "shape")
+    if mode not in ("shape", "yield"):
+        raise ValueError("Unknown 2D normalization")
+    scales = getattr(args, "scales", {})
+    styles = getattr(args, "styles", {})
+    labels = getattr(args, "labels", {})
     for particle_group, path in args.hist:
         root_file = ROOT.TFile.Open(path)
         if not root_file or root_file.IsZombie():
@@ -50,8 +60,10 @@ def plot(args: argparse.Namespace) -> None:
         hist.SetDirectory(0)
         profile.SetDirectory(0)
         integral = float(hist.Integral())
-        if integral > 0:
-            hist.Scale(1.0 / integral)
+        scale = (1.0 / integral if integral > 0 else 0.0) if mode == "shape" else float(scales[particle_group])
+        if not math.isfinite(scale) or scale < 0:
+            raise ValueError("Invalid audited 2D scale")
+        hist.Scale(scale)
         items.append((particle_group, hist, profile))
         rows.append(
             {
@@ -59,6 +71,9 @@ def plot(args: argparse.Namespace) -> None:
                 "pair": args.pair,
                 "particle_group": particle_group,
                 "entries": int(hist.GetEntries()),
+                "normalization": mode, "raw_integral": integral,
+                "scale_factor": scale, "scaled_integral": float(hist.Integral()),
+                "exposure": json.dumps(getattr(args, "exposures", {}).get(particle_group, {}), sort_keys=True),
                 "mean_x": hist.GetMean(1),
                 "mean_y": hist.GetMean(2),
                 "correlation": hist.GetCorrelationFactor(),
@@ -66,33 +81,42 @@ def plot(args: argparse.Namespace) -> None:
         )
 
     canvas = ROOT.TCanvas("density", "density", 1400, 1000)
-    canvas.Divide(2, 2)
+    if not items:
+        raise ValueError("No groups supplied for 2D plot")
+    canvas.Divide(2, max(2, math.ceil(len(items) / 2)))
     for index, (particle_group, hist, _) in enumerate(items, start=1):
         canvas.cd(index)
         ROOT.gPad.SetRightMargin(0.15)
-        ROOT.gPad.SetLogz(True)
-        hist.SetTitle(f"{particle_group}: {args.region}")
+        ROOT.gPad.SetLogz(bool(pair_cfg.get("logz", True)) and hist.Integral() > 0)
+        ROOT.gPad.SetLogx(bool(pair_cfg.get("logx", False)))
+        ROOT.gPad.SetLogy(bool(pair_cfg.get("logy", False)))
+        hist.SetTitle(f"{labels.get(particle_group, particle_group)}: {args.region}")
         hist.GetXaxis().SetTitle(str(pair_cfg["x_title"]))
         hist.GetYaxis().SetTitle(str(pair_cfg["y_title"]))
-        hist.GetZaxis().SetTitle("Fraction of events")
+        hist.GetZaxis().SetTitle("Fraction of events" if mode == "shape" else "Events per bin")
         hist.Draw("COLZ")
+        if hist.Integral() == 0:
+            annotation = ROOT.TLatex()
+            annotation.DrawLatexNDC(.2, .5, "No in-range events")
     canvas.Print(f"{output}(")
 
     profile_canvas = ROOT.TCanvas("profiles", "profiles", 1000, 800)
     legend = ROOT.TLegend(0.62, 0.68, 0.89, 0.89)
     maximum = max((profile.GetMaximum() for _, _, profile in items), default=1.0)
     for index, (particle_group, _, profile) in enumerate(items):
-        color = COLORS.get(particle_group, ROOT.kBlack)
+        from plot_comparison import color_from_config
+        style = styles.get(particle_group, {})
+        color = color_from_config(style['color'], index) if 'color' in style else COLORS.get(particle_group, ROOT.kBlack)
         profile.SetLineColor(color)
         profile.SetMarkerColor(color)
         profile.SetLineWidth(2)
-        profile.SetMarkerStyle(20 + index)
+        profile.SetMarkerStyle(int(style.get("marker", 20 + index)))
         profile.SetTitle(f"{args.pair}: {args.region}")
         profile.GetXaxis().SetTitle(str(pair_cfg["x_title"]))
         profile.GetYaxis().SetTitle(f"Mean {pair_cfg['y_title']}")
         profile.SetMaximum(maximum * 1.2 if maximum > 0 else 1.0)
         profile.Draw("E1" if index == 0 else "E1 SAME")
-        legend.AddEntry(profile, particle_group, "lp")
+        legend.AddEntry(profile, labels.get(particle_group, particle_group), "lp")
     legend.Draw()
     profile_canvas.Print(f"{output})")
 

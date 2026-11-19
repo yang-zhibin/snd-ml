@@ -135,6 +135,25 @@ def histogram_model(feature: str, feature_cfg: dict):
     return ROOT.RDF.TH1DModel(f"h_{safe_name(feature)}", "", n_bins, x_min, x_max)
 
 
+def book_histogram(dataframe, feature: str, feature_cfg: dict, column: str):
+    """Shared lazy ROOT filling entry point for legacy and plugin campaigns."""
+    return dataframe.Histo1D(histogram_model(feature, feature_cfg), column)
+
+
+def finalize_histogram(result, feature: str, feature_cfg: dict):
+    hist = result.GetValue().Clone("hist")
+    hist.SetDirectory(0)
+    hist.SetTitle(str(feature_cfg.get("axis_title", feature)))
+    hist.GetXaxis().SetTitle(str(feature_cfg.get("axis_title", feature)))
+    hist.GetYaxis().SetTitle(f"Events / {float(feature_cfg['bin_width']):.6g}")
+    if bool(feature_cfg.get("fold_underflow", False)):
+        fold_underflow(hist)
+    if bool(feature_cfg.get("fold_overflow", False)):
+        fold_overflow(hist)
+    sanitize_hist_bins(hist)
+    return hist
+
+
 def fold_underflow(hist: ROOT.TH1) -> None:
     hist.SetBinContent(1, hist.GetBinContent(1) + hist.GetBinContent(0))
     hist.SetBinError(1, math.sqrt(hist.GetBinError(1) ** 2 + hist.GetBinError(0) ** 2))
@@ -312,22 +331,10 @@ def make_group_histogram(args: argparse.Namespace) -> None:
     expression = get_feature_expression(feature_cfg, args.feature, representative_row)
     df, hist_column = define_eval_feature(df, expression)
 
-    model = histogram_model(args.feature, feature_cfg)
     selected_count = df.Count()
-    hist_result = df.Histo1D(model, hist_column)
-
+    hist_result = book_histogram(df, args.feature, feature_cfg, hist_column)
     selected_entries = int(selected_count.GetValue())
-    hist = hist_result.GetValue().Clone("hist")
-    hist.SetDirectory(0)
-    hist.SetTitle(str(feature_cfg.get("axis_title", args.feature)))
-    hist.GetXaxis().SetTitle(str(feature_cfg.get("axis_title", args.feature)))
-    hist.GetYaxis().SetTitle(f"Events / {float(feature_cfg['bin_width']):.6g}")
-
-    if bool(feature_cfg.get("fold_underflow", False)):
-        fold_underflow(hist)
-    if bool(feature_cfg.get("fold_overflow", False)):
-        fold_overflow(hist)
-    sanitize_hist_bins(hist)
+    hist = finalize_histogram(hist_result, args.feature, feature_cfg)
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

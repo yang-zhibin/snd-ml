@@ -93,6 +93,8 @@ def source(plan,index):
         verify_receipt(destination)
         verify_inputs({'inputs':read_json(destination/'inputs.json')})
         return
+    if plan.get('reuse_sources'):
+        raise ValueError('Missing immutable reused source product')
     inputs=source_inputs(job)
     if job.get('inputs') and inputs!=job['inputs']:raise ValueError('Input changed since planning')
     destination.parent.mkdir(parents=True,exist_ok=True)
@@ -124,15 +126,15 @@ def source(plan,index):
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('plan',type=Path);parser.add_argument('stage',choices=['source','distributions'])
+    parser.add_argument('plan',type=Path);parser.add_argument('stage',choices=['source','ranges','histograms','plots','distributions'])
     parser.add_argument('index',nargs='?',type=int)
     args=parser.parse_args();plan=read_json(args.plan);check_code(plan)
     if args.stage=='source':
         if args.index is None or not 0<=args.index<len(plan['jobs']):raise ValueError('Invalid source index')
         source(plan,args.index)
     else:
-        from distributions import distributions
-        distributions(plan)
+        from distributions import distributions, resolve, fill, render
+        {'ranges':resolve,'histograms':fill,'plots':render,'distributions':distributions}[args.stage](plan)
 
 if __name__=='__main__':
     try:main()

@@ -1,0 +1,14 @@
+version: 1
+plot:
+  draw_ratio_panel: false
+  particle_labels:
+    CC_nue: MC CC nue
+    CC_numu: MC CC numu
+    NC_nue: MC NC nue
+    NC_numu: MC NC numu
+  particle_styles:
+    CC_nue: {color: blue, marker: 21}
+    CC_numu: {color: red, marker: 22}
+    NC_nue: {color: green, marker: 23}
+    NC_numu: {color: magenta, marker: 33}
+  fiducial_overlays: {enabled: false}

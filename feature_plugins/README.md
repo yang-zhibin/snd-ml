@@ -84,3 +84,14 @@ density counts ordered pairs within 1 cm (each distinct pair twice). Missing
 coordinates yield the sentinel, not a false zero; an unknown event density also
 makes its density fractions unknown. See the
 [SciFi density report](../feature_dev/SCIFI_DENSITY.md) for the underlying logic.
+
+## Production plotting settings
+
+The production launcher uses the existing ROOT EM-shower plotting backend.
+Edit `feature_production/config/histograms.yaml` for ranges, bins and 2D pairs,
+and `feature_production/config/plotting.yaml` for colours, markers and labels.
+Plugin schema histogram ranges remain useful for the standalone development
+launcher; production plots use automatic ranges unless the production histogram
+configuration explicitly supplies them. Missing sentinels and units still come
+from the plugin schema. See the production guide for custom config files and
+reusing validated ROOT sources without reconversion.

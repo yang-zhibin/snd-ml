@@ -12,6 +12,7 @@ from collections import defaultdict
 from common import ROOT, digest, fingerprint, plugin_spec, source_key, stratum, read_json, write_json, sha
 from cli import find_snakemake
 from sources import build_plan
+from plot_settings import load_settings
 
 
 def catalogue_rows(dataset, config_path):
@@ -61,18 +62,37 @@ def make_plan(args):
     if mode=='yield':
         if not audit or audit.get('campaign_sha256')!=campaign_sha:
             raise ValueError('Yield requires --exposure-manifest with matching campaign_sha256='+campaign_sha+'; first run --normalization shape to create coverage.json')
+    settings=load_settings(getattr(args,"hist_config",None),getattr(args,"plot_config",None))
     code_paths=[*sorted((ROOT/'convertData').glob('*.py')), *sorted((ROOT/'feature_production').glob('*.py')),
                 ROOT/'feature_production/Snakefile',ROOT/'feature_dev/run_export.sh',ROOT/'run_shower_features.sh',
                 ROOT/'snakemake/envs/env_sndsw_nue.sh',ROOT/'snakemake/envs/env_lcg.sh',
+                *[ROOT/'evaluation_region_partitions'/name for name in ('make_group_hist.py','make_group_hist2d.py','plot_comparison.py','plot_group_hist2d.py')],
                 ROOT/'feature_dev/exposure.py',ROOT/'feature_dev/sources.py',ROOT/'feature_dev/datasets.py',
                 ROOT/'feature_dev/engine.py',ROOT/'feature_dev/selected_hits.py',ROOT/'feature_dev/prepare.py',ROOT/'feature_dev/schemas/baseline.yaml',ROOT/'evaluation_region_partitions/normalization.py',
                 *map(Path,spec['source_hashes'])]
     plan=dict(version=1,implementation_commit=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip(),**{k:v for k,v in selection.items() if k!='jobs'},campaign_sha256=campaign_sha,plugin=spec,jobs=jobs,
-              normalization=mode,exposure_audit=audit,code={str(p):sha(p) for p in sorted(set(code_paths))})
+              normalization=mode,exposure_audit=audit,plot_settings=settings,code={str(p):sha(p) for p in sorted(set(code_paths))})
+    conversion_code={p:h for p,h in plan['code'].items() if '/convertData/' in p or p in spec['source_hashes'] or
+                     p.endswith(('run_export.sh','env_sndsw_nue.sh','sources.py','selected_hits.py'))}
+    plan['conversion_signature']=digest(dict(selection=selection,plugin=spec,code=conversion_code,
+                                              normalization=mode,audit=audit))
+    histogram_code={p:h for p,h in plan['code'].items() if not p.endswith(('plot_comparison.py','plot_group_hist2d.py'))}
+    plan['histogram_signature']=digest(dict(conversion=plan['conversion_signature'],settings=settings['histograms'],code=histogram_code))
+    plan['plot_signature']=digest(dict(histograms=plan['histogram_signature'],settings=settings['plotting'],code=plan['code']))
     # Execution profile/output directories are not physics settings.
     plan['signature']=digest(plan)
     plan['directory']=str(args.output_root.resolve()/args.dataset/args.run)
     plan['source_directory']=str((args.feature_root.resolve()/args.dataset/args.run/'sources') if args.feature_root else Path(plan['directory'])/'sources')
+    if getattr(args,'reuse_sources',None):
+        previous=read_json(args.reuse_sources/'plan.json')
+        for key in ('campaign_sha256','plugin','normalization','exposure_audit'):
+            if previous.get(key)!=plan.get(key):raise ValueError('Incompatible reusable sources: '+key)
+        if any(previous['code'].get(p)!=h for p,h in conversion_code.items()):
+            raise ValueError('Converter code changed since reusable source run')
+        plan['source_directory']=previous['source_directory']
+        plan['reuse_sources']=str(args.reuse_sources.resolve())
+        if previous.get('histogram_signature')==plan['histogram_signature']:
+            plan['reuse_histograms']=str(args.reuse_sources.resolve())
     return plan
 
 
@@ -87,6 +107,9 @@ def main():
     parser.add_argument('--output-root',type=Path,default=work/'snd-ml-outputs/shower-features')
     parser.add_argument('--feature-root',type=Path,help='Optional writable EOS root for source ROOT products; logs/plans remain under output-root')
     parser.add_argument('--dataset-config',type=Path,default=ROOT/'feature_dev/datasets.yaml')
+    parser.add_argument('--hist-config',type=Path)
+    parser.add_argument('--plot-config',type=Path)
+    parser.add_argument('--reuse-sources',type=Path,help='Reuse validated source ROOTs from an existing compatible run directory')
     parser.add_argument('--files-per-group',type=int,default=1)
     parser.add_argument('--events-per-file',type=int,default=20)
     parser.add_argument('--normalization',choices=['auto','shape','yield'],default='auto')
@@ -133,6 +156,10 @@ def main():
             if old!=plan:raise ValueError('Run already exists with different inputs; choose a new --run')
         elif run.exists():
             raise ValueError('Unrecognized existing run directory: '+str(run))
+        from common import verify_receipt
+        if plan.get('reuse_sources'):
+            for index in range(len(plan['jobs'])):
+                verify_receipt(Path(plan['source_directory'])/str(index))
         # Verify reusable products before scheduling.
         from common import verify_receipt
         for receipt in Path(plan['source_directory']).glob('*/complete.json'):
@@ -143,8 +170,22 @@ def main():
         run.mkdir(parents=True,exist_ok=True)
         write_json(run/'plan.json',plan);write_json(run/'plugin.json',plan['plugin'])
         (run/'logs').mkdir(exist_ok=True)
+        if plan.get('reuse_histograms'):
+            previous=Path(plan['reuse_histograms'])
+            import shutil, yaml
+            for stage in ('config','histograms'): verify_receipt(previous/stage)
+            if not (run/'config').exists():
+                shutil.copytree(previous/'config',run/'config')
+                (run/'config/plotting.yaml').write_text(yaml.safe_dump(plan['plot_settings']['plotting']))
+                write_json(run/'config/complete.json',{str(p.relative_to(run/'config')):sha(p)
+                    for p in (run/'config').rglob('*') if p.is_file() and p.name!='complete.json'})
+            if not (run/'histograms').exists():
+                (run/'histograms').mkdir()
+                for p in (previous/'histograms').iterdir():
+                    if p.name!='complete.json': (run/'histograms'/p.name).symlink_to(p,target_is_directory=p.is_dir())
+                write_json(run/'histograms/complete.json',read_json(previous/'histograms/complete.json'))
         execute(run/'plan.json')
-        print('Report:',run/'plots/report.pdf')
+        print('ROOT-backend PDFs and CSV summaries:',run/'plots')
         print('Production ROOT files:',plan['source_directory'])
 
 if __name__=='__main__':

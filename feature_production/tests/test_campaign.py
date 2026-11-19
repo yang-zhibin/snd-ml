@@ -57,6 +57,9 @@ class CampaignTests(unittest.TestCase):
         plan=dict(directory=str(self.root/'run'),source_directory=str(self.root/'sources'),dataset='mc-neutrino',
                   sample='full',campaign_sha256='fixture-campaign',normalization=mode,
                   plugin=dict(name='silvia',features={'density':dict(dtype='float64',description='density',missing_value=-999,histogram=dict(bins=2,range=[0,4]))}),jobs=[])
+        plan['plot_settings']=dict(histograms=dict(version=1,include_baseline=False,include_plugin=True,
+            selections={'selected':'true'},features={'silvia__density':dict(bins=2,range=[0,4])},features2d={}),
+            plotting=dict(version=1,plot=dict(draw_ratio_panel=False)))
         Path(plan['directory']).mkdir()
         for index,(uid,count,lumi) in enumerate([('nonempty',2,10),('empty',0,5)]):
             row=dict(source_uid=uid,family='mc_neutrino',source_geometry_id='geo')
@@ -81,11 +84,15 @@ class CampaignTests(unittest.TestCase):
     def test_streaming_yield_includes_empty_source(self):
         plan=self.fixture('yield')
         with patch('distributions.render'):distributions(plan)
-        out=Path(plan['directory'])/'plots'
-        hist=read_json(out/'histograms.json')['density']['curves'][0]
-        self.assertEqual(hist['counts'],[1,1]);self.assertAlmostEqual(hist['normalization']['scale'],2/15)
-        np.testing.assert_allclose(hist['sumw2'],[(2/15)**2]*2)
-        self.assertEqual(len(read_json(out/'coverage.json')['sources']),2)
+        from plot_settings import geometry_key
+        import ROOT
+        path=Path(plan['directory'])/'histograms/1d/silvia__density/selected'/geometry_key('geo')/'CC_nue.root'
+        with uproot.open(path) as f:
+            np.testing.assert_allclose(f['hist'].values(),[1,1])
+        records=read_json(Path(plan['directory'])/'config/coverage.json')
+        record=next(r for r in records['normalizations'] if r['group']=='CC_nue')
+        self.assertAlmostEqual(record['scale'],2/15)
+        self.assertEqual(len(records['sources']),2)
     def test_missing_source_receipt_fails(self):
         plan=self.fixture()
         (Path(plan['source_directory'])/'1/complete.json').unlink()
@@ -97,7 +104,7 @@ class CampaignTests(unittest.TestCase):
     def test_shape_fractions(self):
         plan=self.fixture()
         with patch('distributions.render'):distributions(plan)
-        hist=read_json(Path(plan['directory'])/'plots/histograms.json')['density']['curves'][0]
-        self.assertEqual(hist['normalized'],[.5,.5])
+        record=read_json(Path(plan['directory'])/'config/coverage.json')['normalizations'][0]
+        self.assertEqual(record['mode'],'shape')
 
 if __name__=='__main__':unittest.main()

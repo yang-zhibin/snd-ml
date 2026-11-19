@@ -5,8 +5,14 @@ WRAPPER = config['wrapper']
 p = json.loads(Path(PLAN).read_text())
 BASE = p['directory']
 SOURCES = p['source_directory']
-localrules: all
+localrules: all, production_sources, production_histograms, production_plots
 rule all:
+    input: BASE + '/plots/complete.json'
+rule production_sources:
+    input: expand(SOURCES + '/{index}/complete.json', index=range(len(p['jobs'])))
+rule production_histograms:
+    input: BASE + '/histograms/complete.json'
+rule production_plots:
     input: BASE + '/plots/complete.json'
 rule source:
     output: SOURCES + '/{index}/complete.json'
@@ -14,9 +20,21 @@ rule source:
     threads: 1
     resources: mem_mb=2500, disk_mb=5000, runtime=3600
     shell: '{WRAPPER:q} _worker {PLAN:q} source {wildcards.index:q}'
-rule distributions:
+rule ranges:
     input: expand(SOURCES + '/{index}/complete.json', index=range(len(p['jobs'])))
+    output: BASE + '/config/complete.json'
+    threads: 1
+    resources: mem_mb=2500, runtime=3600
+    shell: '{WRAPPER:q} _worker {PLAN:q} ranges'
+rule histograms:
+    input: BASE + '/config/complete.json'
+    output: BASE + '/histograms/complete.json'
+    threads: 1
+    resources: mem_mb=2500, runtime=3600
+    shell: '{WRAPPER:q} _worker {PLAN:q} histograms'
+rule plots:
+    input: BASE + '/histograms/complete.json'
     output: BASE + '/plots/complete.json'
     threads: 1
     resources: mem_mb=2500, runtime=3600
-    shell: '{WRAPPER:q} _worker {PLAN:q} distributions'
+    shell: '{WRAPPER:q} _worker {PLAN:q} plots'
