@@ -5,11 +5,11 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T12:35:15+01:00
+- Last verified: 2026-11-19T13:26:43+01:00
 - Implementation checkpoint: d9b330d81a04ca74eb9d359578b4eeb013bdf455
 - Implemented: Existing EOS small-sample preparation, feature plugin examples, SciFi density guide and isolated SNDSW runtime retained. Audited prepared-full-sample normalization remains available (MC target-data/parent exposure, data weight1 at effective exposure, small/testbeam shapes). New Snakemake export stage publishes <run>/features.root with unchanged baseline/candidate trees plus source_exposure and normalization TTrees, complete canonical audit JSON/checksum and metadata version/units/sample/calculation hashes. Empty sources and external reference sources are retained and labelled. Unknown shape exposure/weight uses NaN and false validity flags. Export revalidates audited accounting and compares every metadata field and every copied feature branch/identity. Exposure changes regenerate an immutable published copy while reusing calculated features. Updated both guides, normalization reference, tests and results. Local implementation commit created; not pushed.
 - Validation: Remote source review found Silvia branch origin/task/silvia-shower-algorithm at d8cd5d08b4da94a0b453749573ba10150da68f72; no coworker code executed or merged. Verified pwd/task branch and clean starting checkout. On lxplus9120, LCG107/Python3.11.9, uproot5.3.11 and NumPy1.26.4: 75 development unit tests passed. Extended four-event normalization integration passed: complete shape/yield DAGs, ROOT metadata round trips, checksum, explicit unknown shape values, empty/reference sources, data effective exposure, same MC weights for both algorithms, changed-exposure refresh with unchanged calculation timestamp, previous export preserved, and deliberately corrupted exported ROOT rejected by cache checks. All 10 existing launcher integration checks passed. git diff --check passed. Prior 11 production histogram tests and earlier EOS/runtime checks remain recorded in feature_dev/TEST_RESULTS.md; production histogram code unchanged this turn.
-- Remaining limitations: Coworker integration is pending review: energy joins omit source_uid/eventId, plots combine geometries and show candidate-only shapes, and missing coordinates yield zero density. Her engine changes overlap local exposure implementation; remote task/shower-features remains at 4f37831 and lacks local normalization/ROOT metadata commits. Full automatic plugin campaigns and automatic exposure-audit generation remain unimplemented; prepared inputs retain 256 MiB guard. Audit producer must establish complete parent and external reference coverage; embedding the audit does not independently verify EOS coverage. Current real-data zero-active-exposure catalogues are insufficient for yields. Internal calculate/features.root intentionally has no exposure objects; consumers must use published <run>/features.root (copy with links dereferenced). Old outputs are not patched. Shape weights/exposures are unknown rather than fabricated; shape sumw2 omits covariance and yield errors omit luminosity systematics. No new EOS, coworker-account, HTCondor or physical exposure qualification; optional muon availability remains unqualified.
+- Remaining limitations: User prefers production-converter plugins in a separate coworker folder; this replacement design is not implemented. Current production paths are hard-coded to Zhibin and production runtime isolation still needs alignment. Silvia has catalogue read ACLs, but EOS membership/account execution and private testbeam cutflow access remain unverified.  Coworker integration is pending review: energy joins omit source_uid/eventId, plots combine geometries and show candidate-only shapes, and missing coordinates yield zero density. Her engine changes overlap local exposure implementation; remote task/shower-features remains at 4f37831 and lacks local normalization/ROOT metadata commits. Full automatic plugin campaigns and automatic exposure-audit generation remain unimplemented; prepared inputs retain 256 MiB guard. Audit producer must establish complete parent and external reference coverage; embedding the audit does not independently verify EOS coverage. Current real-data zero-active-exposure catalogues are insufficient for yields. Internal calculate/features.root intentionally has no exposure objects; consumers must use published <run>/features.root (copy with links dereferenced). Old outputs are not patched. Shape weights/exposures are unknown rather than fabricated; shape sumw2 omits covariance and yield errors omit luminosity systematics. No new EOS, coworker-account, HTCondor or physical exposure qualification; optional muon availability remains unqualified.
 - Running jobs: No batch jobs or EOS conversions launched. All bounded local unit/integration test processes completed; no task test process remains running.
 - Outputs: Ignored local evidence: feature_dev/output/root-exposure-20261119/{unit,integration,legacy-integration}.log. Valid four-event ROOT example: feature_dev/output/root-exposure-20261119/integration/results/mc-neutrino/yield/features.root; export/validation.json contains copied-feature and metadata checks, plot/report.html is the report. Sibling shape/ has invalid/unknown exposure metadata. Sibling changed-exposure/ was deliberately corrupted after successful refresh to test tamper detection; do not use it as a valid product. Earlier normalization evidence remains under feature_dev/output/normalization-20261119/. Durable reference: feature_dev/NORMALIZATION.md; results: feature_dev/TEST_RESULTS.md. No EOS inputs/products modified.
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Design the per-source full-campaign plugin workflow and automatic exposure-audit production from complete parent catalogues and validation receipts, then connect audited results to the existing production distribution rules. Keep capped small samples shape-only and publish the ROOT exposure metadata with campaign features. This follow-up has not been started.
+Finalize the production-plugin implementation plan: load coworker algorithms from a separate folder in digi_2_features.py, preserve existing features, validate additional schema/branches, parameterize user-owned output/metadata paths, reuse the isolated runtime wrapper and add account-level input checks before full Snakemake/HTCondor production. The new production-plugin implementation has not been started.
 
 ## Checkpoint history
 
@@ -978,5 +978,34 @@ core; arbitrary coworker plugins are not invoked by the production converter.
 No source edits, tests, processing jobs or new artifacts; implementation SHA,
 validation limits, outputs and single Next action unchanged/unstarted. Only
 this continuity record was updated.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T13:26:43+01:00 — Coworker production execution/access/output assessment
+
+Verified pwd/task branch and clean initial status. Read unified_shower_features.smk
+and unified_shower_features_v1.yaml: production feature root is hard-coded under
+/eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features;
+config consistency checks enforce it. Metadata/local-smoke/shard paths are also
+Zhibin-owned. Rules rebuild manifests from original metadata and use an older
+SNDSW shell setup, not the validated clean development export wrapper. Thus a
+new plugin CLI is only proposed, not usable by Silvia yet.
+
+Live permission checks: getent confirms svicenti UID182858; fs listacl confirms
+svicenti rl on all three shared catalogue directories; public/SndBuild grants
+anyuser rl; /afs/cern.ch/work/s/svicenti exists and grants owner rlidwka.
+`eos root://eosuser.cern.ch attr ls /eos/user/z/zhibin/TestBeam/binary_full_v1/cutflows`
+still shows sys.acl u:187895:rx,u:1066349:rx, user.acl empty, mask700; no explicit
+svicenti grant. This is not an effective-account access test. Experiment EOS
+reader membership and all input dependencies must be checked from her account.
+Proposed outputs: per-user campaign directory, small outputs/logs/reports in her
+AFS work; full ROOT products in an explicitly selected writable EOS directory.
+No write access to Zhibin's outputs should be required by the new design.
+
+No files outside this checkout edited, ACL changes, source edits, setup, tests,
+conversion or batch submission. No output products generated; implementation
+remains d9b330d81a04ca74eb9d359578b4eeb013bdf455. Existing validation and output
+paths retained. Next action updated to user's production-plugin direction and
+not started. Only this task record changed.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
