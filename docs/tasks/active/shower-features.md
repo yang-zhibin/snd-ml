@@ -5,18 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T14:49:38+01:00
-- Implementation checkpoint: 864b937251f30a86645173b1285f7cc287f76ee8
-- Implemented: Production converter optionally loads a schema-checked plugin from feature_plugins/, calculates it on isolated final SciFi hits, and writes namespaced scalar branches in the same sndData entries. Silvia's 13 features migrated from d8cd5d0; valid-coordinate formulas preserved, missing coordinates explicitly unknown. Original branches retained. Plugin provenance and catalogue source exposure embedded in ROOT; validation and shard metadata checks extended. New run_shower_features.sh and per-user Snakemake campaign read existing EOS catalogues for selectable datasets, run bounded small samples or full per-source jobs, validate/publish atomically and stream distributions with audited yield support. Shared exposure validation reused. Guides and tests updated. Implementation committed locally; not pushed. Production reports now use multipage vector PDF (report.pdf), with summary and per-feature/group/geometry pages; launcher and guide updated. Correction: only conversion and shared exposure helpers are reused; distribution rendering is a separate Matplotlib implementation, not the existing production ROOT plotting backend.
-- Validation: Planning inspection verified existing ROOT backend contracts: make_group_hist requires region/particle_group/feature_partition_path metadata; plot_comparison consumes hist plus lumi/integral/selection metadata and constructs legacy paths; 2D consumes hist2d/profile_x. Current production source files can contain mixed truth classes and cannot simply be relabelled partition metadata without group filtering. Existing range requirements and shape-only 2D scaling need explicit compatible extensions. No implementation/testing/conversion this turn; prior smoke results retained.
-- Remaining limitations: No full batch execution or coworker-account qualification; one job per source, not intra-file sharding. Full resource/profile and credential lifetime require qualification. Private testbeam cutflow access and optional muon inputs remain unqualified; no new actual testbeam/data/muon conversion. Automatic authoritative luminosity audit generation is not implemented; real-data event_count_only catalogue values do not establish yields. Source ROOT metadata retains catalogue values and embeds supplied audit; final audited group weights/coverage live in plots/normalization.json. Small samples are debugging selections, not valid yield populations. Statistical errors omit luminosity systematics. Legacy prepared-JSONL workflow remains available. Immutable run identity includes Git HEAD; use a new run name after commits/code/settings changes. Priority gap: new production launcher bypasses existing ROOT plotting/backend style; requested reuse is incomplete.
-- Running jobs: None launched; implementation planning only. Next action not started; global scheduler unqueried.
-- Outputs: Default root actual run /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325/: plots/report.pdf (61 pages), sources/{0,1}/features.root and validation/parity/input/checksum receipts, plan.json/plugin.json, logs/source-{0,1}.log, plots histogram/coverage/normalization JSON. Controller/verification evidence feature_dev/output/production-small-20261119/{run.log,verification.json,pdfinfo.txt}. Previous smoke and PDF examples retained untouched. No EOS inputs modified.
-
-
-
-
-
+- Last verified: 2026-11-19T15:08:45+01:00
+- Implementation checkpoint: 5f2c0a453898b925b8e0129dbf3635e835485983
+- Implemented: Existing production converter and Silvia plugin retained. Production plotting now actually calls the shared EM shower ROOT histogram helpers and plot_comparison.py/plot_group_hist2d.py; standalone Matplotlib renderer removed. Editable histograms.yaml/plotting.yaml, CLI overrides, requested/resolved snapshots, deterministic automatic ranges excluding nonfinite/sentinels, common class bounds within selection/geometry, mixed-source truth filtering, explicit selection cuts, empty-class annotations, per-feature/pair PDF and CSV, ROOT histogram metadata/variances, audited 1D/2D yields and unchanged binned ProfileX means. Named Snakemake source/range/histogram/plot stages with recursive receipts. Explicit --reuse-sources verifies compatible immutable inputs/code and reuses histograms for style-only settings. Testbeam labels safely encoded in filenames with original labels preserved. Instructions/tests updated; implementation committed locally, not pushed.
+- Validation: Verified pwd/task branch and clean initial Git. On lxplus9102 LCG107 Python3.11.9/ROOT6.34.02/NumPy1.26.4/uproot5.3.11: 30 production/plugin/campaign/ROOT tests passed, including direct backend calls, legacy 1D/2D count/variance parity, ranges, selections, pair masks, missing branches, geometry/testbeam labels and shape/yield fixtures. 14 EM shower workflow regressions passed. Actual EOS small run completed six stages/two sources/four events with converter validation and 182-scalar baseline parity per source; independent verification passed all receipts, 192 histograms, raw sumw2/count conservation, 48 PDFs and CSV scales. Repeated run exit0/nothing to do. Style-only new run scheduled only plots/all using the same source ROOTs and histograms. ROOT 1D/2D pages visually inspected. Full dry-run planned 1866 source jobs plus four aggregate/stage tasks, no execution. Final paired-cut accounting correction passed a dedicated unit test; it does not change default MC selections.
+- Remaining limitations: Four events validate software, not physics distributions. No full batch execution/resource qualification or coworker-account test. Real testbeam/data/muon access remains unqualified; testbeam grouping/yield accounting tested with fixtures. Authoritative luminosity audits still supplied externally; event_count_only catalogues cannot establish yields. Additional plot selections do not redefine parent exposure. 2D profiles retain legacy binned-TH2 approximation, not unbinned means. Default plots separate geometries, so a tiny sample can leave most class panels empty. Histogram/plot stages run one sequential ROOT process each; full runtime requires batch qualification. Run identity includes Git HEAD; choose new names after commits/settings changes and use --reuse-sources explicitly. Source-reusing runs depend on the referenced old run remaining available. Initial fresh controller tool returned143 after final success messages; subsequent repeat and independent receipt/product checks passed. No claims of physics luminosity accuracy or global scheduler status.
+- Running jobs: All bounded local tests/conversions/rendering finished. No HTCondor jobs submitted, no job IDs. Full campaign and coworker qualification Next action not started; global scheduler not queried.
+- Outputs: Default base /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/. Fresh run root-backend-small-20261119/ has sources/{0,1}/features.root, validators/parity receipts and logs; config/ requested/resolved YAML plus coverage; histograms/1d and 2d; plots/1d and 2d PDFs/CSV, coverage/normalization and complete receipts. Example plot suffixes: plots/1d/count_scifi/selected/geo_c4519b199b177c78/plot.pdf and plots/2d/total_qdc_vs_hits/selected/geo_c4519b199b177c78/plot.pdf. Source-reuse runs root-backend-reuse-20261119/, root-backend-style-20261119/, root-backend-final-20261119/ retain source directories from their plan. Evidence feature_dev/output/root-backend-20261119/ includes unit.log, legacy.log, reuse.log, small.log, repeat.log, style.log/style.yaml, final.log, full-dry-run.log, verify_outputs.py/verification.json, one-d.png/two-d.png. Old products and EOS inputs untouched. Durable guide feature_production/README.md; settings feature_production/config/; validation feature_dev/TEST_RESULTS.md.
 
 ## Goal
 
@@ -24,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Implement the ROOT plotting integration plan in the latest Checkpoint history entry, starting with editable configuration, deterministic range resolution and shared group/selection filtering tests; do not execute full production. No implementation step has started.
+Qualify the new ROOT plotting workflow on Silvia's account using --check-access and an agreed bounded HTCondor canary/profile, verifying input/cutflow permissions, credentials, output paths and resource mapping before full production; do not start a full campaign from this checkpoint.
 
 ## Checkpoint history
 
@@ -1274,3 +1269,40 @@ Only task record edited; no implementation or Next action executed. Historical
 output paths, job evidence and validation limits preserved above.
 
 Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T15:08:45+01:00 — ROOT backend integration implemented and tested
+
+Implementation commit `5f2c0a453898b925b8e0129dbf3635e835485983` exists before
+this record. Verified pwd/branch; only authorized checkout edited. Changes:
+evaluation_region_partitions/{make_group_hist.py,make_group_hist2d.py,
+plot_comparison.py,plot_group_hist2d.py}; feature_production/{cli.py,worker.py,
+distributions.py,plot_settings.py,Snakefile,config/histograms.yaml,
+config/plotting.yaml,tests/test_campaign.py,tests/test_root_plots.py,README.md};
+feature_plugins/README.md; feature_dev/TEST_RESULTS.md. Exact list:
+`git show --stat 5f2c0a4`. This checkpoint changes only the task record.
+
+Implementation, output layout, known limits and job state replaced in Current
+state above. Historical linked records retained. No next-action work started.
+
+Commands/results (LCG activation and hostname/pwd/interpreter/import preflight
+in same shell, PYTHONNOUSERSITE=1 and PYTHONDONTWRITEBYTECODE=1):
+
+- `python3 -m unittest discover -s feature_production/tests -p 'test_*.py'`: 30 passed, unit.log. Earlier fixture used multiple sndData cycles and emitted ROOT warnings; fixture now recreates consistent schemas and final log has no such errors. Missing branches are explicitly rejected before filling.
+- `python3 -m unittest discover -s evaluation_region_partitions -p 'test_em_shower*workflow.py'`: 14 passed, legacy.log.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small --files-per-group 1 --events-per-file 2 --run root-backend-small-20261119`: six stages complete at15:01:44 local; four events. Controller exit143 reported after final completion messages; identical command then exit0/nothing to do. small.log/repeat.log retain both observations.
+- Same dataset/plugin/caps with `--run root-backend-reuse-20261119 --reuse-sources /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325`: exit0/four plotting preparation stages, no source jobs.
+- Same dataset/plugin/caps with `--run root-backend-style-20261119 --reuse-sources /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/root-backend-small-20261119 --plot-config "$PWD/feature_dev/output/root-backend-20261119/style.yaml"`: exit0; only plots/all scheduled. Histograms referenced from original run; new requested style snapshot records CC_numu orange.
+- Same dataset/plugin/caps, `--run root-backend-final-20261119 --reuse-sources /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/root-backend-small-20261119`: exit0, four stages. Last subsequent paired-feature-cut accounting change is covered by its dedicated unit case, default MC pair selection unchanged.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample full --normalization shape --run root-backend-full-preview --dry-run`: exit0, 1870 DAG tasks (1866 sources + ranges/histograms/plots/all), no full campaign execution.
+- `python3 feature_dev/output/root-backend-20261119/verify_outputs.py`: passed (verification.json): two source ROOTs/four events/13 plugin branches, successful validators, recursive checksums, 192 ROOT histograms and variances, 48 PDF page counts, CSV normalization, class counts and style-cache reuse.
+- `pdftoppm -f 1 -singlefile -scale-to 1100 -png .../plot.pdf .../one-d` and corresponding two-d: rendered and visually inspected; matches ROOT backend colours/markers/annotations and density panels. PDF profile-page structure covered by tests.
+- `bash -n run_shower_features.sh`, `git diff --check`: passed. No new scheduler queries/submissions; no batch job IDs. Existing profile/access limitations remain.
+
+User settings are documented at feature_production/config/histograms.yaml
+and plotting.yaml with CLI overrides. New runs no longer emit a combined
+report.pdf/HTML; each feature/pair has its own PDF and summary.csv. Class and
+geometry identifiers, resolved ranges and normalization are retained for review.
+
+Main launcher `--check-handoff shower-features`: PASS (exit0).
+`git diff --check`: PASS. Implementation SHA predates this task-only checkpoint;
+Next action remains unstarted.
