@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:17:34+01:00
+- Last verified: 2026-11-19T15:23:47+01:00
 - Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
 - Implemented: Production converter/Silvia plugin and shared EM shower ROOT backend retained. Geometry components now combine into one histogram/PDF per feature or pair and selection; no geo_* output directories. Common automatic ranges span geometries. Shapes sum raw counts then normalize once; yields sum separately audited, weighted geometry components with variances preserved. ROOT files retain raw histograms, weighted yield histograms when applicable and original geometry/component metadata. Profiles retain raw binned-TH2 means. Configurable histograms.yaml/plotting.yaml and source reuse remain supported. Instructions updated. Changes committed locally; not pushed.
-- Validation: Verified pwd and task branch. LCG107 on lxplus9102, Python3.11.9/ROOT6.34.02: 31 production tests passed including legacy backend parity and new two-geometry fixture (raw4, yield1.2, variance0.4). Bounded actual MC source-reuse run exit0, four of four tasks completed using two existing source ROOTs/four events. Independent checks passed config/histogram/plot receipts, 24 PDFs, 96 ROOT histograms, zero geo_* directories, count_scifi counts 1/2/1/0 and corresponding raw variances. git diff --check passed. Earlier fresh-conversion and 14 legacy workflow tests remain historical evidence below, not rerun for this change.
-- Remaining limitations: Four events validate software, not physics. Physical luminosity audits remain external; distinct weights are fixture-tested. No full batch resource qualification, coworker-account test, or new real testbeam/data/muon access check. Additional plot selections do not redefine exposure. Profiles are binned approximations. Sequential ROOT histogram/plot processes need full-scale qualification. Source-reusing runs depend on referenced source runs remaining available. Use new run names after code/settings changes. No global scheduler claim.
-- Running jobs: Bounded local test and plotting processes finished exit0. No HTCondor jobs submitted or job IDs; global scheduler not queried. Next action not started.
-- Outputs: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/combined-geometry-20261119/ contains config snapshots/coverage, histograms/1d and 2d, plots/1d and 2d PDFs/CSV and complete receipts. Example: plots/1d/count_scifi/selected/plot.pdf and plots/2d/total_qdc_vs_hits/selected/plot.pdf. Source ROOTs remain in root-backend-small-20261119/sources/{0,1}/features.root. Evidence: feature_dev/output/combined-geometry-20261119/{unit.log,run.log,verification.json}. Earlier runs unchanged. Changed files: feature_production/distributions.py, feature_production/README.md, feature_production/tests/test_campaign.py, feature_production/tests/test_root_plots.py, evaluation_region_partitions/plot_group_hist2d.py, feature_dev/TEST_RESULTS.md and this task record.
+- Validation: Verified pwd/task branch and initially clean Git. Larger MC run on lxplus9102: --files-per-group 2 --events-per-file 500; dry-run and access preflight exit0, actual sequential Snakemake run exit0/all eight tasks complete. Four source files contain394 selected events (70,62,127,135), classes CC_nue97/CC_numu199/NC_nue35/NC_numu63. Source validation/baseline parity and independent source/config/histogram/plot receipts pass. Verified13 plugin branches, selected entry identity via validator, all96 histogram count/variance conservation,24 PDFs/page counts and shape normalization, no geo_* directories. Earlier31 unit tests are historical passing evidence; not rerun because no implementation changed.
+- Remaining limitations: Four-file sample uses shape normalization and is not a full or representative physics sample. No file reached500 selected events. Physical luminosity audits remain external; weighted geometry combination tested previously with fixtures. No full batch resource qualification, coworker-account test or new real testbeam/data/muon access check. Profiles remain binned approximations. Source reuse depends on retained runs. New run names required after code/HEAD changes. No global scheduler claim.
+- Running jobs: All bounded local conversion, validation, histogram and plotting processes finished exit0. No HTCondor jobs submitted or job IDs; global scheduler not queried. Coworker/full-campaign Next action remains unstarted.
+- Outputs: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/ contains sources/{0,1,2,3}/features.root and validation/parity receipts, logs/source-<index>.log, config snapshots/coverage,96 ROOT histograms and24 PDFs/CSV. Examples: plots/1d/count_scifi/selected/plot.pdf and plots/2d/total_qdc_vs_hits/selected/plot.pdf. Evidence: feature_dev/output/larger-mc-20261119/{dry-run.log,preflight.log,run.log,verify.py,verification.json}. Previous runs preserved. This run changes only docs/tasks/active/shower-features.md and feature_dev/TEST_RESULTS.md; no implementation edits.
 
 ## Goal
 
@@ -1327,3 +1327,22 @@ full campaign or batch jobs. Local sessions finished; no job IDs. Handoff comman
 Handoff check: PASS (exit0); git diff --check: PASS. Implementation and task
 checkpoint committed separately; no push performed. The single Next action
 remains unstarted.
+
+### 2026-11-19T15:19:11+01:00 — Larger MC run prepared
+
+User requested more events. Planned command: `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small --files-per-group 2 --events-per-file 500 --run larger-mc-20261119`. Dry-run exit0: four sources plus ranges/histograms/plots/all. Existing implementation cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa; launch HEAD49afb76, only task documentation modified. Sequential local Snakemake, at most2000 selected events; no full campaign or coworker qualification. Expected sources/{0,1,2,3}/features.root, logs/source-<index>.log and plots/1d and plots/2d under output base above. Status: tail controller log and verify plots/complete.json; no scheduler IDs. Access preflight log: feature_dev/output/larger-mc-20261119/preflight.log.
+
+### 2026-11-19T15:23:47+01:00 — Larger MC run verified
+
+Completed the prepared command above, exit0/eight tasks complete. 394 selected
+events from four files, compared with four events in the previous test. All
+source validators and baseline parity checks passed. Independent verifier
+`python3 -m feature_dev.output.larger-mc-20261119.verify` passed receipts,13 plugin
+branches,96 ROOT histogram counts/variances,24 PDF page counts and shape
+normalization. Exact output/evidence paths and class counts are in Current state
+and feature_dev/TEST_RESULTS.md. Implementation remains
+cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa; launch HEAD49afb76. No running task
+processes, no batch IDs, no full campaign or coworker qualification started.
+Only task record and validation documentation changed.
+Main launcher `--check-handoff shower-features`: PASS (exit0).
+`git diff --check`: PASS. Task-only validation checkpoint committed; not pushed.

@@ -449,3 +449,28 @@ including `plots/1d/count_scifi/selected/plot.pdf` and
 Limits: tiny MC sample checks software only; luminosity correctness uses fixtures,
 not a new physical audit. No full campaign, HTCondor submission or coworker-account
 qualification. Existing outputs are retained.
+
+## 2026-11-19 — Larger MC plotting test
+
+Command: `./run_shower_features.sh --dataset mc-neutrino --plugin silvia
+--sample small --files-per-group 2 --events-per-file 500 --run larger-mc-20261119`.
+Dry-run and --check-access passed. Actual run exit0, eight tasks complete using
+sequential local Snakemake (one core), no HTCondor jobs. Implementation cd13b6c;
+launch HEAD49afb76. Existing isolated SNDSW converter and LCG107 analysis used.
+
+Four files contained 394 selected events (70,62,127,135); no file reached the
+500-event cap. Class counts: CC_nue97, CC_numu199, NC_nue35, NC_numu63. Source
+validation and baseline parity passed, including entrywise selected identity.
+Independent checks passed source/stage receipts, all 13 plugin branches,
+histogram entry conservation and raw variances, shape normalization and PDF
+page counts. Produced96 ROOT histograms and24 PDFs (23one-page1D, one two-page2D),
+without geometry directories.
+
+Output: `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/`.
+Evidence: `feature_dev/output/larger-mc-20261119/` holds dry-run.log, preflight.log,
+run.log, verify.py and verification.json. Verification command in activated LCG:
+`python3 -m feature_dev.output.larger-mc-20261119.verify`.
+
+This is a four-file shape comparison, not full-dataset yield validation or a
+representative-sampling claim. No new code changes, full production, batch
+qualification or coworker-account test.
