@@ -587,7 +587,7 @@ def draw_overlay(
     n_bins = int(round((x_max - x_min) / bin_width))
     logy = bool(feature_cfg.get("logy", False))
     axis_title = str(feature_cfg.get("axis_title", ""))
-    draw_ratio = len(curves) == 2
+    draw_ratio = len(curves) == 2 and bool(plot_config(eval_cfg).get("draw_ratio_panel", True))
 
     canvas.Clear()
     canvas._region_eval_keepalive = []
@@ -600,11 +600,13 @@ def draw_overlay(
         top_pad.SetTopMargin(0.08)
         top_pad.SetBottomMargin(0.03)
         top_pad.SetLogy(1 if logy else 0)
+        top_pad.SetLogx(bool(feature_cfg.get("logx", False)))
         bottom_pad.SetLeftMargin(0.12)
         bottom_pad.SetRightMargin(0.06)
         bottom_pad.SetTopMargin(0.04)
         bottom_pad.SetBottomMargin(0.35)
         bottom_pad.SetGridy(True)
+        bottom_pad.SetLogx(bool(feature_cfg.get("logx", False)))
         top_pad.Draw()
         bottom_pad.Draw()
         top_pad.cd()
@@ -614,6 +616,7 @@ def draw_overlay(
         canvas.SetTopMargin(0.08)
         canvas.SetBottomMargin(0.12)
         canvas.SetLogy(1 if logy else 0)
+        canvas.SetLogx(bool(feature_cfg.get("logx", False)))
 
     frame = ROOT.TH1D(f"frame_{safe_name(title)}", "", n_bins, x_min, x_max)
     frame.SetDirectory(0)
@@ -827,6 +830,8 @@ def draw_info_box(
     if feature_cut:
         lines.append(f"Feature cut: {feature_cut}")
 
+    if cfg.get("normalization_label"):
+        lines[0] = str(cfg["normalization_label"])
     text = ROOT.TText()
     text.SetTextSize(0.027)
     text.SetTextAlign(13)

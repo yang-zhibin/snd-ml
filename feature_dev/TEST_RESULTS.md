@@ -226,3 +226,251 @@ PYTHONHOME/PYTHONPATH/stale-SNDLHC-state probe. Each child was limited to 30 CPU
 seconds, 3 GiB virtual memory and 90 seconds wall time; core dumps disabled.
 No batch jobs or shared-environment changes. Coworker-account imports and EOS
 permissions remain to be verified independently.
+
+## 2026-11-19 — Audited luminosity normalization
+
+Environment: lxplus9120, LCG107 Python 3.11.9, NumPy 1.26.4, uproot 5.3.11;
+activated with `source snakemake/envs/env_lcg.sh`, user site and bytecode disabled.
+All inputs were tiny artificial fixtures; no EOS conversion or HTCondor job.
+
+Commands (from this checkout):
+
+```bash
+python3 -m unittest discover -s feature_dev/tests -p 'test_*.py'
+python3 -m unittest discover -s evaluation_region_partitions -p 'test_unified_feature_distributions*.py'
+python3 feature_dev/tests/normalization_integration.py feature_dev/output/normalization-20261119/verified-integration
+python3 feature_dev/tests/integration.py
+```
+
+The normalization integration checks full shape/yield DAGs, exposure-scaled bins
+and sumw2 for both algorithms, calculation-cache reuse, standalone report metadata,
+identical reruns and rejection of missing audits/small-sample yields. Unit tests
+include the audited ABCD reference ratios (ve 14640, vm 13350 fb^-1), shared CC/NC
+exposure, empty sources, source deduplication, missing/overlapping shards, sampling
+and cap checks. These are arithmetic comparisons, not execution of the ABCD
+branch or a physical coverage qualification.
+
+Logs: `feature_dev/output/normalization-20261119/{unit,production-tests,verified-integration,legacy-integration}.log`.
+The persistent four-event report is
+`feature_dev/output/normalization-20261119/verified-integration/results/mc-neutrino/yield/plot/report.html`.
+Its sibling `shape/` report uses the same calculated features; `yield/histogram/histograms.json`
+contains counts, normalized bins, sumw2, flow bins and exposure metadata.
+The audit and prepared fixture are in `verified-integration/`.
+
+Limits: exposure audit completeness and external reference-data coverage are
+supplied by the audit producer; they are not independently verified against EOS.
+Full automatic plugin processing, production audit ingestion and campaign-scale
+validation remain outside this phase. The bounded prepared-input guard remains.
+
+Final verification 2026-11-19T10:53:39+01:00: 70 development unit tests and
+11 production histogram tests passed; the normalization integration passed and
+all 10 existing launcher integration checks passed. `git diff --check` passed.
+An added ABCD reference fixture initially summed to 14630 rather than 14640;
+its nonempty-source test luminosity was corrected to 14635 plus the existing
+5 fb^-1 empty-source contribution, then the complete unit suite passed.
+
+## 2026-11-19 — Exposure metadata in published feature ROOT files
+
+Implementation adds a Snakemake export stage that copies validated feature trees
+and writes source_exposure/normalization TTrees, the canonical exposure audit and
+its SHA-256, and metadata version/unit/sample/calculation hashes. Published file:
+`<run>/features.root` (link to `export/features.root`). Internal calculation files
+remain reusable and contain no normalization metadata. Export validation compares
+every copied branch/entry and every metadata field against the calculation/plan.
+
+Environment: lxplus9120, LCG107 Python3.11.9, uproot5.3.11, NumPy1.26.4;
+`source snakemake/envs/env_lcg.sh` in the command shell with user-site/bytecode off.
+Commands:
+
+```bash
+python3 -m unittest discover -s feature_dev/tests -p 'test_*.py'
+python3 feature_dev/tests/normalization_integration.py feature_dev/output/root-exposure-20261119/integration
+FEATURE_DEV_SNAKEMAKE=/afs/cern.ch/work/z/zhibin/venvs/shower-snakemake-9.17.2-lcg107/bin/snakemake python3 feature_dev/tests/integration.py
+```
+
+New tests cover ROOT round trips, source/normalization values, zero-selected and
+external reference sources, data weight1 at effective exposure, explicit NaN/false
+shape metadata, embedded audit checksum, corrupted metadata rejection, exposure
+changes without recalculation and preservation of previously published files.
+The existing launcher suite covers default shape runs and cache/schema behavior.
+
+Evidence: `feature_dev/output/root-exposure-20261119/{unit,integration,legacy-integration}.log`.
+Standalone four-event yield fixture:
+`feature_dev/output/root-exposure-20261119/integration/results/mc-neutrino/yield/features.root`.
+Its `export/validation.json` records metadata and unchanged-feature checks.
+The sibling shape fixture contains explicit invalid/unknown exposure metadata.
+The changed-exposure fixture is intentionally corrupted at the end of the test
+to exercise cache tamper detection; use the original yield fixture for inspection.
+No EOS conversion or batch jobs; no physical exposure/coverage qualification.
+
+Final verification 2026-11-19T11:21:51+01:00: 75 development unit tests passed;
+extended normalization integration passed, including ROOT publication, exposure
+refresh, unchanged calculation timestamp and detection of the deliberately
+corrupted exported ROOT file. All 10 existing launcher integration checks passed.
+`git diff --check` passed. All local test processes completed.
+
+## 2026-11-19 — Production converter plugins
+
+Evidence directory (ignored): `feature_dev/output/production-plugin-20261119/`.
+LCG 107 on lxplus9102: Python 3.11.9, ROOT 6.34.02, NumPy 1.26.4,
+uproot 5.3.11. Isolated SNDSW: Python 3.9.25, ROOT 6.36.04.
+
+- `python3 -m unittest discover -s feature_production/tests -p 'test_*.py'`:
+  20 passed (`unit.log`), including plugin validation/isolation, known density,
+  ROOT round trip, metadata checksum, shard compatibility and exposure copy,
+  streaming audited yields/empty sources, capped plans and output isolation.
+- Existing `feature_dev/tests`: 75 passed (`dev-unit.log`). Existing converter
+  `test_unified_shower_features.py`: 13 passed; shard validator tests: 3 passed
+  (`production-regression.log`).
+- Actual EOS command: `./run_shower_features.sh --dataset mc-neutrino --plugin
+  silvia --sample small --files-per-group 1 --events-per-file 2 --run smoke
+  --output-root "$PWD/feature_dev/output/production-plugin-20261119/results"`.
+  Both source jobs, validators and report passed (`smoke.log`). Four events;
+  all 13 plugin scalars equal coworker commit d8cd5d0 on identical exported
+  hits. Separate source-0 no-plugin conversion: all 438 original branches on
+  two entries exactly match (`parity.json`, `parity.log`, `baseline-check/`).
+- Identical rerun: nothing to do; cache verified (`reuse.log`).
+- Full MC shape DAG dry-run: 1866 source jobs plus distribution/aggregate,
+  no execution (`full-dry-run.log`). Initial small dry-run exposed a duplicate
+  plan keyword; fixed before successful dry-run and real smoke.
+- Report: `results/mc-neutrino/smoke/plots/report.html`; ROOT:
+  `results/mc-neutrino/smoke/sources/{0,1}/features.root`, each with validation,
+  baseline parity, input fingerprints and checksums. Source logs under `logs/`.
+
+No HTCondor submission or full conversion, no coworker-account execution, and
+no new real testbeam/data/muon run. Full per-file resource requirements and
+physical audit qualification remain unverified. Unit yield fixtures validate
+accounting, not the physical provenance of real luminosities. Small sample
+exposure remains explicitly invalid for yields. No input datasets modified.
+
+## 2026-11-19 — PDF production reports
+
+Production report renderer now writes a vector multipage `plots/report.pdf`
+instead of HTML; launcher output and production guide updated. Individual PNGs
+and histogram/coverage/normalization JSON remain available. Re-rendered existing
+four-event real MC smoke histograms into the new ignored evidence directory
+`feature_dev/output/production-pdf-20261119/` without changing the original run.
+`pdfinfo report.pdf` confirms 61 pages (one summary + 60 plot strata), matching
+the histogram-derived expected count. Page 2 rasterized with `pdftoppm` and
+visually inspected: title, geometry, axes, legend and count/normalization footer
+readable without overlap. LCG107 Python3.11.9/matplotlib3.8.3 on lxplus9102.
+All 20 production plugin/campaign tests passed (`unit.log`); git diff --check
+passed. No new detector conversion, physics recalculation or batch submission.
+
+## 2026-11-19 — Existing ROOT backend and automatic ranges
+
+Replaced the standalone production Matplotlib renderer with shared EM-shower
+ROOT filling/drawing: make_group_hist.py, make_group_hist2d.py,
+plot_comparison.py and plot_group_hist2d.py. Added explicit plot config files,
+range resolution, selection/geometry strata, per-feature/pair PDFs and CSV,
+audited 2D yields, and compatible source/histogram reuse.
+
+Evidence: `feature_dev/output/root-backend-20261119/`. Environment lxplus9102,
+LCG107/Python3.11.9/ROOT6.34.02/NumPy1.26.4/uproot5.3.11. Detector conversions
+used the existing isolated SNDSW wrapper.
+
+- Production plugin/campaign/ROOT tests: `python3 -m unittest discover -s
+  feature_production/tests -p 'test_*.py'` (unit.log). Covers range extremes,
+  constants, empty samples, integer bounds, invalid/log bounds, missing and
+  nonfinite values, paired-axis validity, missing branch rejection, class cuts,
+  geometry/testbeam label preservation, parent coverage and yield scales,
+  direct calls into both existing plotters and two-page 2D PDFs. Legacy 1D/2D
+  histogram entry points match the new workflow's counts and variances exactly
+  on the same fixture. Final test count/result recorded in the task checkpoint.
+- `python3 -m unittest discover -s evaluation_region_partitions -p
+  'test_em_shower*workflow.py'`: 14 passed (legacy.log).
+- Existing MC ROOT reuse: `./run_shower_features.sh --dataset mc-neutrino
+  --plugin silvia --sample small --files-per-group 1 --events-per-file 2
+  --run root-backend-reuse-20261119 --reuse-sources
+  /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325`:
+  four stages passed (reuse.log), no source conversions.
+- Fresh actual EOS command: same dataset/plugin/caps, `--run
+  root-backend-small-20261119`, without --reuse-sources. Six tasks completed;
+  two ROOT files/two entries each, 13 plugin branches, source validators and
+  baseline parity passed (small.log). The controller tool reported exit143
+  after its final success/path messages; identical rerun returned exit0,
+  nothing to do, with all receipts validated (repeat.log).
+- Colour-only override (`style.yaml`, CC_numu orange), new run
+  root-backend-style-20261119 with --reuse-sources pointing to the fresh run:
+  only plots/all scheduled; sources and histogram products reused (style.log).
+- Final-code reuse run root-backend-final-20261119 completed four stages
+  (final.log); subsequent small fix to paired-cut missing accounting is covered
+  by its dedicated unit test, without changing default MC pair selections.
+- `--sample full --normalization shape --run root-backend-full-preview
+  --dry-run`: 1866 source tasks plus ranges/histograms/plots/all planned;
+  no submitted jobs or campaign output directory (full-dry-run.log).
+- Independent verifier (`verify_outputs.py`, verification.json) validated all
+  receipts, four source events and identities, 192 ROOT histograms, raw sumw2,
+  valid-entry conservation, 48 PDFs (46 one-page 1D, two two-page 2D), CSV scales
+  and unit integrals, immutable source reuse and histogram reuse. All passed.
+- Rasterized 1D and 2D density pages inspected: ROOT colours/markers/legends,
+  selection labels and empty-class annotations readable. Preview images one-d.png
+  and two-d.png. AFS home/work alias is not used for new output routing.
+
+Default output root:
+`/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/`.
+Fresh run outputs under `root-backend-small-20261119/`; reused-source runs keep
+ROOT files in their source run and record that location in plan.json. Example
+PDF paths: `plots/1d/count_scifi/selected/geo_c4519b199b177c78/plot.pdf` and
+`plots/2d/total_qdc_vs_hits/selected/geo_c4519b199b177c78/plot.pdf`.
+
+Limits: four events validate software behavior, not physics distributions.
+Actual testbeam/data account access, full processing resources/HTCondor, and
+physical luminosity audits remain unqualified. Testbeam grouping and yields
+are tested with fixtures. No EOS inputs or previous published runs modified.
+
+## 2026-11-19 — Combine geometries in production plots
+
+Removed geometry directories from histogram and PDF paths. Common ranges span
+all geometries; raw histograms are added before shape normalization. Yield
+histograms add independently exposure-weighted geometry components, preserving
+Sumw2 and original geometry/audit metadata. The shared ROOT plotting backend is
+unchanged in style; 2D profiles remain binned raw-event means.
+
+Validation on lxplus9102, LCG107 Python3.11.9/ROOT6.34.02:
+
+- `python3 -m unittest discover -s feature_production/tests -p 'test_*.py'`:
+  31 passed. New two-geometry fixture verifies raw count4, weighted yield1.2
+  and variance0.4 with different exposure scales; existing backend parity,
+  testbeam, campaign and plugin checks pass.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small
+  --files-per-group 1 --events-per-file 2 --run combined-geometry-20261119
+  --reuse-sources /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/root-backend-small-20261119`:
+  exit0, four of four tasks complete, existing two source ROOTs/four events reused.
+- Independent receipt and uproot checks: 24 PDFs, 96 ROOT histograms, zero
+  geo_* directories, count_scifi class counts 1/2/1/0 and matching raw variances.
+  All config/histogram/plot receipts passed. `git diff --check` passed.
+
+Evidence: `feature_dev/output/combined-geometry-20261119/{unit.log,run.log,verification.json}`.
+Output: `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/combined-geometry-20261119/`,
+including `plots/1d/count_scifi/selected/plot.pdf` and
+`plots/2d/total_qdc_vs_hits/selected/plot.pdf`.
+
+Limits: tiny MC sample checks software only; luminosity correctness uses fixtures,
+not a new physical audit. No full campaign, HTCondor submission or coworker-account
+qualification. Existing outputs are retained.
+
+## 2026-11-19 — Larger MC plotting test
+
+Command: `./run_shower_features.sh --dataset mc-neutrino --plugin silvia
+--sample small --files-per-group 2 --events-per-file 500 --run larger-mc-20261119`.
+Dry-run and --check-access passed. Actual run exit0, eight tasks complete using
+sequential local Snakemake (one core), no HTCondor jobs. Implementation cd13b6c;
+launch HEAD49afb76. Existing isolated SNDSW converter and LCG107 analysis used.
+
+Four files contained 394 selected events (70,62,127,135); no file reached the
+500-event cap. Class counts: CC_nue97, CC_numu199, NC_nue35, NC_numu63. Source
+validation and baseline parity passed, including entrywise selected identity.
+Independent checks passed source/stage receipts, all 13 plugin branches,
+histogram entry conservation and raw variances, shape normalization and PDF
+page counts. Produced96 ROOT histograms and24 PDFs (23one-page1D, one two-page2D),
+without geometry directories.
+
+Output: `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/`.
+Evidence: `feature_dev/output/larger-mc-20261119/` holds dry-run.log, preflight.log,
+run.log, verify.py and verification.json. Verification command in activated LCG:
+`python3 -m feature_dev.output.larger-mc-20261119.verify`.
+
+This is a four-file shape comparison, not full-dataset yield validation or a
+representative-sampling claim. No new code changes, full production, batch
+qualification or coworker-account test.

@@ -40,6 +40,34 @@ def define_expression(dataframe, name: str, expression: str):
     return dataframe.Define(name, expression), name
 
 
+def book_histogram2d(dataframe, pair, pair_cfg, x_column, y_column):
+    """Shared lazy 2D filling; profiles are derived from the binned TH2."""
+    model = ROOT.RDF.TH2DModel(
+        f"h2_{pair}",
+        "",
+        int(pair_cfg["x_bins"]),
+        float(pair_cfg["x_min"]),
+        float(pair_cfg["x_max"]),
+        int(pair_cfg["y_bins"]),
+        float(pair_cfg["y_min"]),
+        float(pair_cfg["y_max"]),
+    )
+    return dataframe.Histo2D(model, x_column, y_column)
+
+
+def finalize_histogram2d(result, pair_cfg):
+    hist = result.GetValue().Clone("hist2d")
+    hist.SetDirectory(0)
+    hist.GetXaxis().SetTitle(str(pair_cfg["x_title"]))
+    hist.GetYaxis().SetTitle(str(pair_cfg["y_title"]))
+    profile = hist.ProfileX("profile_x")
+    profile.SetDirectory(0)
+    profile.GetXaxis().SetTitle(str(pair_cfg["x_title"]))
+    profile.GetYaxis().SetTitle(f"Mean {pair_cfg['y_title']}")
+
+    return hist, profile
+
+
 def make_histogram(args: argparse.Namespace) -> None:
     repo_root = Path(args.repo_root).resolve()
     metadata_csv = resolve_path(args.metadata_csv, repo_root)
@@ -70,27 +98,10 @@ def make_histogram(args: argparse.Namespace) -> None:
         dataframe, "__eval_feature_y", str(pair_cfg["y_expression"])
     )
 
-    model = ROOT.RDF.TH2DModel(
-        f"h2_{args.pair}",
-        "",
-        int(pair_cfg["x_bins"]),
-        float(pair_cfg["x_min"]),
-        float(pair_cfg["x_max"]),
-        int(pair_cfg["y_bins"]),
-        float(pair_cfg["y_min"]),
-        float(pair_cfg["y_max"]),
-    )
     selected = dataframe.Count()
-    result = dataframe.Histo2D(model, x_column, y_column)
+    result = book_histogram2d(dataframe, args.pair, pair_cfg, x_column, y_column)
     selected_entries = int(selected.GetValue())
-    hist = result.GetValue().Clone("hist2d")
-    hist.SetDirectory(0)
-    hist.GetXaxis().SetTitle(str(pair_cfg["x_title"]))
-    hist.GetYaxis().SetTitle(str(pair_cfg["y_title"]))
-    profile = hist.ProfileX("profile_x")
-    profile.SetDirectory(0)
-    profile.GetXaxis().SetTitle(str(pair_cfg["x_title"]))
-    profile.GetYaxis().SetTitle(f"Mean {pair_cfg['y_title']}")
+    hist, profile = finalize_histogram2d(result, pair_cfg)
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

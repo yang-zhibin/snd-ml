@@ -495,6 +495,20 @@ def validate(args: argparse.Namespace) -> dict:
         tree = source.Get(args.tree)
         if not tree:
             raise RuntimeError(f"missing tree {args.tree}")
+        from feature_plugin import validate_root_plugin
+        expected_plugin = None
+        if getattr(args, 'feature_plugin_spec', None):
+            with open(args.feature_plugin_spec) as plugin_file:
+                expected_plugin = json.load(plugin_file)
+        plugin_sha256 = validate_root_plugin(source, expected_plugin)
+        exposure_object = source.Get('production_exposure_json')
+        exposure_sha256 = None
+        if exposure_object:
+            exposure_text = str(exposure_object.GetString().Data())
+            exposure = json.loads(exposure_text)
+            if exposure['source_uid'] != args.expected_source_uid:
+                raise RuntimeError('Production exposure source identity mismatch')
+            exposure_sha256 = hashlib.sha256(exposure_text.encode()).hexdigest()
         names = {branch.GetName() for branch in tree.GetListOfBranches()}
         required = {name for name, _ in scalar_feature_dtypes()}
         required.update(REQUIRED_BRANCH_TYPES)
@@ -744,6 +758,8 @@ def validate(args: argparse.Namespace) -> dict:
             )
         ),
         "converter_commit": args.converter_commit,
+        "feature_plugin_sha256": plugin_sha256,
+        "production_exposure_sha256": exposure_sha256,
     }
     if merge_record:
         record.update({
@@ -788,6 +804,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-cutflow-path")
     parser.add_argument("--published-feature-path")
     parser.add_argument("--merge-record")
+    parser.add_argument("--feature-plugin-spec")
     parser.add_argument("--converter-commit", required=True)
     parser.add_argument("--validation-record", required=True)
     return parser.parse_args()

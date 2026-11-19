@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-17T15:41:43+01:00
-- Implementation checkpoint: 11ce8a4639da6eb9e668e80c79fe4cab32cae417
-- Implemented: Automatic deterministic small samples from existing EOS catalogues for mc-neutrino, testbeam and real-data; optional mc-muon adapter. Separate SNDSW export and LCG parity/assembly, Snakemake DAG, content-addressed caches and explicit prepared-input override. Fixed standard testbeam assembly: retain capped candidates one source at a time, preserve 256 MiB guards, retain 25 events per testbeam group/geometry (100 elsewhere). Updated collaborator instructions. Example uses NumPy-style Parameters/Returns/Examples docstrings, executable expected-output examples and compact hit/cluster reference tables. Coworker report `feature_dev/SCIFI_DENSITY.md` documents local and SNDSW density functions, formulas, examples, branches and comparison limits; linked from both guides. SNDSW export now activates in a clean child environment, preserving credential/scratch settings, preventing inherited LHCb Python contamination and printing actual converter runtime paths.
-- Validation: Latest documentation revision: 7 doctest statements passed under LCG107/Python3.11.9; executable AST unchanged excluding docstrings; git diff --check passed. 55 development unit tests and 10 dataset integration checks passed after the fix. Standard EOS-backed HTCondor tests passed: 8 neutrino exports / 633 retained events with all four classes; 45 testbeam exports / 625 events across 25 groups; 4 collision-data exports / 200 events across both selections. All 57 exports passed exact identity and 182 baseline scalar comparisons. Corrected assembly reused audited unchanged exports; all three reports and identical-command cache reuse passed. Combined all-dataset dry-run and actual rerun passed with no analysis work required. Prior implementation also passed 11 clustering, 13 unified regressions and 10 workflow integration checks. Evidence: `feature_dev/TEST_RESULTS.md`. Latest read-only audit located local/SNDSW SciFi density code and identified strict versus inclusive 1 cm boundary; numerical equivalence was not tested. Density report: all five runnable example assertions and relative file-link checks passed; no density algorithm changed. GitHub origin push succeeded through fe87462; remote branch SHA verified with git ls-remote. Access audit: all configured catalogue paths inventoried; 9 AFS directory ACLs inspected, representative EOS parent ACLs sampled for every catalogue/input kind, SNDSW runtime ACLs inspected.  Authorized AFS grant completed: all three catalogue ACLs verified as svicenti rl; existing owner/admin/anyuser entries preserved. Username recheck: getent and pts confirm svicenti=Silvia Vicentini UID182858; svicentini is absent. Existing three svicenti rl entries reverified; no ACL changes on recheck. Runtime audit on lxplus9111 reproduced the exact reported text_encoding failure with the committed old wrapper and LHCb3.12 on PATH. Isolated wrapper passed ROOT/SndlhcGeo imports with Python3.9.25/ROOT6.36.04, both PATH-only and PYTHONHOME/PYTHONPATH/stale-SNDLHC-state contamination; no LHCb sys.path entries. Shell syntax and diff checks passed. Fix push succeeded; git ls-remote verified remote 11f3d340df41c6241a89a459928747404163a775 before this checkpoint.
-- Remaining limitations: Coworker-account access, optional --prepare-profile integration, full campaigns and candidate physics acceptance are unqualified. Optional muon detector validation is blocked: none of 15 catalogue rows had both digi and geometry present on lxplus939. Full automatic preparation remains blocked pending sharding. Shape normalization only. SNDSW shared builds are not immutable images; digi fingerprints use size/mtime. Test artifacts are ignored worktree-local files. Comment-only plugin edits change its source hash, so a new run name is required; existing report evidence predates this documentation edit. svicenti (UID182858) now has rl on the three AFS catalogue directories. The private EOS testbeam cutflow share is unchanged; effective access must be tested from her account. PTS membership query denied; EOS e-group membership not established. New runtime fix tested for imports only; no dataset conversions rerun. Coworker runtime not tested directly. Fix 11ce8a4 is now published to GitHub origin/task/shower-features; coworker runtime check remains pending.
-- Running jobs: None. Only bounded import probes ran (30 CPU seconds, 3 GiB virtual memory, 90s wall timeout per child, core dumps disabled); all exited. No datasets converted or shared environments modified.
-- Outputs: `feature_dev/output/standard-20261116/results/all/standard-test-fixed-20261116/index.html`; individual reports at `results/<dataset>/standard-test-fixed-20261116/plot/report.html`, samples/receipts at `results/.samples/`, summaries at `results/<dataset>-test-result.json` and `fixed-summary.json`, relative to `feature_dev/output/standard-20261116/`. Logs, harness, job IDs and reuse audits are in that validation directory. Existing EOS inputs and production products were not modified. Latest unit log: `feature_dev/output/standard-20261116/annotated-example-unit.log`. New tracked document: `feature_dev/SCIFI_DENSITY.md`. Access inventory/ACL evidence: `feature_dev/output/access-audit-20261117/{catalogue-paths,afs-acls,eos-acl-samples}.json` (ignored local artifacts). Verified grant evidence: `feature_dev/output/access-audit-20261117/granted-afs-acls.json`. Runtime evidence: `feature_dev/output/python-env-audit-20261117/{probe.sh,old-run-export.sh,probe.log,old-lhcb.log,new-lhcb.log,contaminated.log}`; import-check instructions in feature_dev/README.md.
+- Last verified: 2026-11-19T15:54:22+01:00
+- Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
+- Implemented: Production implementation cd13b6c and all accumulated feature/plotting/documentation commits through68d2dec pushed successfully to GitHub origin task/shower-features. Includes combined geometry ROOT plots, audited normalization, coworker/data-format guides and original luminosity provenance. No implementation changes in this publishing turn.
+- Validation: Verified required pwd/branch and clean Git. git fetch origin task/shower-features exit0; remote/local divergence0/35 before push. git push origin HEAD:refs/heads/task/shower-features exit0, remote advanced4f37831..68d2dec. No source modifications or new scientific tests; previous code/output validation and documentation evidence retained below.
+- Remaining limitations: Raw MC/feature format verified on one source; real-data, testbeam and Hit3D descriptions are code/interface references, not new file validation. Optional collections and settings vary; branch count is not a frozen schema. Previous four-file394-event shape sample is not full/representative physics validation. Physical luminosity audits external; full batch/coworker qualification unperformed. No new scheduler claim.
+- Running jobs: No scientific or batch jobs started; Git push completed. No job IDs. Single Next action unchanged and unstarted.
+- Outputs: Published repository git@github.com:yang-zhibin/snd-ml.git branch task/shower-features through68d2dec. This turn changes only this task checkpoint. Existing scientific output /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/ and evidence feature_dev/output/larger-mc-20261119/ unchanged.
 
 ## Goal
 
@@ -19,8 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Have svicenti test the import-only command in `feature_dev/README.md` after receiving commit `11ce8a4`; then report its runtime paths and result before retrying dataset conversion. This coworker-account runtime check has not been started; private EOS testbeam sharing remains unresolved and unchanged.
-
+Qualify the combined-geometry ROOT plotting workflow on Silvia's account using --check-access and an agreed bounded HTCondor canary/profile, verifying input/cutflow permissions, credentials, output paths and resource mapping before full production; do not start a full campaign from this checkpoint.
 
 ## Checkpoint history
 
@@ -655,3 +654,784 @@ coworker-account import-check next action preserved and not started.
 
 Main launcher's read-only `--check-handoff shower-features`: PASS.
 `git diff --check`: PASS.
+
+### 2026-11-19T10:21:50+01:00 — Audit previous full-data workflow
+
+Verified pwd, task/shower-features and clean Git status. Implementation remains
+11ce8a4; no processing code changed. User reports coworker --sample small works;
+--sample full remains deliberately blocked in the development runner.
+
+Read `snakemake/rules/unified_shower_features.smk`: production rule at line608
+runs one source per job, max_events=0, and named neutrino aggregate at line826
+expands all catalogue sources. Current mc_neutrino.csv has 1866 source rows
+(LCG Python csv count). `convertData/digi_2_features.py` reads selected entries
+one by one with GetEntry, calculates features, and writes TTree Fill.
+`snakemake/metadata/configs/unified_shower_features_v1.yaml` only enables
+within-file sharding for mc_muon_up and testbeam_data_2024, above 50000 input
+events; shard sizes 50000 and 10000 selected entries respectively. Ranges are
+[start,stop), with receipt coverage validation and optional merge/keep-shards.
+
+`snakemake/run_remaining_unified_shower_features_htcondor.sh` selects missing
+validated targets and uses HTCondor with default 20 concurrent jobs. Profile
+and output paths are owner-specific; no launch/dry-run performed.
+`evaluation_region_partitions/unified_feature_distributions.py:398` builds
+TChain/RDataFrame over feature ROOT files and Histo1D, instead of collecting
+all hits in Python. In contrast `feature_dev/engine.py:54` loads entire JSONL
+sample into a list, explaining its development memory guard. Production rules
+also retain older environment cleanup, so the new isolated export wrapper must
+be reused/adapted when connecting full plugin processing. No full-run candidate
+plugin adapter exists in the inspected converter.
+
+Commands: targeted rg/sed source reads, catalogue csv count, runtime preflight;
+all inspection completed. No new result files, detector runs, jobs or tests.
+Only this checkpoint changes; preserve all linked historical records. The next
+integration action is recorded but not started. Earlier advice is refined:
+MC neutrino already partitions naturally by source file; a new within-file
+sharding system is not a prerequisite for every source.
+
+Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS. Next integration action not started.
+
+### 2026-11-19T10:27:52+01:00 — Verify current distribution normalization
+
+Verified pwd/branch and clean initial Git status. Source reads:
+`feature_dev/engine.py:150` histograms and report text, `feature_dev/README.md`
+normalization section, production distribution plot scaling. Current development
+curves independently divide bin counts by their in-range sum, per algorithm /
+source group / geometry. Missing sentinels excluded; underflow/overflow tracked
+separately; uppermost edge included by numpy.histogram. Empty in-range curves
+remain zero. No bin-width, luminosity, cross-section or veto-10% yield scaling.
+Production code separately supports raw counts, unit-area bin fractions or
+probability-density mode, and configured exposure scaling. This is source
+inspection, not a new histogram run. No code, outputs or jobs changed;
+implementation remains 11ce8a4. Single next integration action preserved and
+not started. Only this checkpoint changed; historical records preserved.
+
+Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS.
+
+### 2026-11-19T10:33:44+01:00 — Trace luminosity storage and yield normalization
+
+Verified pwd/task branch and clean initial Git status. No implementation edits;
+checkpoint remains 11ce8a4. Read-only `git show`/`git grep` of task/em-shower
+at 7ec4dfc594a390f3bcb8b56f8f4d7b6853b260d6; no checkout switch/edits.
+
+Current branch: `snakemake/metadata/update_path_file.py:97` allocates recorded
+run lumi to source files proportional to n_event; :317 assigns 2024 neutrino
+15 fb^-1/file. Manifests preserve lumi_per_file and exposure_kind. LCG107
+Python3.11 csv read confirms 976 ve files / 14640 fb^-1 and 890 vm / 13350 fb^-1
+in current full catalogue (not proof all feature outputs validated).
+`evaluation_region_partitions/unified_feature_distributions.py:328` deduplicates
+source_uid then sums lumi_per_file; group source_subfolders applied first.
+:152 scales common_exposure_19fb by target/source exposure; config target19.
+Raw histogram ROOT stores sample_exposure TParameter<double> and exposure_kind
+TNamed (:464); plotting summary CSV records exposure and scale. Converter itself
+does not embed a lumi field in inspected output-writing code.
+
+Real-data profile manifest builder :138 deliberately sets lumi_per_file=0,
+exposure_kind=event_count_only, preserving original source_lumi_per_file.
+Verified existing no-veto11151/veto11150 manifest rows: all active lumi0;
+probabilities1/0.1 and weights1/10 respectively. Histogram code uses unweighted
+Histo1D and does not apply those manifest weights. Real-data plot config offers
+unit_area only. For yield integration preserve complete parent exposure,
+including zero-selected sources; do not infer luminosity from retained counts.
+
+Other branch: build_region_v2_inspection_input.py defines inspection_event_weight
+= target/source lumi before event filtering and writes it to sndData. ROOT
+TParameter<double> fields inspection_source_luminosity_fb,
+inspection_target_luminosity_fb, inspection_normalization_weight are embedded;
+audit/manifest CSV retains the same information. Target lumi is derived from
+selected inclusive-data metadata and checked against configured expected_fb.
+
+No detector reads, new result artifacts, batch jobs, package changes or numeric
+physics validation. Only checkpoint changed. User normalization requirement
+recorded; next integration action not started. Historical links preserved.
+
+Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS. Next integration action not started.
+
+### 2026-11-19T10:37:37+01:00 — ABCD normalization source audit
+
+Read task/abcd-bkg-estimation at 8d381ad46c9bf75cfeb0c3877d2ff18dbee98656
+with git show/grep; no checkout switch or external edits. Target normalization
+files in its worktree have no uncommitted changes. Current worktree/branch and
+clean initial status verified. No processing-code changes; checkpoint11ce8a4.
+
+ABCD make_abcd_density_mc_hist.py source_luminosity (:185) sums complete source
+metadata lumi_per_file, validates expected totals; build(:310) uses target data
+exposure/source MC luminosity. Config abcd_density_neutrino_mc_v1.yaml sets
+ve14640, vm13350; CC and NC of each flavour share that denominator. No-veto
+regions target19.780680927948, veto regions1.960319252235 fb^-1. Raw histogram
+is cloned and Scale(weight) applied; sumw2 plus weighted closure retained.
+ROOT metadata and summary CSV store source_mc_luminosity, target_data_exposure,
+normalization_weight, raw_events, sum_weights, sum_weights_squared. Data builder
+checks summed catalogue lumi_per_partition against frozen region exposure and
+uses observed counts. Safe-tight/rejection code confirms data weight1.
+
+For integration: use parent-source exposure, retain region data exposure,
+fill unweighted data and luminosity-scaled MC, preserve raw/weighted/sumw2 and
+provenance. No blanket veto x10 under the ABCD effective-exposure convention;
+if explicitly scaling both data and MC to a common target, data scale is
+Ltarget/Leffective and MC scale Ltarget/LMC. Do not also apply sampling factor
+already absorbed in effective exposure. These ABCD exposures are not assumed
+to describe shower branch's different saved 10% selection. Testbeam remains
+shape-only per user. Code inspection only, no new ROOT/data runs, output
+artifacts or jobs; single integration next action preserved, not started.
+
+Main launcher read-only `--check-handoff shower-features`: PASS.
+`git diff --check`: PASS. No next action started.
+
+### 2026-11-19T10:54:34+01:00 — Audited prepared-sample yield normalization
+
+Implementation: `5ea499c9c5345467d33e94ba1c00220486704256` (existing code commit,
+not this record). Verified pwd and branch; starting checkout was clean. Only this
+worktree was edited. No push, EOS conversion, full processing or batch submission.
+
+Changed implementation files: feature_dev/exposure.py, cli.py, engine.py,
+datasets.py, datasets.yaml, sources.py; evaluation_region_partitions/normalization.py
+and unified_feature_distributions.py. Tests: feature_dev/tests/test_exposure.py
+and normalization_integration.py. Docs: feature_dev/NORMALIZATION.md, README.md,
+TEST_RESULTS.md and README_SHOWER_FEATURES.md. This checkpoint updates only the
+task record after the implementation commit.
+
+Validation environment: source snakemake/envs/env_lcg.sh with nounset disabled,
+then strict shell; PYTHONNOUSERSITE=1 and PYTHONDONTWRITEBYTECODE=1. Preflight
+recorded lxplus9120, expected worktree, LCG107 python3 path, Python3.11.9,
+NumPy1.26.4/uproot5.3.11 imports. Commands/results:
+
+- `python3 -m unittest discover -s feature_dev/tests -p 'test_*.py'`: 70 passed.
+- `python3 -m unittest discover -s evaluation_region_partitions -p 'test_unified_feature_distributions*.py'`: 11 passed, including tiny ROOT fixtures.
+- `python3 feature_dev/tests/normalization_integration.py feature_dev/output/normalization-20261119/verified-integration`: passed both full prepared shape/yield DAGs and cache/error/report assertions.
+- `python3 feature_dev/tests/integration.py`: 10 checks passed; FEATURE_DEV_SNAKEMAKE selected the existing shower-snakemake-9.17.2-lcg107 environment.
+- `git diff --check`: passed.
+
+Evidence and output paths are listed in Current state and TEST_RESULTS.md.
+The new ABCD fixture initially had an incorrect test denominator (14630); corrected
+the fixture to 14635+5=14640 and reran all 70 unit tests successfully. No algorithm
+fix was needed. Runtime software checks do not establish EOS parent completeness,
+external data coverage, luminosity systematics or campaign physics acceptance.
+The next action remains unstarted.
+
+Main-launcher handoff validation:
+`python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`
+returned `Handoff shower-features: PASS`; log:
+`feature_dev/output/normalization-20261119/handoff.log`. Final diff check passed.
+
+### 2026-11-19T11:00:12+01:00 — Luminosity storage clarification
+
+Verified pwd, task/shower-features branch and clean initial checkout. Implementation
+remains 5ea499c9c5345467d33e94ba1c00220486704256. Read-only `rg`, `sed`, and
+`head -2` inspections confirmed mc_neutrino.csv carries lumi_per_file=15.0 in its
+first row, plus source_metadata_file pointing to MC_neutrino_2024_ve_metadata.csv.
+The real-data no-veto catalogue preserves source_lumi_per_file (first row
+0.0016445188131982) while lumi_per_file=0 and exposure_kind=event_count_only.
+update_path_file.py allocates run lumi proportional to original n_event.
+Selected-hit writer has no per-event luminosity/weight field; new exposure audit
+has source luminosity_fb and run manifest plan.exposure_audit/plan.normalization;
+histograms.json stores per-curve scales/exposures. These are exposure and event
+weights, not a luminosity to sum once per selected event. No new output products
+or jobs; only this checkpoint changed. Existing logs/outputs and single Next
+action remain valid; that action was not started.
+
+Main launcher `--check-handoff shower-features`: PASS. `git diff --check`: PASS.
+
+### 2026-11-19T11:01:36+01:00 — ROOT luminosity storage clarification
+
+Read-only source inspection after verifying pwd, branch and clean Git status:
+feature_dev/engine.py writes baseline/candidate feature trees without luminosity
+metadata; exposure remains in JSON run/histogram records. The production
+unified_feature_distributions.py writer stores sample_exposure as a ROOT
+TParameter<double> and exposure_kind as TNamed. No source changes, output
+regeneration or jobs. Implementation SHA, validation limits, output paths and
+single Next action remain unchanged; no follow-up implementation started.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T11:22:49+01:00 — Published ROOT exposure metadata
+
+Implementation: d9b330d81a04ca74eb9d359578b4eeb013bdf455 (existing code commit,
+not this checkpoint). Only the authorized worktree/branch was edited. New files:
+feature_dev/root_metadata.py and tests/test_root_metadata.py. Changed code:
+feature_dev/engine.py, cli.py, Snakefile and tests/normalization_integration.py.
+Updated docs: feature_dev/NORMALIZATION.md, README.md, TEST_RESULTS.md, and
+README_SHOWER_FEATURES.md. Published <run>/features.root links to export/features.root;
+internal calculate/features.root remains normalization-independent. ROOT stores
+source/normalization trees, explicit validity flags, audit/checksum and provenance.
+Source metadata includes empty and external reference sources. No per-event
+luminosity duplication. Every copied feature value and identity was compared.
+
+Verification: shell activated snakemake/envs/env_lcg.sh with nounset off before
+strict mode, PYTHONNOUSERSITE=1/PYTHONDONTWRITEBYTECODE=1; preflight recorded
+lxplus9120, expected pwd, LCG107 python3, Python3.11.9, uproot5.3.11/NumPy1.26.4.
+Commands/results:
+
+- python3 -m unittest discover -s feature_dev/tests -p 'test_*.py': 75 passed.
+- python3 feature_dev/tests/normalization_integration.py feature_dev/output/root-exposure-20261119/integration: passed complete DAGs, metadata, exposure refresh/cache reuse, old export preservation and tamper rejection.
+- FEATURE_DEV_SNAKEMAKE=/afs/cern.ch/work/z/zhibin/venvs/shower-snakemake-9.17.2-lcg107/bin/snakemake python3 feature_dev/tests/integration.py: all 10 checks passed.
+- git diff --check: passed.
+
+Logs and ROOT output paths are listed in Current state; the changed-exposure
+fixture is intentionally corrupted for the negative test. No batch jobs, EOS
+conversions or push. No actual parent exposure qualification; validation used
+bounded artificial inputs. All local tests completed. Existing historical links
+are preserved and the single Next action remains unstarted.
+
+Main launcher `python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`: PASS.
+Evidence: feature_dev/output/root-exposure-20261119/handoff.log. Final diff check passed.
+
+### 2026-11-19T12:05:32+01:00 — Review coworker GitHub push
+
+Verified pwd, task/shower-features and clean initial Git state. `git fetch origin`
+succeeded and discovered origin/task/silvia-shower-algorithm. Latest commit:
+d8cd5d08b4da94a0b453749573ba10150da68f72, Silvia Vicentini,
+2026-11-19T11:10:15+01:00, Add energy features and improved report plots. Earlier
+feature commit 5c01ce4 adds my_features.py/schema; 22a3609 and merge d6408c5
+record environment changes and adoption of the SNDSW fix. `git log`, `git diff`
+and `git show` inspected these changes without switching branches or editing
+other checkouts. Compared with origin/task/shower-features, changed files are
+feature_dev/algorithms/my_features.py, schemas/my_features.yaml, engine.py, and
+snakemake/envs/env_sndsw_nue.sh (comment only).
+
+Features include leading QDC fraction and top-two vertical/horizontal cluster
+density/fraction/station. Density uses ordered hit pairs within inclusive1cm.
+Report adds candidate class overlays, neutrino energy and energy-density 2D plots.
+Source-review concerns: energy joins use (runId,eventIndex), omitting eventId and
+source_uid; geometry strata are merged; baseline curves are hidden; missing
+coordinates are dropped, potentially reporting zero density rather than missing.
+No new tests in her diff. These are source findings, not reproduced runtime failures.
+
+Remote task/shower-features is still 4f37831; pre-checkpoint HEAD was ten local
+commits ahead of it, and diverged 10-local/4-remote versus Silvia's branch. Local
+normalization/export changes overlap engine.py and are not in her branch. No merge,
+cherry-pick, push, EOS processing or jobs. Implementation checkpoint remains
+d9b330d81a04ca74eb9d359578b4eeb013bdf455; previous output paths/tests unchanged.
+Only this task record changed. Single Next action preserved and not started.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T12:10:31+01:00 — Coworker interface explanation
+
+Verified pwd/task branch and clean initial Git status. Read feature_dev/README.md,
+engine.py evaluate/validate_values, and algorithms/gap_clusters.py. Interface is
+per-event cluster_hits(hits, parameters), calculate_features(hits, clusters,
+parameters), optional validate_algorithm; exact schema keys and finite Python
+int/float outputs, read-only selected hits, optional cm/ns coordinates. Plugin
+receives no labels, truth/energy, identity, geometry metadata or luminosity.
+Existing cluster layout exposes planes and orientation-ranked clusters; ranking
+is descending QDC. Runner owns dataset selection, baseline comparison, validation,
+normalization and outputs. Silvia's plugin/schema are on her remote branch and
+local exposure/ROOT publication additions remain unpublished. No source changes,
+tests, jobs or new artifacts; implementation SHA, output paths and validation
+limits remain unchanged. Next action retained and not started. Only task record
+updated for continuity.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T12:14:35+01:00 — Whole-branch workflow explanation
+
+Verified pwd/task branch and clean initial Git status. Read README_SHOWER_FEATURES.md,
+docs/project/OVERVIEW.md, feature_dev/PrepareSnakefile, prepare.py and Snakefile.
+Confirmed two distinct flows: existing production conversion/validation/histogram
+bundles and bounded plugin development. Development resolves EOS catalogues, exports
+selected hits in SNDSW, checks identities/baseline parity in LCG, assembles a fixed
+sample, calculates baseline/candidate, validates, publishes exposure-bearing ROOT
+and creates histograms/report. Cached exports and feature calculations are reused
+when their inputs permit it. Production still uses its baseline converter; arbitrary
+plugin promotion and automatic full-plugin campaigns are not implemented. Latest
+local normalization/ROOT metadata additions remain unpublished; Silvia branch is
+not merged. Read-only source explanation only: no implementation changes, new
+validation jobs, tests or outputs; prior SHA/limits/output paths remain authoritative.
+Single Next action preserved and not started. Only this checkpoint changed.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T12:31:06+01:00 — Add setup to collaborator workflow explanation
+
+Verified pwd/task branch and clean initial status. Read setup and plugin instructions
+in README_SHOWER_FEATURES.md and feature_dev/README.md. Confirmed Bash/lxplus
+setup via unset FEATURE_DEV_PYTHON FEATURE_DEV_SNAKEMAKE then run_feature_dev.sh
+setup; setup installs/configures the coworker's own Snakemake environment.
+Synthetic smoke command requires no physics data; real dataset commands resolve
+existing catalogues and require account access to inputs and SNDSW. Explanation
+combines setup, two-file plugin/schema contract, hit units, dataset execution,
+validation/caching/outputs, and contribution workflow. Distinguishes local
+unpublished exposure/ROOT updates from her current branch. No setup command
+executed, no package installs, source edits, tests, jobs or output artifacts.
+Implementation SHA, validation limits, existing outputs and single Next action
+remain unchanged; that follow-up was not started. Only this task record changed.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T12:35:15+01:00 — Locate production feature calculation
+
+Verified pwd/task branch and clean initial status. Read-only rg/sed/git-file
+inspection traced unified_shower_features.smk rule unified_shower_feature_v1
+(line608) to convertData/digi_2_features.py (MC_muon compatibility wrapper delegates
+to same converter). main calls process_hits (definition1222), then new_tree.Fill
+(line1858) writes sndData. Cluster wrapper fill_scifi_cluster_features (478) calls
+scifi_plane_clustering.cluster_feature_payload (227), which calls cluster_scifi_hits
+(117) and payload_from_analysis (230). Other production features are computed
+inside process_hits via count/QDC, position, topology, time and density helpers;
+external getSumDensity called at1355, local hitWeightDensity/fill_mycode_density
+are separate functions. feature_dev/algorithms/baseline.py uses the same cluster
+core; arbitrary coworker plugins are not invoked by the production converter.
+No source edits, tests, processing jobs or new artifacts; implementation SHA,
+validation limits, outputs and single Next action unchanged/unstarted. Only
+this continuity record was updated.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T13:26:43+01:00 — Coworker production execution/access/output assessment
+
+Verified pwd/task branch and clean initial status. Read unified_shower_features.smk
+and unified_shower_features_v1.yaml: production feature root is hard-coded under
+/eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/features;
+config consistency checks enforce it. Metadata/local-smoke/shard paths are also
+Zhibin-owned. Rules rebuild manifests from original metadata and use an older
+SNDSW shell setup, not the validated clean development export wrapper. Thus a
+new plugin CLI is only proposed, not usable by Silvia yet.
+
+Live permission checks: getent confirms svicenti UID182858; fs listacl confirms
+svicenti rl on all three shared catalogue directories; public/SndBuild grants
+anyuser rl; /afs/cern.ch/work/s/svicenti exists and grants owner rlidwka.
+`eos root://eosuser.cern.ch attr ls /eos/user/z/zhibin/TestBeam/binary_full_v1/cutflows`
+still shows sys.acl u:187895:rx,u:1066349:rx, user.acl empty, mask700; no explicit
+svicenti grant. This is not an effective-account access test. Experiment EOS
+reader membership and all input dependencies must be checked from her account.
+Proposed outputs: per-user campaign directory, small outputs/logs/reports in her
+AFS work; full ROOT products in an explicitly selected writable EOS directory.
+No write access to Zhibin's outputs should be required by the new design.
+
+No files outside this checkout edited, ACL changes, source edits, setup, tests,
+conversion or batch submission. No output products generated; implementation
+remains d9b330d81a04ca74eb9d359578b4eeb013bdf455. Existing validation and output
+paths retained. Next action updated to user's production-plugin direction and
+not started. Only this task record changed.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T13:29:01+01:00 — Production-plugin implementation plan
+
+Verified pwd/task branch and clean initial Git status. Read converter branch
+creation/event loop, validate_unified_shower_feature_file.py, source CLI builder,
+unified production rules and the clean feature_dev/run_export.sh wrapper. User
+requests a plan only; no plugin implementation, conversion, tests or jobs started.
+
+Planned sequence:
+1. Separate feature_plugins/silvia folder containing algorithm/schema/tests.
+Preserve cluster_hits(hits,parameters), calculate_features(hits,clusters,parameters)
+and optional validator. Loader supplies standardized copied selected hits with
+x_cm/y_cm/z_cm/time_ns and tracks helper imports. Resolve YAML in launcher to
+JSON for SNDSW, without importing the LCG development engine into the converter.
+Explicit export mapping/prefix prevents existing baseline keys returned by her
+plugin (including overlapping station fields) from overwriting production.
+2. Add converter plugin arguments, load once/create typed branches before event
+loop, initialize sentinel buffers every event, run on final selected SciFi hits
+inside process_hits, fill extra outputs before sndData.Fill. Preserve no-plugin
+behavior and original branch values; extend MC_muon compatibility arguments.
+3. Extend validator/shard merger for extra schema, finite values, identity,
+plugin source/config/schema hashes, and consistent metadata across shards.
+Embed source exposure and plugin provenance in production ROOT using the
+existing metadata conventions, including unknown validity for capped samples;
+merge exposure per source without double counting. Retain zero-selected sources
+in campaign coverage and refuse yields without a complete validated audit.
+4. Add one production launcher with dataset/plugin/small-full/run/output/profile
+options and named Snakemake targets; parameterize manifest, feature, shard, log
+and plot roots instead of hard-coded Zhibin roots. Read frozen shared input
+catalogues, create own campaign snapshot, hash plugin/schema/helpers/config,
+reuse the clean runtime wrapper, record commands/job IDs/logs. Small=bounded
+local production test; full=per-source/sharded HTCondor production. Keep old
+development entry point until parity and migration are validated.
+5. Extend existing distribution configuration to plugin outputs; use energy
+already in sndData instead of unsafe external joins. Preserve source/geometry
+strata, use shapes for capped/testbeam samples and audited luminosity yields
+for eligible full MC/data.
+6. Add per-account preflight for catalogue/digi/geometry/cutflow/runtime/output
+and batch credentials. Existing catalogue grants confirmed, private testbeam
+cutflow and experiment EOS effective access remain unresolved; no ACL edits.
+Validate synthetic fixtures first, then one bounded real source in the matching
+environment, and only subsequently qualify batch execution. No full campaign
+as part of initial implementation validation.
+
+Acceptance: inherited baseline returns cannot replace production branches;
+plugin results match old interface for identical hits/parameters; original
+identity/order and baseline values unchanged; missing coordinate behavior is
+explicit (sentinel/error, not false zero); ROOT branches/provenance/exposure
+round-trip; deterministic reruns and config invalidation; shard metadata/exposure
+deduplication; small local dry-run and full batch dry-run; output isolation and
+clear missing-input failures. Final account access qualification requires Silvia
+to run preflight with her credentials. Proposed CLI/paths are not available yet.
+
+Only task record changed. Implementation SHA remains
+d9b330d81a04ca74eb9d359578b4eeb013bdf455; prior validation limits/output paths
+retained. Single Next action updated to first planned milestone, not executed.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T13:51:55+01:00 — Production plugin implementation and bounded validation
+
+Implementation commit: `799e23d0c082f441aea8565ddc228e2462042fe3` (created before
+this checkpoint). Verified worktree/branch; only authorized checkout edited.
+Changed files: new convertData/feature_plugin.py; converter and muon wrapper;
+production validator and shard merger; feature_dev/exposure.py; new
+feature_plugins/ (Silvia implementation/schema/interface guide),
+feature_production/ (planner, worker, distributions, Snakefile, tests and guide),
+run_shower_features.sh; README_SHOWER_FEATURES.md; feature_dev README,
+NORMALIZATION and TEST_RESULTS. Full exact list: `git show --stat 799e23d`.
+
+Commands/results (LCG activation in same shell, user site/bytecode disabled):
+
+- `python3 -m unittest discover -s feature_production/tests -p 'test_*.py'`: 20 passed.
+- `python3 -m unittest discover -s feature_dev/tests -p 'test_*.py'`: 75 passed.
+- `python3 -m unittest discover -s convertData -p 'test_unified_shower_features.py'`: 13 passed.
+- `python3 -m unittest discover -s convertData -p 'test_validate_unified_shower_feature_shards.py'`: 3 passed.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small --files-per-group 1 --events-per-file 2 --run smoke --output-root "$PWD/feature_dev/output/production-plugin-20261119/results"`: passed conversion, validation and report. Identical repeat: nothing to do. Final wrapper-only change forwards setup arguments; checked with setup --check, no physics calculation changed afterward.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample full --normalization shape --run full-plan --dry-run --output-root "$PWD/feature_dev/output/production-plugin-20261119/results"`: 1866 per-source jobs planned, no execution/products.
+- Original coworker calculation on same four exported events: all 13 outputs match. No-plugin source0 conversion: all 438 original branches and two entry identities match (parity.json).
+- `./run_shower_features.sh setup --check`: passed, existing private Snakemake healthy; no installation.
+- `bash -n run_shower_features.sh`, `git diff --check`: passed.
+- `condor_q -submitter zhibin -af ClusterId ProcId JobStatus Iwd Cmd`: exit1, Collector has no record of schedd/submitter. No submitted task job IDs. Use this command to refresh scheduler evidence; global queue state unverified.
+
+Outputs/logs and validation limits are replaced in Current state above, with
+full evidence also in feature_dev/TEST_RESULTS.md. No full campaign started.
+Main launcher handoff check is run after this record update; result recorded below.
+
+Main launcher `--check-handoff shower-features`: PASS (exit0).
+`git diff --check`: PASS. Single Next action remains unstarted.
+
+### 2026-11-19T14:26:27+01:00 — PDF production report
+
+Implementation commit `864b937251f30a86645173b1285f7cc287f76ee8` predates this
+record. Changed feature_production/distributions.py (PdfPages renderer), cli.py
+(printed PDF path), README.md (output instructions), feature_dev/TEST_RESULTS.md.
+Only authorized worktree on task/shower-features edited. Starting Git clean.
+
+Validation: LCG activation and preflight in same shell, user-site/bytecode
+excluded. Called distributions.render with the existing smoke histograms.json
+and plan.json, output feature_dev/output/production-pdf-20261119/. No old run
+modified. `pdfinfo .../report.pdf`: 61 pages, matching expected count 61;
+`pdftoppm -f 2 -singlefile -scale-to 1200 -png .../report.pdf .../page2`:
+passed, page visually inspected. `python3 -m unittest discover -s
+feature_production/tests -p 'test_*.py'`: 20 passed, unit.log in evidence directory.
+`git diff --check`: passed. No new physics validation or HTCondor qualification;
+previous limitations retained. No job IDs; no submitted jobs. Single current
+Next action remains account/batch qualification and was not started.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T14:35:52+01:00 — Small MC run in the default output directory
+
+Existing implementation SHA remains `864b937251f30a86645173b1285f7cc287f76ee8`;
+executed checkout HEAD `d369eac`. No implementation edits. Verified worktree,
+branch and clean initial state. User authorized a small MC neutrino test.
+
+Command: `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small --files-per-group 1 --events-per-file 2 --run mc-small-20261119-143325`.
+Exit0, all four tasks completed at 14:34:50 local time. Two source jobs ran
+sequentially locally; no batch job IDs. Default output (no output-root override):
+`/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325`.
+PDF: `plots/report.pdf`; ROOT files: `sources/{0,1}/features.root`;
+commands/runtime/conversion/validation logs: `logs/source-{0,1}.log`.
+
+LCG107 Python3.11.9 preflight on lxplus9102. Post-run uproot inspection and
+verify_receipt: two entries and 13 plugin branches per source; identity and
+plugin/exposure metadata present; validation_passed true; source and plot
+checksums match. Baseline parity receipts record two events/182 scalars each.
+`pdfinfo plots/report.pdf`: valid 61-page PDF; no HTML produced.
+Controller log, verification JSON and PDF info saved in
+`feature_dev/output/production-small-20261119/` (ignored evidence).
+No full run, physical yield qualification, other dataset or coworker-account
+execution. Existing limits retained. Single Next action remains unchanged and
+unstarted. Only this task checkpoint changed in Git.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T14:38:37+01:00 — Plotting backend mismatch confirmed
+
+User questioned the PDF style. Verified pwd/branch and clean Git; inspected
+feature_production/Snakefile, distributions.py, existing unified distribution
+rules/script and plot_comparison.py. New renderer directly uses Matplotlib
+stairs and PdfPages. It does not call either existing ROOT plotting script.
+Previous statements implying full plotting-backend reuse were inaccurate;
+converter and exposure helper reuse do not imply renderer reuse. No code,
+products or jobs changed. Implementation SHA remains 864b937251f30a86645173b1285f7cc287f76ee8.
+Only task record updated; previous outputs/history preserved. Current Next
+action replaced with the plotting integration correction, not executed.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T14:40:36+01:00 — Exact user plotting reference traced
+
+Read-only inspection: user AFS home/work output alias resolves to the work AFS
+em_shower_neutrino_v1/plots directory. snakemake/rules/em_shower_neutrino_evaluation.smk
+constructs both requested directory hierarchies from partition/region and
+histogram/evaluation versions. 1D uses make_group_hist.py and plot_comparison.py;
+2D uses make_group_hist2d.py and plot_group_hist2d.py. Read relevant functions,
+configuration hist_features_v1.yaml (em_shower_hist_features_energy_v2),
+evaluation_options_v1.yaml (em_shower_evaluation_scifi35_energy_v2), regions_v1.yaml.
+
+Verified existing count_scifi/none/none/summary.csv and
+2d/.../total_qdc_vs_hits/scifi35/summary.csv: four neutrino classes; count_scifi
+1D integrals normalized to one. Config selects count_scifi > 35, fixed class
+colors, per-feature bins/cuts/log axes, overflow folding for 1D. Actual 1D
+renderer draws E1 error bars (despite YAML HIST), mean/std legend, and automatic
+ratio for exactly two curves; configuration flags alone do not describe it.
+2D renderer gives a 2x2 unit-integral COLZ/log-z density page and an overlaid
+ProfileX page (profiles made from binned TH2). Current 2D is shape-only.
+No products edited/generated, jobs submitted or tests run. Existing
+implementation SHA 864b937251f30a86645173b1285f7cc287f76ee8 unchanged.
+Only task record updated. Exact reference replaces previous generic backend
+proposal; Next action remains unstarted. Previous outputs/limits/history retained.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T14:49:38+01:00 — ROOT plotting integration implementation plan
+
+Scope: user requests an implementation plan for the previously proposed output
+structure, own EM shower plotting backend, automatic ranges when unspecified,
+and documented editing locations. No code changes yet. Existing implementation
+SHA remains 864b937251f30a86645173b1285f7cc287f76ee8. Verified pwd, branch and
+clean Git; read backend contracts and current production Snakefile.
+
+1. Configuration: add feature_production/config/histograms.yaml and
+plotting.yaml; CLI --hist-config/--plot-config overrides. Snapshot requested and
+resolved YAML under each run/config. Defaults control bins, optional ranges,
+expressions, missing sentinels, log axes, selection names, class labels/colors,
+normalization and explicitly chosen 2D pairs. Default selection is converter
+selected events; scifi35 explicitly selects count_scifi > 35. Preserve original
+EM shower config as reference without silently imposing its selection. Plugin
+schema supplies feature names/types/units/missing values; historical schema
+histogram ranges do not silently defeat automatic ranges in the new plot config.
+User plot config takes precedence; retain explicit reference ranges where set.
+
+2. Range resolution: bounded-memory scan of validated source ROOTs, applying the
+same selection, truth-group filter, expressions, finite-value and sentinel cuts
+as filling. One common min/max across comparison classes per feature/selection/
+geometry, including both compared algorithms when requested. Default 50 bins;
+integer-aware edges, deterministic constant-value padding; empty fallback [0,1]
+with no-valid-data annotation. Pad upper edge to include observed max in ROOT
+normal bins. For 2D determine each missing axis range from jointly valid pairs.
+No implicit quantile clipping. Reject invalid explicit ranges/log-axis bounds;
+record effective edges, accepted counts and fallback reason in resolved config.
+
+3. ROOT histogram integration: call/refactor shared make_group_hist.py and
+make_group_hist2d.py entry points; introduce explicit input/output adapters rather
+than cloning their filling logic. Current sources contain mixed CC/NC truth:
+add explicit per-group event filters and preserve family/source_uid/geometry
+identity; do not assign an entire source to one class. Preserve empty groups,
+parent coverage and audited exposure without summing duplicated source rows.
+Make existing CLI/config behavior backward compatible. Produce hist/metadata
+and hist2d/profile_x compatible with the existing plotters, with explicit
+missing-value exclusions and under/overflow policy. Profiles retain existing
+binned-TH2 ProfileX semantics and errors.
+
+4. Rendering: invoke plot_comparison.py shared drawing functions for 1D and
+plot_group_hist2d.py for 2D; extend explicit input/output path support so new
+campaigns need not imitate legacy directory layouts. Preserve class colors,
+markers/error bars, legends, annotations and per-feature log settings. Honor
+ratio configuration explicitly (current renderer auto-enables it for two curves).
+Generalize 2D panel layout/group styles for testbeam/real-data; preserve 2x2 for
+four neutrino classes. Empty classes produce honest empty annotations. No second
+Matplotlib implementation. Retire the new standalone PDF report renderer.
+
+5. Normalization: keep audited coverage validation, including zero-selected
+parents, upstream of plots. Feed validated scales into shared plotters: shape
+in-range normalization with configured folding, MC target/parent luminosity,
+data weight1 at effective exposure, no extra sampling factor. Small/testbeam
+remain shapes. Extend 2D's current unconditional shape scaling to explicit
+shape/yield modes and correct color-axis labels; profiles remain mean Y, not
+scaled event yields. Save scales/exposure and sumw2 in summaries/metadata.
+No automatic claim of authoritative exposure from catalogues.
+
+6. DAG/output: source validation -> range resolution/coverage -> grouped ROOT
+histograms -> per-feature/pair PDF + summary.csv -> aggregate receipt. Named
+Snakemake targets; separate configuration/content fingerprints for conversion,
+histograms and rendering, so style-only changes do not require reconversion.
+Frozen campaign input settings remain immutable; preserve existing run products.
+Layout under run: config/, sources/, histograms/1d/<feature>/<selection>/<geometry>/<class>.root,
+histograms/2d/<pair>/<selection>/<geometry>/<class>.root,
+plots/1d/<feature>/<selection>/<geometry>/{plot.pdf,summary.csv},
+plots/2d/<pair>/<selection>/<geometry>/{plot.pdf,summary.csv}, logs/.
+Always use geometry level for stable layout. PDFs per feature or configured
+pair; 2D PDF contains density panels and profile overlay. Keep campaign coverage,
+normalization and complete receipts; no combinatorial auto-generation of pairs.
+
+7. Acceptance: tests for explicit/automatic ranges, negative/constant/empty and
+missing values, exact max-edge inclusion, common class ranges and 2D pair masks;
+class selection, no accidental cut changes, empty parents, audited shape/yield
+scales/errors, geometry separation, cache invalidation and legacy plotting
+regressions. Verify backend calls directly and compare histogram bins and PDF
+style with EM shower reference at identical settings. Reuse bounded MC ROOTs
+for initial plotting test, then a bounded end-to-end small MC run. Inspect PDF
+pages and CSV/ROOT agreement. Full batch remains dry-run only. Update production
+and plugin guides with exact configuration examples and output tree.
+
+Only task record edited; no implementation or Next action executed. Historical
+output paths, job evidence and validation limits preserved above.
+
+Main launcher `--check-handoff shower-features`: PASS; `git diff --check`: PASS.
+
+### 2026-11-19T15:08:45+01:00 — ROOT backend integration implemented and tested
+
+Implementation commit `5f2c0a453898b925b8e0129dbf3635e835485983` exists before
+this record. Verified pwd/branch; only authorized checkout edited. Changes:
+evaluation_region_partitions/{make_group_hist.py,make_group_hist2d.py,
+plot_comparison.py,plot_group_hist2d.py}; feature_production/{cli.py,worker.py,
+distributions.py,plot_settings.py,Snakefile,config/histograms.yaml,
+config/plotting.yaml,tests/test_campaign.py,tests/test_root_plots.py,README.md};
+feature_plugins/README.md; feature_dev/TEST_RESULTS.md. Exact list:
+`git show --stat 5f2c0a4`. This checkpoint changes only the task record.
+
+Implementation, output layout, known limits and job state replaced in Current
+state above. Historical linked records retained. No next-action work started.
+
+Commands/results (LCG activation and hostname/pwd/interpreter/import preflight
+in same shell, PYTHONNOUSERSITE=1 and PYTHONDONTWRITEBYTECODE=1):
+
+- `python3 -m unittest discover -s feature_production/tests -p 'test_*.py'`: 30 passed, unit.log. Earlier fixture used multiple sndData cycles and emitted ROOT warnings; fixture now recreates consistent schemas and final log has no such errors. Missing branches are explicitly rejected before filling.
+- `python3 -m unittest discover -s evaluation_region_partitions -p 'test_em_shower*workflow.py'`: 14 passed, legacy.log.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small --files-per-group 1 --events-per-file 2 --run root-backend-small-20261119`: six stages complete at15:01:44 local; four events. Controller exit143 reported after final completion messages; identical command then exit0/nothing to do. small.log/repeat.log retain both observations.
+- Same dataset/plugin/caps with `--run root-backend-reuse-20261119 --reuse-sources /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/mc-small-20261119-143325`: exit0/four plotting preparation stages, no source jobs.
+- Same dataset/plugin/caps with `--run root-backend-style-20261119 --reuse-sources /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/root-backend-small-20261119 --plot-config "$PWD/feature_dev/output/root-backend-20261119/style.yaml"`: exit0; only plots/all scheduled. Histograms referenced from original run; new requested style snapshot records CC_numu orange.
+- Same dataset/plugin/caps, `--run root-backend-final-20261119 --reuse-sources /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/root-backend-small-20261119`: exit0, four stages. Last subsequent paired-feature-cut accounting change is covered by its dedicated unit case, default MC pair selection unchanged.
+- `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample full --normalization shape --run root-backend-full-preview --dry-run`: exit0, 1870 DAG tasks (1866 sources + ranges/histograms/plots/all), no full campaign execution.
+- `python3 feature_dev/output/root-backend-20261119/verify_outputs.py`: passed (verification.json): two source ROOTs/four events/13 plugin branches, successful validators, recursive checksums, 192 ROOT histograms and variances, 48 PDF page counts, CSV normalization, class counts and style-cache reuse.
+- `pdftoppm -f 1 -singlefile -scale-to 1100 -png .../plot.pdf .../one-d` and corresponding two-d: rendered and visually inspected; matches ROOT backend colours/markers/annotations and density panels. PDF profile-page structure covered by tests.
+- `bash -n run_shower_features.sh`, `git diff --check`: passed. No new scheduler queries/submissions; no batch job IDs. Existing profile/access limitations remain.
+
+User settings are documented at feature_production/config/histograms.yaml
+and plotting.yaml with CLI overrides. New runs no longer emit a combined
+report.pdf/HTML; each feature/pair has its own PDF and summary.csv. Class and
+geometry identifiers, resolved ranges and normalization are retained for review.
+
+Main launcher `--check-handoff shower-features`: PASS (exit0).
+`git diff --check`: PASS. Implementation SHA predates this task-only checkpoint;
+Next action remains unstarted.
+
+### 2026-11-19T15:17:34+01:00 — Combined geometry plots
+
+Implementation commit: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa.
+Removed geometry directory levels, combining raw shapes and independently weighted
+yields while preserving geometry provenance. Changed files and validation limits
+are listed in Current state; previous historical records remain preserved.
+
+Commands/results: `python3 -m unittest discover -s feature_production/tests -p
+ 'test_*.py'`: 31 passed. `./run_shower_features.sh --dataset mc-neutrino
+--plugin silvia --sample small --files-per-group 1 --events-per-file 2
+--run combined-geometry-20261119 --reuse-sources
+/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/root-backend-small-20261119`:
+exit0, four tasks complete. Independent uproot/receipt checks: 24 PDFs, 96 ROOT
+histograms, four conserved events, no geometry directories. Logs and exact output
+paths are recorded above and in feature_dev/TEST_RESULTS.md. No new conversions,
+full campaign or batch jobs. Local sessions finished; no job IDs. Handoff command:
+`python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`.
+Handoff check: PASS (exit0); git diff --check: PASS. Implementation and task
+checkpoint committed separately; no push performed. The single Next action
+remains unstarted.
+
+### 2026-11-19T15:19:11+01:00 — Larger MC run prepared
+
+User requested more events. Planned command: `./run_shower_features.sh --dataset mc-neutrino --plugin silvia --sample small --files-per-group 2 --events-per-file 500 --run larger-mc-20261119`. Dry-run exit0: four sources plus ranges/histograms/plots/all. Existing implementation cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa; launch HEAD49afb76, only task documentation modified. Sequential local Snakemake, at most2000 selected events; no full campaign or coworker qualification. Expected sources/{0,1,2,3}/features.root, logs/source-<index>.log and plots/1d and plots/2d under output base above. Status: tail controller log and verify plots/complete.json; no scheduler IDs. Access preflight log: feature_dev/output/larger-mc-20261119/preflight.log.
+
+### 2026-11-19T15:23:47+01:00 — Larger MC run verified
+
+Completed the prepared command above, exit0/eight tasks complete. 394 selected
+events from four files, compared with four events in the previous test. All
+source validators and baseline parity checks passed. Independent verifier
+`python3 -m feature_dev.output.larger-mc-20261119.verify` passed receipts,13 plugin
+branches,96 ROOT histogram counts/variances,24 PDF page counts and shape
+normalization. Exact output/evidence paths and class counts are in Current state
+and feature_dev/TEST_RESULTS.md. Implementation remains
+cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa; launch HEAD49afb76. No running task
+processes, no batch IDs, no full campaign or coworker qualification started.
+Only task record and validation documentation changed.
+Main launcher `--check-handoff shower-features`: PASS (exit0).
+`git diff --check`: PASS. Task-only validation checkpoint committed; not pushed.
+
+### 2026-11-19T15:36:34+01:00 — Coworker examples checked
+
+Verified pwd, task branch and clean Git; inspected feature_plugins/README.md,
+feature_plugins/silvia/features.py, feature_dev/algorithms/gap_clusters.py and
+tutorial links in feature_dev/README.md and README_SHOWER_FEATURES.md. Both
+production Silvia example and prior annotated standalone gap-clustering example
+remain present. No implementation edits, new tests, generated outputs or jobs;
+previous394-event verification and implementation SHA remain current. Only this
+checkpoint changed; single Next action unchanged and unstarted.
+Main launcher handoff check and git diff --check: PASS (exit0).
+
+### 2026-11-19T15:41:19+01:00 — Coworker README rewritten
+
+Replaced primary coworker guide with current production setup, feature/example
+locations, dataset access and parameter table including --files-per-group6 and
+--events-per-file200 (actual commands include spaces). Explains per-group/geometry
+file selection, per-file event caps, combined PDF outputs, own development branch,
+configuration and full/yield references. Preserved previous walkthrough verbatim
+under README_SHOWER_FEATURES_STANDALONE.md, apart from a historical notice; linked
+from the new guide. Root README and production reference updated. Existing
+implementation SHA cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa remains valid.
+
+Commands/results: pwd and git branch --show-current match required checkout;
+initial git status --short clean. Activated LCG107/preflight Python3.11.9; local
+file-link checks pass. ./run_shower_features.sh --help exit0, evidence at
+/tmp/zhibin/shower-readme-help-20261119.txt. git diff --check passes. Documentation
+only; no new scientific tests, outputs or jobs. Historical records preserved;
+coworker/full-campaign Next action unchanged and not started.
+Main launcher --check-handoff shower-features: PASS; previous walkthrough
+preservation check: PASS. Task-only documentation commit; not pushed.
+
+### 2026-11-19T15:47:31+01:00 — Normalization guide clarified
+
+Production-first guide now identifies required source/target exposure, storage
+locations, per-file versus event information, shape/MC/data formulas and geometry
+combination. Complete JSON format is in NORMALIZATION_AUDIT.md; standalone
+reference preserved separately with scope notice. Changed files listed above.
+Existing implementation commit cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa retained.
+
+Validation in activated LCG107/Python3.11.9: local links pass; parsed documented
+audit passed exposure.validate_coverage and asserted both weights2/30. Actual
+source0 ROOT metadata and shape normalization records from larger-mc-20261119
+match the guide. This validates documentation/software consistency, not physical
+luminosities, new yield outputs or full coverage. No new jobs/IDs or products.
+Next action remains unchanged and unstarted.
+Main launcher --check-handoff shower-features and git diff --check: PASS.
+Task-only documentation commit; no push.
+
+### 2026-11-19T15:51:19+01:00 — Data format guide added
+
+Added feature_dev/DATA_FORMAT.md and linked coworker/production/plugin guides.
+Covers raw detector collections, MC truth and saved truth subset, feature/hit
+units, geometry coordinate meaning, clusters, separate Hit3D schema and event
+identity. Existing implementation cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa retained.
+
+Validation commands in activated LCG107: uproot.open on raw MC source and saved
+source0 feature ROOT (paths above); keys/typenames/MCTrack leaves inspected.
+Asserted70 entries,451 branches,13 plugin branches and documented feature names.
+Documented arrays(..., entry_stop=5, library=np) example passed. Local link
+checks and git diff --check passed. No new conversion, testsuite, products or
+jobs. Only documentation changed; other datasets and Hit3D are code-reviewed
+references, not newly file-validated. Single Next action remains unstarted.
+Main launcher --check-handoff shower-features: PASS (exit0).
+Task-only documentation commit; not pushed.
+
+### 2026-11-19T15:53:10+01:00 — Original luminosity provenance documented
+
+Traced metadata generation and copying into feature ROOT: 2024 neutrino15fb-1
+constant, older filename conventions, SND run-luminosity tables, passing-muon
+pp24 sampling and muon collision exposure. Added source links, allocation formula
+and double-sampling warning to NORMALIZATION.md. Upstream MC CSV row327 agrees
+with test plan source0 (same digi, lumi15). Commands: targeted rg/sed code review;
+LCG-activated Python json/csv read-only comparison and local link check passed.
+Implementation remains cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa. No external
+physics calibration verification, no new jobs/outputs; Next action not started.
+Main launcher --check-handoff shower-features and git diff --check: PASS.
+Task-only documentation commit; not pushed.
+
+### 2026-11-19T15:54:22+01:00 — GitHub branch published
+
+User authorized commit/push to origin task/shower-features. Verified pwd, branch,
+clean working tree and GitHub origin URL. Fetch succeeded; no remote-only
+commits,35 local-only commits. Normal push succeeded:4f37831..68d2dec. All
+implementation/doc changes already committed; this task-only checkpoint records
+the publication. Implementation SHA remains cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa,
+not this checkpoint commit. No tests/conversions/jobs or outputs generated.
+Scientific Next action unchanged and unstarted.
+Main launcher --check-handoff shower-features and git diff --check: PASS.

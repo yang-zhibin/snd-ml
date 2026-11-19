@@ -14,6 +14,7 @@ import tempfile
 from engine import ROOT, schema, load_events, sha, write_json, read_json
 from datasets import PHYSICS_DATASETS, DATASETS, resolve_dataset, check_size
 from sources import build_plan, resolve_prepared
+from exposure import resolve_normalization
 
 
 def digest(value):
@@ -53,6 +54,8 @@ def main():
     parser.add_argument('--schema',type=Path)
     parser.add_argument('--dependency',type=Path,action='append',default=[],help='Additional imported algorithm source file; repeat as needed')
     parser.add_argument('--sample',default='small')
+    parser.add_argument('--normalization', choices=('auto', 'shape', 'yield'), default='auto')
+    parser.add_argument('--exposure-manifest', type=Path, help='Audited parent-source coverage JSON for a prepared full sample')
     parser.add_argument('--dataset', choices=('synthetic','all')+DATASETS)
     parser.add_argument('--dataset-config', type=Path, default=ROOT/'feature_dev/datasets.yaml')
     parser.add_argument('--sample-root', type=Path, help='Use existing prepared samples instead of automatic source preparation')
@@ -66,6 +69,13 @@ def main():
     parser.add_argument('--output-root',type=Path,default=work/'snd-ml-outputs/unified_shower_features_v1/feature_dev' if work.exists() else Path.cwd()/'feature-dev-output')
     parser.add_argument('--dry-run',action='store_true')
     args=parser.parse_args()
+    if args.normalization == 'yield' and (args.sample != 'full' or args.dataset not in ('mc-neutrino','mc-muon','real-data')):
+        parser.error('Yield requires a single prepared full MC/data dataset')
+    if args.exposure_manifest and (args.dataset == 'all' or args.sample != 'full' or args.normalization == 'shape' or args.dataset in (None,'synthetic','testbeam')):
+        parser.error('--exposure-manifest requires a single full MC/data yield run')
+    if args.dataset == 'all' and args.sample == 'full' and args.normalization != 'shape':
+        parser.error('Run full yield datasets individually with their exposure audits')
+
     if not re.fullmatch('[A-Za-z0-9][A-Za-z0-9_.-]*',args.run):parser.error('Invalid run name')
     if args.prepare_only and args.dataset not in (*DATASETS, 'all'):
         parser.error('--prepare-only requires a physics dataset')
@@ -195,10 +205,13 @@ def run_one(args, prepared=None):
     if args.prepare_only:
         raise ValueError('--prepare-only requires a physics dataset')
     check_size([sample])
-    _,sample_manifest=load_events(sample)
+    events,sample_manifest=load_events(sample)
+    exposure_audit=read_json(args.exposure_manifest) if args.exposure_manifest else None
+    normalization=resolve_normalization(args.normalization, args.dataset or 'synthetic', args.sample,
+        exposure_audit, sha(sample), events, sample_manifest['provenance'])
     parameters=json.loads(args.parameters)
     if not isinstance(parameters,dict):raise ValueError('--parameters must be a JSON object')
-    source_files=[algorithm,ROOT/'convertData/scifi_plane_clustering.py',ROOT/'feature_dev/engine.py',ROOT/'feature_dev/selected_hits.py',*sorted((ROOT/'feature_dev/algorithms').glob('*.py')),ROOT/'feature_dev/cli.py',ROOT/'feature_dev/datasets.py',ROOT/'feature_dev/sources.py',ROOT/'feature_dev/Snakefile',ROOT/'run_feature_dev.sh',*[p.resolve() for p in args.dependency]]
+    source_files=[ROOT/'feature_dev/root_metadata.py',ROOT/'feature_dev/exposure.py',ROOT/'evaluation_region_partitions/normalization.py',algorithm,ROOT/'convertData/scifi_plane_clustering.py',ROOT/'feature_dev/engine.py',ROOT/'feature_dev/selected_hits.py',*sorted((ROOT/'feature_dev/algorithms').glob('*.py')),ROOT/'feature_dev/cli.py',ROOT/'feature_dev/datasets.py',ROOT/'feature_dev/sources.py',ROOT/'feature_dev/Snakefile',ROOT/'run_feature_dev.sh',*[p.resolve() for p in args.dependency]]
     hashes={str(p):sha(p) for p in source_files}
     hashes[str(sample)]=sha(sample);hashes[str(sample)+'.manifest.json']=sha(str(sample)+'.manifest.json')
     import numpy, uproot, yaml, matplotlib, platform
@@ -207,14 +220,18 @@ def run_one(args, prepared=None):
     plan={'runtime':runtime,'sample':str(sample),'source_hashes':hashes,
           'baseline':{'algorithm':str(ROOT/'feature_dev/algorithms/baseline.py'),'parameters':{},'schema':schema(ROOT/'feature_dev/schemas/baseline.yaml')},
           'candidate':{'algorithm':str(algorithm),'parameters':parameters,'schema':schema(definition)}}
+    plan['normalization']=normalization
+    if args.exposure_manifest:
+        plan['exposure_audit']=exposure_audit
     if dataset_info is not None:plan['dataset']=dataset_info
     # Histogram settings do not enter the calculation signature.
-    calculation={k:v for k,v in plan.items() if k not in ('baseline','candidate')}
+    calculation={k:v for k,v in plan.items() if k not in ('baseline','candidate','normalization','exposure_audit')}
     for name in ('baseline','candidate'):
         calculation[name]={**plan[name],'schema':{n:{k:v for k,v in d.items() if k not in ('histogram','description')} for n,d in plan[name]['schema']['features'].items()}}
     calc=digest(calculation);valid=digest([calc,'validation-v1'])
-    hist=digest([valid,plan['candidate']['schema']]);plot=digest([hist,'report-v1'])
-    keys=dict(calculate=calc,validate=valid,histogram=hist,plot=plot)
+    hist=digest([valid,plan['candidate']['schema'],normalization,plan.get('exposure_audit')]);plot=digest([hist,'report-v1'])
+    export=digest([valid,normalization,plan.get('exposure_audit'),'root-metadata-v1'])
+    keys=dict(calculate=calc,validate=valid,export=export,histogram=hist,plot=plot)
     output=args.output_root.resolve()
     if args.dataset:output=output/args.dataset
     run=output/args.run
@@ -253,7 +270,9 @@ def run_one(args, prepared=None):
             link=run/name
             if not link.exists():link.symlink_to(path,target_is_directory=True)
         print(f'Report: {run / "plot/report.html"}')
-        print(f'Features: {run / "calculate/features.root"}')
+        published=run/'features.root'
+        if not published.exists():published.symlink_to(Path(plan['paths']['export'])/'features.root')
+        print(f'Features: {published}')
         return {'dataset':args.dataset,'manifest':str(run/'manifest.json'),'signature':signature}
 
 if __name__=='__main__':

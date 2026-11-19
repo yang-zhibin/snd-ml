@@ -169,7 +169,8 @@ def normalization_scale(
             )
         if not math.isfinite(exposure) or exposure <= 0:
             raise ValueError(f"normalization {mode} requires positive exposure")
-        return float(normalization_config[mode]["target_exposure_fb"]) / exposure
+        from normalization import exposure_scale
+        return exposure_scale(float(normalization_config[mode]["target_exposure_fb"]), exposure)
     if mode == "raw_counts":
         return 1.0
     raise ValueError(f"unknown normalization mode {mode}")

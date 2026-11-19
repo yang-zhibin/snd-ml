@@ -1,0 +1,25 @@
+version: 1
+# Ranges omitted here are measured from valid selected values, not plugin-schema ranges.
+defaults:
+  bins: 50
+  fold_underflow: false
+  fold_overflow: true
+  logy: false
+include_baseline: true
+include_plugin: true
+selections:
+  selected: 'true'
+  # scifi35: 'count_scifi > 35'
+features:
+  count_scifi: {dtype: int64, axis_title: Selected SciFi hits}
+  qdc_scifi: {axis_title: Total selected SciFi QDC}
+  density_sndsw_scifi: {axis_title: SciFi density (SND getSumDensity), logy: true}
+  # Explicit override example:
+  # silvia__leading_charge_fraction: {bins: 40, range: [0, 1]}
+features2d:
+  total_qdc_vs_hits:
+    x: count_scifi
+    y: qdc_scifi
+    x_bins: 50
+    y_bins: 50
+    logz: true

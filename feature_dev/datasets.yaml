@@ -12,7 +12,7 @@ datasets:
       catalogues:
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/mc_neutrino.csv
     description: Neutrino MC; preserve CC/NC and electron/muon flavour labels.
-    normalization: unit_area
+    normalization: auto
     required_groups: [CC_nue, CC_numu, NC_nue, NC_numu]
     samples:
       small: mc-neutrino/small-v1.jsonl
@@ -28,7 +28,7 @@ datasets:
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_data_2024.csv
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/testbeam_2023_h8_v2/testbeam_data_2023_h8.csv
     description: Testbeam data and MC; preserve particle, energy and geometry labels.
-    normalization: unit_area
+    normalization: auto
     samples:
       small: testbeam/small-v1.jsonl
       full: testbeam/full-v1.jsonl
@@ -42,7 +42,7 @@ datasets:
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_distributions/unified_real_data_distributions_v1/source_manifests/real_data_2024_no_veto.csv
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/real_data_distributions/unified_real_data_distributions_v1/source_manifests/real_data_2024_veto_10pct.csv
     description: Collision data with separate no-veto and sampled veto groups.
-    normalization: unit_area
+    normalization: auto
     required_groups: [real_data_2024_no_veto, real_data_2024_veto_10pct]
     samples:
       small: real-data/small-v1.jsonl
@@ -56,7 +56,7 @@ datasets:
       catalogues:
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/mc_muon_up.csv
     description: Optional upward-going muon MC; excluded from dataset all.
-    normalization: unit_area
+    normalization: auto
     samples:
       small: mc-muon/small-v1.jsonl
       full: mc-muon/full-v1.jsonl

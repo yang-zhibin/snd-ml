@@ -117,8 +117,8 @@ def resolve_dataset(dataset, sample, config_path, sample_root):
     if config.get('version') != 1:raise ValueError('Dataset config version must be 1')
     entry = config.get('datasets', {}).get(dataset)
     if not isinstance(entry, dict):raise ValueError(f'Dataset configuration missing: {dataset}')
-    if entry.get('normalization', 'unit_area') != 'unit_area':
-        raise ValueError('Dataset development currently supports unit_area shapes only')
+    if entry.get('normalization', 'unit_area') not in ('unit_area', 'auto'):
+        raise ValueError('Dataset normalization must be unit_area or auto')
     if sample not in ('small', 'full'):raise ValueError('Physics datasets require --sample small or full')
     location = entry.get('samples', {}).get(sample)
     if not isinstance(location, str) or not location:raise ValueError(f'No {sample} sample configured for {dataset}')
@@ -138,7 +138,7 @@ def resolve_dataset(dataset, sample, config_path, sample_root):
     missing = set(expected) - {e['group'] for e in events}
     if missing:raise ValueError(f'Missing configured groups for {dataset}: {sorted(missing)}')
     identity = {'name': dataset, 'sample': sample, 'version': provenance['sample_version'],
-                'normalization': 'unit_area', 'groups': group_counts(events), 'configuration': entry}
+                'normalization': entry.get('normalization', 'unit_area'), 'groups': group_counts(events), 'configuration': entry}
     return path, identity
 
 
