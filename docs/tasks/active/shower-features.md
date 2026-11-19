@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:53:10+01:00
+- Last verified: 2026-11-19T15:54:22+01:00
 - Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
-- Implemented: Production code unchanged at cd13b6c. Added original luminosity provenance to feature_dev/NORMALIZATION.md: MC exposure constants, real-data run tables/file allocation, passing-muon sampling, muon collision-table calculation, manifest propagation and exact verified source-row example. Distinguishes repository provenance from external physics justification. Existing data-format and coworker guides retained; local changes not pushed.
-- Validation: Verified pwd/task branch and clean Git. Read update_path_file.py, combine_veto_ineff_lumi.py, generate_passing_muon_metadata.py and MC/data manifest builders. LCG107 Python3.11.9 preflight; read larger-mc plan source0 and upstream CSV row327: same digi path, lumi_per_file15, n_event71. Documentation local links and git diff --check pass. No runtime changes or new conversion/tests. Physical origins of constants/run-table measurements not independently validated.
+- Implemented: Production implementation cd13b6c and all accumulated feature/plotting/documentation commits through68d2dec pushed successfully to GitHub origin task/shower-features. Includes combined geometry ROOT plots, audited normalization, coworker/data-format guides and original luminosity provenance. No implementation changes in this publishing turn.
+- Validation: Verified required pwd/branch and clean Git. git fetch origin task/shower-features exit0; remote/local divergence0/35 before push. git push origin HEAD:refs/heads/task/shower-features exit0, remote advanced4f37831..68d2dec. No source modifications or new scientific tests; previous code/output validation and documentation evidence retained below.
 - Remaining limitations: Raw MC/feature format verified on one source; real-data, testbeam and Hit3D descriptions are code/interface references, not new file validation. Optional collections and settings vary; branch count is not a frozen schema. Previous four-file394-event shape sample is not full/representative physics validation. Physical luminosity audits external; full batch/coworker qualification unperformed. No new scheduler claim.
-- Running jobs: No new jobs or conversions, no job IDs. Read-only inspection complete; scheduler not queried. Single Next action unchanged/unstarted.
-- Outputs: Changed feature_dev/NORMALIZATION.md and this task record only. Read-only provenance: /afs/cern.ch/work/z/zhibin/snd-ml/snakemake/metadata/updated/MC_neutrino_2024_ve_metadata.csv row327 and /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/plan.json source0. Existing394-event outputs/evidence remain unchanged; no new scientific products.
+- Running jobs: No scientific or batch jobs started; Git push completed. No job IDs. Single Next action unchanged and unstarted.
+- Outputs: Published repository git@github.com:yang-zhibin/snd-ml.git branch task/shower-features through68d2dec. This turn changes only this task checkpoint. Existing scientific output /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/ and evidence feature_dev/output/larger-mc-20261119/ unchanged.
 
 ## Goal
 
@@ -1424,3 +1424,14 @@ Implementation remains cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa. No external
 physics calibration verification, no new jobs/outputs; Next action not started.
 Main launcher --check-handoff shower-features and git diff --check: PASS.
 Task-only documentation commit; not pushed.
+
+### 2026-11-19T15:54:22+01:00 — GitHub branch published
+
+User authorized commit/push to origin task/shower-features. Verified pwd, branch,
+clean working tree and GitHub origin URL. Fetch succeeded; no remote-only
+commits,35 local-only commits. Normal push succeeded:4f37831..68d2dec. All
+implementation/doc changes already committed; this task-only checkpoint records
+the publication. Implementation SHA remains cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa,
+not this checkpoint commit. No tests/conversions/jobs or outputs generated.
+Scientific Next action unchanged and unstarted.
+Main launcher --check-handoff shower-features and git diff --check: PASS.
