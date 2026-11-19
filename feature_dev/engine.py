@@ -151,7 +151,7 @@ def histograms(plan):
     import numpy as np
     receipt=read_json(Path(plan['paths']['validate'])/'validation.json');f=Path(plan['paths']['calculate'])/'features.json'
     if receipt['features_sha256']!=sha(f):raise ValueError('Features changed after validation')
-    rows=read_json(f);groups=sorted({(r['group'],r['geometry']) for r in rows});result={}
+    rows=read_json(f);groups=sorted({r['group'] for r in rows});result={}
     for feature,definition in plan['candidate']['schema']['features'].items():
         h=definition.get('histogram')
         if not h:continue
@@ -159,47 +159,190 @@ def histograms(plan):
         for name in ('baseline','candidate'):
             if feature not in plan[name]['schema']['features']:continue
             missing=plan[name]['schema']['features'][feature]['missing_value']
-            for group,geometry in groups:
-                all_values=[r[name][feature] for r in rows if (r['group'],r['geometry'])==(group,geometry)]
+            for group in groups:
+                all_values=[r[name][feature] for r in rows if r['group']==group]
                 values=[v for v in all_values if v!=missing]
                 counts,edges=np.histogram(values,bins=h['bins'],range=h['range'])
                 total=int(counts.sum())
-                curves.append({'algorithm':name,'group':group,'geometry':geometry,'counts':counts.tolist(),'edges':edges.tolist(),
-                    'fractions':(counts/total if total else counts.astype(float)).tolist(),'selected':len(all_values),'missing':len(all_values)-len(values),
-                    'underflow':sum(v<h['range'][0] for v in values),'overflow':sum(v>h['range'][1] for v in values)})
+                curves.append({'algorithm':name,'group':group,'geometry':'all',
+                    'counts':counts.tolist(),'edges':edges.tolist(),
+                    'fractions':(counts/total if total else counts.astype(float)).tolist(),
+                    'selected':len(all_values),'missing':len(all_values)-len(values),
+                    'underflow':sum(v<h['range'][0] for v in values),
+                    'overflow':sum(v>h['range'][1] for v in values)})
         result[feature]={'description':definition['description'],'curves':curves}
     if not result:raise ValueError('No histogram definitions')
     write_json(Path(plan['paths']['histogram'])/'histograms.json',result)
 
-
 def report(plan):
     import base64
+    import numpy as np
+    import glob
+    import uproot
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    hist=read_json(Path(plan['paths']['histogram'])/'histograms.json');out=Path(plan['paths']['plot']);out.mkdir(parents=True,exist_ok=True)
+    
+    hist=read_json(Path(plan['paths']['histogram'])/'histograms.json')
+    out=Path(plan['paths']['plot'])
+    out.mkdir(parents=True,exist_ok=True)
     manifest=read_json(str(plan['sample'])+'.manifest.json')
-    parts=['<!doctype html><html><meta charset="utf-8"><title>Feature comparison</title><style>body{font:16px sans-serif;max-width:1100px;margin:30px auto}img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:5px}</style><body>',
-           '<h1>Selected-hit feature comparison</h1>', '<p>'+html.escape(str(manifest['provenance']))+'</p>',
-           '<p>Same events for baseline and candidate. Groups remain separated by source label and geometry. Unit-normalized in-range bin fractions; no luminosity/yield normalization. The rightmost bin includes its upper edge.</p>',
-           '<p>Sample SHA-256: '+sha(plan['sample'])+'</p>',
-           '<p>Candidate: '+html.escape(plan['candidate']['algorithm'])+'; parameters: '+html.escape(json.dumps(plan['candidate']['parameters'],sort_keys=True))+'</p>',
-           '<p>Validation passed: identity, finite values, schema, ROOT/JSON agreement and enabled algorithm checks.</p>']
-    if plan.get('dataset'):
-        parts.append('<p>Dataset selection: '+html.escape(json.dumps(plan['dataset'],sort_keys=True))+'</p>')
-    for feature,item in hist.items():
-        groups=sorted({(c['group'],c['geometry']) for c in item['curves']});fig,axes=plt.subplots(len(groups),1,figsize=(9,3*len(groups)),squeeze=False)
-        for ax,(group,geometry) in zip(axes[:,0],groups):
-            for c in item['curves']:
-                if (c['group'],c['geometry'])==(group,geometry):ax.stairs(c['fractions'],c['edges'],label=c['algorithm'],linewidth=1.8)
-            ax.set_title(group+' | '+geometry);ax.set_ylabel('Fraction per bin');ax.legend()
-        axes[-1,0].set_xlabel(feature);fig.tight_layout();p=out/(feature+'.png');fig.savefig(p,dpi=110);plt.close(fig)
-        parts+=['<h2>'+html.escape(feature)+'</h2><p>'+html.escape(item['description'])+'</p>', '<img alt="'+html.escape(feature)+'" src="data:image/png;base64,'+base64.b64encode(p.read_bytes()).decode()+'">',
-                '<table><tr><th>Algorithm/group/geometry</th><th>Selected</th><th>Missing</th><th>Underflow</th><th>Overflow</th></tr>']
-        for c in item['curves']:parts.append('<tr><td>'+html.escape('/'.join(c[k] for k in ('algorithm','group','geometry')))+'</td>'+''.join('<td>'+str(c[k])+'</td>' for k in ('selected','missing','underflow','overflow'))+'</tr>')
-        parts.append('</table>')
-    parts.append('</body></html>');(out/'report.html').write_text('\n'.join(parts))
+    
+    # Prepara dati comuni per energia e 2D - fuori dai try
+    sample_dir = str(Path(plan['sample']).parent)
+    energy_files = glob.glob(f'{sample_dir}/exports/*/features.root')
+    feat_json = read_json(Path(plan['paths']['calculate'])/'features.json')
+    event_group = {
+        (r['event_id']['runId'], r['event_id']['eventIndex']): r['group']
+        for r in feat_json
+    }
 
+    parts=['<!doctype html><html><meta charset="utf-8"><title>Feature comparison</title><style>body{font:16px sans-serif;max-width:1100px;margin:30px auto}img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:5px}</style><body>',
+           '<h1>Selected-hit feature comparison</h1>', 
+           '<p>Same events for baseline and candidate. Unit-normalized in-range bin fractions; no luminosity/yield normalization. The rightmost bin includes its upper edge.</p>',
+           '<p>Validation passed: identity, finite values, schema, ROOT/JSON agreement and enabled algorithm checks.</p>']
+
+    # Plot 1D per ogni feature
+    colors_groups = {
+        'CC_nue': '#2166ac',
+        'CC_numu': '#d6604d',
+        'NC_nue': '#4dac26',
+        'NC_numu': '#8073ac'
+    }
+    for feature,item in hist.items():
+        fig,ax=plt.subplots(1,1,figsize=(9,5))
+        for c in item['curves']:
+            if c['algorithm'] != 'candidate':
+                continue
+            ax.stairs(
+                c['fractions'], c['edges'],
+                label=c['group'],
+                color=colors_groups.get(c['group'], 'black'),
+                linewidth=2.0
+            )
+        ax.set_ylabel('Fraction per bin')
+        ax.set_xlabel(item['description'])
+        ax.legend()
+        fig.tight_layout()
+        p=out/(feature+'.png')
+        fig.savefig(p,dpi=110)
+        plt.close(fig)
+        parts+=['<h2>'+html.escape(feature)+'</h2><p>'+html.escape(item['description'])+'</p>',
+                '<img alt="'+html.escape(feature)+'" src="data:image/png;base64,'+base64.b64encode(p.read_bytes()).decode()+'">',
+                '<table><tr><th>Algorithm/group/geometry</th><th>Selected</th><th>Missing</th><th>Underflow</th><th>Overflow</th></tr>']
+        for c in item['curves']:
+            parts.append('<tr><td>'+html.escape('/'.join(c[k] for k in ('algorithm','group','geometry')))+'</td>'+''.join('<td>'+str(c[k])+'</td>' for k in ('selected','missing','underflow','overflow'))+'</tr>')
+        parts.append('</table>')
+
+    # Plot energia MC
+    try:
+        if energy_files:
+            energies = {}
+            for fpath in energy_files:
+                with uproot.open(fpath) as f:
+                    tree = f['sndData']
+                    for run, idx, energy in zip(
+                        tree['runId'].array(),
+                        tree['eventIndex'].array(),
+                        tree['mc_incoming_energy'].array()
+                    ):
+                        key = (int(run), int(idx))
+                        if key in event_group:
+                            group = event_group[key]
+                            energies.setdefault(group, []).append(float(energy))
+
+            fig,ax = plt.subplots(1,1,figsize=(9,5))
+            for group, vals in sorted(energies.items()):
+                if vals:
+                    underflow = sum(v < 0 for v in vals)
+                    overflow = sum(v > 1000 for v in vals)
+                    counts, edges = np.histogram(vals, bins=30, range=(0, 1000))
+                    total = counts.sum()
+                    fractions = counts/total if total else counts.astype(float)
+                    ax.stairs(fractions, edges,
+                             label=f'{group} (N={len(vals)}, uf={underflow}, of={overflow})',
+                             color=colors_groups.get(group,'black'), linewidth=2.0)
+            ax.set_xlabel('MC incoming neutrino energy [GeV]')
+            ax.set_ylabel('Fraction per bin')
+            ax.legend()
+            fig.tight_layout()
+            p = out/'mc_incoming_energy.png'
+            fig.savefig(p, dpi=110)
+            plt.close(fig)
+            parts+=['<h2>MC incoming neutrino energy</h2>',
+                    '<img src="data:image/png;base64,'+base64.b64encode(p.read_bytes()).decode()+'">']
+    except Exception as e:
+        parts.append(f'<p>Energy plot unavailable: {html.escape(str(e))}</p>')
+
+    # Plot 2D: energia vs density fraction
+    try:
+        if energy_files:
+            # Dal features.json leggi density fraction
+            event_density = {}
+            for r in feat_json:
+                key = (r['event_id']['runId'], r['event_id']['eventIndex'])
+                event_density[key] = {
+                    'group': r['group'],
+                    'vert': r['candidate'].get('scifi_vertical_cluster1_density_fraction', -999),
+                    'hor': r['candidate'].get('scifi_horizontal_cluster1_density_fraction', -999)
+                }
+
+            # Dai file ROOT leggi energia
+            event_energy = {}
+            for fpath in energy_files:
+                with uproot.open(fpath) as f:
+                    tree = f['sndData']
+                    for run, idx, energy in zip(
+                        tree['runId'].array(),
+                        tree['eventIndex'].array(),
+                        tree['mc_incoming_energy'].array()
+                    ):
+                        key = (int(run), int(idx))
+                        event_energy[key] = float(energy)
+
+            # Collega i due dizionari
+            combined = {}
+            for key, density_vals in event_density.items():
+                if key in event_energy:
+                    combined[key] = {
+                        'group': density_vals['group'],
+                        'energy': event_energy[key],
+                        'vert': density_vals['vert'],
+                        'hor': density_vals['hor']
+                    }
+
+            # Plot 2D per verticale e orizzontale
+            for orientation, label in [('vert', 'vertical'), ('hor', 'horizontal')]:
+                fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+                fig.suptitle(f'Energy vs cluster1 {label} density fraction', fontsize=14)
+
+                for ax, group in zip(axes.flatten(), ['CC_nue', 'CC_numu', 'NC_nue', 'NC_numu']):
+                    x = [v['energy'] for v in combined.values()
+                         if v['group'] == group and v[orientation] != -999 and 0 < v['energy'] < 500]
+                    y = [v[orientation] for v in combined.values()
+                         if v['group'] == group and v[orientation] != -999 and 0 < v['energy'] < 500]
+
+                    if x and y:
+                        h = ax.hist2d(x, y, bins=[30, 25], range=[[0, 500], [0, 1]], cmap='Blues')
+                        fig.colorbar(h[3], ax=ax, label='Events')
+
+                    ax.set_title(group)
+                    ax.set_xlabel('MC incoming energy [GeV]')
+                    ax.set_ylabel(f'cluster1 {label} density fraction')
+
+                fig.tight_layout()
+                p = out/f'2d_energy_vs_{orientation}_density.png'
+                fig.savefig(p, dpi=110)
+                plt.close(fig)
+                parts += [
+                    f'<h2>2D: Energy vs cluster1 {label} density fraction</h2>',
+                    '<img src="data:image/png;base64,'+base64.b64encode(p.read_bytes()).decode()+'">'
+                ]
+    except Exception as e:
+        parts.append(f'<p>2D plot unavailable: {html.escape(str(e))}</p>')
+
+    parts.append('</body></html>')
+    (out/'report.html').write_text('\n'.join(parts))
 
 def stage(planfile,name):
     plan=read_json(planfile)

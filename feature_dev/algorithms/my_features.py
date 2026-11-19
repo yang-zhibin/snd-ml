@@ -1,5 +1,6 @@
-from baseline import cluster_hits, validate_algorithm
 from scifi_plane_clustering import payload_from_analysis
+from gap_clusters import cluster_hits
+from baseline import validate_algorithm
 
 
 def view_density(positions_cm):
@@ -14,37 +15,26 @@ def view_density(positions_cm):
 
 def cluster_density(cluster, hit_by_key):
     """Calcola la density di un cluster usando le posizioni in cm."""
-    # Trova gli hit del cluster
     members = [
         hit_by_key[(cluster['station'], cluster['is_vertical'], ch)]
         for ch in cluster['channels']
     ]
-    # Usa x_cm per verticali, y_cm per orizzontali
     if cluster['is_vertical']:
         positions = [h.get('x_cm') for h in members]
     else:
         positions = [h.get('y_cm') for h in members]
-    # Rimuovi None
     positions = [p for p in positions if p is not None]
     return view_density(positions)
 
 
 def calculate_features(hits, clusters, parameters):
-
-    # TEST MANUALE - verifica che view_density funzioni
-    test_positions = [0.0, 0.4, 1.2]
-    test_result = view_density(test_positions)
-    print(f"TEST view_density([0.0, 0.4, 1.2]) = {test_result}, atteso = 4")
-    
     values = payload_from_analysis(clusters)["scalars"]
 
-    # Dizionario per trovare hit dal canale
     hit_by_key = {
         (h['station'], h['isVertical'], h['layer_channel']): h
         for h in hits
     }
 
-    # Tutti i cluster dell'evento
     all_clusters = [
         c for view in clusters["orientations"].values()
         for c in view["clusters"]
@@ -65,11 +55,13 @@ def calculate_features(hits, clusters, parameters):
             if not matching:
                 values[f"scifi_{orientation}_cluster{rank}_density"] = -999.0
                 values[f"scifi_{orientation}_cluster{rank}_density_fraction"] = -999.0
+                values[f"scifi_{orientation}_cluster{rank}_station"] = -999  # ← int!
                 continue
             c = matching[0]
             density = cluster_density(c, hit_by_key)
             fraction = density / total_density if total_density > 0 else -999.0
             values[f"scifi_{orientation}_cluster{rank}_density"] = density
             values[f"scifi_{orientation}_cluster{rank}_density_fraction"] = fraction
-
+            values[f"scifi_{orientation}_cluster{rank}_station"] = c["station"]  # ← aggiunto qui
+            
     return values
