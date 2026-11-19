@@ -1,5 +1,8 @@
 # Production with coworker features
 
+New collaborators: start with the [coworker guide](../README_SHOWER_FEATURES.md)
+for setup, examples and a complete run command. This page is the detailed reference.
+
 The production converter calculates the existing features and the chosen plugin
 in the same event loop. One `sndData` entry contains both sets of features.
 Dataset selection uses the existing EOS catalogues in `feature_dev/datasets.yaml`;
@@ -30,6 +33,17 @@ the owner. The implementation does not grant permissions.
 
 Small runs default to one file per group/geometry and at most 20 selected events
 per file. Change these with `--files-per-group` and `--events-per-file`.
+For example, the retained sampling options work with this production launcher:
+
+```bash
+./run_shower_features.sh --dataset mc-neutrino --plugin silvia \
+  --sample small --files-per-group 6 --events-per-file 200 --run trial02
+```
+
+This selects up to six files per dataset group/geometry and up to 200 selected
+events per file. Small-run limits are 20 files per group/geometry and 1,000 events
+per file. File groups are not quotas for the plotted CC/NC classes. These caps
+apply only to `--sample small`; full mode reads all catalogue sources.
 The first selected events are a debugging sample, not an unbiased yield sample.
 
 ## Outputs

@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:36:34+01:00
+- Last verified: 2026-11-19T15:41:19+01:00
 - Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
-- Implemented: Production converter/Silvia plugin and shared EM shower ROOT backend retained. Geometry components now combine into one histogram/PDF per feature or pair and selection; no geo_* output directories. Common automatic ranges span geometries. Shapes sum raw counts then normalize once; yields sum separately audited, weighted geometry components with variances preserved. ROOT files retain raw histograms, weighted yield histograms when applicable and original geometry/component metadata. Profiles retain raw binned-TH2 means. Configurable histograms.yaml/plotting.yaml and source reuse remain supported. Instructions updated. Changes committed locally; not pushed.
-- Validation: Verified pwd/task branch and initially clean Git. Larger MC run on lxplus9102: --files-per-group 2 --events-per-file 500; dry-run and access preflight exit0, actual sequential Snakemake run exit0/all eight tasks complete. Four source files contain394 selected events (70,62,127,135), classes CC_nue97/CC_numu199/NC_nue35/NC_numu63. Source validation/baseline parity and independent source/config/histogram/plot receipts pass. Verified13 plugin branches, selected entry identity via validator, all96 histogram count/variance conservation,24 PDFs/page counts and shape normalization, no geo_* directories. Earlier31 unit tests are historical passing evidence; not rerun because no implementation changed.
+- Implemented: Production implementation remains cd13b6c: converter/Silvia plugin, combined geometries, shared ROOT plots, automatic ranges and independently audited yield weights. Rewrote README_SHOWER_FEATURES.md as the current coworker guide: own checkout/setup, development branch, examples, dataset access, retained file/event caps, PDF outputs, configuration and full/yield references. Previous walkthrough preserved in README_SHOWER_FEATURES_STANDALONE.md with historical notice; root README and production reference updated. No runtime code changes. Local changes not pushed.
+- Validation: Documentation review verified pwd/task branch and clean initial Git; inspected current CLI, plugin reference and retained example files. Local file links in new coworker/production guides pass; ./run_shower_features.sh --help exit0; git diff --check passes. LCG107 Python3.11.9 preflight recorded on lxplus9102. No conversions or unit tests rerun for documentation-only change. Earlier verified larger MC run:394 events, four sources,96 histograms,24 PDFs, all source/stage receipts, parity, histogram counts/variances and shape checks passed;31 production unit tests remain historical evidence.
 - Remaining limitations: Four-file sample uses shape normalization and is not a full or representative physics sample. No file reached500 selected events. Physical luminosity audits remain external; weighted geometry combination tested previously with fixtures. No full batch resource qualification, coworker-account test or new real testbeam/data/muon access check. Profiles remain binned approximations. Source reuse depends on retained runs. New run names required after code/HEAD changes. No global scheduler claim.
-- Running jobs: All bounded local conversion, validation, histogram and plotting processes finished exit0. No HTCondor jobs submitted or job IDs; global scheduler not queried. Coworker/full-campaign Next action remains unstarted.
-- Outputs: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/ contains sources/{0,1,2,3}/features.root and validation/parity receipts, logs/source-<index>.log, config snapshots/coverage,96 ROOT histograms and24 PDFs/CSV. Examples: plots/1d/count_scifi/selected/plot.pdf and plots/2d/total_qdc_vs_hits/selected/plot.pdf. Evidence: feature_dev/output/larger-mc-20261119/{dry-run.log,preflight.log,run.log,verify.py,verification.json}. Previous runs preserved. This run changes only docs/tasks/active/shower-features.md and feature_dev/TEST_RESULTS.md; no implementation edits.
+- Running jobs: No new production processes or batch jobs launched. Previously bounded run finished exit0. No HTCondor job IDs; scheduler not queried. Single Next action remains unstarted.
+- Outputs: Documentation changed: README.md, README_SHOWER_FEATURES.md, new README_SHOWER_FEATURES_STANDALONE.md, feature_production/README.md and this task record. CLI-help evidence /tmp/zhibin/shower-readme-help-20261119.txt (temporary). Existing scientific products remain /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/ with sources/{0,1,2,3}/features.root, validation/parity receipts, logs, config, histograms and plots. Example plots/1d/count_scifi/selected/plot.pdf. Existing validation evidence feature_dev/output/larger-mc-20261119/{dry-run.log,preflight.log,run.log,verify.py,verification.json}; no outputs regenerated.
 
 ## Goal
 
@@ -1357,3 +1357,23 @@ remain present. No implementation edits, new tests, generated outputs or jobs;
 previous394-event verification and implementation SHA remain current. Only this
 checkpoint changed; single Next action unchanged and unstarted.
 Main launcher handoff check and git diff --check: PASS (exit0).
+
+### 2026-11-19T15:41:19+01:00 — Coworker README rewritten
+
+Replaced primary coworker guide with current production setup, feature/example
+locations, dataset access and parameter table including --files-per-group6 and
+--events-per-file200 (actual commands include spaces). Explains per-group/geometry
+file selection, per-file event caps, combined PDF outputs, own development branch,
+configuration and full/yield references. Preserved previous walkthrough verbatim
+under README_SHOWER_FEATURES_STANDALONE.md, apart from a historical notice; linked
+from the new guide. Root README and production reference updated. Existing
+implementation SHA cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa remains valid.
+
+Commands/results: pwd and git branch --show-current match required checkout;
+initial git status --short clean. Activated LCG107/preflight Python3.11.9; local
+file-link checks pass. ./run_shower_features.sh --help exit0, evidence at
+/tmp/zhibin/shower-readme-help-20261119.txt. git diff --check passes. Documentation
+only; no new scientific tests, outputs or jobs. Historical records preserved;
+coworker/full-campaign Next action unchanged and not started.
+Main launcher --check-handoff shower-features: PASS; previous walkthrough
+preservation check: PASS. Task-only documentation commit; not pushed.
