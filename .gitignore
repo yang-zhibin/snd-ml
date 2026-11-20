@@ -92,3 +92,6 @@ test/test_training_container_3d_ci.py
 
 # Per-checkout personal environment path, written by run_feature_dev.sh setup.
 /.feature-dev-snakemake
+
+# Per-checkout private batch profile location.
+/.feature-production-profile

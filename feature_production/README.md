@@ -186,33 +186,99 @@ Named Snakemake aggregates are `production_sources`, `production_histograms`,
 range/coverage resolution → ROOT histogram filling → ROOT PDFs/CSV summaries.
 Each stage publishes a completion receipt with recursive product checksums.
 
-## Full dataset
+## Batch setup and full dataset
 
-Preview the DAG without submitting or creating campaign products:
+On your own account, install the batch dependencies and configure your profile:
+
+```bash
+./run_shower_features.sh setup --batch
+./run_shower_features.sh setup --batch --check
+```
+
+This extends the existing private Snakemake environment. It deploys the official
+[Snakemake HTCondor profile](https://github.com/Snakemake-Profiles/htcondor) at
+pinned revision `a5b7e6c73d9b9305abe4a04a24056050461627d3` using Cookiecutter,
+with CERN credential settings. The `cluster-generic` executor submits to
+HTCondor through Python bindings; it does not require the native `htcondor`
+executor. Package versions are pinned: Snakemake9.17.2, Cookiecutter2.7.1,
+HTCondor25.0.14 (the `htcondor2` import), cluster-generic executor1.0.9.
+
+The generated profile defaults to `<private-environment>/profiles/htcondor`;
+logs live under `<private-environment>/htcondor_logs/<job-token>/`. Its location
+is saved in ignored `.feature-production-profile` in this checkout. Official
+generated files are preserved under the profile's `upstream/`; a CERN adapter
+sets portable interpreter paths, shared-filesystem execution, resource units,
+status polling and cancellation. `deployment.json` records provenance.
+No Zhibin-specific paths are used by the generated profile.
+
+Repeated setup preserves existing profile customizations. `--check` installs or
+changes nothing. An unmanaged existing profile is never overwritten. Use
+`setup --batch --batch-profile /your/new/profile` to select a new deployment;
+`--prefix /your/new/environment` selects a private environment. Initial
+concurrency defaults to20, configurable with `--batch-jobs` on first setup.
+For an existing profile, use runtime `--jobs N` or edit its `jobs` setting.
+
+### First run a bounded batch canary
+
+```bash
+./run_shower_features.sh --dataset mc-neutrino --plugin silvia \
+  --sample small --files-per-group 1 --events-per-file 2 \
+  --batch --jobs 2 --run batch-check01 --check-access
+
+./run_shower_features.sh --dataset mc-neutrino --plugin silvia \
+  --sample small --files-per-group 1 --events-per-file 2 \
+  --batch --jobs 2 --run batch-check01
+```
+
+Small runs remain local unless `--batch` or an explicit `--profile` is provided.
+Full runs automatically use the saved profile. Explicit `--profile PATH` takes
+precedence. Missing setup produces an actionable error; full execution never
+silently falls back to local processing. User-supplied profiles may use
+`htcondor` or configured `cluster-generic` submit/status commands; external
+profiles remain the user's responsibility, including paths/resource mapping.
+
+Before batch execution, the launcher checks the executor import, generated
+profile's HTCondor binding/interpreter and log access, Kerberos ticket (`klist
+-s`) and scheduler WRITE authentication (`condor_ping`). `--check-access` also
+checks selected detector inputs and SNDSW. Setup alone does not establish EOS
+permissions or credential lifetime on workers; test the canary on your account.
+
+### Preview and run full processing
 
 ```bash
 ./run_shower_features.sh --dataset mc-neutrino --plugin silvia \
   --sample full --normalization shape --run full01 --dry-run
-```
 
-Execute with your qualified Snakemake HTCondor profile:
-
-```bash
 ./run_shower_features.sh --dataset mc-neutrino --plugin silvia \
-  --sample full --normalization shape --run full01 \
-  --profile /path/to/your/htcondor-profile
+  --sample full --normalization shape --run full01
 ```
 
-The profile must use `executor: htcondor`, with the matching executor installed
-in your Snakemake environment and suitable CERN credentials, concurrency and
-resource settings. Setup alone does not qualify batch execution. This launcher
-creates one conversion job per catalogue source (including empty sources), then
-separate range-resolution, histogram and plotting jobs. ROOT event processing
-is sequential within each job; all actions are booked together per group to
-avoid a separate input scan for every feature. It does not split a large individual input file
-into shards. Defaults are 2500 MB and a 3600-minute Snakemake runtime resource;
-review profile resource mapping before submission. Full execution is refused
-without an HTCondor profile. No full batch campaign has been validated yet.
+The full neutrino catalogue currently plans1,866 source jobs plus range,
+histogram and plot stages. `--jobs 20`
+limits concurrent jobs, not the number of source files. Keep the controller
+running in a persistent terminal session. A dry-run submits nothing.
+
+Each source job uses one CPU,2500MB memory and5000MB disk. The stage runtime
+resource defaults to **60 minutes**, mapped by the generated adapter to
+`+MaxRuntime=3600` seconds. To change a rule's runtime, edit the generated profile,
+for example `set-resources: {source: {runtime: 120}}`. The adapter supplies5000MB
+disk for aggregate stages too. Review bounds before a larger campaign.
+
+Monitor with `condor_q "$USER"`; inspect the run's `.snakemake/log/`,
+`logs/source-<index>.log` and the profile log directory's `condor.out`,
+`condor.err`, `condor.log`, `submission.json` and `job.json`. Snakemake prints the
+external job ID `<token>_<cluster>`; `job.json` records the cluster number.
+The run's `batch-execution.json` records the chosen profile/config hash.
+For cancellation, interrupt the controller normally so its cancel hook can
+remove tracked jobs; use `condor_rm <cluster>` for a known remaining job.
+Do not remove unrelated jobs. After an interrupted controller, check for live
+jobs before rerunning the same unchanged command. Completed products are reused
+only after receipt validation; uncompleted jobs may need recovery.
+
+This workflow submits one conversion per source, not shards within a source.
+The bounded batch canary and full dry-run are separate from full-campaign
+resource/physics qualification. Yield processing still requires an audited
+exposure manifest as described below.
 
 ## Normalization and ROOT metadata
 

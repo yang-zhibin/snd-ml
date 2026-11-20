@@ -13,6 +13,7 @@ from common import ROOT, digest, fingerprint, plugin_spec, source_key, stratum, 
 from cli import find_snakemake
 from sources import build_plan
 from plot_settings import load_settings
+from batch import choose_profile, profile_config, check_profile
 
 
 def catalogue_rows(dataset, config_path):
@@ -115,30 +116,37 @@ def main():
     parser.add_argument('--normalization',choices=['auto','shape','yield'],default='auto')
     parser.add_argument('--exposure-manifest',type=Path)
     parser.add_argument('--profile',type=Path,help='Snakemake HTCondor profile, required for full execution')
+    parser.add_argument('--batch',action='store_true',help='Use saved batch profile for a small canary (full uses it automatically)')
+    parser.add_argument('--jobs',type=int,help='Override profile concurrency')
     parser.add_argument('--dry-run',action='store_true')
     parser.add_argument('--check-access',action='store_true',help='Read-only preflight every chosen input and runtime; do not convert')
     args=parser.parse_args()
     if not re.fullmatch('[A-Za-z0-9][A-Za-z0-9_.-]*',args.run):parser.error('Invalid run name')
-    if args.profile and not args.profile.is_dir():parser.error('Missing profile directory')
-    if args.sample=='full' and not args.profile and not (args.dry_run or args.check_access):
-        parser.error('Full production requires --profile; use --dry-run first')
-    if args.sample=='full' and args.profile and not args.dry_run:
-        import yaml
-        configs=list(args.profile.glob('config*.yaml'))
-        if not any((yaml.safe_load(p.read_text()) or {}).get('executor')=='htcondor' for p in configs):
-            parser.error('Full execution requires a profile with executor: htcondor')
+    if args.jobs is not None and args.jobs < 1:parser.error('--jobs must be positive')
+    args.profile=choose_profile(args.profile,args.sample,args.batch)
+    if args.profile:
+        profile_config(args.profile)
+    if not args.profile and (args.batch or (args.sample=='full' and not (args.dry_run or args.check_access))):
+        parser.error('Batch execution requires setup --batch or --profile PATH; use --dry-run first')
+    if args.jobs is not None and not args.profile:parser.error('--jobs requires a batch profile')
     plan=make_plan(args)
     print('Campaign identity:',plan['campaign_sha256'])
     print('Sources:',len(plan['jobs']),'Output:',plan['directory'])
+    executable=find_snakemake(work)
+    batch_settings=None
+    if args.profile:
+        batch_settings=check_profile(args.profile,executable,credentials=not args.dry_run)
+        batch_settings['jobs_override']=args.jobs
+        print('Batch profile:',args.profile)
     if args.check_access:
         from worker import preflight
         preflight(plan)
         return
-    executable=find_snakemake(work)
     def execute(path):
         command=[executable,'--snakefile',str(ROOT/'feature_production/Snakefile'),'--cores','1',
                  '--rerun-triggers','mtime','--config','plan='+str(path),'wrapper='+str(ROOT/'run_shower_features.sh')]
         if args.profile:command+=['--profile',str(args.profile.resolve())]
+        if args.jobs is not None:command+=['--jobs',str(args.jobs)]
         if args.dry_run:command+=['--dry-run']
         env=os.environ.copy();env.pop('PYTHONHOME',None);env.pop('PYTHONPATH',None)
         subprocess.run(command,cwd=path.parent,env=env,check=True)
@@ -170,6 +178,7 @@ def main():
         run.mkdir(parents=True,exist_ok=True)
         write_json(run/'plan.json',plan);write_json(run/'plugin.json',plan['plugin'])
         (run/'logs').mkdir(exist_ok=True)
+        if batch_settings:write_json(run/'batch-execution.json',batch_settings)
         if plan.get('reuse_histograms'):
             previous=Path(plan['reuse_histograms'])
             import shutil, yaml
