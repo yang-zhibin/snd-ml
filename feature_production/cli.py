@@ -125,7 +125,8 @@ def main():
     if args.sample=='full' and args.profile and not args.dry_run:
         import yaml
         configs=list(args.profile.glob('config*.yaml'))
-        if not any((yaml.safe_load(p.read_text()) or {}).get('executor')=='htcondor' for p in configs):
+        #if not any((yaml.safe_load(p.read_text()) or {}).get('executor')=='htcondor' for p in configs):
+        if not any((yaml.safe_load(p.read_text()) or {}).get('executor') in ('htcondor', 'cluster-generic') for p in configs):
             parser.error('Full execution requires a profile with executor: htcondor')
     plan=make_plan(args)
     print('Campaign identity:',plan['campaign_sha256'])
