@@ -5,10 +5,10 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-20T10:40:21+01:00
+- Last verified: 2026-11-20T10:42:17+01:00
 - Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
 - Implemented: Production code remains cd13b6c, published through ed65b3c on GitHub. Existing tracked HTCondor profile is snakemake/.config/snakemake/htcondor; its modern config uses cluster-generic and legacy config uses cluster submission. No compatible native htcondor profile was established for the new feature launcher. No code changes in this review.
-- Validation: Verified required pwd/branch and clean initial Git. Inspected production CLI, setup installer, Snakefile and existing cluster-generic profile submit/status/jobscript. Confirmed guard rejects cluster-generic; submit/status hard-code owner log directory and /usr/bin/python3 htcondor2; jobscript hard-codes owner vendor path. Setup installs Snakemake only. Submit passes runtime directly to MaxRuntime, whereas new production guide describes runtime in minutes: units must be reconciled. No implementation change or batch test in this explanation turn.
+- Validation: Verified pwd/task branch and clean initial Git. Read user-linked Snakemake-Profiles/htcondor upstream README, config.v8+.yaml and cookiecutter.json via read-only curl (web fetch unavailable). Confirmed official profile uses cluster-generic, requires executor package/HTCondor bindings and Cookiecutter deployment with per-user log path. CERN configuration prompt exists. No implementation/test/batch execution.
 - Remaining limitations: Raw MC/feature format verified on one source; real-data, testbeam and Hit3D descriptions are code/interface references, not new file validation. Optional collections and settings vary; branch count is not a frozen schema. Previous four-file394-event shape sample is not full/representative physics validation. Physical luminosity audits external; full batch/coworker qualification unperformed. No new scheduler claim.
 - Running jobs: No jobs submitted, no job IDs or processing outputs. Scheduler not queried. Compatibility implementation/canary Next action remains unstarted.
 - Outputs: Only task record updated. Reviewed feature_production/cli.py, feature_production/Snakefile, feature_dev/setup_env.py, snakemake/.config/snakemake/htcondor/{grid-submit.py,grid-status.py,grid-jobscript.sh,config.v8+.yaml}. Prior larger-mc-20261119 outputs unchanged.
@@ -1460,3 +1460,15 @@ then dry-run and bounded canary before full1866-source campaign. No code edits,
 package installs, jobs or tests in this explanation turn. Existing implementation
 SHA and single Next action retained; not started.
 Main launcher handoff and git diff --check: PASS. Local task-only checkpoint.
+
+### 2026-11-20T10:42:17+01:00 — Upstream HTCondor profile identified
+
+User supplied https://github.com/Snakemake-Profiles/htcondor/tree/master.
+Read upstream README, config.v8+.yaml and cookiecutter.json using curl -fsSL
+after web fetch cache misses. Confirmed profile is deployed with Cookiecutter,
+uses cluster-generic for modern Snakemake and requires HTCondor bindings and
+executor plugin. Configuration includes profile name, log directory and CERN
+flag. This supports retaining the established profile rather than requiring
+native executor htcondor. No package install, code change, submission or new
+scientific outputs; Next action remains unstarted. Implementation unchanged.
+Main launcher handoff check and git diff --check: PASS; task-only checkpoint.
