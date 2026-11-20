@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:54:22+01:00
+- Last verified: 2026-11-20T10:37:54+01:00
 - Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
-- Implemented: Production implementation cd13b6c and all accumulated feature/plotting/documentation commits through68d2dec pushed successfully to GitHub origin task/shower-features. Includes combined geometry ROOT plots, audited normalization, coworker/data-format guides and original luminosity provenance. No implementation changes in this publishing turn.
-- Validation: Verified required pwd/branch and clean Git. git fetch origin task/shower-features exit0; remote/local divergence0/35 before push. git push origin HEAD:refs/heads/task/shower-features exit0, remote advanced4f37831..68d2dec. No source modifications or new scientific tests; previous code/output validation and documentation evidence retained below.
+- Implemented: Production code remains cd13b6c, published through ed65b3c on GitHub. Existing tracked HTCondor profile is snakemake/.config/snakemake/htcondor; its modern config uses cluster-generic and legacy config uses cluster submission. No compatible native htcondor profile was established for the new feature launcher. No code changes in this review.
+- Validation: Verified pwd/task branch and clean initial Git. Inspected tracked profile configs, existing production submission wrapper and new launcher requirement documented in production README; YAML parsed in LCG107. Existing profile executor cluster-generic differs from required htcondor. No full dry-run, submission, installation or new scientific testing; previous394-event validation remains historical evidence.
 - Remaining limitations: Raw MC/feature format verified on one source; real-data, testbeam and Hit3D descriptions are code/interface references, not new file validation. Optional collections and settings vary; branch count is not a frozen schema. Previous four-file394-event shape sample is not full/representative physics validation. Physical luminosity audits external; full batch/coworker qualification unperformed. No new scheduler claim.
-- Running jobs: No scientific or batch jobs started; Git push completed. No job IDs. Single Next action unchanged and unstarted.
-- Outputs: Published repository git@github.com:yang-zhibin/snd-ml.git branch task/shower-features through68d2dec. This turn changes only this task checkpoint. Existing scientific output /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/ and evidence feature_dev/output/larger-mc-20261119/ unchanged.
+- Running jobs: No new batch or local production jobs; no job IDs. Scheduler not queried. Profile review only; execution qualification remains unstarted.
+- Outputs: Only this task checkpoint changed. Reviewed tracked snakemake/.config/snakemake/htcondor/{config.yaml,config.v8+.yaml} and snakemake/run_remaining_unified_shower_features_htcondor.sh. Existing larger-mc-20261119 scientific outputs unchanged.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Qualify the combined-geometry ROOT plotting workflow on Silvia's account using --check-access and an agreed bounded HTCondor canary/profile, verifying input/cutflow permissions, credentials, output paths and resource mapping before full production; do not start a full campaign from this checkpoint.
+Provide and qualify a compatible batch profile/launcher integration for the coworker: the existing tracked cluster-generic profile is rejected by the new launcher's native-htcondor guard; validate resource/credential mapping with a bounded canary before any full campaign.
 
 ## Checkpoint history
 
@@ -1435,3 +1435,15 @@ the publication. Implementation SHA remains cd13b6c8d1b3ac47a024b8d6076c2bf80de0
 not this checkpoint commit. No tests/conversions/jobs or outputs generated.
 Scientific Next action unchanged and unstarted.
 Main launcher --check-handoff shower-features and git diff --check: PASS.
+
+### 2026-11-20T10:37:54+01:00 — Coworker HTCondor profile lookup
+
+Existing relative path snakemake/.config/snakemake/htcondor is tracked, but
+config.v8+.yaml uses executor cluster-generic (config.yaml is legacy cluster).
+The existing production wrapper passes that profile to the main snakefile;
+feature_production requires executor htcondor. Do not claim the old path works
+with the new launcher. Verified via ls/cat/rg/git ls-files and LCG Python YAML
+parse. No profile edits, installs, tests or batch jobs; no job IDs/new outputs.
+Implementation SHA remains cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa. Single Next
+action replaced with concrete compatibility prerequisite; not started.
+Main launcher handoff check and git diff --check: PASS. Local task-only checkpoint.
