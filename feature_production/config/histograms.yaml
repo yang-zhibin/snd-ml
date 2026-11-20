@@ -1,5 +1,6 @@
 version: 1
 # Ranges omitted here are measured from valid selected values, not plugin-schema ranges.
+# per modificare i plots!
 defaults:
   bins: 50
   fold_underflow: false
@@ -14,8 +15,11 @@ features:
   count_scifi: {dtype: int64, axis_title: Selected SciFi hits}
   qdc_scifi: {axis_title: Total selected SciFi QDC}
   density_sndsw_scifi: {axis_title: SciFi density (SND getSumDensity), logy: true}
+  mc_incoming_energy: {axis_title: MC incoming neutrino energy (GeV), bins: 30, range: [0, 1000]}
+
   # Explicit override example:
   # silvia__leading_charge_fraction: {bins: 40, range: [0, 1]}
+
 features2d:
   total_qdc_vs_hits:
     x: count_scifi
@@ -23,3 +27,15 @@ features2d:
     x_bins: 50
     y_bins: 50
     logz: true
+  energy_vs_vertical_density:
+    x: mc_incoming_energy
+    y: silvia__scifi_vertical_cluster1_density_fraction
+    x_bins: 50
+    y_bins: 50
+    logz: false
+  energy_vs_horizontal_density:
+    x: mc_incoming_energy
+    y: silvia__scifi_horizontal_cluster1_density_fraction
+    x_bins: 50
+    y_bins: 50
+    logz: false
