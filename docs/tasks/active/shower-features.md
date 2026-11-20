@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-19T15:54:22+01:00
-- Implementation checkpoint: cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa
-- Implemented: Production implementation cd13b6c and all accumulated feature/plotting/documentation commits through68d2dec pushed successfully to GitHub origin task/shower-features. Includes combined geometry ROOT plots, audited normalization, coworker/data-format guides and original luminosity provenance. No implementation changes in this publishing turn.
-- Validation: Verified required pwd/branch and clean Git. git fetch origin task/shower-features exit0; remote/local divergence0/35 before push. git push origin HEAD:refs/heads/task/shower-features exit0, remote advanced4f37831..68d2dec. No source modifications or new scientific tests; previous code/output validation and documentation evidence retained below.
-- Remaining limitations: Raw MC/feature format verified on one source; real-data, testbeam and Hit3D descriptions are code/interface references, not new file validation. Optional collections and settings vary; branch count is not a frozen schema. Previous four-file394-event shape sample is not full/representative physics validation. Physical luminosity audits external; full batch/coworker qualification unperformed. No new scheduler claim.
-- Running jobs: No scientific or batch jobs started; Git push completed. No job IDs. Single Next action unchanged and unstarted.
-- Outputs: Published repository git@github.com:yang-zhibin/snd-ml.git branch task/shower-features through68d2dec. This turn changes only this task checkpoint. Existing scientific output /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/ and evidence feature_dev/output/larger-mc-20261119/ unchanged.
+- Last verified: 2026-11-20T13:57:27+01:00
+- Implementation checkpoint: db1061162f94aa850a17de9cd1056b40f5f81b4a
+- Implemented: setup --batch deploys pinned official Snakemake-Profiles/htcondor with private packages, CERN options and a portable adapter; saved ignored profile auto-selects for full runs, --batch enables small canary, --profile overrides and --jobs controls concurrency. Configured cluster-generic and native htcondor profiles accepted. Generated adapter uses private htcondor2, shared filesystem, account-owned logs, recorded-ID cancellation and runtime minutes-to-seconds mapping (60min default). Repeats preserve profile customizations; --check is read-only. Worker plotting/features unchanged. Guides updated. Implementation and validation commits published to GitHub origin/task/shower-features through 7915088; publication checkpoint follows.
+- Validation: Publication verification: pwd/branch match, initial Git clean, origin is git@github.com:yang-zhibin/snd-ml.git; fetch showed 0 remote-only/5 local-only commits; normal push ed65b3c..7915088 succeeded. Main launcher handoff and git diff --check passed. Prior scientific validation (not rerun for publication): Verified pwd/task branch and clean initial Git. Isolated setup initially found legacy htcondor import missing; corrected to htcondor2. Fresh/repeat/check setup passed, dependency checks passed. LCG107 Python3.11.9 on lxplus9105:40 production tests and5 setup tests passed; added cancellation receipt test, final10 batch tests passed. Saved-profile full dry-run planned1866 sources with no execution. Canary preflight passed inputs, SNDSW, Kerberos and schedd WRITE. Actual canary exit0/six DAG tasks complete via5 CERN jobs; verified4 events,13 Silvia branches,96 histogram counts/variances,24 PDF pages/shapes and all receipts. Identical repeat exit0/nothing to do/no new submissions. Targeted condor_q shows no remaining canary jobs. README links and git diff --check pass.
+- Remaining limitations: CERN batch tested on Zhibin account with two sources/four events only; no full1866-source execution, coworker-account qualification or physical yield audit. Full-scale memory/runtime may require tuning. Official upstream profile is pinned with documented maintained CERN adaptations; external custom profiles require their own validation. Cancellation tested with mocked scheduler, not interruption of a live job. Test environment/profile live in ignored checkout output and must be retained while selected. New run names required after HEAD/code changes.
+- Running jobs: No submissions or scheduler recheck during publication; last verified batch state follows. Canary clusters16608353,16608354,16608356,16608357,16608359 completed; targeted condor_q returned no rows. No new full campaign, no pending task jobs. Unrelated other-checkout jobs left untouched. Single Next action unstarted.
+- Outputs: Batch canary /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/batch-canary-20261120/ contains sources/{0,1}/features.root, validation/parity receipts, batch-execution.json,96 histograms and24 PDFs. Evidence feature_dev/output/batch-20261120/{setup.log,setup-retry.log,check.log,repeat.log,unit.log,setup-unit.log,unit-batch-final.log,full-dry-run.log,access.log,canary.log,canary-repeat.log,verify.py,verification.json}. Private venv and profile at same evidence base; per-job logs under venv/htcondor_logs/<token> (IDs in verification.json). Changed .gitignore, feature_dev/setup_env.py, feature_production/{batch.py,batch_adapter.py,cli.py,Snakefile,tests/test_batch.py,README.md}, README_SHOWER_FEATURES.md, feature_dev/TEST_RESULTS.md and this task. Original environment/profile unchanged; ignored .feature-dev-snakemake and .feature-production-profile select isolated tested setup.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Qualify the combined-geometry ROOT plotting workflow on Silvia's account using --check-access and an agreed bounded HTCondor canary/profile, verifying input/cutflow permissions, credentials, output paths and resource mapping before full production; do not start a full campaign from this checkpoint.
+Have the coworker run setup --batch and the documented bounded two-source canary on her own account, verifying credentials, input access and output/log paths before agreeing full-campaign resource limits; do not start full production from this checkpoint.
 
 ## Checkpoint history
 
@@ -1435,3 +1435,103 @@ the publication. Implementation SHA remains cd13b6c8d1b3ac47a024b8d6076c2bf80de0
 not this checkpoint commit. No tests/conversions/jobs or outputs generated.
 Scientific Next action unchanged and unstarted.
 Main launcher --check-handoff shower-features and git diff --check: PASS.
+
+### 2026-11-20T10:37:54+01:00 — Coworker HTCondor profile lookup
+
+Existing relative path snakemake/.config/snakemake/htcondor is tracked, but
+config.v8+.yaml uses executor cluster-generic (config.yaml is legacy cluster).
+The existing production wrapper passes that profile to the main snakefile;
+feature_production requires executor htcondor. Do not claim the old path works
+with the new launcher. Verified via ls/cat/rg/git ls-files and LCG Python YAML
+parse. No profile edits, installs, tests or batch jobs; no job IDs/new outputs.
+Implementation SHA remains cd13b6c8d1b3ac47a024b8d6076c2bf80de0c5fa. Single Next
+action replaced with concrete compatibility prerequisite; not started.
+Main launcher handoff check and git diff --check: PASS. Local task-only checkpoint.
+
+### 2026-11-20T10:40:21+01:00 — Batch compatibility fix scope clarified
+
+User asked how to fix profile setup. Read-only review found both restrictive
+executor guard and owner-specific submit/status/bootstrap paths. Installer only
+installs Snakemake; existing hooks use system Python htcondor2. Runtime is passed
+directly to MaxRuntime and must be reconciled with new workflow minute semantics.
+Proposed coherent fix: support configured cluster-generic backend, explicit batch
+package setup, portable per-run logs/interpreter/bootstrap and resource mapping;
+then dry-run and bounded canary before full1866-source campaign. No code edits,
+package installs, jobs or tests in this explanation turn. Existing implementation
+SHA and single Next action retained; not started.
+Main launcher handoff and git diff --check: PASS. Local task-only checkpoint.
+
+### 2026-11-20T10:42:17+01:00 — Upstream HTCondor profile identified
+
+User supplied https://github.com/Snakemake-Profiles/htcondor/tree/master.
+Read upstream README, config.v8+.yaml and cookiecutter.json using curl -fsSL
+after web fetch cache misses. Confirmed profile is deployed with Cookiecutter,
+uses cluster-generic for modern Snakemake and requires HTCondor bindings and
+executor plugin. Configuration includes profile name, log directory and CERN
+flag. This supports retaining the established profile rather than requiring
+native executor htcondor. No package install, code change, submission or new
+scientific outputs; Next action remains unstarted. Implementation unchanged.
+Main launcher handoff check and git diff --check: PASS; task-only checkpoint.
+
+### 2026-11-20T13:35:59+01:00 — Batch implementation pre-submission checkpoint
+
+Implemented managed setup --batch/check with pinned official upstream profile,
+cluster-generic/HTCondor packages, private generated CERN adapter, saved selection,
+explicit overrides, concurrency and runtime mapping. Isolated test environment
+and profile: feature_dev/output/batch-20261120/{venv,profile}; prior environment
+unchanged. Setup failed initially on legacy htcondor import; corrected to
+htcondor2. Fresh/repeat/check setup passed. Production40 tests and setup5 tests
+passed. Full dry-run planned1866 sources plus stages; no full jobs. Canary access
+preflight, klist and condor_ping WRITE passed. All logs under same evidence folder.
+
+Authorized canary command: ./run_shower_features.sh --dataset mc-neutrino
+--plugin silvia --sample small --files-per-group 1 --events-per-file 2 --batch
+--jobs 2 --run batch-canary-20261120. Expected output base
+/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/batch-canary-20261120/
+with two source ROOTs and24 combined PDFs. Controller log
+feature_dev/output/batch-20261120/canary.log; batch logs under
+feature_dev/output/batch-20261120/venv/htcondor_logs/<token>/.
+Status: condor_q zhibin and controller/log inspection. Job IDs pending actual
+submission. No full production authorized by this canary.
+
+Canary submitted from implementation db10611: source0 job16608353.0, token
+1f7fb1f6acac4cc28b9d86959d3c394a; source1 job16608354.0, token
+79bb3cd3506f4837b32c2cc29ff97cfe. Initial condor_q status idle. Other checkout
+job16608352 observed and left untouched. Status command: condor_q16608353
+16608354 (with spaces).
+
+Canary milestone: source validation/receipts pass for both two-event ROOTs;
+ranges16608356 completed, histogram16608357 submitted. Controller progresses
+from remote event-log status automatically. Implementation db10611 committed
+before submission; no code edits during canary. Evidence TEST_RESULTS.md and
+feature_dev/output/batch-20261120/.
+
+### 2026-11-20T13:51:23+01:00 — Batch setup and end-to-end canary verified
+
+Implementation db1061162f94aa850a17de9cd1056b40f5f81b4a committed before canary. Commands/results,
+changed files, output paths and limits replaced in Current state above. Official
+profile deploy/repeat/check,40 production tests,5 setup tests and additional
+cancellation mock passed. Full dry-run only:1866 sources. Canary command recorded
+in pre-submission entry completed exit0: source jobs16608353/16608354, ranges
+16608356, histograms16608357, plots16608359. Four worker events,96 histograms,24
+PDFs and all receipts independently verified. Identical rerun nothing to do;
+condor_q16608353 16608354 16608356 16608357 16608359 (with spaces) returned no
+remaining rows. No full campaign. Local tests/docs follow-up commit only; next
+action is coworker-account qualification and is not started.
+Main launcher --check-handoff shower-features and git diff --check: PASS (exit0).
+
+### 2026-11-20T13:57:27+01:00 — HTCondor update published to GitHub
+
+Verified required pwd and task/shower-features branch, clean initial tree and
+GitHub origin. git fetch origin task/shower-features succeeded;
+git rev-list --left-right --count origin/task/shower-features...HEAD returned
+0 remote-only and 5 local-only commits. git push origin
+HEAD:refs/heads/task/shower-features succeeded (ed65b3c..7915088). Existing
+implementation SHA db1061162f94aa850a17de9cd1056b40f5f81b4a retained.
+Only docs/tasks/active/shower-features.md changed for this publication checkpoint;
+implementation files, prior validation limits and output paths remain above.
+No tests rerun, outputs generated or jobs submitted; scheduler not rechecked.
+LCG107 Python3.11.9 preflight on lxplus9105 passed. Main launcher command
+`python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`
+and git diff --check passed before publication. This checkpoint is committed
+and pushed separately. The single Next action remains unchanged and unstarted.

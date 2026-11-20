@@ -187,14 +187,17 @@ exposure metadata for validation; the small sample is not assigned a physical
 yield. See the [normalization guide](feature_dev/NORMALIZATION.md) for the required
 information, storage locations and calculation.
 
-Full processing requires a configured Snakemake HTCondor profile. Preview first:
+Full processing uses your saved HTCondor profile. Set it up once with
+`./run_shower_features.sh setup --batch`, then follow the
+[bounded batch canary](feature_production/README.md#first-run-a-bounded-batch-canary).
+Preview full processing before submitting:
 
 ```bash
 ./run_shower_features.sh --dataset mc-neutrino --plugin silvia \
   --sample full --normalization shape --run full01 --dry-run
 ```
 
-See [full-dataset execution](feature_production/README.md#full-dataset) for batch
+See [full-dataset execution](feature_production/README.md#batch-setup-and-full-dataset) for batch
 requirements. The small-sample file/event caps do not apply to `--sample full`.
 
 ## Further reference

@@ -49,7 +49,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prefix', type=Path, help='New environment directory; default is your AFS work area')
     parser.add_argument('--check', action='store_true', help='Verify existing setup without installing or changing configuration')
+    parser.add_argument('--batch', action='store_true', help='Install and configure the official CERN HTCondor profile')
+    parser.add_argument('--batch-profile', type=Path, help='New private profile directory (default: inside environment)')
+    parser.add_argument('--batch-jobs', type=int, default=20, help='Concurrency for a newly generated profile')
     args = parser.parse_args()
+    if (args.batch_profile or args.batch_jobs != 20) and not args.batch:
+        parser.error('Batch profile settings require --batch')
+    if args.batch_jobs < 1: parser.error('--batch-jobs must be positive')
+    sys.path.insert(0, str(ROOT))
     user = getpass.getuser()
     work = Path('/afs/cern.ch/work') / user[0] / user
     if args.prefix:
@@ -69,6 +76,9 @@ def main():
     env = isolated_environment()
     if args.check:
         executable = verify(prefix, env)
+        if args.batch:
+            from feature_production.batch import setup
+            setup(prefix, check=True, profile=args.batch_profile)
         print(f'Setup verified: {executable}')
         return
     prefix.parent.mkdir(parents=True, exist_ok=True)
@@ -95,6 +105,9 @@ def main():
             subprocess.run([sys.executable, '-m', 'venv', str(prefix)], env=env, check=True)
             subprocess.run([str(prefix / 'bin/python'), '-m', 'pip', 'install', f'snakemake=={VERSION}'], env=env, check=True)
         executable = verify(prefix, env)
+        if args.batch:
+            from feature_production.batch import setup
+            setup(prefix, profile=args.batch_profile, jobs=args.batch_jobs)
         freeze = subprocess.check_output([str(prefix / 'bin/python'), '-m', 'pip', 'freeze'], env=env, text=True)
         atomic_write(prefix / 'installed-packages.txt', freeze)
         # Store data, not executable shell code. Only save after successful checks.
