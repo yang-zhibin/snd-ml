@@ -474,3 +474,67 @@ run.log, verify.py and verification.json. Verification command in activated LCG:
 This is a four-file shape comparison, not full-dataset yield validation or a
 representative-sampling claim. No new code changes, full production, batch
 qualification or coworker-account test.
+
+## 2026-11-20 — Official HTCondor profile integration
+
+Implementation: `db10611` (batch setup, adapters, CLI selection and instructions).
+No full-campaign submission. Evidence: `feature_dev/output/batch-20261120/`.
+
+- LCG107/Python3.11.9 on lxplus9105; fresh private test environment at
+  `feature_dev/output/batch-20261120/venv`, profile at sibling `profile/`.
+  Existing environment unchanged; ignored checkout configuration now selects
+  the test environment/profile. Package pins: Snakemake9.17.2, Cookiecutter2.7.1,
+  htcondor25.0.14, cluster-generic executor1.0.9.
+- `./run_shower_features.sh setup --batch --prefix "$PWD/feature_dev/output/batch-20261120/venv" --batch-profile "$PWD/feature_dev/output/batch-20261120/profile" --batch-jobs 2`:
+  initial attempt exposed unavailable legacy `htcondor` import. Corrected to
+  `htcondor2`; retry passed, including pip check. Setup logs retained.
+- `./run_shower_features.sh setup --batch --check` and repeat `setup --batch`:
+  passed, existing profile preserved. `check.log`, `repeat.log`.
+- `python3 -m unittest discover -s feature_production/tests -p 'test_*.py'`:
+  40 passed, including9 batch tests: profile selection/version precedence,
+  rejection cases, customization preservation, resources, job IDs/status and
+  read-only checks. `unit.log`.
+- `python3 -m unittest discover -s feature_dev/tests -p test_setup_env.py`:
+  five passed. `setup-unit.log`.
+- Full dry-run: `./run_shower_features.sh --dataset mc-neutrino --plugin silvia
+  --sample full --normalization shape --run batch-full-preview-20261120 --dry-run`:
+  exit0, saved cluster-generic profile loaded,1866 sources plus aggregate stages;
+  no campaign products/jobs. `full-dry-run.log`.
+- Canary access: `--sample small --files-per-group 1 --events-per-file 2 --batch
+  --jobs 2 --run batch-canary-20261120 --check-access`: passed input/SNDSW,
+  Kerberos and scheduler WRITE checks. `access.log`.
+- Actual canary: same command without `--check-access`, controller `canary.log`.
+  Sources16608353/16608354 completed on separate CERN workers with two validated
+  events each and13 Silvia branches. Ranges16608356 completed; histogram16608357
+  submitted. Source receipts independently verified. Final results follow below.
+
+The official template is pinned at a5b7e6c73d9b9305abe4a04a24056050461627d3;
+its generated originals remain in profile/upstream. Adaptations supply shared
+filesystem execution, per-account logs, explicit interpreter, cancellation and
+minutes-to-seconds runtime mapping. Actual source job ads confirm3600-second
+MaxRuntime,1 CPU,5120000KB disk and site-rounded3000MB memory (requested2500MB).
+Logs/job IDs/submission specs live in venv/htcondor_logs/<token>/.
+
+Final canary result: exit0, six of six DAG tasks completed (five HTCondor jobs
+plus local aggregate). Clusters16608353/16608354 (sources),16608356 (ranges),
+16608357 (histograms),16608359 (plots) all completed. Targeted `condor_q` returned
+no remaining rows. `python3 -m feature_dev.output.batch-20261120.verify` passed:
+all source/config/histogram/plot receipts, four events,13 plugin branches,
+96 raw histograms with count/variance conservation,24 PDF page checks and shape
+normalization. Output is
+`/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/batch-canary-20261120/`.
+Independent evidence: `verify.py`, `verification.json`. Identical repeat exit0,
+"Nothing to be done", no new submissions (`canary-repeat.log`).
+
+Additional cancellation test uses a mocked scheduler: removes only the cluster
+in its recorded receipt, rejects a different cluster without a scheduler call.
+Focused final batch tests:10 passed (`unit-batch-final.log`); this adds one new
+case to the earlier40 production tests. No live jobs cancelled.
+
+Limits: worker qualification is on Zhibin's account and a four-event MC sample;
+coworker credentials/access, full-scale resource bounds and physical yield audits
+remain unqualified. No full1866-source campaign launched. The private test
+profile/environment are selected only by ignored files in this checkout; the
+coworker runs setup to create her own. Runtime/cancellation adapters are maintained
+locally on top of the pinned official profile, whose unmodified generated files
+are retained for inspection. README local links and git diff --check passed.

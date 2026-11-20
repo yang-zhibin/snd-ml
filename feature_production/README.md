@@ -200,8 +200,8 @@ This extends the existing private Snakemake environment. It deploys the official
 pinned revision `a5b7e6c73d9b9305abe4a04a24056050461627d3` using Cookiecutter,
 with CERN credential settings. The `cluster-generic` executor submits to
 HTCondor through Python bindings; it does not require the native `htcondor`
-executor. Package versions are pinned: Snakemake9.17.2, Cookiecutter2.7.1,
-HTCondor25.0.14 (the `htcondor2` import), cluster-generic executor1.0.9.
+executor. Package versions are pinned: Snakemake 9.17.2, Cookiecutter 2.7.1,
+HTCondor 25.0.14 (the `htcondor2` import), cluster-generic executor 1.0.9.
 
 The generated profile defaults to `<private-environment>/profiles/htcondor`;
 logs live under `<private-environment>/htcondor_logs/<job-token>/`. Its location
@@ -215,7 +215,7 @@ Repeated setup preserves existing profile customizations. `--check` installs or
 changes nothing. An unmanaged existing profile is never overwritten. Use
 `setup --batch --batch-profile /your/new/profile` to select a new deployment;
 `--prefix /your/new/environment` selects a private environment. Initial
-concurrency defaults to20, configurable with `--batch-jobs` on first setup.
+concurrency defaults to 20, configurable with `--batch-jobs` on first setup.
 For an existing profile, use runtime `--jobs N` or edit its `jobs` setting.
 
 ### First run a bounded batch canary
@@ -253,15 +253,15 @@ permissions or credential lifetime on workers; test the canary on your account.
   --sample full --normalization shape --run full01
 ```
 
-The full neutrino catalogue currently plans1,866 source jobs plus range,
+The full neutrino catalogue currently plans 1,866 source jobs plus range,
 histogram and plot stages. `--jobs 20`
 limits concurrent jobs, not the number of source files. Keep the controller
 running in a persistent terminal session. A dry-run submits nothing.
 
-Each source job uses one CPU,2500MB memory and5000MB disk. The stage runtime
+Each source job uses one CPU, 2500 MB memory and 5000 MB disk. The stage runtime
 resource defaults to **60 minutes**, mapped by the generated adapter to
 `+MaxRuntime=3600` seconds. To change a rule's runtime, edit the generated profile,
-for example `set-resources: {source: {runtime: 120}}`. The adapter supplies5000MB
+for example `set-resources: {source: {runtime: 120}}`. The adapter supplies 5000 MB
 disk for aggregate stages too. Review bounds before a larger campaign.
 
 Monitor with `condor_q "$USER"`; inspect the run's `.snakemake/log/`,

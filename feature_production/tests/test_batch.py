@@ -67,6 +67,20 @@ class BatchTests(unittest.TestCase):
     def test_property_header(self):
         p=self.root/'job.sh';p.write_text('#!/bin/bash\n# properties = {"threads": 1}\ntrue\n')
         self.assertEqual(adapter.properties(p),{'threads':1})
+    def test_cancel_checks_receipt_and_targets_only_recorded_job(self):
+        from unittest.mock import Mock
+        import json
+        token='b'*32; folder=self.root/token;folder.mkdir()
+        (folder/'job.json').write_text(json.dumps({'cluster':123}))
+        schedd=Mock();binding=SimpleNamespace(Schedd=lambda:schedd,JobAction=SimpleNamespace(Remove='remove'))
+        with patch.dict(sys.modules,{'htcondor2':binding}),patch.object(sys,'argv',['adapter','cancel',str(self.root),token+'_123']):
+            adapter.main()
+        schedd.act.assert_called_once_with('remove',['123.0'])
+        schedd.reset_mock()
+        with patch.dict(sys.modules,{'htcondor2':binding}),patch.object(sys,'argv',['adapter','cancel',str(self.root),token+'_456']):
+            with self.assertRaisesRegex(ValueError,'receipt mismatch'):adapter.main()
+        schedd.act.assert_not_called()
+
     def test_check_does_not_write(self):
         p=self.profile();saved=self.root/'saved'
         with patch.object(batch,'SAVED',saved),patch.object(batch,'check_profile',return_value={'profile':str(p)}):
