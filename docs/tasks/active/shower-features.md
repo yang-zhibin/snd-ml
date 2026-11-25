@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-20T13:57:27+01:00
-- Implementation checkpoint: db1061162f94aa850a17de9cd1056b40f5f81b4a
-- Implemented: setup --batch deploys pinned official Snakemake-Profiles/htcondor with private packages, CERN options and a portable adapter; saved ignored profile auto-selects for full runs, --batch enables small canary, --profile overrides and --jobs controls concurrency. Configured cluster-generic and native htcondor profiles accepted. Generated adapter uses private htcondor2, shared filesystem, account-owned logs, recorded-ID cancellation and runtime minutes-to-seconds mapping (60min default). Repeats preserve profile customizations; --check is read-only. Worker plotting/features unchanged. Guides updated. Implementation and validation commits published to GitHub origin/task/shower-features through 7915088; publication checkpoint follows.
-- Validation: Publication verification: pwd/branch match, initial Git clean, origin is git@github.com:yang-zhibin/snd-ml.git; fetch showed 0 remote-only/5 local-only commits; normal push ed65b3c..7915088 succeeded. Main launcher handoff and git diff --check passed. Prior scientific validation (not rerun for publication): Verified pwd/task branch and clean initial Git. Isolated setup initially found legacy htcondor import missing; corrected to htcondor2. Fresh/repeat/check setup passed, dependency checks passed. LCG107 Python3.11.9 on lxplus9105:40 production tests and5 setup tests passed; added cancellation receipt test, final10 batch tests passed. Saved-profile full dry-run planned1866 sources with no execution. Canary preflight passed inputs, SNDSW, Kerberos and schedd WRITE. Actual canary exit0/six DAG tasks complete via5 CERN jobs; verified4 events,13 Silvia branches,96 histogram counts/variances,24 PDF pages/shapes and all receipts. Identical repeat exit0/nothing to do/no new submissions. Targeted condor_q shows no remaining canary jobs. README links and git diff --check pass.
-- Remaining limitations: CERN batch tested on Zhibin account with two sources/four events only; no full1866-source execution, coworker-account qualification or physical yield audit. Full-scale memory/runtime may require tuning. Official upstream profile is pinned with documented maintained CERN adaptations; external custom profiles require their own validation. Cancellation tested with mocked scheduler, not interruption of a live job. Test environment/profile live in ignored checkout output and must be retained while selected. New run names required after HEAD/code changes.
-- Running jobs: No submissions or scheduler recheck during publication; last verified batch state follows. Canary clusters16608353,16608354,16608356,16608357,16608359 completed; targeted condor_q returned no rows. No new full campaign, no pending task jobs. Unrelated other-checkout jobs left untouched. Single Next action unstarted.
-- Outputs: Batch canary /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/batch-canary-20261120/ contains sources/{0,1}/features.root, validation/parity receipts, batch-execution.json,96 histograms and24 PDFs. Evidence feature_dev/output/batch-20261120/{setup.log,setup-retry.log,check.log,repeat.log,unit.log,setup-unit.log,unit-batch-final.log,full-dry-run.log,access.log,canary.log,canary-repeat.log,verify.py,verification.json}. Private venv and profile at same evidence base; per-job logs under venv/htcondor_logs/<token> (IDs in verification.json). Changed .gitignore, feature_dev/setup_env.py, feature_production/{batch.py,batch_adapter.py,cli.py,Snakefile,tests/test_batch.py,README.md}, README_SHOWER_FEATURES.md, feature_dev/TEST_RESULTS.md and this task. Original environment/profile unchanged; ignored .feature-dev-snakemake and .feature-production-profile select isolated tested setup.
+- Last verified: 2026-11-25T12:15:01+01:00
+- Implementation checkpoint: 89685db3f68a9e1833bec56d1371fd12068c22db
+- Implemented: 89685db: shared testbeam MC nominal-energy tolerance (2% relative/0.5GeV absolute), exact PDG check and separate errors; all existing numerical/identity checks retained. Early stale-MC-manifest guard and aggregated selection ROOT header checks before submission. Audited atomic catalogue repair utility and regression tests. Shared MC CSV repaired with selected_event_count from frozen upstream; no cutflows/selections changed. Documentation updated. Committed locally, not pushed.
+- Validation: lxplus9116, LCG107 Python3.11.9 ROOT6.34.02/uproot5.3.11: all75 raw headers and identity cutflows match upstream counts (33784selected). Backup/original field and row-order preservation verified. Production44 tests, converter13 tests, final4 focused tests passed. SNDSW6.36.04 access preflight passed. Actual HTCondor13-source20-event preview completed17/17 DAG steps,16 jobs,260events; all source validation/parity receipts pass. Independent raw MC comparison: all260 PDGs exact, saved energy strict rtol1e-9/atol1e-7. All source/stage receipts and23 configured PDF paths verified,299histogram files. Initial verifier expected24 PDFs from earlier run; corrected to resolved configuration, no missing plot.
+- Remaining limitations: Bounded MC preview on owner account only; no full MC event conversion or coworker-account rerun. The75-source audit checks raw headers and all identity indices, not all raw truth events. Existing custom SNDSW/runtime qualification limits remain. New run name required after catalogue/code/HEAD changes. Source truth verification performed independently for260events, not added as a new full raw-truth scan in production validator.
+- Running jobs: All16 preview clusters completed: 16621100,16621101,16621102,16621103,16621104,16621105,16621108,16621109,16621110,16621111,16621114,16621115,16621116,16621124,16621127,16621130. Targeted condor_q returned no rows. Controller exit0; no pending task jobs, no full campaign.
+- Outputs: Preview /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/mc-validation-20261125/ has13 source ROOTs/validation/parity receipts,299histograms and23PDFs. Evidence feature_dev/output/testbeam-fix-20261125/{catalogue-repair.json,production-tests.log,converter-tests.log,focused-tests.log,access.log,canary.log,source-verification.json,preview-verification.json,jobs.json,verify_preview.py,verify_outputs.py,testbeam-mc.json}. Backup /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_mc_2024.csv.before-selected-counts-4845c54ffebe. Profile per-job logs feature_dev/output/batch-20261120/venv/htcondor_logs/<token>/ (tokens in jobs.json). Changed8 implementation/docs/test files in89685db; follow-up feature_production/README.md,feature_dev/TEST_RESULTS.md and this task record. Prior history preserved.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Have the coworker run setup --batch and the documented bounded two-source canary on her own account, verifying credentials, input access and output/log paths before agreeing full-campaign resource limits; do not start full production from this checkpoint.
+Publish the tested fix when requested, then have the coworker update and retry the small testbeam sample with a new run name; do not start coworker/full production from this checkpoint.
 
 ## Checkpoint history
 
@@ -1535,3 +1535,239 @@ LCG107 Python3.11.9 preflight on lxplus9105 passed. Main launcher command
 `python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features`
 and git diff --check passed before publication. This checkpoint is committed
 and pushed separately. The single Next action remains unchanged and unstarted.
+
+### 2026-11-22T15:04:48+01:00 — Coworker submission failure triage
+
+Read-only code review of feature_production/batch_adapter.py, batch.py and the
+installed cluster-generic executor found that the generic error includes stdout
+only; traceback stderr may appear separately. Adapter stages: create UUID log
+directory, parse job properties, write submission.json, register Kerberos with
+Credd, submit to Schedd, write job.json. Missing worker logs alone is inconclusive.
+Requested exact command/profile and full traceback; root cause unconfirmed.
+
+Verified pwd/branch and clean initial Git. LCG107/Python3.11.9 on lxplus967:
+`python3 -m unittest feature_production.tests.test_batch` passed 10 tests;
+`./run_shower_features.sh setup --batch --check` passed the existing profile at
+feature_dev/output/batch-20261120/profile (private venv beside it). No packages
+installed, no submission or scientific outputs, no scheduler query. Tool output
+contains validation results; no new persistent log paths or job IDs. Changed only
+this task record; implementation remains db1061162f94aa850a17de9cd1056b40f5f81b4a.
+Historical evidence and links preserved. Single Next action awaits coworker
+evidence and is not started.
+
+### 2026-11-23T15:17:20+01:00 — Coworker worker SNDSW activation diagnosed
+
+Preserved pre-existing November22 task edits/history; only this task record changed.
+Implementation remains db1061162f94aa850a17de9cd1056b40f5f81b4a.
+Inspected snakemake/envs/env_sndsw_nue.sh, feature_dev/run_export.sh and CVMFS
+setup/alienv. Custom module exists only in public/SndBuild/sw/MODULES/rhel9_x86-64.
+Existing wrapper import-only probe succeeded on lxplus912. Clean child shell:
+`alienv -a slc9_x86-64 load sndsw/latest-event_level_info_output-release --no-refresh`
+reproduced exact missing-module error, exit1; rhel9_x86-64 activation followed by
+June25/bin/python importing ROOT and SndlhcGeo passed (ROOT6.36.04; custom
+master-local14/python/SndlhcGeo.py). Worker architecture still unconfirmed.
+`eval $(alienv load ...)` masks the nonzero substitution status; recommended
+explicit architecture and checked assignment before eval. No scripts changed.
+Coworker supplied output path: /afs/cern.ch/work/s/svicenti/snd-ml-outputs/
+shower-features/mc-neutrino/shape-full-v12, worker b9g02p7746; not inspected.
+No new output files/logs, event processing, job IDs or submissions. Evidence in
+tool output; prior output paths and limits retained above. Single Next action
+is not started. Main launcher handoff and git diff --check run for this checkpoint.
+
+### 2026-11-23T15:19:15+01:00 — Custom SNDSW dependency audit
+
+Read-only reference /afs/cern.ch/work/z/zhibin/public/SndBuild/sndsw Git objects:
+70498563c adds MuonDIS event-level pipeline;90fff4b6e adds sndCutFlowTree and
+nue event-level pipeline. Installed module master-local14 records70498563c.
+convertData/digi_2_features.py imports analysis.analyses.snd_analysis_2024_0mu.
+sciFiTools selectHits/getSumDensity; calls implement hit selection and four
+density outputs. Shared Oct7 source and install lack this helper; upstream
+master raw path HTTP404 (GitHub web fetch failed; curl used). Existing cutflow
+files are consumed by feature production, not regenerated by this converter.
+No claim that newest SNDSW is a drop-in replacement. Proposed pinned shared
+runtime plus preserved/versioned helper logic and event parity before migration.
+Only task record updated; pre-existing edits/history preserved, implementation
+SHA unchanged. No new output paths, jobs, installs or reference checkout edits.
+Main launcher handoff and git diff --check run; single Next action unstarted.
+
+### 2026-11-23T15:32:40+01:00 — Interrupted workflow and preview statistics reviewed
+
+User reports activation error gone without fix; no runtime change made and
+connection explanation not verified. pwd/branch checked; existing task edits
+preserved. Reviewed feature_production/{cli.py,worker.py,Snakefile,README.md}:
+identical plan reuses completed receipts; all sources required before ranges;
+reuse-sources checks all sources and same campaign/plugin/conversion settings.
+Plot-only settings reuse histograms; histogram changes rebuild from source ROOT;
+feature/plugin changes require conversion. No wrapper unlock/rerun-incomplete
+options. No automatic partial full-run plot mode.
+
+LCG107 Python3.11.9 on lxplus912: coworker plan read at
+/afs/cern.ch/work/s/svicenti/snd-ml-outputs/shower-features/mc-neutrino/shape-full-v12/plan.json
+failed PermissionError. Directory scan saw221 source directories; completion
+metadata not accessible, not evidence of zero completed events. Existing own
+/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/mc-neutrino/larger-mc-20261119/
+validation records confirm70+62+127+135=394 events from4 files. No ROOT files
+scanned, output generated, scheduler queries or jobs; only task record changed.
+Implementation db1061162f94aa850a17de9cd1056b40f5f81b4a retained.
+Main launcher handoff and git diff --check run; single Next action unstarted.
+
+### 2026-11-23T15:55:32+01:00 — Testbeam catalogue sizes and settings audited
+
+Read feature_dev/datasets.yaml, sources.py and feature_production/cli.py.
+CSV paths are the three configured catalogues in datasets.yaml. Read-only Python
+csv sums and sources.stratum grouping gave MC2024:75 files,95766 input,13 groups;
+data2024:15 files,5399810 input,430240 selected,8 groups; H8data2023:385 files,
+370929095 input,200000 selected,4 groups. MC selected count not stored.
+Current production defaults1 file/group and20 events/file yield25 files and
+maximum500 events; prior example200/file yields maximum5000. Grouping uses
+family/PDG/energy/geometry. All testbeam shape normalized; full removes caps.
+Legacy YAML2files/100events/25events-per-group is not production effective cap.
+Metadata only, no source accessibility or ROOT validation. No new outputs/logs,
+jobs or scheduler query. Only task record updated, pre-existing changes and
+historical links preserved; implementation db1061162f94aa850a17de9cd1056b40f5f81b4a
+unchanged. Next action retained and unstarted. Handoff and whitespace checks run.
+
+### 2026-11-24T20:18:05+01:00 — Coworker testbeam EOS permissions inspected
+
+Commands: pwd; git branch --show-current; git status --short; catalogue rg;
+ls -ld and eos root://eosuser.cern.ch attr ls on home/TestBeam/binary_full_v1/
+cutflows; id svicenti; ls -l on catalogue example
+tbfull_src_0891a0e853f2e4ed43bb.root (exists,100176bytes,mode644).
+Home mode700 and sys.mask700; all four directories grant sys.acl only
+u:187895:rx,u:1066349:rx; user.acl empty. svicenti UID182858 absent, although
+member sndlhc-cg. Owner-side evidence explains access barrier; no direct
+coworker credential validation. No permission modifications, new outputs, jobs
+or scheduler queries. Only task checkpoint changed, preserving existing edits
+and linked history. Implementation db1061162f94aa850a17de9cd1056b40f5f81b4a
+retained. LCG preflight and main launcher handoff/whitespace checks run.
+Single Next action not started.
+
+### 2026-11-24T20:18:43+01:00 — EOS access grant instructions checked
+
+Read eos acl --help (usage exit22) and official EOS permission documentation.
+User ACL additions use --user u:182858:+x or +rx and preserve other entries.
+user.acl evaluation requires sys.eval.useracl=1, absent in previous attr output;
+enabling may require EOS administrator assistance. No ACL commands executed,
+permissions unchanged. Only task checkpoint changed; prior edits/history and
+implementation SHA retained. No outputs or jobs. Next action remains unstarted.
+Handoff and git diff --check run.
+
+### 2026-11-24T20:19:52+01:00 — Authorized EOS cutflow access granted
+
+User explicitly requested granting access. Rechecked pwd/branch, existing task
+edits and svicenti UID182858. On /eos/user/z/zhibin, its TestBeam child,
+TestBeam/binary_full_v1 and TestBeam/binary_full_v1/cutflows, ran
+`eos root://eosuser.cern.ch attr set sys.eval.useracl=1 PATH`. Added
+`eos root://eosuser.cern.ch acl --user u:182858:+x PATH` on the three
+parents and `--user u:182858:+rx` on cutflows. All exit0. Subsequent attr ls
+verified enabled user ACLs and unchanged original sys.acl entries.
+No recursive change, write grants, file changes or jobs. Owner-side verification
+only; coworker credential/worker tests pending. Only local task record changed;
+existing task edits and historical links preserved. Implementation remains
+db1061162f94aa850a17de9cd1056b40f5f81b4a. No new output paths/logs or job IDs.
+LCG preflight, main launcher handoff and git diff --check run. Single Next
+action not started.
+
+### 2026-11-25T11:34:26+01:00 — Three missing H8 selection indices restored
+
+User requested regeneration or removal of three missing indices; restored original
+selection without editing catalogue. Verified pwd/branch, preserved existing task
+edits and historical links. Read existing writer and its LCG Snakemake rule.
+Bounded local repair used convertData.build_indexed_cutflow.write_index with
+input_event_count1000000 for each source, counts269/269/562 from authoritative
+H8v2 CSV. No full scan or scheduler submission needed.
+
+Commands/results: LCG activation/preflight passed on lxplus9116, Python3.11.9,
+ROOT6.34.02, uproot5.3.11. Python csv read plus uproot cbmsim.num_entries confirmed
+all3 catalogue counts; Path.iterdir confirmed empty target directories. Writer
+created ROOT+JSON sidecars; independent uproot arrays compared exactly against
+((2*i+1)*N)//(2*K), including source UID and policy metadata. All PASS. Manifest
+SHA unchanged. Full commands in tool transcript; durable machine-readable
+inputs/results at feature_dev/output/h8-index-repair-20261125/preflight.json and
+verification.json. Outputs:
+
+- `/eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/testbeam_data_2023_h8/unified_tb23_src_18ef455f032606efb0ea/selected_entries.root` (269 entries), plus `.validated.json`; SHA256 `fc5a3d6583d54dd1f8e65f42595c5dc45febcf46f674152b44315e49c3e01ba7`.
+
+- `/eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/testbeam_data_2023_h8/unified_tb23_src_b84cfe755b5426cc5f7a/selected_entries.root` (269 entries), plus `.validated.json`; SHA256 `157f274d9ca7da41e59231672ce5d54f4ec54a91355b00bf6bc6c47a331844d2`.
+
+- `/eos/experiment/sndlhc/users/zhibin/snd-ml/unified_shower_features_v1/selection_indices/testbeam_data_2023_h8/unified_tb23_src_e6dcbc75b5f52d5fa85f/selected_entries.root` (562 entries), plus `.validated.json`; SHA256 `1f67f7a370c92b893b24b20e517a508d91d4d9e4ca5de9428d89aa7d2ac90d1e`.
+
+No code changes, unrelated checkout edits, new jobs or logs. Existing implementation
+SHA retained; only task checkpoint tracked. Coworker access/production untested.
+Main launcher handoff and git diff --check run; single Next action unstarted.
+
+### 2026-11-25T11:37:36+01:00 — Testbeam MC validation failures diagnosed
+
+Verified pwd/branch and preserved pre-existing task edits. Reviewed validator
+identity_cutflow_entries/inspect_source_selection, source_provenance.event_source_values,
+and prepare_unified_shower_feature_manifests._testbeam_family. Current generator
+already copies n_events into selected_event_count; deployed MC CSV lacks column.
+Deterministic13-source selection reproduced using sources.stratum/digest and
+feature-dev-v1 seed. Read cutFlowSummary entry arrays, raw cbmsim headers and
+first MCTrack event only, then retained primary values in summary.json. Compared
+/eos/user/z/zhibin/TestBeam/binary_full_v1/catalog/master_sources.csv n_events.
+All13 cutflows match upstream and are identity; raw counts match deployed CSV.
+Eight selected/raw mismatches, three nominal-energy mismatches, two pass: exactly
+coworker pattern. Example electron100GeV1200/18000, pion50GeV252/600. Pion100
+truth E100.00009739887399,180 E180.00005411050375,200 E200.0000486994548;
+PDG211 correct. Validator tolerance max(1e-7,1e-9*energy) rejects these; converter
+math.isclose(rel_tol=.02,abs_tol=.5) accepts them. Truth E includes mass.
+No evidence requiring replacing cutflows or removing sources.
+
+Commands: same-shell LCG activation/imports; Python csv/uproot/digest audit and
+assertions reproduced8+3+2. Evidence feature_dev/output/testbeam-mc-audit-20261125/
+small-source-audit.json and summary.json. No code/catalogue mutations, new ROOT
+outputs, conversions or batch jobs. Full75 and20-entry validation untested.
+Existing implementation SHA retained. Only task record updated; next action
+not started. Main launcher handoff and git diff --check run.
+
+### 2026-11-25T11:52:38+01:00 — MC repair implemented, bounded preview prepared
+
+Implementation 89685db3f68a9e1833bec56d1371fd12068c22db committed before preview; prior task edits preserved.
+Repair utility audited all75 raw headers and cutflow identity arrays, then added
+selected_event_count atomically from frozen upstream n_events. Backup and hashes
+recorded in feature_dev/output/testbeam-fix-20261125/catalogue-repair.json.
+Independent original-field/row-order comparison passed. Production44 tests and
+converter13 tests passed; final focused/access checks pending.
+Planned command: ./run_shower_features.sh --dataset testbeam --plugin silvia
+--dataset-config feature_dev/output/testbeam-fix-20261125/testbeam-mc.json
+--sample small --files-per-group 1 --events-per-file 20 --batch --jobs 4
+--run mc-validation-20261125. Config uses existing MC catalogue only; no source
+rows changed for this preview. Expected13sources260events plus plots. Controller
+log feature_dev/output/testbeam-fix-20261125/canary.log; source logs/validation
+under /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/mc-validation-20261125/.
+Jobs pending submission; monitor controller log and targeted condor_q job IDs.
+No full production. Single follow-up Next action remains unstarted.
+
+Preview submission milestone (2026-11-25 11:55 Europe/Zurich): access preflight
+passed, final4 focused tests passed; catalogue contains33784 selected MC events.
+Controller session61891 running. First source clusters16621100,16621101,
+16621102,16621103 submitted; exact external IDs in canary.log. Status command:
+`condor_q 16621100 16621101 16621102 16621103 -af ClusterId ProcId JobStatus RemoteHost HoldReason`.
+
+Preview milestone 2026-11-25 12:05 Europe/Zurich: all13 sources converted and
+validated20events each, including all11 previously failing cases. Source external
+IDs and range ID: 1f3ab726cfa64e8992b82e39df1c135d_16621100, b9ce5f19219f4e94a06784297b638278_16621101, 5e217bf968c445298bfbb4e1c6eddefc_16621102, d2671599c8f04e37b2e5ebdf63eb93c8_16621103, 8a52a00076784970b0a033c37937c8af_16621104, 596aa252b7084997b4ab8709b5c7cd5c_16621105, 69c1955c6f5c4922bf2a3648dc836509_16621108, 8857ad3d7483470390703503b6321097_16621109, b57b64e5ca3a49acb7b47f82c0019e91_16621110, 33c5248d9fd444e8a5e63cf3baf7bc73_16621111, 00d4a40396d5488996f8cce7f3771d7a_16621114, 41c2abced37147dd8759c23d3bd3a5f8_16621115, 780aabbe472c4a778ebbfb5983960fd0_16621116, bd912949c4e54b76a7b7b4cb817a3a20_16621124.
+Range stage16621124 submitted; remaining histogram/plot stages pending.
+
+### 2026-11-25T12:15:01+01:00 — Testbeam MC fix verified end to end
+
+Implementation 89685db3f68a9e1833bec56d1371fd12068c22db remains the existing implementation checkpoint.
+All75 sources audited; repaired deployed MC manifest adds selected_event_count
+only (33784 total), backup /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_mc_2024.csv.before-selected-counts-4845c54ffebe.
+Original SHA 4845c54ffebe6a4b26330897fceaa9249018e2a1a5c10eb7461e264286d2d495; corrected SHA 3c9469cff14dd1b46292a7d0fdc578feaaa08bbe04b2ee83ab681cc462562375.
+Production44 tests, converter13 tests and final4 focused tests passed.
+Preflight and the exact prepared command above completed exit0. Thirteen source
+jobs each converted/validated20events; range/histogram/plot jobs all completed.
+Clusters 16621100, 16621101, 16621102, 16621103, 16621104, 16621105, 16621108, 16621109, 16621110, 16621111, 16621114, 16621115, 16621116, 16621124, 16621127, 16621130. Targeted condor_q on these IDs returned
+no rows; no other campaign queried or changed. Independent source verifier
+(prefix of verify_preview.py) checked receipts, baseline parity presence,13 plugin
+branches, event indices and exact PDG/strict energy against raw MC for260events.
+verify_outputs.py verified config/histogram/plot receipts and every resolved PDF
+path:299 ROOT histograms,23 PDFs. Initial hardcoded24 expectation failed; actual
+resolved configuration has23 plot groups, all present. No production defect.
+Full commands/configuration/logs and source paths are under the evidence folder
+listed in Current state. Only bounded preview; no full/coworker run.
+No runtime/library upgrades. Existing task history/pre-existing task edits
+preserved. Follow-up docs/checkpoint commit only; not pushed. Single Next action
+unstarted. Main launcher --check-handoff shower-features and git diff --check run.

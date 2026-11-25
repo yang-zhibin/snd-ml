@@ -538,3 +538,38 @@ profile/environment are selected only by ignored files in this checkout; the
 coworker runs setup to create her own. Runtime/cancellation adapters are maintained
 locally on top of the pinned official profile, whose unmodified generated files
 are retained for inspection. README local links and git diff --check passed.
+
+## 2026-11-25 — Testbeam MC validation repair
+
+Implementation `89685db3f68a9e1833bec56d1371fd12068c22db`. Shared MC manifest now contains the selected
+counts from frozen `master_sources.csv`. All75 raw headers and identity cutflows
+were audited before atomic publication;33784 selected events. Original fields
+and row order preserved; backup and hashes in
+`output/testbeam-fix-20261125/catalogue-repair.json`.
+
+Validation:44 production tests,13 converter tests,4 final focused tests passed.
+Focused regressions cover1200 selected versus18000 raw entries, nominal pion
+energy, wrong PDG/energy rejection, missing-selection aggregation, and failure
+before catalogue publication. Production uses the existing converter beam
+tolerance only for nominal MC energy; truth values are not replaced.
+
+Command (13MC groups,20events each,4 concurrent batch jobs):
+```bash
+./run_shower_features.sh --dataset testbeam --plugin silvia \
+  --dataset-config feature_dev/output/testbeam-fix-20261125/testbeam-mc.json \
+  --sample small --files-per-group 1 --events-per-file 20 \
+  --batch --jobs 4 --run mc-validation-20261125
+```
+
+Result: exit0,17/17 DAG steps through16 actual HTCondor jobs; all13 source
+validators and parity checks passed,260events. Independent comparison of all260
+saved PDGs/energies against raw MC passed (exact PDG, energy rtol1e-9/atol1e-7).
+Output: `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/mc-validation-20261125/`;
+299histogram ROOTs and23PDFs, matching every resolved plot. Stage receipts pass.
+Initial verifier assumed24PDFs from previous campaign; corrected expectation to
+resolved configuration, no missing output.
+
+Evidence/logs: `output/testbeam-fix-20261125/` (canary.log, *tests.log, access.log,
+source-verification.json, preview-verification.json, jobs.json). Clusters: 16621100, 16621101, 16621102, 16621103, 16621104, 16621105, 16621108, 16621109, 16621110, 16621111, 16621114, 16621115, 16621116, 16621124, 16621127, 16621130.
+All completed; targeted condor_q empty. No full conversion or coworker-account
+validation. Use a new run name after catalogue/code updates.

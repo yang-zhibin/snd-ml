@@ -30,8 +30,9 @@ reports all missing/unreadable selections together. Testbeam MC catalogues must
 include `selected_event_count`, separately from raw `input_event_count`.
 
 Testbeam MC nominal beam energy uses the converter tolerance (2% relative or
-0.5 GeV absolute) during validation. PDG remains exact and saved MC truth is
-still compared strictly against input truth. After a catalogue or validator
+0.5 GeV absolute) during validation. PDG remains exact; existing strict
+numerical and event-identity checks are unchanged. Actual MC energy remains
+stored in the feature file. After a catalogue or validator
 update, use a new run name; existing run plans are immutable.
 
 Choose `--dataset testbeam`, `real-data`, or `mc-muon` for the other catalogues.
