@@ -75,10 +75,12 @@ def make_plan(args):
               normalization=mode,exposure_audit=audit,plot_settings=settings,code={str(p):sha(p) for p in sorted(set(code_paths))})
     conversion_code={p:h for p,h in plan['code'].items() if '/convertData/' in p or p in spec['source_hashes'] or
                      p.endswith(('run_export.sh','env_sndsw_nue.sh','sources.py','selected_hits.py'))}
-    plan['conversion_signature']=digest(dict(selection=selection,plugin=spec,code=conversion_code,
-                                              normalization=mode,audit=audit))
+    # Converted features do not depend on the normalization: the yield scale is
+    # applied in the histogram stage, so normalization/audit enter only there.
+    plan['conversion_signature']=digest(dict(selection=selection,plugin=spec,code=conversion_code))
     histogram_code={p:h for p,h in plan['code'].items() if not p.endswith(('plot_comparison.py','plot_group_hist2d.py'))}
-    plan['histogram_signature']=digest(dict(conversion=plan['conversion_signature'],settings=settings['histograms'],code=histogram_code))
+    plan['histogram_signature']=digest(dict(conversion=plan['conversion_signature'],settings=settings['histograms'],code=histogram_code,
+                                            normalization=mode,audit=audit))
     plan['plot_signature']=digest(dict(histograms=plan['histogram_signature'],settings=settings['plotting'],code=plan['code']))
     # Execution profile/output directories are not physics settings.
     plan['signature']=digest(plan)
@@ -86,12 +88,15 @@ def make_plan(args):
     plan['source_directory']=str((args.feature_root.resolve()/args.dataset/args.run/'sources') if args.feature_root else Path(plan['directory'])/'sources')
     if getattr(args,'reuse_sources',None):
         previous=read_json(args.reuse_sources/'plan.json')
-        for key in ('campaign_sha256','plugin','normalization','exposure_audit'):
+        # Normalization may differ: sources are reused and only histograms/plots are rebuilt.
+        for key in ('campaign_sha256','plugin'):
             if previous.get(key)!=plan.get(key):raise ValueError('Incompatible reusable sources: '+key)
         if any(previous['code'].get(p)!=h for p,h in conversion_code.items()):
             raise ValueError('Converter code changed since reusable source run')
         plan['source_directory']=previous['source_directory']
         plan['reuse_sources']=str(args.reuse_sources.resolve())
+        # Source ROOT metadata (production_exposure_json) keeps the original mode.
+        plan['reused_source_normalization']=previous.get('normalization')
         if previous.get('histogram_signature')==plan['histogram_signature']:
             plan['reuse_histograms']=str(args.reuse_sources.resolve())
     return plan

@@ -53,6 +53,24 @@ class CampaignTests(unittest.TestCase):
         plan=production_cli.make_plan(args)
         self.assertEqual(plan['directory'],str(self.root/'output/mc-neutrino/test'))
         self.assertEqual(plan['source_directory'],str(self.root/'eos-fixture/mc-neutrino/test/sources'))
+    def test_yield_reuses_shape_sources_and_rebuilds_histograms(self):
+        base=self.args();shape=production_cli.make_plan(base)
+        previous=self.root/'previous';previous.mkdir();write_json(previous/'plan.json',shape)
+        audit=self.root/'audit.json';write_json(audit,dict(campaign_sha256=shape['campaign_sha256']))
+        args=SimpleNamespace(**vars(base));args.normalization='yield';args.exposure_manifest=audit;args.run='yield';args.reuse_sources=previous
+        plan=production_cli.make_plan(args)
+        self.assertEqual(plan['normalization'],'yield')
+        self.assertEqual(plan['conversion_signature'],shape['conversion_signature'])
+        self.assertNotEqual(plan['histogram_signature'],shape['histogram_signature'])
+        self.assertEqual(plan['source_directory'],shape['source_directory'])
+        self.assertEqual(plan['reused_source_normalization'],'shape')
+        self.assertNotIn('reuse_histograms',plan)
+    def test_reuse_rejects_changed_plugin(self):
+        base=self.args();shape=production_cli.make_plan(base)
+        shape['plugin']=dict(shape['plugin'],parameters={'changed':1})
+        previous=self.root/'previous';previous.mkdir();write_json(previous/'plan.json',shape)
+        args=SimpleNamespace(**vars(base));args.run='other';args.reuse_sources=previous
+        with self.assertRaisesRegex(ValueError,'Incompatible reusable sources: plugin'):production_cli.make_plan(args)
     def fixture(self,mode='shape'):
         plan=dict(directory=str(self.root/'run'),source_directory=str(self.root/'sources'),dataset='mc-neutrino',
                   sample='full',campaign_sha256='fixture-campaign',normalization=mode,

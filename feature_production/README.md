@@ -172,8 +172,14 @@ settings or Git HEAD; each immutable plan records the checkout commit. Reuse com
   --reuse-sources /your/output/mc-neutrino/previous-run
 ```
 
-Use the same dataset, caps, plugin, converter, normalization and exposure audit
-as the source run. Source products and inputs are checked and kept in their
+Use the same dataset, caps, plugin and converter as the source run. The
+normalization and exposure audit may differ: converted features do not depend
+on them, so a completed shape run can be reused for a yield run, e.g.
+`--normalization yield --exposure-manifest audit.json --reuse-sources <shape-run>`.
+Ranges, histograms and plots are then rebuilt with the new normalization. The
+reused source ROOT metadata (`production_exposure_json`) still records the
+original mode; the new plan records it as `reused_source_normalization`.
+Source products and inputs are checked and kept in their
 original directory. If histogram settings/code also match a new-backend run,
 the range results and histograms are reused through verified references; only
 plots rerun. Changing histogram settings reuses ROOT sources but rebuilds ranges
