@@ -49,7 +49,29 @@ def stratum(dataset, row):
     return (source_group(dataset, row), row['source_geometry_id'] or row['geo_path'])
 
 
-def build_plan(dataset, config_path, output_root, files_per_group=None, events_per_file=None):
+def check_selection_headers(rows):
+    """Report every missing/unreadable selection before any source jobs start."""
+    import uproot
+    failures = []
+    for row in rows:
+        if row['selection_mode'] == 'direct_input':
+            continue
+        path = row.get('cutflow_path', '')
+        try:
+            if not path:
+                raise ValueError('missing cutflow_path')
+            with uproot.open(path) as source:
+                tree = source['cutFlowSummary']
+                if not hasattr(tree, 'num_entries'):
+                    raise ValueError('cutFlowSummary is not a tree')
+                tree.num_entries  # Header-only check; no event scan.
+        except Exception as error:
+            failures.append(f"{row['source_uid']}: {path}: {error}")
+    if failures:
+        raise ValueError('Selection input preflight failed:\n' + '\n'.join(failures))
+
+
+def build_plan(dataset, config_path, output_root, files_per_group=None, events_per_file=None, check_selection=False):
     """Read catalogues, select bounded sources, then preflight only chosen ROOT files."""
     import yaml
     config = yaml.safe_load(Path(config_path).read_text())
@@ -99,6 +121,8 @@ def build_plan(dataset, config_path, output_root, files_per_group=None, events_p
                 runs.add(run)
             rows = first + rest
         selected.extend(rows[:files])
+    if check_selection:
+        check_selection_headers(selected)
     jobs = []
     for row in selected:
         row = dict(row)

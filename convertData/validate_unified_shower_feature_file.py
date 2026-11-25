@@ -22,6 +22,8 @@ from sample_selection import (
 from scifi_plane_clustering import SCHEMA_VERSION, scalar_feature_dtypes
 from source_provenance import (
     SOURCE_DOMAINS,
+    BEAM_ENERGY_REL_TOL,
+    BEAM_ENERGY_ABS_TOL_GEV,
     UNAVAILABLE_ENERGY_GEV,
     UNAVAILABLE_PDG_CODE,
     UNIFIED_SCHEMA_VERSION,
@@ -331,6 +333,37 @@ def declare_compiled_validation_helpers() -> None:
     )
 
 
+def validate_nominal_source_values(tree, args):
+    """Check catalogue labels; MC beam tolerance does not relax truth fidelity."""
+    declare_compiled_validation_helpers()
+    checks = []
+    pdg = getattr(args, "expected_source_pdg_code", None)
+    energy = getattr(args, "expected_source_energy_gev", None)
+    if pdg is not None:
+        checks.append(("source PDG", f"static_cast<int>(source_pdg_code) != {int(pdg)}"))
+    if energy is not None:
+        nominal = float(energy)
+        if not math.isfinite(nominal):
+            raise ValueError("Expected source energy must be finite")
+        if args.expected_source_domain_id == 4:
+            comparison = (
+                f"!std::isfinite(source_energy_gev) || "
+                f"std::abs(source_energy_gev - {nominal:.17e}) > "
+                f"std::max({BEAM_ENERGY_ABS_TOL_GEV:.17g}, "
+                f"{BEAM_ENERGY_REL_TOL:.17g} * "
+                f"std::max(std::abs(source_energy_gev), std::abs({nominal:.17e})))"
+            )
+        else:
+            comparison = f"!unified_feature_close(source_energy_gev, {nominal:.17e})"
+        checks.append(("source nominal beam energy", comparison))
+    entries = int(tree.GetEntries())
+    for label, expression in checks:
+        if entries:
+            mismatches = int(ROOT.RDataFrame(tree).Filter(expression).Count().GetValue())
+            if mismatches:
+                raise RuntimeError(f"{label} mismatch in {mismatches}/{entries} entries")
+
+
 def compiled_event_validation(
     tree: ROOT.TTree,
     cutflow: ROOT.TTree,
@@ -592,31 +625,7 @@ def validate(args: argparse.Namespace) -> dict:
                 f"selected count {source_contract['expected_written_event_count']}"
             )
 
-        source_value_checks = []
-        expected_source_pdg_code = getattr(args, "expected_source_pdg_code", None)
-        expected_source_energy_gev = getattr(args, "expected_source_energy_gev", None)
-        if expected_source_pdg_code is not None:
-            source_value_checks.append(
-                "static_cast<int>(source_pdg_code) != "
-                f"{int(expected_source_pdg_code)}"
-            )
-        if expected_source_energy_gev is not None:
-            source_value_checks.append(
-                "!unified_feature_close(source_energy_gev, "
-                f"{float(expected_source_energy_gev):.17g})"
-            )
-        if source_value_checks and entries:
-            declare_compiled_validation_helpers()
-            mismatches = int(
-                ROOT.RDataFrame(tree)
-                .Filter(" || ".join(f"({check})" for check in source_value_checks))
-                .Count()
-                .GetValue()
-            )
-            if mismatches:
-                raise RuntimeError(
-                    f"source PDG/energy mismatch in {mismatches}/{entries} entries"
-                )
+        validate_nominal_source_values(tree, args)
 
         hit_source = None
         hit_tree = None

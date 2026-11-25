@@ -19,6 +19,16 @@ SOURCE_DOMAINS = {
 MC_DOMAINS = {1, 2, 4}
 REAL_DOMAINS = {3, 5, 6}
 TESTBEAM_DOMAINS = {4, 5, 6}
+BEAM_ENERGY_REL_TOL = 0.02
+BEAM_ENERGY_ABS_TOL_GEV = 0.5
+
+def beam_energy_matches(truth_energy, nominal_energy):
+    """Compare MC total energy with nominal beam energy, not saved truth fidelity."""
+    return (math.isfinite(truth_energy) and math.isfinite(nominal_energy)
+            and math.isclose(truth_energy, nominal_energy,
+                             rel_tol=BEAM_ENERGY_REL_TOL, abs_tol=BEAM_ENERGY_ABS_TOL_GEV))
+
+
 UNAVAILABLE_ENERGY_GEV = -1.0
 UNAVAILABLE_PDG_CODE = 0
 SAMPLE_TYPE_BY_DOMAIN = {
@@ -89,9 +99,7 @@ def event_source_values(args, track0=None) -> tuple[float, int]:
                 raise ValueError(
                     f"Testbeam MC PDG mismatch: truth={truth_pdg}, catalogue={supplied_pdg}"
                 )
-            if not math.isclose(
-                truth_energy, float(supplied_energy), rel_tol=0.02, abs_tol=0.5
-            ):
+            if not beam_energy_matches(truth_energy, float(supplied_energy)):
                 raise ValueError(
                     "Testbeam MC energy mismatch: "
                     f"truth={truth_energy}, catalogue={supplied_energy}"

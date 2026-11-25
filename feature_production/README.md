@@ -25,6 +25,14 @@ SNDSW child wrapper, independently of the LCG plotting environment.
 `--check-access` checks the selected digi, geometry, cutflow, output parents and
 SNDSW imports using **your credentials**. It does not submit a batch job or verify
 credential lifetime. Missing or unreadable files fail explicitly.
+Every plan also checks the selected cutflow ROOT headers before submission and
+reports all missing/unreadable selections together. Testbeam MC catalogues must
+include `selected_event_count`, separately from raw `input_event_count`.
+
+Testbeam MC nominal beam energy uses the converter tolerance (2% relative or
+0.5 GeV absolute) during validation. PDG remains exact and saved MC truth is
+still compared strictly against input truth. After a catalogue or validator
+update, use a new run name; existing run plans are immutable.
 
 Choose `--dataset testbeam`, `real-data`, or `mc-muon` for the other catalogues.
 The optional muon catalogue has previously contained missing inputs; its current

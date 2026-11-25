@@ -32,6 +32,8 @@ def catalogue_rows(dataset, config_path):
             for row in csv.DictReader(stream):
                 if row['sample_type'].lower() not in SAMPLE_TYPES[dataset]:
                     raise ValueError('Wrong sample type in catalogue')
+                if dataset=='testbeam' and row.get('source_domain_id')=='4' and not row.get('selected_event_count'):
+                    raise ValueError('Testbeam MC catalogue missing selected_event_count: '+row['source_uid']+'; repair from frozen upstream catalogue')
                 key=source_key(row)
                 if not row['source_uid'] or key in seen:raise ValueError('Duplicate catalogue source: '+key)
                 seen.add(key);rows.append(row)
@@ -43,9 +45,11 @@ def make_plan(args):
     spec=plugin_spec(args.plugin,json.loads(args.parameters))
     catalogues, all_rows=catalogue_rows(args.dataset,args.dataset_config)
     if args.sample=='small':
-        prepared=build_plan(args.dataset,args.dataset_config,args.output_root,args.files_per_group,args.events_per_file)
+        prepared=build_plan(args.dataset,args.dataset_config,args.output_root,args.files_per_group,args.events_per_file,check_selection=True)
         jobs=[dict(j) for j in prepared['jobs']]
     else:
+        from sources import check_selection_headers
+        check_selection_headers(all_rows)
         jobs=[dict(record=r,max_events=0) for r in all_rows]  # includes empty sources
     for job in jobs:
         row=job['record']

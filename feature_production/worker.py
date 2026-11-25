@@ -25,6 +25,8 @@ def source_inputs(job):
 
 def preflight(plan):
     check_code(plan)
+    from sources import check_selection_headers
+    check_selection_headers([job['record'] for job in plan['jobs']])
     for job in plan['jobs']:source_inputs(job)
     for output in (plan['directory'],plan['source_directory']):
         destination=Path(output)
