@@ -39,8 +39,6 @@ ROOT = tb.ROOT
 DEFAULT_FEATURES = [
     'silvia__scifi_horizontal_cluster1_density_fraction',
     'silvia__scifi_vertical_cluster1_density_fraction',
-    'silvia__scifi_horizontal_cluster2_density_fraction',
-    'silvia__scifi_vertical_cluster2_density_fraction',
 ]
 # Known problematic data run, annotated on the data plot (see task notes 2026-11-26).
 FLAGGED = {('testbeam_data_2024', 11, 100): 'e^{-} 100 GeV data: run 100890 (75% empty, not a clean e^{-} sample)'}
