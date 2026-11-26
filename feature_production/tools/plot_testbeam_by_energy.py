@@ -121,6 +121,39 @@ def normalised(curve, energy, feature):
     return hist
 
 
+X_QUANTILE = 0.999   # per-curve fraction of content that must stay inside the x window
+X_MARGIN = 0.05      # extra space on each side, as a fraction of the window width
+
+
+def x_window(hists):
+    """X range that just contains the curves: the widest [0.1%, 99.9%] quantile span
+    over all curves, rounded out to bin edges, plus a small margin. Single outlier
+    events therefore do not stretch the axis."""
+    axis = hists[0].GetXaxis()
+    nbins = axis.GetNbins()
+    first_bin, last_bin = nbins, 1
+    for hist in hists:
+        total = hist.Integral(1, nbins)
+        if total <= 0:
+            continue
+        cumulative = 0.0
+        low = high = None
+        for b in range(1, nbins + 1):
+            cumulative += hist.GetBinContent(b)
+            if low is None and cumulative > (1 - X_QUANTILE) * total:
+                low = b
+            if high is None and cumulative >= X_QUANTILE * total:
+                high = b
+                break
+        first_bin = min(first_bin, low or 1)
+        last_bin = max(last_bin, high or nbins)
+    if first_bin > last_bin:
+        return axis.GetXmin(), axis.GetXmax()
+    lo, hi = axis.GetBinLowEdge(first_bin), axis.GetBinUpEdge(last_bin)
+    margin = X_MARGIN * (hi - lo)
+    return max(axis.GetXmin(), lo - margin), min(axis.GetXmax(), hi + margin)
+
+
 def draw_energy(pad, curves, energy, feature, axis_title, logy, keep, compact=False):
     pad.cd()
     pad.SetLogy(bool(logy))
@@ -139,8 +172,10 @@ def draw_energy(pad, curves, energy, feature, axis_title, logy, keep, compact=Fa
         hist.SetLineWidth(2)
         hists.append(hist)
     ymax = max([h.GetMaximum() for h in hists] + [1e-6])
+    xlo, xhi = x_window(hists)
     first = True
     for curve, hist in zip(curves, hists):
+        hist.GetXaxis().SetRangeUser(xlo, xhi)
         hist.GetXaxis().SetTitle(axis_title)
         hist.GetYaxis().SetTitle('Normalised to unit area')
         hist.GetYaxis().SetTitleOffset(1.3)
