@@ -361,3 +361,7 @@ same options. For the original Snakemake workflow, supply YAML lists
 `scifi_data_window_cycles: [-0.5, 2.0]` and
 `scifi_mc_window_cycles: [-0.5, 1.2]` through a Snakemake config file. Use a separate
 output campaign for comparisons; feature and Hit3D products must use the same policy.
+
+These options change hit selection inside the existing selected events. They do
+not regenerate upstream cutflows or selection indices, or change the catalogue's
+event population. A physics study of selection efficiency needs a separate review.

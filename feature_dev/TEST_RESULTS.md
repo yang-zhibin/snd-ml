@@ -573,3 +573,55 @@ Evidence/logs: `output/testbeam-fix-20261125/` (canary.log, *tests.log, access.l
 source-verification.json, preview-verification.json, jobs.json). Clusters: 16621100, 16621101, 16621102, 16621103, 16621104, 16621105, 16621108, 16621109, 16621110, 16621111, 16621114, 16621115, 16621116, 16621124, 16621127, 16621130.
 All completed; targeted condor_q empty. No full conversion or coworker-account
 validation. Use a new run name after catalogue/code updates.
+
+### 2026-11-26 — Configurable fixed SciFi timing windows
+
+Implementation: `a454ef3542fbde1c8c4988c9fe6d22f031f67722`.
+Verified 2026-11-26T17:20:56+01:00, lxplus939; LCG107 Python3.11.9 ROOT6.34.02 and isolated
+SNDSW Python3.9.25 ROOT6.36.04. Shared installation unchanged.
+
+- Production suite:53 tests passed, including6 timing tests.
+- Converter suite:13 tests passed; shard suite:4 passed.
+- Actual installed SNDSW synthetic-hit test:1 passed (default parity, wider
+  window, corrected data and MC). Total71 tests.
+- MC-muon and Hit3D converter `--help` smoke checks passed; original21-rule
+  Snakemake file parsed/compiled without running catalogue generation.
+- Three real-source HTCondor previews completed7/7 workflow steps each,
+  max2concurrent jobs;18jobs total, all exit0, final targeted condor_q empty.
+  Each used the same3sources x20events: H8data,2024data and2024MC.
+- Data upper edges1.2/1.8/2.0, lower edge-0.5; MC fixed[-0.5,1.2].
+  All9 source validation/parity receipts and all stage checksums passed.
+- Event identities preserved; wider data windows contain every baseline hit.
+  MC arrays identical across runs. Default MC20events x451branches exactly
+  equal the pre-change mc-validation-20261125 output (zero tolerance).
+- Each run produced26 configured PDFs and78histogram ROOT files. All paths and
+  checksums verified; pdfinfo opens one1D and one2D PDF from each run.
+
+| Source (20events each) | Hits at upper1.2 | upper1.8 | upper2.0 |
+| --- | ---: | ---: | ---: |
+| 2023 H8 data | 1 | 1 | 1 |
+| 2024 data | 299 | 300 | 300 |
+| 2024 MC | 22884 | 22884 | 22884 |
+
+The added2024data hit has zero QDC; summed QDC/density unchanged in this tiny
+sample. H8 is especially sparse. This validates configuration and execution,
+not the optimal physics window,7pe threshold, adaptive selection or full
+selection efficiency. No real Hit3D or muon-MC conversion campaign was run;
+those paths have helper/unit, parser and syntax coverage. Upstream selections
+and historical clock periods/extra25ns cuts were preserved. Defaults unchanged.
+
+Reproduce a preview (substitute1.2/1.8/2.0 and a fresh run name):
+
+```bash
+./run_shower_features.sh --dataset testbeam --plugin silvia \
+  --dataset-config feature_dev/output/timing-selection-20261126/testbeam.json \
+  --sample small --files-per-group 1 --events-per-file 20 --batch --jobs 2 \
+  --scifi-data-window-cycles -0.5 2.0 --scifi-mc-window-cycles -0.5 1.2 \
+  --run timing20-20261126
+```
+
+Outputs: `/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/timing{12,18,20}-20261126/`.
+Evidence: `feature_dev/output/timing-selection-20261126/` contains copied
+catalogues/config, tests, batch logs, default-parity.json, comparison.json,
+verify_comparison.py, jobs.json, final-queue.txt and pdfinfo reports. Each job's
+cluster/token/log directory is in jobs.json. No new full campaign or push.

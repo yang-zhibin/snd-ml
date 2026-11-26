@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-25T12:28:06+01:00
-- Implementation checkpoint: 5c655ed39469557b418fb724ca9278fbbf40202d
-- Implemented: Merged origin/task/silvia-yield-audit (ee3a554), including origin/task/silvia-shower-algorithm (7747bc2), with local testbeam fix89685db and checkpointccbcf53. Merge5c655ed preserves both histories; no conflicts. Incoming density example/schema/tests, energy helper, default energy and two density-versus-energy plots, audit helpers, and shape-to-yield source reuse. Removed four incoming trailing-whitespace errors. Production plugin missing-coordinate handling and testbeam safeguards retained. Published to GitHub origin/task/shower-features through960a095; implementation remains5c655ed.
-- Validation: Publication: git push origin task/shower-features succeeded (6f02516..960a095); pwd/branch and clean tree verified before push. pwd/branch verified and starting tree clean; git fetch origin; branch logs/diffs reviewed. LCG107 on lxplus9116, Python3.11.9, ROOT6.34.02, numpy1.26.4, uproot5.3.11. Before merge45 production tests passed; after merge47 production,6 density pytest,13 converter tests passed. Audit CLI --help passed. git diff --cached --check passed. Both coworker tip and89685db verified ancestors of merge. Main launcher --check-handoff shower-features: PASS; final git diff --check: PASS.
-- Remaining limitations: No merged production campaign or full yield-audit generation run. Older personal helper scripts feature_dev/algorithms/plot_energy.py and feature_plugins/silvia/build_audit.py retain hard-coded coworker paths; not executed or general-purpose entry points. Prefer parameterized feature_production/tools/build_audit.py. Added plugin-directory helper changes plugin fingerprint, so some older runs cannot reuse sources; converter/catalogue changes also retain compatibility checks. Existing testbeam full-production/coworker-account and custom SNDSW qualification limits remain. No fresh batch validation after merge.
-- Running jobs: No jobs submitted during integration; prior16 testbeam preview clusters were verified complete in preceding checkpoint. No new output campaign.
-- Outputs: Integration evidence feature_dev/output/merge-silvia-20261125/{before-tests.log,production-tests.log,density-tests.log,converter-tests.log,audit-help.log}. Prior preview /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/mc-validation-20261125/ and catalogue repair evidence feature_dev/output/testbeam-fix-20261125/ retained. Merge changed11 files listed in history; publication follow-up changes only this task record; no new scientific output.
+- Last verified: 2026-11-26T17:20:56+01:00
+- Implementation checkpoint: a454ef3542fbde1c8c4988c9fe6d22f031f67722
+- Implemented: Separate data/MC signed SciFi timing flags, defaults[-0.5,1.2] unchanged; process-local SNDSW and calibrated-muon selection; feature/Hit3D timing metadata; production and original Snakemake forwarding; campaign/reuse protection; shard consistency checks; README/data-format instructions.15 implementation files committed. Shared SNDSW and upstream selections unchanged. Local only, not pushed.
+- Validation:71 tests pass (53production,13converter,4shard,1actual-SNDSW synthetic-hit). MC-muon/Hit3D CLI smoke checks pass; original21-rule Snakemake file parses/compiles. Three HTCondor previews each7/7steps,3sources x20events;18jobs exit0. All source/stage checksums and metadata pass. Event identities/retained-hit containment verified; MC arrays unchanged across windows. Default20MCevents x451branches exactly equal pre-change output. Each preview26PDFs/78histograms; all configured PDF paths verified, six pdfinfo checks pass. See feature_dev/TEST_RESULTS.md and comparison.json. Handoff/whitespace checks run before final checkpoint commit.
+- Remaining limitations: Small owner-account preview, not full production/physics qualification. H8sample has only1selected hit;2024data299/300/300hits at1.2/1.8/2.0, addedhit zeroQDC. This does not choose the best window. No adaptive method,7pe change, upstream recut or real Hit3D/muon-MC batch conversion. Historical6.23768058ns vs6.25ns periods and path-based legacy25ns exemption remain. Runtime provenance recorded; no shared environment changes.
+- Running jobs: None. All18clusters exited0, targeted condor_q empty; cluster IDs/tokens/log paths in feature_dev/output/timing-selection-20261126/jobs.json. Controller exit0. No full campaign or pending test job.
+- Outputs: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/timing{12,18,20}-20261126/ (9source ROOTs,234histograms,78PDFs total). Evidence feature_dev/output/timing-selection-20261126/{production-tests.log,converter-tests.log,shard-tests.log,sndsw-tests.log,dry-run.log,muon-help.log,hit3d-help.log,batch-*.log,default-parity.json,source-comparison.json,comparison.json,verify_comparison.py,jobs.json,final-queue.txt,pdfinfo-*.txt,testbeam.json,catalogue-*.csv}. Documentation follow-up: feature_production/README.md,feature_dev/TEST_RESULTS.md,this task record. Historical records preserved.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Coworker updates from origin/task/shower-features and reruns the small testbeam sample with a new run name; await her result without launching production here.
+Await the user's request to publish the tested timing-window implementation; do not change defaults or launch a full campaign from this checkpoint.
 
 ## Checkpoint history
 
@@ -1798,3 +1798,84 @@ Previous current-state evidence retained for traceability:
 ### 2026-11-25T12:28:06+01:00 — Published integrated branch to GitHub
 
 Verified pwd and branch task/shower-features; working tree clean. git push origin task/shower-features succeeded, advancing GitHub from6f02516 to960a095. Existing implementation commit5c655ed contains the coworker merge and retains89685db testbeam fixes. Publication-only follow-up changes docs/tasks/active/shower-features.md. Main launcher --check-handoff shower-features and git diff --check are required before committing this record. No tests repeated for this documentation-only update; prior47 production/6 density/13 converter tests remain the validation evidence. No new jobs or scientific outputs; earlier paths and validation limits unchanged. Coworker instructions use a fresh small-testbeam run; no next production action started here.
+
+### 2026-11-26T16:00:14+01:00 — Event builder terminology lookup
+
+User asked about sndsw event building and clock-cycle selection. Read upstream https://github.com/SND-LHC/sndsw/pull/277 and its files view: MCEventBuilder in sndFairTasks/MCEventBuilder.cxx; manager shipLHC/run_MCEventBuilder.py exposes --saveFirst25nsOnly. PR merged2025-09-08. Raw master source fetches failed; no installed-version or exact SciFi cycle-selection claim verified. pwd/branch correct, starting tree clean. No code changes, tests, jobs, or scientific outputs. Only this checkpoint changed; implementation stays5c655ed. Earlier pending coworker rerun remains the single next action and was not started.
+
+### 2026-11-26T16:19:50+01:00 — Verified SciFi clock-cycle selection before shower features
+
+Verified pwd/branch; preserved preceding checkpoint edit. Implementation remains5c655ed; only docs/tasks/active/shower-features.md changed. Inspected convertData/digi_2_features.py process_hits, hit_time_selection.py, feature_dev/run_export.sh, env_sndsw_nue.sh and explicit installed sciFiTools.py. Import-only command: bash feature_dev/run_export.sh -c with inspect.getfile(sciFiTools), min_clock_cycle/max_clock_cycle and1e9/160.316e6; exit0, lxplus939, Python3.9.25 ROOT6.36.04. Actual module /afs/cern.ch/work/z/zhibin/public/SndBuild/sw/rhel9_x86-64/sndsw/master-local14/analysis/analyses/snd_analysis_2024_0mu/sciFiTools.py. No detector events read or jobs submitted; no generated scientific outputs.
+
+Normal selector: valid hits, independent5stations x2orientations,200bins over0..100ns, highest-count-bin centre, inclusive window peak-0.5T to peak+1.2T, T=6.237680580852816ns. MC GetTime already ns; data multiplies TDC byT and calls GetCorrectedTime(detID,time,0). Selection precedes density/count/QDC/clustering/plugin. Muon MC types mc_muon/mc_muondis instead subtract first valid arrival across SciFi+MuFilter, use local sparse0.5ns plane peaks (no0..100range), offsets-3.125/+7.5ns, then <=25ns. Testbeam MC uses standard selector plus <=25ns; MC neutrino skips extra25ns cut by existing argument-text mc_neutrino check; real/testbeam data no extra MC cut. Invalid-time handling and path-based exception were read, not changed. Noted numerical mismatch: local/data stored time conversion6.25ns vs SNDSW160.316MHz period; no physics impact measurement. Earlier Next action unchanged and not started.
+
+### 2026-11-26T16:26:52+01:00 — Read26th collaboration meeting slides
+
+Source /afs/cern.ch/user/z/zhibin/work/snd-ml/docs/slides/26th collaboration meeting.pdf (29pages, Riddhi Biswas,2026-09-23). Commands pdfinfo, pdftotext -layout, pdftoppm for pages8,15,20–22. Extracted all text and visually reviewed those5pages; image-viewer sandbox failed, read rendered images through escalated base64 instead. Review artifacts feature_dev/output/slides-26cm-review/. No code changes, jobs, or scientific output; existing implementation5c655ed unchanged. Only task checkpoint edited; earlier history preserved.
+
+Findings: slides13–14 show preferred data timing windows depend on energy and MC configuration (updatedGEANT4,7pe vs3.5pe). Slides15–20 compare hit counts, QDC in peak±0.5cycles, and plane_cross_talk_ratio; slide20 favors occupancy ratio, shows per-plane linear fits to band means. Slides21–22 demonstrate adaptive upper-edge clamp[1.8,2.0]cycles, distinct from tabulated fixed-window optima up to2.2; no exact ratio formula/intercepts supplied. Current converter fixed[-0.5,+1.2] selection does not implement this adaptive method. Slide8 displayed chi-square lacks squared residual and mixes absolute/fractional uncertainty notation; not a literal implementation specification. Slides26–29 still call for updated summary/systematic/significance results. No inference that current inputs use7pe or sameMC. Required handoff and whitespace checks run; pending coworker rerun remains the single Next action, not started.
+
+### 2026-11-26T16:29:06+01:00 — How to configure the SciFi timing window
+
+Read-only review of actual master-local14 sciFiTools.py and local feature_production/{cli,worker}.py, feature_dev/sources.py, convertData/{digi_2_features,digi_2_features_mc_muon,digi_2_hits3D,hit_time_selection}.py, snakemake/rules/unified_shower_features.smk. Verified pwd/branch; preserved prior checkpoint edits. No implementation changes, new jobs, tests, or outputs; implementation remains5c655ed.
+
+Findings/recommendation: SNDSW selectHits reads module globals min_clock_cycle/max_clock_cycle; configure imported module inside each converter process without editing shared installation. Expose signed lower/upper CLI settings via launcher->immutable plan->worker/converter_arguments->converter; existing --parameters goes to plugin after selection and cannot recover discarded hits. Muon MC bypass needs matching local offsets (local lower_clock_cycles is positive width, negate signed lower setting); MC-muon wrapper owns separate parser. Pass consistent policy to Hit3D and original Snakemake rule path. Record window, clock period, selector/source identity and sample policy in ROOT/plan; include timing in conversion signature AND explicit --reuse-sources compatibility checks (currently compares campaign/plugin/code, not conversion_signature alone). Changed timing requires raw-input reconversion and new run, not replot/reuse of old selected hits. Preserve/record existing extra25ns cut, MC-neutrino exemption and first-arrival logic; data-only slide study does not justify silently changing allMC. Proposed flags are not executable today. Adaptive algorithm still requires author code; fixed2.0 is only a comparison candidate. Handoff/whitespace checks required; earlier pending Next action unchanged and not started.
+
+### 2026-11-26T16:42:39+01:00 — Timing configuration implemented; bounded validation prepared
+
+Implementation a454ef3542fbde1c8c4988c9fe6d22f031f67722. Verification commands: python3 -m unittest discover -s feature_production/tests -p 'test_*.py' (53pass); corresponding convertData test_unified_shower_features.py (13pass) and test_validate_unified_shower_feature_shards.py (4pass); bash feature_dev/run_export.sh convertData/test_scifi_timing_sndsw.py (1pass). LCG107 Python3.11.9 ROOT6.34.02; SNDSW Python3.9.25 ROOT6.36.04, lxplus939. Parser probe initially used outdated signature, corrected to installedAPI;21rules parse/compile. Dry-run3sources passes. Evidence feature_dev/output/timing-selection-20261126/.
+
+Authorized batch command for each upper in1.2,1.8,2.0: ./run_shower_features.sh --dataset testbeam --plugin silvia --dataset-config feature_dev/output/timing-selection-20261126/testbeam.json --sample small --files-per-group 1 --events-per-file 20 --batch --jobs 2 --scifi-data-window-cycles -0.5 UPPER --scifi-mc-window-cycles -0.5 1.2 --run timingTAG-20261126. Includes oneMC source from preceding validated preview, one2024 data source and one2023H8 source. Logs batch-TAG.log; output root as Current state. Status via controller logs and targeted condor_q cluster IDs. This is current authorized validation, not the pending publication/full-production action.
+
+Prior current state preserved:
+
+## Current state
+
+- Lifecycle: active
+- Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
+- Branch: `task/shower-features`
+- Last verified: 2026-11-26T16:29:06+01:00
+- Implementation checkpoint: 5c655ed39469557b418fb724ca9278fbbf40202d
+- Implemented: Merged origin/task/silvia-yield-audit (ee3a554), including origin/task/silvia-shower-algorithm (7747bc2), with local testbeam fix89685db and checkpointccbcf53. Merge5c655ed preserves both histories; no conflicts. Incoming density example/schema/tests, energy helper, default energy and two density-versus-energy plots, audit helpers, and shape-to-yield source reuse. Removed four incoming trailing-whitespace errors. Production plugin missing-coordinate handling and testbeam safeguards retained. Published to GitHub origin/task/shower-features throughfdb7ee5 (remote verified after publication); implementation remains5c655ed.
+- Validation: Read-only timing configuration trace checked worker, converter_arguments, launcher reuse checks, separate MC-muon parser, Hit3D converter and unified-shower Snakemake rule. Read29-page local 26th collaboration meeting PDF via pdfinfo/pdftotext; visually inspected slides8,15,20,21,22. SciFi source trace and import-only production-wrapper probe passed on lxplus939 (Python3.9.25/ROOT6.36.04); selector resolves to master-local14 with limits(-0.5,1.2) and clock6.237680580852816ns. Publication: git push origin task/shower-features succeeded (6f02516..960a095); pwd/branch and clean tree verified before push. pwd/branch verified and starting tree clean; git fetch origin; branch logs/diffs reviewed. LCG107 on lxplus9116, Python3.11.9, ROOT6.34.02, numpy1.26.4, uproot5.3.11. Before merge45 production tests passed; after merge47 production,6 density pytest,13 converter tests passed. Audit CLI --help passed. git diff --cached --check passed. Both coworker tip and89685db verified ancestors of merge. Main launcher --check-handoff shower-features: PASS; final git diff --check: PASS.
+- Remaining limitations: Configurable timing-window flags are proposed only, not implemented; launcher/plugin parameters currently cannot select this window. Slides do not fully specify occupancy-ratio formula, fit coefficients, or timing-window sign convention; adaptive selection not implemented or validated here. SciFi selection source and actual import verified; no event-level timing comparison or data campaign executed. No merged production campaign or full yield-audit generation run. Older personal helper scripts feature_dev/algorithms/plot_energy.py and feature_plugins/silvia/build_audit.py retain hard-coded coworker paths; not executed or general-purpose entry points. Prefer parameterized feature_production/tools/build_audit.py. Added plugin-directory helper changes plugin fingerprint, so some older runs cannot reuse sources; converter/catalogue changes also retain compatibility checks. Existing testbeam full-production/coworker-account and custom SNDSW qualification limits remain. No fresh batch validation after merge.
+- Running jobs: No jobs submitted during integration; prior16 testbeam preview clusters were verified complete in preceding checkpoint. No new output campaign.
+- Outputs: Slide renderings feature_dev/output/slides-26cm-review/page-{08,15,20,21,22}.png (ignored review artifacts). Integration evidence feature_dev/output/merge-silvia-20261125/{before-tests.log,production-tests.log,density-tests.log,converter-tests.log,audit-help.log}. Prior preview /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/mc-validation-20261125/ and catalogue repair evidence feature_dev/output/testbeam-fix-20261125/ retained. Merge changed11 files listed in history; publication follow-up changes only this task record; no new scientific output.
+
+### 2026-11-26T16:52:12+01:00 — Baseline timing preview source validation
+
+All3sources passed20-event source validation/parity. MC source compared against mc-validation-20261125: all451branches exactly equal (rtol=atol=0); evidence default-parity.json. Jobs16624920,16624921,16624961 sources and16624979 ranges complete;16624991 histograms pending. Job tokens/controller logs recorded in feature_dev/output/timing-selection-20261126/batch-12.log and feature_dev/output/batch-20261120/venv/htcondor_logs/<token>/. MC-muon and Hit3D --help smoke checks pass in actualSNDSW; logs muon-help.log/hit3d-help.log. No code changes after a454ef3.
+
+### 2026-11-26T17:03:27+01:00 — First preview complete; wider-window sources verified
+
+timing12 finished7/7 steps with ROOT/PDF outputs. timing18 all3sources validated20events each; event identities unchanged. Selected-hit totals at1.2/1.8: H8data1/1,2024data299/300,MC22884/22884. H8preview is sparse and unsuitable for choosing a physics window. Current histogram cluster16625148; submitted job IDs/tokens in feature_dev/output/timing-selection-20261126/jobs.json. No code changes after a454ef3.
+
+### 2026-11-26T17:11:36+01:00 — Two timing previews complete; final preview underway
+
+timing12 and timing18 controllers exited0 with source/histogram/PDF outputs. timing20 clusters16625194/16625195 source conversion complete; final source cluster16625231 submitted. Code remains frozen at a454ef3; no full campaign or publication started. Final event/hit/receipt/PDF comparison will follow completion.
+
+### 2026-11-26T17:20:56+01:00 — Fixed timing windows fully tested and checkpointed
+
+Implementation a454ef3542fbde1c8c4988c9fe6d22f031f67722; no implementation edits during batch runs. All3 previews completed7/7steps;18jobs exit0, final targeted condor_q empty. Clusters: 16624920, 16624921, 16624961, 16624979, 16624991, 16625029, 16625055, 16625056, 16625091, 16625104, 16625148, 16625179, 16625194, 16625195, 16625231, 16625252, 16625279, 16625292. Per-job token/log mapping jobs.json. Commands and detailed results in feature_dev/TEST_RESULTS.md; tests53+13+4+1=71pass. Verification command python3 feature_dev/output/timing-selection-20261126/verify_comparison.py passed (source/stage hashes, metadata, event identity, hit containment, exactMC451branch default parity and cross-window equality, all78configuredPDFpaths). Six pdfinfo checks pass. Three output paths timing12/timing18/timing20-20261126 under testbeam root above. Bounded180converted entries represent60distinct source events repeated across3policies. H8sparse/zero-QDC extra datahit limits physics conclusions; no adaptive/default change or full campaign. Final checkpoint includes prior review history and only task documentation; not pushed.
+
+Implementation changed files:
+
+```text
+convertData/digi_2_features.py
+convertData/digi_2_features_mc_muon.py
+convertData/digi_2_hits3D.py
+convertData/merge_unified_shower_feature_shards.py
+convertData/scifi_timing.py
+convertData/test_scifi_timing_sndsw.py
+convertData/test_validate_unified_shower_feature_shards.py
+convertData/validate_unified_shower_feature_file.py
+feature_dev/DATA_FORMAT.md
+feature_dev/sources.py
+feature_production/README.md
+feature_production/cli.py
+feature_production/tests/test_scifi_timing.py
+feature_production/worker.py
+snakemake/rules/unified_shower_features.smk
+```
+
+Follow-up docs: feature_production/README.md clarifies upstream event selection is unchanged; feature_dev/TEST_RESULTS.md records acceptance; docs/tasks/active/shower-features.md records handoff. Required main-launcher --check-handoff and git diff --check performed before commit. Pending Next action not started.
