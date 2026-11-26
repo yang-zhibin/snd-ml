@@ -7,8 +7,8 @@ draws one canvas per beam energy overlaying electrons vs pions and data vs MC,
 all normalised to unit area.
 
 Output (default <run>/plots-by-energy/<selection>/<feature>/):
-  overview.pdf/.png   all energies as pads of one canvas
-  E<energy>GeV.pdf/.png  one canvas per energy
+  overview.pdf        all energies as pads of one canvas
+  E<energy>GeV.pdf   one canvas per energy
   <feature>.pdf       multi-page PDF: overview + one page per energy
   summary.csv         entries, mean, std per curve
 
@@ -191,13 +191,11 @@ def plot_feature(selection_dir, out_dir, feature, selection, writer):
     for index, energy in enumerate(energies):
         draw_energy(overview.cd(index + 1), by_energy[energy], energy, feature, axis_title, logy, keep, compact=True)
     overview.SaveAs(str(out_dir / 'overview.pdf'))
-    overview.SaveAs(str(out_dir / 'overview.png'))
     canvases = []
     for energy in energies:
         canvas = ROOT.TCanvas('c_%s_%d' % (feature, energy), '', 900, 700)
         draw_energy(canvas, by_energy[energy], energy, feature, axis_title, logy, keep)
         canvas.SaveAs(str(out_dir / ('E%dGeV.pdf' % energy)))
-        canvas.SaveAs(str(out_dir / ('E%dGeV.png' % energy)))
         for curve in sorted(by_energy[energy], key=sort_key):
             writer.writerow(dict(feature=feature, selection=selection, energy_gev=energy, group=curve['group'],
                                  particle_pdg=curve['pdg'], kind=curve['kind'], domain=curve['domain'],
