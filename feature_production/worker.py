@@ -86,6 +86,9 @@ def validator_arguments(plan,job,path,output,receipt):
     if row.get('selected_event_count'):command+=['--expected-selected-event-count',str(int(float(row['selected_event_count'])))]
     if int(row['source_domain_id']) in (4,5,6):
         command+=['--expected-source-pdg-code',str(int(float(row['source_pdg_code']))),'--expected-source-energy-gev',str(float(row['source_energy_gev']))]
+    if job.get('scifi_timing'):
+        from scifi_timing import cli_arguments
+        command += cli_arguments(job['scifi_timing']) + ['--require-scifi-timing']
     return command
 
 

@@ -4,6 +4,7 @@ import os
 import time
 import math
 from argparse import ArgumentParser
+import scifi_timing
 import SndlhcGeo
 from collections import defaultdict
 import numpy as np
@@ -173,7 +174,7 @@ def is_muonDIS_sample(args):
 
 
 def is_mc_sample(args):
-    return "MC" in str(args.type)
+    return scifi_timing.sample_kind(args.type) == "mc"
 
 
 def needs_first_arrival_time0(args):
@@ -851,7 +852,7 @@ def process_hits_numpy(
     if needs_first_arrival_time0(args):
         selected_scifi_hits = [hit for hit in event.Digi_ScifiHits if hit.isValid()]
     else:
-        selected_scifi_hits = selectHits(event, MC=("MC" in args.type))
+        selected_scifi_hits = selectHits(event, MC=is_mc_sample(args))
     add_timing(timings, "scifi_select", time.perf_counter() - t0)
 
     t0 = time.perf_counter()
@@ -927,6 +928,7 @@ def process_hits_numpy(
             SciFi_hits,
             time_key="time",
             ns_per_clock=NS_PER_CLOCK,
+            **scifi_timing.calibrated_kwargs(args),
         )
     add_timing(timings, "scifi_calibrated_select", time.perf_counter() - t0)
     SciFi_hits = filter_late_mc_hits(args, SciFi_hits, "time")
@@ -1221,6 +1223,7 @@ def make_metadata(args, selection, n_selected):
 
 
 def main(args):
+    scifi_timing.configure(args, applies_mc_25ns_hit_filter)
     print("start processing digi to hits3D")
 
     direct_passing_muon = is_passing_muon_real_data(args.type)
@@ -1258,6 +1261,7 @@ def main(args):
 
     if n_match == 0:
         hit_tree.Write()
+        scifi_timing.write_record(ROOT, args)
         write_metadata_objects(out_file, make_metadata(args, selection, 0))
         out_file.Close()
         raw_data.Close()
@@ -1332,6 +1336,7 @@ def main(args):
 
     t0 = time.perf_counter()
     hit_tree.Write()
+    scifi_timing.write_record(ROOT, args)
     metadata = make_metadata(args, selection, n_written)
     metadata.update({
         "selection_mode": "passing_muon_direct" if direct_passing_muon else "external_cutflow",
@@ -1359,6 +1364,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
+    scifi_timing.add_arguments(parser)
 
     parser.add_argument("-p", "--preSelectPath", dest="preSelect_path", help="pre selection data file path")
     parser.add_argument("-d", "--digiPath", dest="digi_path", help="digitized data file path", required=True)

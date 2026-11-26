@@ -329,3 +329,35 @@ Edit only your plugin folder; see [plugin interface](../feature_plugins/README.m
 The supplied `silvia` plugin exports 13 namespaced scalar branches. The old
 `run_feature_dev.sh` remains available for standalone development. The new
 launcher always uses the production converter for detector processing.
+
+### SciFi timing windows
+
+The converter selects hits around each plane's time peak before computing all
+baseline and plugin features. Data and MC have separate signed cycle offsets;
+both default to `-0.5 1.2` (the previous behaviour).
+
+```bash
+./run_shower_features.sh --dataset testbeam --plugin silvia \
+  --sample small --batch --jobs 4 --run testbeam-window20 \
+  --scifi-data-window-cycles -0.5 2.0 \
+  --scifi-mc-window-cycles -0.5 1.2
+```
+
+This is a fixed-window comparison, not an adaptive selection or a new validated
+default. Declared sample type selects the policy; it is not a plugin parameter.
+The shared SNDSW installation is unchanged. Its period is 6.23768058 ns; the
+calibrated muon-MC helper retains 6.25 ns. First-arrival subtraction and the
+existing non-neutrino MC 25 ns upper cut are unchanged.
+
+Use a new run name when changing a window. Conversion must read the original
+digi input again: previously rejected hits cannot be recovered by replotting.
+`--reuse-sources` rejects changed effective timing settings. An unused data
+setting may change without invalidating an MC-only conversion (and vice versa).
+Requested policies are in `plan.json`; effective settings and selector provenance
+are also stored in each ROOT file as `scifi_timing_json` and in validation receipts.
+
+The standalone feature converter, MC-muon wrapper and Hit3D converter accept the
+same options. For the original Snakemake workflow, supply YAML lists
+`scifi_data_window_cycles: [-0.5, 2.0]` and
+`scifi_mc_window_cycles: [-0.5, 1.2]` through a Snakemake config file. Use a separate
+output campaign for comparisons; feature and Hit3D products must use the same policy.

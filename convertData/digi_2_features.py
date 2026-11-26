@@ -1,6 +1,7 @@
 import ROOT
 import os
 from argparse import ArgumentParser
+import scifi_timing
 import SndlhcGeo
 import array
 from collections import defaultdict
@@ -1313,6 +1314,7 @@ def process_hits(
             hit_getter=lambda entry: entry["hit"],
             time_key="hitTimeNS",
             ns_per_clock=NS_PER_CLOCK,
+            **scifi_timing.calibrated_kwargs(args),
         )
     record_timing(timing, timing_counts, "process_hits.select_calibrated_scifi", step_start)
 
@@ -1423,6 +1425,7 @@ def process_hits(
 
 
 def main(args):
+    scifi_timing.configure(args, applies_mc_25ns_hit_filter)
     args._production_plugin = None
     if getattr(args, 'feature_plugin_spec', None):
         import json
@@ -1876,6 +1879,7 @@ def main(args):
     # Finalize the output file
     step_start = time.perf_counter()
     new_tree.Write()
+    scifi_timing.write_record(ROOT, args)
     if args._production_plugin is not None:
         args._production_plugin.write_metadata(ROOT)
     record_timing(timing, timing_counts, "finalize.write_sndData", step_start)
@@ -1948,6 +1952,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
+    scifi_timing.add_arguments(parser)
     parser.add_argument("-p", "--preSelectPath", dest="preSelect_path", help="pre selection data file path")
     parser.add_argument("-d", "--digiPath", dest="digi_path", help="digitized data file path", required=True)
     parser.add_argument("-g", "--geoPath", dest="geo_path", help="geo path", required=True)

@@ -12,6 +12,7 @@ from collections import defaultdict
 from common import ROOT, digest, fingerprint, plugin_spec, source_key, stratum, read_json, write_json, sha
 from cli import find_snakemake
 from sources import build_plan
+import scifi_timing
 from plot_settings import load_settings
 from batch import choose_profile, profile_config, check_profile
 
@@ -42,6 +43,7 @@ def catalogue_rows(dataset, config_path):
 
 
 def make_plan(args):
+    timing=scifi_timing.settings(args)
     spec=plugin_spec(args.plugin,json.loads(args.parameters))
     catalogues, all_rows=catalogue_rows(args.dataset,args.dataset_config)
     if args.sample=='small':
@@ -56,8 +58,10 @@ def make_plan(args):
         if not row.get('source_geometry_id'):
             row['source_geometry_id']=row['geo_path']
         job['source_key']=source_key(row)
+        job['scifi_timing']=timing
+        job['effective_scifi_timing']=scifi_timing.effective_policy(row['sample_type'],timing)
     selection=dict(dataset=args.dataset,sample=args.sample,catalogues=catalogues,
-                   jobs=[dict(source_key=j['source_key'],record=j['record'],max_events=j['max_events']) for j in jobs])
+                   jobs=[dict(source_key=j['source_key'],record=j['record'],max_events=j['max_events'],scifi_timing=j['effective_scifi_timing']) for j in jobs])
     campaign_sha=digest(selection)
     audit=read_json(args.exposure_manifest) if args.exposure_manifest else None
     shape_only=args.sample=='small' or args.dataset=='testbeam'
@@ -76,7 +80,7 @@ def make_plan(args):
                 ROOT/'feature_dev/engine.py',ROOT/'feature_dev/selected_hits.py',ROOT/'feature_dev/prepare.py',ROOT/'feature_dev/schemas/baseline.yaml',ROOT/'evaluation_region_partitions/normalization.py',
                 *map(Path,spec['source_hashes'])]
     plan=dict(version=1,implementation_commit=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip(),**{k:v for k,v in selection.items() if k!='jobs'},campaign_sha256=campaign_sha,plugin=spec,jobs=jobs,
-              normalization=mode,exposure_audit=audit,plot_settings=settings,code={str(p):sha(p) for p in sorted(set(code_paths))})
+              normalization=mode,exposure_audit=audit,plot_settings=settings,scifi_timing=timing,code={str(p):sha(p) for p in sorted(set(code_paths))})
     conversion_code={p:h for p,h in plan['code'].items() if '/convertData/' in p or p in spec['source_hashes'] or
                      p.endswith(('run_export.sh','env_sndsw_nue.sh','sources.py','selected_hits.py'))}
     # Converted features do not depend on the normalization: the yield scale is
@@ -108,6 +112,7 @@ def make_plan(args):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    scifi_timing.add_arguments(parser)
     parser.add_argument('--dataset',choices=['mc-neutrino','testbeam','real-data','mc-muon'],required=True)
     parser.add_argument('--plugin',default='silvia',help='Plugin name or directory')
     parser.add_argument('--parameters',default='{}')

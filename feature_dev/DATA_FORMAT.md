@@ -247,3 +247,17 @@ source used by `larger-mc-20261119`. Its feature file has 70 selected events and
 451 branches, including 13 Silvia branches. Those counts describe that output,
 not a fixed schema requirement. Real-data/testbeam and Hit3D details above are
 code/interface references, not newly validated files from those datasets.
+
+### SciFi timing provenance
+
+Newly converted feature and Hit3D ROOT files contain `scifi_timing_json`
+(`TObjString`). `requested` stores separate data/MC signed windows in clock cycles.
+`effective` records the applied policy: lower/upper offsets from the plane peak,
+clock period in ns, fixed-selection mode, selector name/source path/SHA256,
+first-arrival calibration flag and additional maximum hit time (`null` or 25 ns).
+The default is [-0.5,+1.2] cycles for both data and MC. This metadata describes
+hit selection, not the event-builder window or luminosity normalization.
+
+Production validation checks the effective window against the plan. Feature/Hit3D
+validation and shard merging reject inconsistent recorded timing policies.
+Older ROOT products may lack this record; new production requires it.

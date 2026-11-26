@@ -46,6 +46,15 @@ class UnifiedShowerFeatureShardValidationTests(unittest.TestCase):
             records.append(str(record))
         return uid, records
 
+    def test_mixed_timing_policies_rejected(self):
+        from merge_unified_shower_feature_shards import load_receipts, validate_receipts
+        with tempfile.TemporaryDirectory(dir="/tmp/zhibin") as directory:
+            _, records = self._fixture(Path(directory))
+            receipts = load_receipts(records)
+            receipts[1]['scifi_timing'] = {'effective': {'upper_cycles': 2.0}}
+            with self.assertRaisesRegex(RuntimeError, 'scifi_timing'):
+                validate_receipts(receipts)
+
     def test_complete_receipt_preserves_ordered_shard_units(self):
         with tempfile.TemporaryDirectory(dir="/tmp/zhibin") as directory:
             root = Path(directory)

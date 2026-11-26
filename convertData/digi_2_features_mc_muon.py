@@ -34,6 +34,7 @@ def install_legacy_header_compatibility():
 
 def parse_args():
     parser = ArgumentParser()
+    converter.scifi_timing.add_arguments(parser)
     parser.add_argument("-p", "--preSelectPath", dest="preSelect_path")
     parser.add_argument("-d", "--digiPath", dest="digi_path", required=True)
     parser.add_argument("-g", "--geoPath", dest="geo_path", required=True)

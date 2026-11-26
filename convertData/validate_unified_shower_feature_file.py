@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 
 import ROOT
+import scifi_timing
 
 from sample_selection import (
     SELECTION_MODES,
@@ -525,6 +526,9 @@ def validate(args: argparse.Namespace) -> dict:
     if not source or source.IsZombie():
         raise RuntimeError(f"cannot open {args.feature}")
     try:
+        timing_record = scifi_timing.validate_record(source, args.sample_type,
+            scifi_timing.settings(args) if getattr(args, 'require_scifi_timing', False) else None,
+            required=getattr(args, 'require_scifi_timing', False))
         tree = source.Get(args.tree)
         if not tree:
             raise RuntimeError(f"missing tree {args.tree}")
@@ -632,6 +636,10 @@ def validate(args: argparse.Namespace) -> dict:
         if args.hit3d:
             hit_source = ROOT.TFile.Open(args.hit3d)
             hit_tree = hit_source.Get(args.hit3d_tree) if hit_source else None
+            hit_timing = scifi_timing.validate_record(hit_source, args.sample_type,
+                required=timing_record is not None) if hit_source else None
+            if timing_record and hit_timing and timing_record['effective'] != hit_timing['effective']:
+                raise RuntimeError('Feature/Hit3D timing policies differ')
             if not hit_tree:
                 raise RuntimeError("missing Hit3D tree")
             if int(hit_tree.GetEntries()) != entries:
@@ -730,6 +738,7 @@ def validate(args: argparse.Namespace) -> dict:
 
     record = {
         "validation_passed": True,
+        "scifi_timing": timing_record,
         "manifest_version": args.manifest_version,
         "unified_schema_version": UNIFIED_SCHEMA_VERSION,
         "scifi_cluster_schema_version": SCHEMA_VERSION,
@@ -816,6 +825,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--feature-plugin-spec")
     parser.add_argument("--converter-commit", required=True)
     parser.add_argument("--validation-record", required=True)
+    scifi_timing.add_arguments(parser)
+    parser.add_argument('--require-scifi-timing', action='store_true')
     return parser.parse_args()
 
 

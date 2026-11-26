@@ -35,6 +35,7 @@ COMMON_RECEIPT_FIELDS = (
     "converter_commit",
     "feature_plugin_sha256",
     "production_exposure_sha256",
+    "scifi_timing",
 )
 
 

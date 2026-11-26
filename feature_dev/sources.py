@@ -168,6 +168,9 @@ def converter_arguments(job, directory):
             '--source-uid', row['source_uid'], '--source-geometry-id', row['source_geometry_id'],
             '--max-events', str(job['max_events']), '--feature-dev-group', job['group'],
             '--feature-dev-export', str(directory/'hits.jsonl'), '-o', str(directory/'features.root')]
+    if job.get('scifi_timing'):
+        from scifi_timing import cli_arguments
+        args += cli_arguments(job['scifi_timing'])
     if row.get('cutflow_path'):
         args += ['-p', row['cutflow_path']]
     if row.get('source_geometry_checksum'):

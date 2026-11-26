@@ -21,6 +21,14 @@ from prepare_unified_shower_feature_manifests import (  # noqa: E402
 )
 
 
+# Run-level selection; changing this requires a separate output campaign.
+UNIFIED_TIMING_CLI = " ".join(
+    shlex.quote(str(value))
+    for kind in ('data', 'mc')
+    for value in ['--scifi-' + kind + '-window-cycles',
+                  *config.get('scifi_' + kind + '_window_cycles', [-0.5, 1.2])]
+)
+
 UNIFIED_SETTINGS = _load_unified_config(UNIFIED_CONFIG)
 UNIFIED_MANIFESTS = _build_unified_manifests(UNIFIED_CONFIG)
 UNIFIED_MANIFEST_ROOT = str(UNIFIED_SETTINGS["manifest_root"]).rstrip("/")
@@ -197,6 +205,9 @@ def _unified_cli(wildcards):
         arguments.extend(["--source-geometry-id", geometry_id])
     if geometry_checksum:
         arguments.extend(["--source-geometry-checksum", geometry_checksum])
+    for kind in ('data', 'mc'):
+        values = config.get('scifi_' + kind + '_window_cycles', [-0.5, 1.2])
+        arguments.extend(['--scifi-' + kind + '-window-cycles', *map(str, values)])
     return " ".join(shlex.quote(value) for value in arguments)
 
 
@@ -321,6 +332,7 @@ rule unified_shower_feature_shard_v1:
         digi=lambda wc: _unified_value(wc, "digi_path"),
         geo=lambda wc: _unified_value(wc, "geo_path"),
         converter=_unified_converter,
+        timing_policy=f"{UNIFIED_REPO_ROOT}/convertData/scifi_timing.py",
         feature_core=f"{UNIFIED_REPO_ROOT}/convertData/digi_2_features.py",
         selection=f"{UNIFIED_REPO_ROOT}/convertData/sample_selection.py",
         provenance=f"{UNIFIED_REPO_ROOT}/convertData/source_provenance.py",
@@ -396,7 +408,7 @@ rule unified_shower_feature_shard_v1:
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.converter} \
             {params.cli} -o "$tmp_feature"
         converter_commit=$(git -C {UNIFIED_REPO_ROOT} rev-parse HEAD)
-        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.validator} \
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.validator} {UNIFIED_TIMING_CLI} --require-scifi-timing \
             "$tmp_feature" \
             --manifest-version "{params.manifest_version}" \
             --expected-source-uid "{params.source_uid}" \
@@ -572,7 +584,7 @@ rule unified_merge_shower_feature_shards_v1:
             {params.shard_record_args} \
             --output "$tmp_feature" --merge-record "$tmp_merge_record"
         converter_commit=$(git -C {UNIFIED_REPO_ROOT} rev-parse HEAD)
-        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.validator} \
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.validator} {UNIFIED_TIMING_CLI} --require-scifi-timing \
             "$tmp_feature" \
             --manifest-version "{params.manifest_version}" \
             --expected-source-uid "{params.source_uid}" \
@@ -611,6 +623,7 @@ rule unified_shower_feature_v1:
         digi=lambda wc: _unified_value(wc, "digi_path"),
         geo=lambda wc: _unified_value(wc, "geo_path"),
         converter=_unified_converter,
+        timing_policy=f"{UNIFIED_REPO_ROOT}/convertData/scifi_timing.py",
         feature_core=f"{UNIFIED_REPO_ROOT}/convertData/digi_2_features.py",
         selection=f"{UNIFIED_REPO_ROOT}/convertData/sample_selection.py",
         provenance=f"{UNIFIED_REPO_ROOT}/convertData/source_provenance.py",
@@ -687,7 +700,7 @@ rule unified_shower_feature_v1:
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.converter} \
             {params.cli} -o "$tmp_feature"
         converter_commit=$(git -C {UNIFIED_REPO_ROOT} rev-parse HEAD)
-        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.validator} \
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.validator} {UNIFIED_TIMING_CLI} --require-scifi-timing \
             "$tmp_feature" \
             --manifest-version "{params.manifest_version}" \
             --expected-source-uid "{params.source_uid}" \
@@ -725,6 +738,7 @@ rule unified_feature_local_smoke_v1:
         digi=lambda wc: _unified_local_smoke_value(wc, "digi_path"),
         geo=lambda wc: _unified_local_smoke_value(wc, "geo_path"),
         converter=lambda wc: _unified_converter(wc),
+        timing_policy=f"{UNIFIED_REPO_ROOT}/convertData/scifi_timing.py",
         feature_core=f"{UNIFIED_REPO_ROOT}/convertData/digi_2_features.py",
         selection=f"{UNIFIED_REPO_ROOT}/convertData/sample_selection.py",
         provenance=f"{UNIFIED_REPO_ROOT}/convertData/source_provenance.py",
@@ -786,7 +800,7 @@ rule unified_feature_local_smoke_v1:
         /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.converter} \
             {params.cli} -o "$tmp_dir/feature.root"
         converter_commit=$(git -C {UNIFIED_REPO_ROOT} rev-parse HEAD)
-        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.validator} \
+        /cvmfs/sndlhc.cern.ch/SNDLHC-2024/June25/bin/python {input.validator} {UNIFIED_TIMING_CLI} --require-scifi-timing \
             "$tmp_dir/feature.root" \
             --manifest-version "{params.manifest_version}" \
             --expected-source-uid "{params.source_uid}" \
