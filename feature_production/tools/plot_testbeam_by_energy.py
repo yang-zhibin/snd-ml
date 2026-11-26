@@ -62,6 +62,7 @@ def load_curves(selection_dir):
         f.Close()
         info = parse_group(meta['group'])
         info.update(hist=hist, group=meta['group'], config=meta.get('config', {}),
+                    geometries=meta.get('geometries') or [meta.get('geometry', '')],
                     valid=int(meta.get('valid_entries', hist.GetEntries())),
                     selected=int(meta.get('selected_entries', 0)))
         by_energy[round(info['energy'])].append(info)
@@ -73,9 +74,26 @@ def sort_key(curve):
     return (abs(curve['pdg']) != 11, curve['pdg'], curve['kind'] != 'data', curve['domain'])
 
 
+GEOMETRY_RE = re.compile(r'^(?P<material>[A-Za-z]+)_(?P<walls>\d+)walls')
+MATERIALS = {'W': 'W', 'Fe': 'Fe'}
+
+
+def geometry_label(geometries):
+    """'W_2walls_28plates' -> '2 W walls'; several setups are joined with '+'."""
+    labels = []
+    for geometry in geometries:
+        match = GEOMETRY_RE.match(str(geometry))
+        text = ('%s %s walls' % (match['walls'], MATERIALS.get(match['material'], match['material']))
+                if match else str(geometry))
+        if text not in labels:
+            labels.append(text)
+    return ' + '.join(labels)
+
+
 def label(curve):
     particle = PARTICLES.get(curve['pdg'], 'pdg' + str(curve['pdg']))
-    return '%s %s' % (particle, DOMAIN_LABELS.get(curve['domain'], curve['domain']))
+    return '%s %s, %g GeV, %s' % (particle, DOMAIN_LABELS.get(curve['domain'], curve['domain']),
+                                  curve['energy'], geometry_label(curve['geometries']))
 
 
 def style(curve):
@@ -128,16 +146,17 @@ def draw_energy(pad, curves, energy, feature, axis_title, logy, keep, compact=Fa
         hist.GetYaxis().SetTitleOffset(1.3)
         if logy:
             hist.SetMinimum(1e-4)
-            hist.SetMaximum(ymax * 10)
+            hist.SetMaximum(ymax * 10 ** (1 + 0.5 * len(curves)))
         else:
             hist.SetMinimum(0)
-            hist.SetMaximum(ymax * 1.35)
+            hist.SetMaximum(ymax * (1.0 + 0.11 * len(curves) + 0.2))
         hist.Draw(curve['option'] + ('' if first else ' SAME'))
         first = False
-    legend = ROOT.TLegend(0.50 if compact else 0.40, 0.68, 0.95, 0.91)
+    # Full-width legend above the curves (the y range leaves headroom for it).
+    legend = ROOT.TLegend(0.15, 0.91 - 0.055 * len(curves), 0.96, 0.91)
     legend.SetBorderSize(0)
     legend.SetFillStyle(0)
-    legend.SetTextSize(0.045 if compact else 0.030)
+    legend.SetTextSize(0.036 if compact else 0.026)
     for curve, hist in zip(curves, hists):
         if compact:
             text = '%s (N=%d)' % (label(curve), curve['valid'])
@@ -185,6 +204,7 @@ def plot_feature(selection_dir, out_dir, feature, selection, writer):
         for curve in sorted(by_energy[energy], key=sort_key):
             writer.writerow(dict(feature=feature, selection=selection, energy_gev=energy, group=curve['group'],
                                  particle_pdg=curve['pdg'], kind=curve['kind'], domain=curve['domain'],
+                                 geometry=geometry_label(curve['geometries']),
                                  valid_entries=curve['valid'], selected_entries=curve['selected'],
                                  mean=curve['hist'].GetMean(), std=curve['hist'].GetStdDev()))
         canvases.append(canvas)
@@ -213,7 +233,7 @@ def main():
     out_root.mkdir(parents=True, exist_ok=True)
     with open(out_root / 'summary.csv', 'w', newline='') as handle:
         writer = csv.DictWriter(handle, fieldnames=['feature', 'selection', 'energy_gev', 'group', 'particle_pdg',
-                                                    'kind', 'domain', 'valid_entries', 'selected_entries', 'mean', 'std'])
+                                                    'kind', 'domain', 'geometry', 'valid_entries', 'selected_entries', 'mean', 'std'])
         writer.writeheader()
         for feature_dir in sorted(p for p in hist_root.iterdir() if p.is_dir()):
             feature = feature_dir.name
