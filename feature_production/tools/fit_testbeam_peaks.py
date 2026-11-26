@@ -227,9 +227,13 @@ def main():
     parser.add_argument('--features', nargs='*', default=DEFAULT_FEATURES)
     parser.add_argument('--selection', default='selected')
     parser.add_argument('--window', type=float, default=1.5, help='Fit window half-width in sigmas (default 1.5)')
+    parser.add_argument('--include-iron', action='store_true',
+                        help='Also fit iron (2023 H8 Fe walls) setups; excluded by default')
     parser.add_argument('--min-x', type=float, default=0.04,
                         help='Ignore x below this in peak search and fit (default 0.04: skips the near-zero spike)')
     args = parser.parse_args()
+    if args.include_iron:
+        tb.EXCLUDED_MATERIALS.clear()
     out_root = args.out or args.run / 'peak-vs-energy'
     out_root.mkdir(parents=True, exist_ok=True)
     fields = ['feature', 'selection', 'energy_gev', 'group', 'particle_pdg', 'kind', 'domain', 'geometry',

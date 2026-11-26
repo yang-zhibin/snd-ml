@@ -51,8 +51,22 @@ def parse_group(name):
                 kind='mc' if '_mc_' in domain else 'data')
 
 
+# Iron setups (2023 H8, Fe walls) are a different detector from the 2024 tungsten
+# setup, so they are left out unless explicitly requested (--include-iron).
+EXCLUDED_MATERIALS = {'Fe'}
+
+
+def excluded_setup(geometries):
+    for geometry in geometries:
+        match = GEOMETRY_RE.match(str(geometry))
+        if match and match['material'] in EXCLUDED_MATERIALS:
+            return True
+    return False
+
+
 def load_curves(selection_dir):
-    """Return {energy: [curve,...]} for one feature/selection directory."""
+    """Return {energy: [curve,...]} for one feature/selection directory,
+    without curves from excluded (iron) detector setups."""
     by_energy = defaultdict(list)
     for path in sorted(selection_dir.glob('*.root')):
         f = ROOT.TFile.Open(str(path))
@@ -60,9 +74,12 @@ def load_curves(selection_dir):
         hist = f.Get('hist').Clone('h_' + path.stem)
         hist.SetDirectory(0)
         f.Close()
+        geometries = meta.get('geometries') or [meta.get('geometry', '')]
+        if excluded_setup(geometries):
+            continue
         info = parse_group(meta['group'])
         info.update(hist=hist, group=meta['group'], config=meta.get('config', {}),
-                    geometries=meta.get('geometries') or [meta.get('geometry', '')],
+                    geometries=geometries,
                     valid=int(meta.get('valid_entries', hist.GetEntries())),
                     selected=int(meta.get('selected_entries', 0)))
         by_energy[round(info['energy'])].append(info)
@@ -255,7 +272,11 @@ def main():
     parser.add_argument('--out', type=Path, help='Output directory (default <run>/plots-by-energy)')
     parser.add_argument('--features', nargs='*', help='Only these features (default: all 1D features)')
     parser.add_argument('--selection', default=None, help='Selection name (default: all)')
+    parser.add_argument('--include-iron', action='store_true',
+                        help='Also plot iron (2023 H8 Fe walls) setups; excluded by default')
     args = parser.parse_args()
+    if args.include_iron:
+        EXCLUDED_MATERIALS.clear()
     hist_root = args.run / 'histograms' / '1d'
     if not hist_root.is_dir():
         raise SystemExit('No histograms/1d under ' + str(args.run))
