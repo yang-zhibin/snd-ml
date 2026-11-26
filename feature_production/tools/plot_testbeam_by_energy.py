@@ -158,8 +158,8 @@ def draw_energy(pad, curves, energy, feature, axis_title, logy, keep, compact=Fa
     legend.SetFillStyle(0)
     legend.SetTextSize(0.036 if compact else 0.026)
     for curve, hist in zip(curves, hists):
-        # Mean/std live in summary.csv: with empty-event spikes and long tails they mislead in a legend.
-        text = '%s (N=%d)' % (label(curve), curve['valid'])
+        # Entries, mean and std live in summary.csv; the legend keeps only the label.
+        text = label(curve)
         legend.AddEntry(hist, text, 'lep' if curve['kind'] == 'data' else 'l')
     legend.Draw()
     title = ROOT.TLatex()
