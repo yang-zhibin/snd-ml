@@ -202,6 +202,8 @@ requirements. The small-sample file/event caps do not apply to `--sample full`.
 
 ## Further reference
 
+- [SciFi clock-cycle selection](feature_dev/SCIFI_CLOCK_CYCLE.md): timing windows, peak calculation, code locations and commands.
+
 - [Data formats and structure](feature_dev/DATA_FORMAT.md): raw inputs, MC truth,
   hit/cluster fields, event features, Hit3D and metadata.
 

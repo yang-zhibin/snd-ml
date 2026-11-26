@@ -332,6 +332,8 @@ launcher always uses the production converter for detector processing.
 
 ### SciFi timing windows
 
+See the [SciFi clock-cycle guide](../feature_dev/SCIFI_CLOCK_CYCLE.md) for definitions, selection logic, code locations and usage.
+
 The converter selects hits around each plane's time peak before computing all
 baseline and plugin features. Data and MC have separate signed cycle offsets;
 both default to `-0.5 1.2` (the previous behaviour).

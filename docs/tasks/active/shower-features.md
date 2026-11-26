@@ -5,13 +5,13 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-26T17:20:56+01:00
+- Last verified: 2026-11-26T17:31:48+01:00
 - Implementation checkpoint: a454ef3542fbde1c8c4988c9fe6d22f031f67722
-- Implemented: Separate data/MC signed SciFi timing flags, defaults[-0.5,1.2] unchanged; process-local SNDSW and calibrated-muon selection; feature/Hit3D timing metadata; production and original Snakemake forwarding; campaign/reuse protection; shard consistency checks; README/data-format instructions.15 implementation files committed. Shared SNDSW and upstream selections unchanged. Local only, not pushed.
-- Validation:71 tests pass (53production,13converter,4shard,1actual-SNDSW synthetic-hit). MC-muon/Hit3D CLI smoke checks pass; original21-rule Snakemake file parses/compiles. Three HTCondor previews each7/7steps,3sources x20events;18jobs exit0. All source/stage checksums and metadata pass. Event identities/retained-hit containment verified; MC arrays unchanged across windows. Default20MCevents x451branches exactly equal pre-change output. Each preview26PDFs/78histograms; all configured PDF paths verified, six pdfinfo checks pass. See feature_dev/TEST_RESULTS.md and comparison.json. Handoff/whitespace checks run before final checkpoint commit.
+- Implemented: Separate data/MC signed SciFi timing flags, defaults[-0.5,1.2] unchanged; process-local SNDSW and calibrated-muon selection; feature/Hit3D timing metadata; production and original Snakemake forwarding; campaign/reuse protection; shard consistency checks; README/data-format instructions.15 implementation files committed. Shared SNDSW and upstream selections unchanged. Local only, not pushed. Added standalone feature_dev/SCIFI_CLOCK_CYCLE.md with definitions, algorithm, exceptions, code map, usage and provenance; linked from both production/coworker READMEs.
+- Validation: Documentation review: relative link targets and balanced code fences pass; git diff --check and main launcher handoff pass. No new runtime tests needed for this prose-only change. Prior implementation evidence:71 tests pass (53production,13converter,4shard,1actual-SNDSW synthetic-hit). MC-muon/Hit3D CLI smoke checks pass; original21-rule Snakemake file parses/compiles. Three HTCondor previews each7/7steps,3sources x20events;18jobs exit0. All source/stage checksums and metadata pass. Event identities/retained-hit containment verified; MC arrays unchanged across windows. Default20MCevents x451branches exactly equal pre-change output. Each preview26PDFs/78histograms; all configured PDF paths verified, six pdfinfo checks pass. See feature_dev/TEST_RESULTS.md and comparison.json. Handoff/whitespace checks run before final checkpoint commit.
 - Remaining limitations: Small owner-account preview, not full production/physics qualification. H8sample has only1selected hit;2024data299/300/300hits at1.2/1.8/2.0, addedhit zeroQDC. This does not choose the best window. No adaptive method,7pe change, upstream recut or real Hit3D/muon-MC batch conversion. Historical6.23768058ns vs6.25ns periods and path-based legacy25ns exemption remain. Runtime provenance recorded; no shared environment changes.
 - Running jobs: None. All18clusters exited0, targeted condor_q empty; cluster IDs/tokens/log paths in feature_dev/output/timing-selection-20261126/jobs.json. Controller exit0. No full campaign or pending test job.
-- Outputs: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/timing{12,18,20}-20261126/ (9source ROOTs,234histograms,78PDFs total). Evidence feature_dev/output/timing-selection-20261126/{production-tests.log,converter-tests.log,shard-tests.log,sndsw-tests.log,dry-run.log,muon-help.log,hit3d-help.log,batch-*.log,default-parity.json,source-comparison.json,comparison.json,verify_comparison.py,jobs.json,final-queue.txt,pdfinfo-*.txt,testbeam.json,catalogue-*.csv}. Documentation follow-up: feature_production/README.md,feature_dev/TEST_RESULTS.md,this task record. Historical records preserved.
+- Outputs: /afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/timing{12,18,20}-20261126/ (9source ROOTs,234histograms,78PDFs total). Evidence feature_dev/output/timing-selection-20261126/{production-tests.log,converter-tests.log,shard-tests.log,sndsw-tests.log,dry-run.log,muon-help.log,hit3d-help.log,batch-*.log,default-parity.json,source-comparison.json,comparison.json,verify_comparison.py,jobs.json,final-queue.txt,pdfinfo-*.txt,testbeam.json,catalogue-*.csv}. Current documentation changes: feature_dev/SCIFI_CLOCK_CYCLE.md, feature_production/README.md, README_SHOWER_FEATURES.md, this task record. Prior validation documentation: feature_dev/TEST_RESULTS.md. Historical records preserved.
 
 ## Goal
 
@@ -19,9 +19,14 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Await the user's request to publish the tested timing-window implementation; do not change defaults or launch a full campaign from this checkpoint.
+Await the user's request to publish the tested timing-window implementation and clock-cycle guide; do not change defaults or launch a full campaign from this checkpoint.
 
 ## Checkpoint history
+
+### 2026-11-26T17:29:56+01:00 — Timing code reference review
+
+Verified pwd, branch task/shower-features, clean initial git status and HEAD 2087659; implementation remains a454ef3542fbde1c8c4988c9fe6d22f031f67722 (not pushed). Read explicit installed master-local14 sciFiTools.py: selectHits line9, clock conversion line22, peak centre line41, inclusive cuts lines57/59. Read local scifi_timing.configure and select_calibrated_scifi_hits plus converter call sites. Commands: pwd, git branch --show-current, git status --short, git log -2 --oneline, bounded rg and sed; all passed. Only this task record changed. No tests or production jobs launched; prior validation limits, outputs and job evidence above remain unchanged. Main launcher --check-handoff run for this documentation-only review. Next action unchanged; no publication or campaign started.
+
 
 Original record preserved verbatim: [earlier checkpoints](../history/unified-shower-features-before-workflow-v2.md). Historical next actions are context, not current authorization.
 
@@ -1879,3 +1884,9 @@ snakemake/rules/unified_shower_features.smk
 ```
 
 Follow-up docs: feature_production/README.md clarifies upstream event selection is unchanged; feature_dev/TEST_RESULTS.md records acceptance; docs/tasks/active/shower-features.md records handoff. Required main-launcher --check-handoff and git diff --check performed before commit. Pending Next action not started.
+
+### 2026-11-26T17:31:48+01:00 — Standalone SciFi clock-cycle guide
+
+Added feature_dev/SCIFI_CLOCK_CYCLE.md and discovery links in README_SHOWER_FEATURES.md and feature_production/README.md. Documents cycle vs histogram bin, per-plane peak, inclusive signed offsets, data/MC routing, muon first-arrival/rounded-period exceptions, legacy path-based 25 ns cut, CLI/YAML usage, fresh conversion requirements, function locations and ROOT provenance. Verified against implementation a454ef3542fbde1c8c4988c9fe6d22f031f67722 and installed master-local14 selector; no implementation edits. Preserved preceding uncommitted code-reference checkpoint and linked historical records.
+
+Commands/results: pwd and git branch --show-current confirmed authorized worktree/branch; targeted sed/rg inspected code and README; LCG Python link/fence check passed; git diff --check passed; main launcher python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features passed. Changed files: the new guide, two READMEs, this checkpoint. No production tests/jobs or generated output changes; previous output/evidence paths and validation limits remain as recorded above. Documentation-only task commit appropriate; no push or next-action execution.
