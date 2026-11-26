@@ -101,3 +101,899 @@ features:
     missing_value: -999
     valid_range: [1, 5]
     histogram: {bins: 5, range: [1, 6]}
+
+  # ---- Baseline SciFi cluster scalars recomputed with gap-tolerant clusters ----
+  # Same definitions as convertData/scifi_plane_clustering.py, but clusters are
+  # built by gap_clusters.cluster_hits (runs merged across up to
+  # max_missing_channels missing channels; default 1). Branch names get the
+  # silvia__ prefix, e.g. silvia__scifi_cluster_total_count.
+  scifi_vertical_cluster1_exists:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_exists.
+    unit:
+    missing_value: -999
+  scifi_vertical_cluster1_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_nhits.
+    unit:
+    missing_value: -999
+  scifi_vertical_cluster1_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster1_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster1_plane_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_plane_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster1_plane_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_plane_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster1_orientation_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_orientation_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster1_orientation_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_orientation_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster1_qdc_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_qdc_std.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster1_qdc_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_qdc_cv.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster1_qdc_roughness:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster1_qdc_roughness.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_exists:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_exists.
+    unit:
+    missing_value: -999
+  scifi_vertical_cluster2_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_nhits.
+    unit:
+    missing_value: -999
+  scifi_vertical_cluster2_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_plane_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_plane_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_plane_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_plane_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_orientation_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_orientation_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_orientation_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_orientation_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_qdc_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_qdc_std.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_qdc_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_qdc_cv.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_qdc_roughness:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_qdc_roughness.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_to_cluster1_hit_ratio:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_to_cluster1_hit_ratio.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_to_cluster1_qdc_ratio:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_to_cluster1_qdc_ratio.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster2_to_cluster1_qdc_per_hit_ratio:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster2_to_cluster1_qdc_per_hit_ratio.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_top2_station_delta:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_top2_station_delta.
+    unit:
+    missing_value: -999
+  scifi_vertical_top2_station_separation:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_top2_station_separation.
+    unit:
+    missing_value: -999
+  scifi_vertical_top2_same_station:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_top2_same_station.
+    unit:
+    missing_value: -999
+  scifi_vertical_top2_qdc_downstream_asymmetry:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_top2_qdc_downstream_asymmetry.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_top2_hit_downstream_asymmetry:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_top2_hit_downstream_asymmetry.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_other_cluster_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_other_cluster_count.
+    unit:
+    missing_value: -999
+  scifi_vertical_other_cluster_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_other_cluster_nhits.
+    unit:
+    missing_value: -999
+  scifi_vertical_other_cluster_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_other_cluster_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_other_cluster_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_other_cluster_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_other_cluster_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_other_cluster_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_other_cluster_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_other_cluster_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_count.
+    unit:
+    missing_value: -999
+  scifi_vertical_active_plane_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_active_plane_count.
+    unit:
+    missing_value: -999
+  scifi_vertical_active_station_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_active_station_count.
+    unit:
+    missing_value: -999
+  scifi_vertical_total_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_total_nhits.
+    unit:
+    missing_value: -999
+  scifi_vertical_total_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_total_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_nhits_mean:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_nhits_mean.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_nhits_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_nhits_std.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_nhits_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_nhits_cv.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_total_qdc_mean:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_total_qdc_mean.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_total_qdc_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_total_qdc_std.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_total_qdc_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_total_qdc_cv.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_qdc_per_hit_mean:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_qdc_per_hit_mean.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_qdc_per_hit_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_qdc_per_hit_std.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_qdc_per_hit_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_qdc_per_hit_cv.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_effective_hit_cluster_count:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_effective_hit_cluster_count.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_effective_qdc_cluster_count:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_effective_qdc_cluster_count.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_hit_frac1:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_frac1.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_hit_frac2:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_frac2.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_hit_frac3:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_frac3.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_hit_frac4:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_frac4.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_hit_frac5:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_frac5.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_frac1:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_frac1.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_frac2:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_frac2.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_frac3:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_frac3.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_frac4:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_frac4.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_frac5:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_frac5.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_count_frac1:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_count_frac1.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_count_frac2:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_count_frac2.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_count_frac3:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_count_frac3.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_count_frac4:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_count_frac4.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_count_frac5:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_count_frac5.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_hit_mean_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_mean_station.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_hit_std_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_std_station.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_mean_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_mean_station.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_std_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_std_station.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_mean_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_mean_station.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_std_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_std_station.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_max_hit_station:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_max_hit_station.
+    unit:
+    missing_value: -999
+  scifi_vertical_max_qdc_station:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_max_qdc_station.
+    unit:
+    missing_value: -999
+  scifi_vertical_max_cluster_count_station:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_max_cluster_count_station.
+    unit:
+    missing_value: -999
+  scifi_vertical_hit_station_slope:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_station_slope.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_station_slope:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_station_slope.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_hit_station_curvature:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_station_curvature.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_station_curvature:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_station_curvature.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster1_exists:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_exists.
+    unit:
+    missing_value: -999
+  scifi_horizontal_cluster1_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_nhits.
+    unit:
+    missing_value: -999
+  scifi_horizontal_cluster1_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster1_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster1_plane_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_plane_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster1_plane_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_plane_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster1_orientation_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_orientation_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster1_orientation_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_orientation_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster1_qdc_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_qdc_std.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster1_qdc_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_qdc_cv.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster1_qdc_roughness:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster1_qdc_roughness.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_exists:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_exists.
+    unit:
+    missing_value: -999
+  scifi_horizontal_cluster2_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_nhits.
+    unit:
+    missing_value: -999
+  scifi_horizontal_cluster2_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_plane_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_plane_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_plane_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_plane_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_orientation_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_orientation_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_orientation_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_orientation_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_qdc_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_qdc_std.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_qdc_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_qdc_cv.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_qdc_roughness:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_qdc_roughness.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_to_cluster1_hit_ratio:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_to_cluster1_hit_ratio.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_to_cluster1_qdc_ratio:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_to_cluster1_qdc_ratio.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster2_to_cluster1_qdc_per_hit_ratio:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster2_to_cluster1_qdc_per_hit_ratio.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_top2_station_delta:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_top2_station_delta.
+    unit:
+    missing_value: -999
+  scifi_horizontal_top2_station_separation:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_top2_station_separation.
+    unit:
+    missing_value: -999
+  scifi_horizontal_top2_same_station:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_top2_same_station.
+    unit:
+    missing_value: -999
+  scifi_horizontal_top2_qdc_downstream_asymmetry:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_top2_qdc_downstream_asymmetry.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_top2_hit_downstream_asymmetry:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_top2_hit_downstream_asymmetry.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_other_cluster_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_other_cluster_count.
+    unit:
+    missing_value: -999
+  scifi_horizontal_other_cluster_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_other_cluster_nhits.
+    unit:
+    missing_value: -999
+  scifi_horizontal_other_cluster_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_other_cluster_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_other_cluster_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_other_cluster_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_other_cluster_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_other_cluster_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_other_cluster_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_other_cluster_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_count.
+    unit:
+    missing_value: -999
+  scifi_horizontal_active_plane_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_active_plane_count.
+    unit:
+    missing_value: -999
+  scifi_horizontal_active_station_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_active_station_count.
+    unit:
+    missing_value: -999
+  scifi_horizontal_total_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_total_nhits.
+    unit:
+    missing_value: -999
+  scifi_horizontal_total_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_total_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_nhits_mean:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_nhits_mean.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_nhits_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_nhits_std.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_nhits_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_nhits_cv.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_total_qdc_mean:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_total_qdc_mean.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_total_qdc_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_total_qdc_std.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_total_qdc_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_total_qdc_cv.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_qdc_per_hit_mean:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_qdc_per_hit_mean.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_qdc_per_hit_std:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_qdc_per_hit_std.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_qdc_per_hit_cv:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_qdc_per_hit_cv.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_effective_hit_cluster_count:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_effective_hit_cluster_count.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_effective_qdc_cluster_count:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_effective_qdc_cluster_count.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_hit_frac1:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_hit_frac1.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_hit_frac2:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_hit_frac2.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_hit_frac3:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_hit_frac3.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_hit_frac4:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_hit_frac4.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_hit_frac5:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_hit_frac5.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_frac1:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_frac1.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_frac2:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_frac2.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_frac3:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_frac3.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_frac4:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_frac4.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_frac5:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_frac5.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_count_frac1:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_count_frac1.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_count_frac2:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_count_frac2.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_count_frac3:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_count_frac3.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_count_frac4:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_count_frac4.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_count_frac5:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_count_frac5.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_hit_mean_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_hit_mean_station.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_hit_std_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_hit_std_station.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_mean_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_mean_station.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_std_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_std_station.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_mean_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_mean_station.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_cluster_std_station:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_cluster_std_station.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_max_hit_station:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_max_hit_station.
+    unit:
+    missing_value: -999
+  scifi_horizontal_max_qdc_station:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_max_qdc_station.
+    unit:
+    missing_value: -999
+  scifi_horizontal_max_cluster_count_station:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_max_cluster_count_station.
+    unit:
+    missing_value: -999
+  scifi_horizontal_hit_station_slope:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_hit_station_slope.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_station_slope:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_station_slope.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_hit_station_curvature:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_hit_station_curvature.
+    unit:
+    missing_value: -999.0
+  scifi_horizontal_qdc_station_curvature:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_horizontal_qdc_station_curvature.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_qdc_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_vertical_cluster_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_vertical_cluster_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_orientation_hit_asymmetry:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_orientation_hit_asymmetry.
+    unit:
+    missing_value: -999.0
+  scifi_orientation_qdc_asymmetry:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_orientation_qdc_asymmetry.
+    unit:
+    missing_value: -999.0
+  scifi_orientation_cluster_asymmetry:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_orientation_cluster_asymmetry.
+    unit:
+    missing_value: -999.0
+  scifi_cluster_total_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_cluster_total_count.
+    unit:
+    missing_value: -999
+  scifi_cluster_total_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_cluster_total_nhits.
+    unit:
+    missing_value: -999
+  scifi_cluster_total_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_cluster_total_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_cluster_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_cluster_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_other_clusters_count:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_other_clusters_count.
+    unit:
+    missing_value: -999
+  scifi_other_clusters_nhits:
+    dtype: int64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_other_clusters_nhits.
+    unit:
+    missing_value: -999
+  scifi_other_clusters_qdc:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_other_clusters_qdc.
+    unit:
+    missing_value: -999.0
+  scifi_other_clusters_qdc_per_hit:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_other_clusters_qdc_per_hit.
+    unit:
+    missing_value: -999.0
+  scifi_other_clusters_hit_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_other_clusters_hit_fraction.
+    unit:
+    missing_value: -999.0
+  scifi_other_clusters_qdc_fraction:
+    dtype: float64
+    description: Gap-tolerant clustering (max 1 missing channel) version of baseline scifi_other_clusters_qdc_fraction.
+    unit:
+    missing_value: -999.0
