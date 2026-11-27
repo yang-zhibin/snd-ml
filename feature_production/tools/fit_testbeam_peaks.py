@@ -4,22 +4,27 @@
 For every curve (particle x dataset x energy) of a finished testbeam production
 run, fit a Gaussian around the distribution peak and record the fitted mean.
 Then plot peak position versus beam energy, separately for MC and for data,
-with electrons and pions overlaid. Intended for features expected to be
-energy independent, such as the cluster density fractions.
+with electrons and pions overlaid. Default features: the cluster-1 density
+fractions (expected energy independent) and the cluster-1 densities.
 
-Fit: start at the highest bin above --min-x (default 0.04, which skips the
-near-zero spike of diffuse hadronic showers), then iterate a Gaussian fit in
+Detector setups are never mixed: tungsten (2024, W walls) and iron (2023 H8,
+Fe walls) are fitted and plotted separately (--setups, default W Fe).
+
+Fit: start at the highest bin above xmin + f*(xmax-xmin) (f = --min-x-fraction,
+default per feature: 0.04 for fractions, i.e. x > 0.04, skipping the near-zero
+spike of diffuse hadronic showers; 0.02 = the first bin for densities), then iterate a Gaussian fit in
 [mean - K*sigma, mean + K*sigma] (K = --window, default 1.5) until it is stable.
 Curves whose maximum sits in the first/last bin are fitted the same way but
 flagged in peaks.csv (edge_peak = 1). Curves without a peak above --min-x (fitted
 mean pinned to the window edge, has_peak = 0) are kept in peaks.csv but left out
 of the fit pages' curves and of the peak-vs-energy plots.
 
-Output (default <run>/peak-vs-energy/<selection>/<feature>/):
+Output (default <run>/peak-vs-energy/<selection>/<feature>/), tungsten:
   fits.pdf                one page per energy: histograms + fitted Gaussians
   peak_vs_energy_mc.pdf   e and pi MC: fitted peak vs E
   peak_vs_energy_data.pdf e and pi data: fitted peak vs E
-  peaks.csv               fit results (mean, sigma, errors, chi2/ndf, flags)
+iron: the same names with suffix _Fe (only files with curves are written);
+  peaks.csv in the output root: fit results (mean, sigma, errors, chi2/ndf, flags)
 
 Run inside the LCG environment (node with working CVMFS):
   source snakemake/envs/env_lcg.sh
@@ -39,17 +44,31 @@ ROOT = tb.ROOT
 DEFAULT_FEATURES = [
     'silvia__scifi_horizontal_cluster1_density_fraction',
     'silvia__scifi_vertical_cluster1_density_fraction',
+    'silvia__scifi_horizontal_cluster1_density',
+    'silvia__scifi_vertical_cluster1_density',
 ]
+SETUP_SUFFIX = {'W': '', 'Fe': '_Fe'}
+# Lowest fraction of the x axis ignored in peak search/fit: fractions skip x < 0.04;
+# densities (50 bins of ~750) skip only the first bin, which holds no-shower events.
+MIN_X_FRACTION = {'_density_fraction': 0.04, '_density': 0.02}
+
+
+def default_min_x_fraction(feature):
+    for ending, value in MIN_X_FRACTION.items():
+        if feature.endswith(ending):
+            return value
+    return 0.04
 # Known problematic data run, annotated on the data plot (see task notes 2026-11-26).
 FLAGGED = {('testbeam_data_2024', 11, 100): 'e^{-} 100 GeV data: run 100890 (75% empty, not a clean e^{-} sample)'}
 SERIES_MARKERS = {('mc', 11): 20, ('mc', 211): 21, ('mc', -211): 25,
                   ('data', 11): 20, ('data', 211): 21, ('data', -211): 25}
 
 
-def fit_peak(hist, window, name, min_x):
-    """Iterative Gaussian fit around the peak above min_x. Returns dict or None if empty."""
+def fit_peak(hist, window, name, min_x_fraction):
+    """Iterative Gaussian fit around the peak above xmin + f*(xmax - xmin). None if empty."""
     axis = hist.GetXaxis()
     nbins = axis.GetNbins()
+    min_x = axis.GetXmin() + min_x_fraction * (axis.GetXmax() - axis.GetXmin())
     first = max(1, axis.FindBin(min_x + 1e-9)) if min_x is not None else 1
     if axis.GetBinLowEdge(first) < min_x if min_x is not None else False:
         first += 1
@@ -123,7 +142,7 @@ def draw_trend(path, curves, kind, feature, axis_title, keep):
     canvas.SetTopMargin(0.08)
     keep.append(canvas)
     if not series:
-        return canvas
+        return None
     values = [c['fit']['mean'] for group in series.values() for c in group]
     span = max(values) - min(values)
     ylo = max(0.0, min(values) - 0.4 * max(span, 0.05))
@@ -178,24 +197,43 @@ def draw_trend(path, curves, kind, feature, axis_title, keep):
     return canvas
 
 
-def process(selection_dir, out_dir, feature, selection, window, min_x, writer):
-    by_energy = tb.load_curves(selection_dir)
-    if not by_energy:
-        return 0
+def setup_of(curve):
+    """'W', 'Fe', ... from the curve geometry ids (first match)."""
+    for geometry in curve['geometries']:
+        match = tb.GEOMETRY_RE.match(str(geometry))
+        if match:
+            return match['material']
+    return 'unknown'
+
+
+def load_all_setups(selection_dir):
+    """Load curves of every setup (iron included), grouped by setup then energy."""
+    saved = set(tb.EXCLUDED_MATERIALS)
+    tb.EXCLUDED_MATERIALS.clear()
+    try:
+        by_energy = tb.load_curves(selection_dir)
+    finally:
+        tb.EXCLUDED_MATERIALS.update(saved)
+    grouped = {}
+    for energy, curves in by_energy.items():
+        for curve in curves:
+            grouped.setdefault(setup_of(curve), {}).setdefault(energy, []).append(curve)
+    return grouped
+
+
+def process_setup(by_energy, out_dir, suffix, feature, selection, window, min_x_fraction, writer, keep):
     cfg = next(iter(by_energy.values()))[0]['config']
     axis_title = cfg.get('axis_title') or feature
     if len(axis_title) > 60:
         axis_title = feature
-    out_dir.mkdir(parents=True, exist_ok=True)
-    keep, all_curves, nfit = [], [], 0
+    all_curves, nfit, pages = [], 0, []
     energies = sorted(by_energy)
-    pages = []
     for energy in energies:
         curves = sorted(by_energy[energy], key=tb.sort_key)
         for curve in curves:
             plotted = tb.normalised(curve, energy, feature)
             name = 'g_%s_%s_%d_%d' % (feature, curve['domain'], curve['pdg'], energy)
-            curve['fit'] = fit_peak(plotted, window, name.replace('-', 'm'), min_x)
+            curve['fit'] = fit_peak(plotted, window, name.replace('-', 'm'), min_x_fraction)
             nfit += curve['fit'] is not None
             all_curves.append(curve)
             fit = curve['fit'] or {}
@@ -204,18 +242,29 @@ def process(selection_dir, out_dir, feature, selection, window, min_x, writer):
                                  geometry=tb.geometry_label(curve['geometries']), valid_entries=curve['valid'],
                                  **{k: fit.get(k, '') for k in ('mean', 'mean_err', 'sigma', 'sigma_err', 'chi2_ndf',
                                                                'fit_low', 'fit_high', 'status', 'edge_peak', 'has_peak')}))
-        canvas = ROOT.TCanvas('fit_%s_%d' % (feature, energy), '', 900, 700)
+        canvas = ROOT.TCanvas('fit_%s%s_%d' % (feature, suffix, energy), '', 900, 700)
         draw_fit_page(canvas, curves, energy, feature, axis_title, keep)
         pages.append(canvas)
-    fits_pdf = str(out_dir / 'fits.pdf')
+    fits_pdf = str(out_dir / ('fits%s.pdf' % suffix))
     for i, canvas in enumerate(pages):
-        suffix = '(' if i == 0 else (')' if i == len(pages) - 1 else '')
-        if len(pages) == 1:
-            suffix = ''
-        canvas.Print(fits_pdf + suffix, 'Title:%d GeV' % energies[i])
-    draw_trend(out_dir / 'peak_vs_energy_mc.pdf', all_curves, 'mc', feature, axis_title, keep)
-    draw_trend(out_dir / 'peak_vs_energy_data.pdf', all_curves, 'data', feature, axis_title, keep)
+        suffix_print = '' if len(pages) == 1 else ('(' if i == 0 else (')' if i == len(pages) - 1 else ''))
+        canvas.Print(fits_pdf + suffix_print, 'Title:%d GeV' % energies[i])
+    for kind in ('mc', 'data'):
+        draw_trend(out_dir / ('peak_vs_energy_%s%s.pdf' % (kind, suffix)), all_curves, kind, feature + suffix,
+                   axis_title, keep)
     return nfit
+
+
+def process(selection_dir, out_dir, feature, selection, window, min_x_fraction, setups, writer):
+    grouped = load_all_setups(selection_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    keep, counts = [], {}
+    for setup in setups:
+        if setup not in grouped:
+            continue
+        counts[setup] = process_setup(grouped[setup], out_dir, SETUP_SUFFIX.get(setup, '_' + setup), feature,
+                                      selection, window, min_x_fraction, writer, keep)
+    return counts
 
 
 def main():
@@ -225,13 +274,12 @@ def main():
     parser.add_argument('--features', nargs='*', default=DEFAULT_FEATURES)
     parser.add_argument('--selection', default='selected')
     parser.add_argument('--window', type=float, default=1.5, help='Fit window half-width in sigmas (default 1.5)')
-    parser.add_argument('--include-iron', action='store_true',
-                        help='Also fit iron (2023 H8 Fe walls) setups; excluded by default')
-    parser.add_argument('--min-x', type=float, default=0.04,
-                        help='Ignore x below this in peak search and fit (default 0.04: skips the near-zero spike)')
+    parser.add_argument('--setups', nargs='+', default=['W', 'Fe'],
+                        help='Detector setups to analyse, each separately (default: W Fe)')
+    parser.add_argument('--min-x-fraction', type=float, default=None,
+                        help='Ignore the lowest fraction of the x axis in peak search and fit '
+                             '(default per feature: 0.04 for fractions, 0.02 = first bin for densities)')
     args = parser.parse_args()
-    if args.include_iron:
-        tb.EXCLUDED_MATERIALS.clear()
     out_root = args.out or args.run / 'peak-vs-energy'
     out_root.mkdir(parents=True, exist_ok=True)
     fields = ['feature', 'selection', 'energy_gev', 'group', 'particle_pdg', 'kind', 'domain', 'geometry',
@@ -245,9 +293,10 @@ def main():
             if not selection_dir.is_dir():
                 print('missing', selection_dir)
                 continue
-            n = process(selection_dir, out_root / args.selection / feature, feature, args.selection,
-                        args.window, args.min_x, writer)
-            print('%-55s %d fits' % (feature, n))
+            counts = process(selection_dir, out_root / args.selection / feature, feature, args.selection,
+                             args.window, args.min_x_fraction if args.min_x_fraction is not None
+                             else default_min_x_fraction(feature), args.setups, writer)
+            print('%-55s fits per setup: %s' % (feature, counts))
     print('Output:', out_root)
 
 
