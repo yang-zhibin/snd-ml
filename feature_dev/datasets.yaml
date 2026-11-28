@@ -25,7 +25,7 @@ datasets:
       events_per_group: 25
       catalogues:
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_mc_2024.csv
-        - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_data_2024.csv
+        - catalogues/testbeam_data_2024_run100916.csv
         - /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/testbeam_2023_h8_v2/testbeam_data_2023_h8.csv
     description: Testbeam data and MC; preserve particle, energy and geometry labels.
     normalization: auto

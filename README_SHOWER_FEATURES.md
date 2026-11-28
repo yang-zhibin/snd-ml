@@ -202,6 +202,8 @@ requirements. The small-sample file/event caps do not apply to `--sample full`.
 
 ## Further reference
 
+- [2024 testbeam catalogue](feature_dev/catalogues/README.md): 100 GeV electrons now use run100916; no separate cutflow is required.
+
 - [SciFi clock-cycle selection](feature_dev/SCIFI_CLOCK_CYCLE.md): timing windows, peak calculation, code locations and commands.
 
 - [Data formats and structure](feature_dev/DATA_FORMAT.md): raw inputs, MC truth,
