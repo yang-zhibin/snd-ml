@@ -625,3 +625,19 @@ Evidence: `feature_dev/output/timing-selection-20261126/` contains copied
 catalogues/config, tests, batch logs, default-parity.json, comparison.json,
 verify_comparison.py, jobs.json, final-queue.txt and pdfinfo reports. Each job's
 cluster/token/log directory is in jobs.json. No new full campaign or push.
+
+## 2026-11-28: run100916 catalogue replacement
+
+Implementation `e74dbab1482639821b1fee81a0469a67ea3727b5` replaces the default
+2024 electron100GeV source with15 run100916 files in direct_input mode.
+All15ROOT headers match upstream100000entries/file; other14data rows unchanged.
+A20event production preview from raw-0007 completed conversion, validation,
+auto ranges, histograms and PDF rendering (5/5 local Snakemake steps).
+All output stage receipts verified;26PDFs/26histograms. All20events have runId100916,
+eventIndex0–19 and positive count_scifi. Default25source small DAG dry-run passed.
+No full-campaign quality/empty-rate claim: only20events converted, remaining files
+header-checked. No coworker-account or batch test for this change.
+
+Evidence: `feature_dev/output/run100916-20261128/` (preview.log,
+default-dry-run.log,source-check.json,products.json). Output:
+`/afs/cern.ch/work/z/zhibin/snd-ml-outputs/shower-features/testbeam/run100916-check-20261128/`.
