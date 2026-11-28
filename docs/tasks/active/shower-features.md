@@ -5,9 +5,9 @@
 - Lifecycle: active
 - Worktree: `/afs/cern.ch/work/z/zhibin/worktrees/snd-ml-shower-features`
 - Branch: `task/shower-features`
-- Last verified: 2026-11-28T17:30:53+01:00
+- Last verified: 2026-11-28T17:32:26+01:00
 - Implementation checkpoint: e74dbab1482639821b1fee81a0469a67ea3727b5
-- Implemented: Default 2024 testbeam catalogue now replaces electron100GeV run100890 with all15 run100916 files, direct_input,1500000 eligible events. Other14 data rows exactly preserved; MC/H8 catalogues unchanged. Versioned CSV, reproducible header-validating builder and coworker README committed locally; not pushed. Existing timing implementation a454ef3 remains published.
+- Implemented: Default 2024 testbeam catalogue now replaces electron100GeV run100890 with all15 run100916 files, direct_input,1500000 eligible events. Other14 data rows exactly preserved; MC/H8 catalogues unchanged. Versioned CSV, reproducible header-validating builder and coworker README published to origin/task/shower-features through 88e1dfd3871a4483c150437eccc74feec617349b; remote SHA verified. Existing timing implementation a454ef3 remains published.
 - Validation: All15 cbmsim headers readable,100000 entries each, matching upstream metadata and beam/geometry.15 unique replacement IDs,29 total data rows;14 old rows exactly preserved. Default launcher dry-run passed25sources. Isolated20event production run completed5/5 local Snakemake steps, conversion/validation/ranges/histograms/PDFs; all stage receipts verified.20entries runId100916,eventIndex0–19; zero zero-SciFi events in preview;26PDFs and26histograms. git diff --check and main launcher handoff checked.
 - Remaining limitations: Header checks on all15 files, only20events from raw-0007 converted. No full1.5M scan, full campaign, empty-rate measurement or coworker-account access test. Upstream geometry metadata reused (beam+20mm); detailed alignment/quality not certified. New direct input intentionally includes all entries, unlike old50000-event cap. Original Snakemake shared manifest was not replaced; default run_shower_features.sh registry was updated. Previous timing-test limitations remain in history/TEST_RESULTS.md.
 - Running jobs: None launched in HTCondor. Local preview exited0,5/5steps complete; default dry-run exited0. No pending process from this task.
@@ -19,7 +19,7 @@ Unify shower feature computation and diagnostics.
 
 ## Next action
 
-Await the user's request to publish the tested run100916 catalogue update; do not start full processing or additional run selection from this checkpoint.
+Await coworker feedback on the published run100916 default; do not start full processing or additional run selection from this checkpoint.
 
 ## Checkpoint history
 
@@ -1912,3 +1912,7 @@ Verified authorized pwd/branch; preserved existing checkpoint-only changes. Read
 User requested coworker use run100916 instead of100890. Exact upstream CSV already lists15files but /eos/user/z/zhibin/TestBeam/binary_full_v1/catalog/master_sources.csv contains no100916 row. Bounded listing confirmed sndsw_raw-0000 through0014. Existing direct_input selection fully supported for real_testbeam by converter/validator, so no artificial cutflow needed. Builder checks headers/upstream labels and retains other14rows; default registry points to tracked versioned CSV. Shared original CSV, ROOTs, upstream metadata and other checkouts unchanged. Implementation e74dbab1482639821b1fee81a0469a67ea3727b5, local only. CSV tracking required a narrow catalogue .gitignore exception to general CSV exclusion.
 
 Commands/results: LCG107 Python3.11.9/uproot5.3.11 build_testbeam_run100916.py --base /afs/cern.ch/work/z/zhibin/snd-ml-outputs/unified_shower_features_v1/metadata/manifests/testbeam_data_2024.csv --upstream /afs/cern.ch/work/z/zhibin/snd-ml/testbeam/metadata/updated/real_data_testbeam_24_metadata.csv --output feature_dev/catalogues/testbeam_data_2024_run100916.csv passed15headers/1.5Mcounts. CSV assertions passed uniqueness, direct_input/emptycutflow and14unchangedrows. ./run_shower_features.sh --dataset testbeam --plugin silvia --dataset-config feature_dev/output/run100916-20261128/testbeam.json --sample small --run run100916-check-20261128 exited0,5/5localsteps. Isolated config contains only15replacementrows; deterministic selection chose raw-0007. ./run_shower_features.sh --dataset testbeam --plugin silvia --sample small --run run100916-default-check-20261128 --dry-run exited0,25sources. No batch IDs (local only). Independent ROOT check:20run100916entries,index0–19,all count_scifi positive; stage receipt verification passed,26PDFs/26histograms. Logs/output paths and limitations recorded in Current state. Main launcher python3 /afs/cern.ch/work/z/zhibin/snd-ml/docs/tasks/manage_task.py --check-handoff shower-features and git diff --check passed for final record. Previous uncommitted inspection history preserved; no next action executed.
+
+### 2026-11-28T17:32:26+01:00 — Run100916 update published
+
+User authorized push. Verified pwd, task/shower-features branch, clean initial status and origin git@github.com:yang-zhibin/snd-ml.git. git push origin HEAD:refs/heads/task/shower-features succeeded (0df23da..88e1dfd); git ls-remote verified 88e1dfd3871a4483c150437eccc74feec617349b. Implementation remains e74dbab1482639821b1fee81a0469a67ea3727b5. Only task checkpoint changed in this publication follow-up, committed and pushed separately. Main launcher --check-handoff and git diff --check passed. No new tests, jobs or output changes; prior commands, output paths and validation limits retained. Coworker instructions drafted for user, not sent externally. No next action executed.
